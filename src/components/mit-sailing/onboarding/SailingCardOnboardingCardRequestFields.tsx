@@ -76,15 +76,18 @@ const formatMembershipPrice = (value: number | null) =>
 const hasFullSailingCoverage = (props: {
   readonly affiliation: SailingAffiliation | '';
   readonly hasFitnessMembershipValue: string | undefined;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
 }) =>
   props.affiliation !== '' &&
-  (!needsFitnessMembershipQuestion(props.affiliation) ||
+  (props.hasVerifiedMitRecreationMembership === true ||
+    !needsFitnessMembershipQuestion(props.affiliation) ||
     props.hasFitnessMembershipValue === 'yes');
 
 const membershipPriceLabelKey = (props: {
   readonly affiliation: SailingAffiliation | '';
   readonly cardType: SailingCardType;
   readonly hasFitnessMembershipValue: string | undefined;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
   readonly priceCents: number | null;
 }) => {
   if (props.cardType === SailingCardType.normal) {
@@ -100,6 +103,8 @@ const membershipPriceLabelKey = (props: {
     hasFullSailingCoverage({
       affiliation: props.affiliation,
       hasFitnessMembershipValue: props.hasFitnessMembershipValue,
+      hasVerifiedMitRecreationMembership:
+        props.hasVerifiedMitRecreationMembership,
     })
   ) {
     return 'card_type_price_covered_by_full';
@@ -243,6 +248,7 @@ function CardTypePriceBadge(props: {
   readonly affiliation: SailingAffiliation | '';
   readonly cardType: SailingCardType;
   readonly hasFitnessMembershipValue: string | undefined;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
   readonly price: string | null;
   readonly priceCents: number | null;
 }) {
@@ -251,6 +257,8 @@ function CardTypePriceBadge(props: {
     affiliation: props.affiliation,
     cardType: props.cardType,
     hasFitnessMembershipValue: props.hasFitnessMembershipValue,
+    hasVerifiedMitRecreationMembership:
+      props.hasVerifiedMitRecreationMembership,
     priceCents: props.priceCents,
   });
   const priceLabel =
@@ -274,12 +282,15 @@ function CardTypeDescription(props: {
   readonly affiliation: SailingAffiliation | '';
   readonly cardType: SailingCardType;
   readonly hasFitnessMembershipValue: string | undefined;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
   readonly price: string | null;
 }) {
   const t = useTranslations('OnboardingPage');
   const coveredByFull = hasFullSailingCoverage({
     affiliation: props.affiliation,
     hasFitnessMembershipValue: props.hasFitnessMembershipValue,
+    hasVerifiedMitRecreationMembership:
+      props.hasVerifiedMitRecreationMembership,
   });
 
   if (props.cardType === SailingCardType.racing) {
@@ -323,6 +334,7 @@ function CardTypeRadio(props: {
   readonly cardTypeValue: string | undefined;
   readonly dateOfBirthValue: string | undefined;
   readonly hasFitnessMembershipValue: string | undefined;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
   readonly now: Date;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
 }) {
@@ -356,6 +368,9 @@ function CardTypeRadio(props: {
             affiliation={props.affiliation}
             cardType={props.cardType}
             hasFitnessMembershipValue={props.hasFitnessMembershipValue}
+            hasVerifiedMitRecreationMembership={
+              props.hasVerifiedMitRecreationMembership
+            }
             price={price}
             priceCents={priceCents}
           />
@@ -364,6 +379,9 @@ function CardTypeRadio(props: {
           affiliation={props.affiliation}
           cardType={props.cardType}
           hasFitnessMembershipValue={props.hasFitnessMembershipValue}
+          hasVerifiedMitRecreationMembership={
+            props.hasVerifiedMitRecreationMembership
+          }
           price={price}
         />
       </span>
@@ -378,6 +396,7 @@ function CardTypeSelect(props: {
   readonly dateOfBirthValue: string | undefined;
   readonly fitnessMembershipReady: boolean;
   readonly hasFitnessMembershipValue: string | undefined;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
   readonly now: Date;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly state: SailingCardOnboardingFormState;
@@ -391,6 +410,8 @@ function CardTypeSelect(props: {
   const coveredByFull = hasFullSailingCoverage({
     affiliation: props.affiliation,
     hasFitnessMembershipValue: props.hasFitnessMembershipValue,
+    hasVerifiedMitRecreationMembership:
+      props.hasVerifiedMitRecreationMembership,
   });
   const cardTypes = coveredByFull
     ? [SailingCardType.normal]
@@ -452,6 +473,9 @@ function CardTypeSelect(props: {
               cardTypeValue={props.cardTypeValue}
               dateOfBirthValue={props.dateOfBirthValue}
               hasFitnessMembershipValue={props.hasFitnessMembershipValue}
+              hasVerifiedMitRecreationMembership={
+                props.hasVerifiedMitRecreationMembership
+              }
               key={cardType}
               now={props.now}
               register={props.register}
@@ -472,6 +496,42 @@ function CardTypeSelect(props: {
   );
 }
 
+function FitnessMembershipRequestState(props: {
+  readonly affiliation: SailingAffiliation | '';
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
+  readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
+  readonly setValue: UseFormSetValue<SailingCardOnboardingFormValues>;
+  readonly state: SailingCardOnboardingFormState;
+}) {
+  const t = useTranslations('OnboardingPage');
+
+  if (props.hasVerifiedMitRecreationMembership === true) {
+    return (
+      <p className="text-xs leading-5 text-muted-foreground">
+        {t('fitness_membership_verified_mit_recreation')}
+      </p>
+    );
+  }
+
+  if (needsFitnessMembershipQuestion(props.affiliation)) {
+    return (
+      <FitnessMembershipQuestion
+        clientErrors={props.clientErrors}
+        register={props.register}
+        setValue={props.setValue}
+        state={props.state}
+      />
+    );
+  }
+
+  return (
+    <p className="text-xs leading-5 text-muted-foreground">
+      {t('fitness_membership_auto_mit_student')}
+    </p>
+  );
+}
+
 export function CardRequestSection(props: {
   readonly affiliation: SailingAffiliation | '';
   readonly cardTypeValue: string | undefined;
@@ -479,6 +539,7 @@ export function CardRequestSection(props: {
   readonly dateOfBirthValue: string | undefined;
   readonly fitnessMembershipReady: boolean;
   readonly hasFitnessMembershipValue: string | undefined;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
   readonly now: Date;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly setValue: UseFormSetValue<SailingCardOnboardingFormValues>;
@@ -491,18 +552,16 @@ export function CardRequestSection(props: {
       <h2 className="text-base font-semibold text-foreground">
         {t('card_request_heading')}
       </h2>
-      {needsFitnessMembershipQuestion(props.affiliation) ? (
-        <FitnessMembershipQuestion
-          clientErrors={props.clientErrors}
-          register={props.register}
-          setValue={props.setValue}
-          state={props.state}
-        />
-      ) : (
-        <p className="text-xs leading-5 text-muted-foreground">
-          {t('fitness_membership_auto_mit_student')}
-        </p>
-      )}
+      <FitnessMembershipRequestState
+        affiliation={props.affiliation}
+        clientErrors={props.clientErrors}
+        hasVerifiedMitRecreationMembership={
+          props.hasVerifiedMitRecreationMembership
+        }
+        register={props.register}
+        setValue={props.setValue}
+        state={props.state}
+      />
       <CardTypeSelect
         affiliation={props.affiliation}
         cardTypeValue={props.cardTypeValue}
@@ -510,6 +569,9 @@ export function CardRequestSection(props: {
         dateOfBirthValue={props.dateOfBirthValue}
         fitnessMembershipReady={props.fitnessMembershipReady}
         hasFitnessMembershipValue={props.hasFitnessMembershipValue}
+        hasVerifiedMitRecreationMembership={
+          props.hasVerifiedMitRecreationMembership
+        }
         now={props.now}
         register={props.register}
         state={props.state}

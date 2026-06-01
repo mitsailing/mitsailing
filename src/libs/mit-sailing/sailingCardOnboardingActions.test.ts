@@ -11,6 +11,7 @@ import {
   sailingCardAgreement,
   sailingCardAgreementHash,
 } from '@/libs/mit-sailing/sailingCardAgreement';
+import type { SailingCardOnboardingFormValues } from '@/libs/mit-sailing/sailingCardOnboardingActions';
 import type * as SailingCardValidityModule from '@/libs/mit-sailing/sailingCardValidity';
 
 const mocks = vi.hoisted(() => ({
@@ -48,6 +49,53 @@ type MockOnboardingTransactionClient = {
 type MockOnboardingTransaction = (
   transactionClient: MockOnboardingTransactionClient
 ) => unknown;
+
+type CurrentUserFixture = {
+  readonly emergencyContactName: string | null;
+  readonly emergencyContactPhone: string | null;
+  readonly gymMembershipVerifiedAt: Date | null;
+  readonly legalAgreementAcceptances: readonly unknown[];
+  readonly phone: string | null;
+  readonly sailingCardIssuedByUserId: string | null;
+  readonly sailingCardNumber: number | null;
+  readonly sailingCardYear: number | null;
+  readonly sailingCardExpiresOn: Date | null;
+  readonly sailingCardIssuedAt: Date | null;
+  readonly sailingCardRequestedAt: Date | null;
+  readonly sailingCardRequests: readonly unknown[];
+  readonly sailingCardSwimAgreementInitials: string | null;
+  readonly sailingCardSwimAgreementInitialedAt: Date | null;
+};
+
+const baseCurrentUserFixture: CurrentUserFixture = {
+  emergencyContactName: null,
+  emergencyContactPhone: null,
+  gymMembershipVerifiedAt: null,
+  legalAgreementAcceptances: [],
+  phone: null,
+  sailingCardIssuedByUserId: null,
+  sailingCardNumber: null,
+  sailingCardYear: null,
+  sailingCardExpiresOn: null,
+  sailingCardIssuedAt: null,
+  sailingCardRequestedAt: null,
+  sailingCardRequests: [],
+  sailingCardSwimAgreementInitials: null,
+  sailingCardSwimAgreementInitialedAt: null,
+};
+
+const currentUserFixture = (
+  overrides: Partial<CurrentUserFixture> = {}
+): CurrentUserFixture => ({
+  ...baseCurrentUserFixture,
+  ...overrides,
+});
+
+const onboardingAcceptanceFixture = () => ({
+  acceptedAt: new Date('2026-05-21T16:00:00.000Z'),
+  agreementHash: sailingCardAgreementHash(),
+  agreementVersion: sailingCardAgreement.version,
+});
 
 vi.mock('next/navigation', () => ({
   redirect: mocks.redirect,
@@ -119,7 +167,7 @@ function onboardingFormData() {
   return formData;
 }
 
-const expectedOnboardingValues = {
+const expectedOnboardingValues: SailingCardOnboardingFormValues = {
   affiliation: SailingAffiliation.MIT_STUDENT,
   cardType: SailingCardType.normal,
   dateOfBirth: '2000-01-02',
@@ -138,6 +186,62 @@ const idleState = {
   status: 'idle',
   values: expectedOnboardingValues,
 } as const;
+
+const loadSubmitSailingCardOnboardingAction = async () => {
+  const actions =
+    await import('@/libs/mit-sailing/sailingCardOnboardingActions');
+  return actions.submitSailingCardOnboardingAction;
+};
+
+const alumOnboardingFormData = (props: {
+  readonly cardType?: SailingCardType;
+  readonly hasFitnessMembership: string;
+}) => {
+  const formData = onboardingFormData();
+  formData.set('affiliation', SailingAffiliation.MIT_ALUM);
+  formData.set('firstName', 'Grace');
+  formData.set('hasFitnessMembership', props.hasFitnessMembership);
+  formData.set('lastName', 'Hopper');
+  formData.set('mitId', '');
+  if (props.cardType !== undefined) {
+    formData.set('cardType', props.cardType);
+  }
+  return formData;
+};
+
+const expectedAlumOnboardingValues = (
+  overrides: Partial<typeof expectedOnboardingValues> = {}
+) => ({
+  ...expectedOnboardingValues,
+  affiliation: SailingAffiliation.MIT_ALUM,
+  firstName: 'Grace',
+  lastName: 'Hopper',
+  mitId: '',
+  ...overrides,
+});
+
+const expectAlumPaidRacingRejected = async (hasFitnessMembership: string) => {
+  const submitSailingCardOnboardingAction =
+    await loadSubmitSailingCardOnboardingAction();
+  await expect(
+    submitSailingCardOnboardingAction(
+      idleState,
+      alumOnboardingFormData({
+        cardType: SailingCardType.racing,
+        hasFitnessMembership,
+      })
+    )
+  ).resolves.toEqual({
+    fieldErrors: { cardType: 'invalid' },
+    status: 'error',
+    values: expectedAlumOnboardingValues({
+      cardType: SailingCardType.racing,
+      hasFitnessMembership,
+    }),
+  });
+
+  expect(mocks.prismaTransaction).not.toHaveBeenCalled();
+};
 
 describe('submitSailingCardOnboardingAction', () => {
   beforeEach(() => {
@@ -158,21 +262,7 @@ describe('submitSailingCardOnboardingAction', () => {
       classYear: '2027',
       personType: MitDataWarehousePersonType.CURRENT_STUDENT,
     });
-    mocks.prismaUserFindUnique.mockResolvedValue({
-      emergencyContactName: null,
-      emergencyContactPhone: null,
-      legalAgreementAcceptances: [],
-      phone: null,
-      sailingCardIssuedByUserId: null,
-      sailingCardNumber: null,
-      sailingCardYear: null,
-      sailingCardExpiresOn: null,
-      sailingCardIssuedAt: null,
-      sailingCardRequestedAt: null,
-      sailingCardRequests: [],
-      sailingCardSwimAgreementInitials: null,
-      sailingCardSwimAgreementInitialedAt: null,
-    });
+    mocks.prismaUserFindUnique.mockResolvedValue(currentUserFixture());
     mocks.prismaUserUpdate.mockResolvedValue({});
     mocks.prismaLegalAgreementAcceptanceCreate.mockResolvedValue({
       id: 'acceptance-1',
@@ -217,41 +307,31 @@ describe('submitSailingCardOnboardingAction', () => {
   });
 
   it('redirects users with an existing current-year request to success', async () => {
-    mocks.prismaUserFindUnique.mockResolvedValue({
-      emergencyContactName: null,
-      emergencyContactPhone: null,
-      legalAgreementAcceptances: [],
-      phone: null,
-      sailingCardIssuedByUserId: null,
-      sailingCardNumber: null,
-      sailingCardYear: null,
-      sailingCardExpiresOn: null,
-      sailingCardIssuedAt: null,
-      sailingCardRequestedAt: null,
-      sailingCardRequests: [
-        {
-          cardYear: 2026,
-          cardType: SailingCardType.normal,
-          hasFitnessMembership: true,
-          legalAgreementAcceptance: {
-            agreementHash: sailingCardAgreementHash(),
-            agreementVersion: sailingCardAgreement.version,
-            source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+    mocks.prismaUserFindUnique.mockResolvedValue(
+      currentUserFixture({
+        sailingCardRequests: [
+          {
+            cardYear: 2026,
+            cardType: SailingCardType.normal,
+            hasFitnessMembership: true,
+            legalAgreementAcceptance: {
+              agreementHash: sailingCardAgreementHash(),
+              agreementVersion: sailingCardAgreement.version,
+              source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+              userId: 'user-1',
+            },
+            sailingAffiliation: SailingAffiliation.MIT_ALUM,
+            status: SailingCardRequestStatus.pending,
             userId: 'user-1',
+            user: {
+              emergencyContactName: 'Grace Hopper',
+              emergencyContactPhone: '+442079460958',
+              phone: '+16175550100',
+            },
           },
-          sailingAffiliation: SailingAffiliation.MIT_ALUM,
-          status: SailingCardRequestStatus.pending,
-          userId: 'user-1',
-          user: {
-            emergencyContactName: 'Grace Hopper',
-            emergencyContactPhone: '+442079460958',
-            phone: '+16175550100',
-          },
-        },
-      ],
-      sailingCardSwimAgreementInitials: null,
-      sailingCardSwimAgreementInitialedAt: null,
-    });
+        ],
+      })
+    );
     const { submitSailingCardOnboardingAction } =
       await import('@/libs/mit-sailing/sailingCardOnboardingActions');
 
@@ -470,22 +550,57 @@ describe('submitSailingCardOnboardingAction', () => {
   });
 
   it('stores no mit recreation answer for requests that need verification', async () => {
-    const { submitSailingCardOnboardingAction } =
-      await import('@/libs/mit-sailing/sailingCardOnboardingActions');
-    const formData = onboardingFormData();
-    formData.set('affiliation', SailingAffiliation.MIT_ALUM);
-    formData.set('firstName', 'Grace');
-    formData.set('hasFitnessMembership', 'no');
-    formData.set('lastName', 'Hopper');
-    formData.set('mitId', '');
+    const submitSailingCardOnboardingAction =
+      await loadSubmitSailingCardOnboardingAction();
 
     await expect(
-      submitSailingCardOnboardingAction(idleState, formData)
+      submitSailingCardOnboardingAction(
+        idleState,
+        alumOnboardingFormData({ hasFitnessMembership: 'no' })
+      )
     ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
 
     expect(mocks.prismaSailingCardRequestCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
         hasFitnessMembership: false,
+        sailingAffiliation: SailingAffiliation.MIT_ALUM,
+      }),
+    });
+  });
+
+  it('rejects crafted paid racing when mit recreation is self-reported', async () => {
+    await expectAlumPaidRacingRejected('yes');
+  });
+
+  it('rejects paid racing for verified MIT Recreation members', async () => {
+    mocks.prismaUserFindUnique.mockResolvedValue(
+      currentUserFixture({
+        gymMembershipVerifiedAt: new Date('2026-05-01T12:00:00.000Z'),
+      })
+    );
+    await expectAlumPaidRacingRejected('no');
+  });
+
+  it('submits normal request for verified MIT Recreation members without hidden answer', async () => {
+    mocks.prismaUserFindUnique.mockResolvedValue(
+      currentUserFixture({
+        gymMembershipVerifiedAt: new Date('2026-05-01T12:00:00.000Z'),
+      })
+    );
+    const submitSailingCardOnboardingAction =
+      await loadSubmitSailingCardOnboardingAction();
+
+    await expect(
+      submitSailingCardOnboardingAction(
+        idleState,
+        alumOnboardingFormData({ hasFitnessMembership: '' })
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+
+    expect(mocks.prismaSailingCardRequestCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        cardType: SailingCardType.normal,
+        hasFitnessMembership: null,
         sailingAffiliation: SailingAffiliation.MIT_ALUM,
       }),
     });
@@ -511,21 +626,11 @@ describe('submitSailingCardOnboardingAction', () => {
         phone: '+16175550100',
       },
     };
-    mocks.prismaUserFindUnique.mockResolvedValue({
-      emergencyContactName: null,
-      emergencyContactPhone: null,
-      legalAgreementAcceptances: [],
-      phone: null,
-      sailingCardIssuedByUserId: null,
-      sailingCardNumber: null,
-      sailingCardYear: null,
-      sailingCardExpiresOn: null,
-      sailingCardIssuedAt: null,
-      sailingCardRequestedAt: null,
-      sailingCardRequests: [pendingNormalRequest],
-      sailingCardSwimAgreementInitials: null,
-      sailingCardSwimAgreementInitialedAt: null,
-    });
+    mocks.prismaUserFindUnique.mockResolvedValue(
+      currentUserFixture({
+        sailingCardRequests: [pendingNormalRequest],
+      })
+    );
     mocks.prismaSailingCardRequestFindUnique.mockResolvedValue(
       pendingNormalRequest
     );
@@ -653,27 +758,25 @@ describe('submitSailingCardOnboardingAction', () => {
   });
 
   it('does not clear an existing current card from direct action post', async () => {
-    mocks.prismaUserFindUnique.mockResolvedValue({
-      emergencyContactName: 'Grace Hopper',
-      emergencyContactPhone: '+442079460958',
-      legalAgreementAcceptances: [
-        {
-          acceptedAt: new Date('2026-05-21T16:00:00.000Z'),
-          agreementHash: sailingCardAgreementHash(),
-          agreementVersion: sailingCardAgreement.version,
-        },
-      ],
-      phone: '+16175550100',
-      sailingCardIssuedByUserId: 'admin-1',
-      sailingCardNumber: 61,
-      sailingCardYear: 2026,
-      sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
-      sailingCardIssuedAt: new Date('2025-08-01T16:00:00.000Z'),
-      sailingCardRequestedAt: null,
-      sailingCardSwimAgreementInitials: 'AK',
-      sailingCardSwimAgreementInitialedAt: new Date('2025-08-01T16:00:00.000Z'),
-      sailingCardRequests: [],
-    });
+    mocks.prismaUserFindUnique.mockResolvedValue(
+      currentUserFixture({
+        emergencyContactName: 'Grace Hopper',
+        emergencyContactPhone: '+442079460958',
+        legalAgreementAcceptances: [onboardingAcceptanceFixture()],
+        phone: '+16175550100',
+        sailingCardIssuedByUserId: 'admin-1',
+        sailingCardNumber: 61,
+        sailingCardYear: 2026,
+        sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
+        sailingCardIssuedAt: new Date('2025-08-01T16:00:00.000Z'),
+        sailingCardRequestedAt: null,
+        sailingCardSwimAgreementInitials: 'AK',
+        sailingCardSwimAgreementInitialedAt: new Date(
+          '2025-08-01T16:00:00.000Z'
+        ),
+        sailingCardRequests: [],
+      })
+    );
     const { submitSailingCardOnboardingAction } =
       await import('@/libs/mit-sailing/sailingCardOnboardingActions');
 
@@ -697,27 +800,25 @@ describe('submitSailingCardOnboardingAction', () => {
   it('preserves current card while saving missing contact fields', async () => {
     const issuedAt = new Date('2025-08-01T16:00:00.000Z');
     const expiresOn = new Date('2026-07-15T04:00:00.000Z');
-    mocks.prismaUserFindUnique.mockResolvedValue({
-      emergencyContactName: null,
-      emergencyContactPhone: null,
-      legalAgreementAcceptances: [
-        {
-          acceptedAt: new Date('2026-05-21T16:00:00.000Z'),
-          agreementHash: sailingCardAgreementHash(),
-          agreementVersion: sailingCardAgreement.version,
-        },
-      ],
-      phone: null,
-      sailingCardIssuedByUserId: 'admin-1',
-      sailingCardNumber: 61,
-      sailingCardYear: 2026,
-      sailingCardExpiresOn: expiresOn,
-      sailingCardIssuedAt: issuedAt,
-      sailingCardRequestedAt: null,
-      sailingCardRequests: [],
-      sailingCardSwimAgreementInitials: 'AK',
-      sailingCardSwimAgreementInitialedAt: new Date('2025-08-01T16:00:00.000Z'),
-    });
+    mocks.prismaUserFindUnique.mockResolvedValue(
+      currentUserFixture({
+        emergencyContactName: null,
+        emergencyContactPhone: null,
+        legalAgreementAcceptances: [onboardingAcceptanceFixture()],
+        phone: null,
+        sailingCardIssuedByUserId: 'admin-1',
+        sailingCardNumber: 61,
+        sailingCardYear: 2026,
+        sailingCardExpiresOn: expiresOn,
+        sailingCardIssuedAt: issuedAt,
+        sailingCardRequestedAt: null,
+        sailingCardRequests: [],
+        sailingCardSwimAgreementInitials: 'AK',
+        sailingCardSwimAgreementInitialedAt: new Date(
+          '2025-08-01T16:00:00.000Z'
+        ),
+      })
+    );
     const { submitSailingCardOnboardingAction } =
       await import('@/libs/mit-sailing/sailingCardOnboardingActions');
 

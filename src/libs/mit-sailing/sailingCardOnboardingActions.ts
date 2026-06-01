@@ -236,6 +236,9 @@ const formStateFromValidationError = (props: {
   values: parseSailingCardOnboardingFormValues(props.formData),
 });
 
+const hasVerifiedMitRecreationMembership = (value: Date | null | undefined) =>
+  value !== null && value !== undefined;
+
 export const submitSailingCardOnboardingAction = async (
   _previousState: SailingCardOnboardingFormState,
   formData: FormData
@@ -259,6 +262,7 @@ export const submitSailingCardOnboardingAction = async (
     select: {
       emergencyContactName: true,
       emergencyContactPhone: true,
+      gymMembershipVerifiedAt: true,
       legalAgreementAcceptances: {
         where: {
           agreementHash: sailingCardAgreementHash(),
@@ -329,6 +333,9 @@ export const submitSailingCardOnboardingAction = async (
     update = buildSailingCardOnboardingUpdate({
       input,
       dataWarehouseIdentity,
+      hasVerifiedMitRecreationMembership: hasVerifiedMitRecreationMembership(
+        currentUser.gymMembershipVerifiedAt
+      ),
       now: new Date(),
     });
   } catch (error) {

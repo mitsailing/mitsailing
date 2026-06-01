@@ -113,10 +113,11 @@ async function updatePendingCardRequest(props: {
   readonly mitId: string | null;
   readonly userId: string;
 }) {
+  const requestHasFitnessMembership = props.cardType === 'normal';
   await pool.query(
     `UPDATE "sailing_card_requests"
      SET "card_type" = $2,
-         "has_fitness_membership" = true,
+         "has_fitness_membership" = $7,
          "first_name" = $3,
          "last_name" = $4,
          "sailing_affiliation" = 'WELLESLEY',
@@ -131,8 +132,18 @@ async function updatePendingCardRequest(props: {
       props.lastName,
       props.mitId,
       getCurrentSailingCardYear(),
+      requestHasFitnessMembership,
     ]
   );
+  if (props.cardType === 'normal') {
+    await pool.query(
+      `UPDATE "user"
+       SET "gym_membership_verified_at" = NOW(),
+           "updated_at" = NOW()
+       WHERE "id" = $1`,
+      [props.userId]
+    );
+  }
 }
 
 async function completePendingCardOnboarding(props: {

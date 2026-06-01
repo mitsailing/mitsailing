@@ -34,6 +34,7 @@ export type SailingCardOnboardingFormProps = {
   readonly draftKey?: string;
   readonly initialValues?: SailingCardOnboardingFormValues;
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
 };
 
 const initialSailingCardOnboardingFormState: SailingCardOnboardingFormState = {
@@ -156,8 +157,10 @@ const shouldShowDetails = (props: {
 const isFitnessMembershipReady = (props: {
   readonly affiliation: SailingAffiliation | '';
   readonly hasFitnessMembershipValue: string | undefined;
+  readonly hasVerifiedMitRecreationMembership: boolean | undefined;
 }) =>
   hasAutomaticFitnessMembership(props.affiliation) ||
+  props.hasVerifiedMitRecreationMembership === true ||
   props.hasFitnessMembershipValue === 'yes' ||
   props.hasFitnessMembershipValue === 'no';
 
@@ -234,11 +237,27 @@ const onboardingValuesFromDraft = (
 
 const formValuesFromDraft = (props: {
   readonly draft: OnboardingDraft | null;
+  readonly hasVerifiedMitRecreationMembership: boolean | undefined;
   readonly initialValues: SailingCardOnboardingFormValues | undefined;
-}) => ({
-  ...(props.initialValues ?? initialSailingCardOnboardingFormState.values),
-  ...props.draft?.values,
-});
+}) => {
+  const values = {
+    ...(props.initialValues ?? initialSailingCardOnboardingFormState.values),
+    ...props.draft?.values,
+  };
+  const affiliation = getVisibleSailingAffiliation(values.affiliation);
+  if (
+    props.hasVerifiedMitRecreationMembership === true ||
+    hasAutomaticFitnessMembership(affiliation) ||
+    values.hasFitnessMembership === 'yes'
+  ) {
+    return {
+      ...values,
+      cardType: 'normal',
+    };
+  }
+
+  return values;
+};
 
 function useOnboardingActionRuntime(props: SailingCardOnboardingFormProps) {
   const draftStore = useSailingCardOnboardingDraftStore();
@@ -257,6 +276,8 @@ function useOnboardingActionRuntime(props: SailingCardOnboardingFormProps) {
     state.status === 'idle'
       ? formValuesFromDraft({
           draft: initialDraft,
+          hasVerifiedMitRecreationMembership:
+            props.hasVerifiedMitRecreationMembership,
           initialValues: props.initialValues,
         })
       : state.values;
@@ -421,6 +442,8 @@ export function useSailingCardOnboardingFormModel(
     fitnessMembershipReady: isFitnessMembershipReady({
       affiliation,
       hasFitnessMembershipValue: values.hasFitnessMembershipValue,
+      hasVerifiedMitRecreationMembership:
+        props.hasVerifiedMitRecreationMembership,
     }),
     form: runtime.form,
     hasFitnessMembershipValue: values.hasFitnessMembershipValue,
@@ -433,6 +456,8 @@ export function useSailingCardOnboardingFormModel(
     manualNameRequired: identity.manualNameRequired,
     mitIdRequired: identity.mitIdRequired,
     now: runtime.now,
+    hasVerifiedMitRecreationMembership:
+      props.hasVerifiedMitRecreationMembership,
     showDetails: shouldShowDetails({
       detailsUnlocked: runtime.detailsUnlocked,
       identityComplete: identity.identityComplete,

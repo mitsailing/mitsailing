@@ -168,6 +168,9 @@ describe('adminSailingCardActions', () => {
         userId: 'user-1',
       },
       sailingAffiliation: SailingAffiliation.MIT_ALUM,
+      user: {
+        gymMembershipVerifiedAt: new Date('2026-05-01T12:00:00.000Z'),
+      },
     });
     mocks.txSailingCardRequestUpdate.mockResolvedValue({});
     mocks.txSailingCardRequestUpdateMany.mockResolvedValue({ count: 1 });
@@ -455,6 +458,11 @@ describe('adminSailingCardActions', () => {
           },
         },
         sailingAffiliation: true,
+        user: {
+          select: {
+            gymMembershipVerifiedAt: true,
+          },
+        },
       },
     });
     expect(mocks.txLegalAgreementAcceptanceFindFirst).not.toHaveBeenCalled();
@@ -472,6 +480,9 @@ describe('adminSailingCardActions', () => {
         userId: 'user-1',
       },
       sailingAffiliation: SailingAffiliation.MIT_ALUM,
+      user: {
+        gymMembershipVerifiedAt: null,
+      },
     });
     await expectIssueCardFormError({ formError: 'mit_recreation_required' });
 
@@ -490,6 +501,30 @@ describe('adminSailingCardActions', () => {
         userId: 'user-1',
       },
       sailingAffiliation: SailingAffiliation.MIT_ALUM,
+      user: {
+        gymMembershipVerifiedAt: null,
+      },
+    });
+    await expectIssueCardFormError({ formError: 'mit_recreation_required' });
+
+    expectNoCardIssueWrites();
+  });
+
+  it('does not issue self-reported normal requests before mit recreation is verified', async () => {
+    mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.normal,
+      hasFitnessMembership: true,
+      id: 'request-1',
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+      user: {
+        gymMembershipVerifiedAt: null,
+      },
     });
     await expectIssueCardFormError({ formError: 'mit_recreation_required' });
 

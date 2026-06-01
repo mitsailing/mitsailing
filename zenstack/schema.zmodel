@@ -162,6 +162,7 @@ model User {
   paymentBypassedSailingCardRequests  SailingCardRequest[]           @relation("SailingCardRequestPaymentBypassBy")
   payments                            Payment[]
   manuallyHandledPayments             Payment[]                  @relation("PaymentManualHandledBy")
+  sailingCardMembershipPricesCreated  SailingCardMembershipPrice[] @relation("SailingCardMembershipPriceCreatedBy")
   eventComments                       EventComment[]
   eventAdmins                         EventAdmin[]
   sailingRatings                      UserSailingRating[]           @relation("UserSailingRatings")
@@ -1025,6 +1026,28 @@ enum PaymentSource {
   @@map("payment_source")
 }
 
+enum SailingCardMembershipPriceKind {
+  spring
+  full
+
+  @@map("sailing_card_membership_price_kind")
+}
+
+enum SailingCardMembershipPriceCategory {
+  student
+  under_30
+  thirty_or_over
+
+  @@map("sailing_card_membership_price_category")
+}
+
+enum SailingCardMembershipBillingInterval {
+  one_time
+  annual
+
+  @@map("sailing_card_membership_billing_interval")
+}
+
 enum EventPaymentNotificationKind {
   request
   receipt
@@ -1193,6 +1216,49 @@ model Payment {
     auth().appRole == 'dock_master'
   ))
   @@map("payments")
+}
+
+model SailingCardMembershipPrice {
+  id              String                                  @id @default(cuid())
+  cardType        SailingCardType                         @map("card_type")
+  priceKind       SailingCardMembershipPriceKind          @map("price_kind")
+  priceCategory   SailingCardMembershipPriceCategory      @map("price_category")
+  billingInterval SailingCardMembershipBillingInterval    @map("billing_interval")
+  amountCents     Int                                     @map("amount_cents")
+  currency        String                                  @default("usd")
+  active          Boolean                                 @default(true)
+  effectiveAt     DateTime                                @map("effective_at")
+  changeReason    String                                  @trim @length(min: 1) @map("change_reason") @db.Text
+  stripePriceId   String?                                 @deny('read', auth() == null || auth().appRole != 'admin') @unique @map("stripe_price_id")
+  stripeSyncError String?                                 @deny('read', auth() == null || auth().appRole != 'admin') @map("stripe_sync_error") @db.Text
+  stripeSyncedAt  DateTime?                               @deny('read', auth() == null || auth().appRole != 'admin') @map("stripe_synced_at")
+  createdByUserId String?                                 @deny('read', auth() == null || auth().appRole != 'admin') @map("created_by_user_id")
+  createdAt       DateTime                                @default(now()) @map("created_at")
+  updatedAt       DateTime                                @updatedAt @map("updated_at")
+
+  createdBy User? @relation("SailingCardMembershipPriceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@deny('create,update', cardType == normal)
+  @@deny('create,update', amountCents < 50)
+  @@deny('create,update', currency != 'usd')
+  @@deny('create,update', priceKind == spring && billingInterval == annual)
+  // Enum key immutability is enforced by the migration trigger. ZenStack
+  // before() comparisons for Postgres enum fields generate invalid enum/text SQL.
+  @@deny('post-update',
+    amountCents != before().amountCents ||
+    currency != before().currency ||
+    effectiveAt != before().effectiveAt ||
+    changeReason != before().changeReason ||
+    (createdByUserId == null && before().createdByUserId != null) ||
+    (createdByUserId != null && before().createdByUserId == null) ||
+    (createdByUserId != null && before().createdByUserId != null && createdByUserId != before().createdByUserId) ||
+    (before().stripePriceId != null && (stripePriceId == null || stripePriceId != before().stripePriceId))
+  )
+  @@allow('read', true)
+  @@allow('create,update', auth() != null && auth().appRole == 'admin')
+  @@unique([cardType, priceKind, priceCategory, billingInterval, effectiveAt])
+  @@index([createdByUserId])
+  @@map("sailing_card_membership_prices")
 }
 
 model StripeWebhookEvent {

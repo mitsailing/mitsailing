@@ -27,6 +27,7 @@ async function getOnboardingUser(userId: string) {
     select: {
       firstName: true,
       lastName: true,
+      gymMembershipVerifiedAt: true,
       mitId: true,
       mitClassYear: true,
       mitDataWarehouseVerifiedAt: true,
@@ -150,6 +151,10 @@ export default async function OnboardingPage(props: OnboardingPageProps) {
           <SailingCardOnboardingForm
             callbackUrl={callbackUrl}
             draftKey={`sailing-card-onboarding:${user.id}:${cardYear}:v1`}
+            hasVerifiedMitRecreationMembership={
+              currentUser?.gymMembershipVerifiedAt !== null &&
+              currentUser?.gymMembershipVerifiedAt !== undefined
+            }
             initialValues={initialValues}
             lockedIdentity={lockedIdentity}
           />

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Convert paid racing memberships into a July 15 annual subscription flow while keeping normal membership free for MIT students, MIT Recreation members, and sailing-team members, and giving admins maintainable pricing, search, and payment issue tools.
+**Goal:** Convert paid racing memberships into a July 15 annual subscription flow while keeping normal membership free for anyone with MIT Recreation membership, including MIT students as the automatic membership case, and giving admins maintainable pricing, search, and payment issue tools.
 
 **Architecture:** Keep the existing sailing-card request and event-payment systems intact. Add a small membership-billing domain beside them: eligibility helpers decide whether a user can request paid racing, a pricing catalog stores editable effective-dated prices, Stripe Checkout and webhooks sync subscription/payment state, and admin pages read from local records instead of querying Stripe at page render time. Each PR must stay below the 100-file hard cap; target under 80 changed files by splitting pricing/admin setup from checkout/webhook/cancellation work and reusing existing Stripe, admin, email, and sailing-card patterns.
 
@@ -16,7 +16,7 @@
 
 - Start from latest `origin/main`. PR #143's runbook work is already merged and its branch may be deleted; do not depend on that branch. PR #145 (`feat: add sailing card payment onboarding foundation`) is also merged and changed the app implementation. Before coding, reconcile this plan against current `main` and skip work already landed in PR #145.
 - Current `main` already includes `SailingCardRequest.hasFitnessMembership` as the canonical MIT Recreation self-report and `SailingCardOnboardingInput.hasFitnessMembership` as `boolean | null`. Steps below that previously named `mitRecreationMembershipSelfReported` should use the existing `hasFitnessMembership` field instead of adding a duplicate column.
-- Current `main` already includes one `Payment` model for event and membership payments with `purpose`, `source`, Stripe IDs, legacy fields, and admin-override fields. Steps below that mention separate membership payment/refund tables must be reconciled through the structural simplicity gate before implementation; do not copy older schema snippets unchanged.
+- Current `main` already includes one `Payment` model for event and membership payments with `purpose`, `source`, Stripe IDs, legacy fields, and admin-override fields. Steps below that mention separate membership payment/refund tables must be reconciled through the structural simplicity gate before implementation; do not copy older schema snippets unchanged. Stripe subscription lifecycle state is different: PR 4A must add one focused `SailingCardSubscription` table because Stripe's subscription docs recommend storing subscription identity/status locally for access decisions.
 - Current `main` already includes paid-card-without-payment bypass evidence on `SailingCardRequest` plus an `admin_override` membership `Payment`. Preserve that narrow override shape; do not create a generic notes, waiver, or payment-exception framework.
 - Current admin card issuance is person-centered through `/admin/users` and `/admin/users/[id]`. Do not recreate a standalone `/admin/cards` route or card queue page.
 - Linear/GitHub mirrors already exist for this feature. Do not create a fresh batch of child issues from the issue plan unless the user approves new or missing tracker items after duplicate checks.
@@ -111,6 +111,7 @@ Hard constraints:
 - Do not recreate `/admin/cards` or a standalone card queue.
 - Keep admin card work person-centered through `/admin/users` and `/admin/users/[id]`.
 - Do not create parallel membership payment/refund tables unless current tests and Context7 Stripe docs prove the existing `Payment` model cannot represent the lifecycle.
+- Do create one focused `SailingCardSubscription` table in PR 4A for local subscription status, customer/subscription/product IDs, period dates, cancellation flags, subscription item ID, and stale-event tracking.
 - Avoid AI slop: no extra tables, pages, components, services, permissions, states, or workflows unless they directly simplify a real user/admin path or prove a lifecycle/permission/audit/retention/cardinality/transaction/operational/platform boundary.
 
 Final report for each PR:
@@ -129,27 +130,45 @@ Final report for each PR:
 **MIT Sailing code facts**
 - `src/libs/mit-sailing/sailingCardValidity.ts` already treats July 15 in US Eastern as the sailing-card rollover date.
 - `src/worker/sailingCardAnnualClearingJob.ts` already runs annual card clearing at midnight on July 15.
-- `src/libs/mit-sailing/sailingCardMembership.ts` currently hard-codes spring/full racing prices and still permits student-affiliate racing payments.
+- `src/libs/mit-sailing/sailingCardMembership.ts` currently hard-codes spring/full racing prices and has no central free-normal eligibility guard.
 - `src/components/mit-sailing/onboarding/SailingCardOnboardingCardRequestFields.tsx` renders normal, racing, and team-racing card choices after the fitness question.
 - `src/libs/mit-sailing/sailingCardOnboardingActions.ts` parses `hasFitnessMembership` in form values and `src/libs/mit-sailing/sailingCardOnboarding.ts` includes it in `SailingCardOnboardingInput` as `boolean | null`; central paid-racing eligibility enforcement and staff-visible verification handoff still need review.
 - Event payments already provide reusable Stripe patterns in `src/libs/stripe/*`, `src/libs/mit-sailing/eventPaymentCheckout.ts`, `src/libs/mit-sailing/eventPayments.ts`, `src/app/api/stripe/webhooks/route.ts`, and `src/components/mit-sailing/admin/payments/AdminPaymentsLedgerView.tsx`.
 
 **External patterns to adopt**
 - Stripe Checkout subscription mode uses pre-created recurring Prices, supports one-time setup fee Prices in subscription Checkout, and syncs subscription changes through webhooks.
+- Stripe subscription access state must be stored locally. The official build-subscriptions docs say webhook handlers should verify subscription status, check the subscribed product, and store `product.id`, `subscription.id`, `subscription.status`, and `customer.id` in the app database. For MIT Sailing, this means a focused `SailingCardSubscription` table is required in PR 4A; Stripe remains the billing source of truth, but app pages/admin/card issuance read local subscription state instead of querying Stripe at render time.
 - Stripe Customer Portal is the simplest payment-method and invoice self-service surface; MIT Sailing should use an in-app cancellation form first so cancellation reason and local status are recorded before redirecting users to Stripe for payment-method updates.
 - Next.js Server Actions should validate form input before mutation, call `revalidatePath` before `redirect`, and use Route Handlers for webhook raw-body processing.
 - Cal.com separates payment concerns into customer lookup, Checkout creation, billing portal redirect, subscription lookup, and local payment records. It also validates safe return URLs for billing portal redirects and keeps Stripe-specific lookups in narrow modules such as `customer`, `subscriptions`, and `BillingPortalService`. Mirror that shape in smaller MIT Sailing modules instead of one large billing service.
 - FTC-style negative-option best practices for subscriptions: clear material terms before payment, proof of consent, and cancellation that is at least as easy to find and complete as signup. Treat this as product trust guidance, not legal advice.
 - Robinhood-style referral waitlists work by exposing rank and referral movement, but MIT Sailing already has scarcity. Do not add referral boosts in these PRs; preserve fairness and avoid growing demand.
 
+### Stripe Subscription Checklist
+
+Verified against Stripe official docs: [build subscriptions](https://docs.stripe.com/billing/subscriptions/build-subscriptions), [Checkout subscriptions](https://docs.stripe.com/payments/checkout/build-subscriptions), [mixed one-time and recurring Checkout line items](https://docs.stripe.com/payments/checkout/migrating-prices), and [manage Prices](https://docs.stripe.com/products-prices/manage-prices).
+
+- [x] Use Stripe Billing and Checkout Sessions for recurring paid racing/team-racing memberships; do not build manual renewal loops with raw PaymentIntents.
+- [x] Use Stripe Products and Prices, not legacy Plans; local price rows map to immutable Stripe Price IDs and old Prices are archived with `active=false`.
+- [x] Keep PR 2A limited to the pricing catalog; do not add subscription state before Checkout creates subscriptions.
+- [ ] In PR 4A, add a focused `SailingCardSubscription` table that stores local subscription access state: app user, card type, Stripe customer ID, Stripe subscription ID, Stripe product ID, current renewal Price/local price IDs, subscription item ID, status, current period start/end, trial end, cancel-at-period-end/cancel/canceled/ended timestamps, canonical/duplicate state, and last processed subscription event timestamp/ID.
+- [ ] Keep payment/invoice/charge/refund/dispute facts in `Payment` rows with `purpose: membership`; do not create separate membership payment/refund/invoice tables unless a test proves `Payment` cannot represent the lifecycle cleanly.
+- [ ] Create Checkout in `mode: 'subscription'` with pre-created Price IDs. Spring checkout may include one recurring annual Price plus one one-time current-season Price only after Stripe test mode proves the initial invoice does not include the annual amount before July 15.
+- [ ] Store metadata on both the Checkout Session and `subscription_data.metadata` so webhooks can link invoices/subscriptions back to local user, payment, initial price, and renewal price records even when events arrive out of order.
+- [ ] Use webhook signature verification and existing `StripeWebhookEvent` idempotency for all membership billing events.
+- [ ] Handle `customer.subscription.created`, `customer.subscription.updated`, and `customer.subscription.deleted` by updating `SailingCardSubscription`; local access decisions must read this table.
+- [ ] Handle `invoice.paid` and `invoice.payment_failed` by updating/creating membership `Payment` rows and profile/admin issue state.
+- [ ] Preserve free-normal eligibility before paid checkout: MIT students, verified MIT Recreation members, and pending free-normal verification users must not enter paid Checkout.
+- [ ] Use Stripe Customer Portal for payment-method and invoice recovery, but keep auto-renew cancellation in-app first so local cancellation state and optional feedback are recorded.
+
 ## Product Decisions Locked For Implementation
 
+- **Legacy account-flow parity:** this is a Next.js migration of the old `sailing.mit.edu/new_account.php` flow, with known improvements. Preserve the old MIT Affiliation dropdown values and order. Preserve the Normal, Racing, and Team Racing request choices, but drop Virtual because it no longer exists. Preserve required phone, emergency contact name, emergency contact phone, and swim-agreement approval before any card request is considered complete.
 - **Season year:** paid racing subscriptions renew on July 15 in US Eastern, matching existing sailing-card expiration and clearing.
 - **Spring charge:** before July 15, Checkout charges the current season spring amount once, starts the annual subscription on a trial that ends at the next July 15 full-season renewal, and does not bill the annual Price before that date.
 - **Full-season charge:** on or after July 15, Checkout charges the current season full amount once, starts the annual subscription on a trial that ends at the next July 15 renewal, and keeps every renewal anchored to July 15.
-- **Free normal membership:** MIT students, users with verified MIT Recreation membership, and verified sailing-team members receive normal membership without paid racing or team-racing checkout.
+- **Free normal membership:** users with MIT Recreation membership receive normal membership without paid racing or team-racing checkout. MIT students are the automatic MIT Recreation membership case; verified non-student membership uses `User.gymMembershipVerifiedAt`. MIT sailing-team members are MIT students and use the same automatic MIT Recreation membership path; do not add a separate sailing-team membership field. Team racing is a paid plan, not a team-membership status.
 - **MIT Recreation self-report:** onboarding can ask whether a user has MIT Recreation membership, but only staff verification sets `User.gymMembershipVerifiedAt`. Self-report hides paid options in the form, submits a normal sailing-card request for staff review, and makes the verification handoff visible to both the user and staff. Staff must not issue the free normal card for this path until `gymMembershipVerifiedAt` is set.
-- **Sailing team verification:** add an admin-managed `User.sailingTeamMembershipVerifiedAt` timestamp plus a small admin control to set and clear it. Team membership grants free normal membership and suppresses paid racing/team-racing purchase paths.
 - **Paid racing eligibility:** paid `racing` and `team_racing` are only available to users who do not already qualify for free normal membership and who choose that paid card type intentionally.
 - **Paid racing issuance:** staff can issue paid `racing` or `team_racing` Sailing Cards only after the local membership payment/subscription state is paid or active. V1 must include an explicit admin override path to issue a paid card without payment when staff intentionally waive or bypass payment; the override requires an internal note and is surfaced on the admin user record.
 - **Simplest override shape:** do not build a generic notes system or payment-waiver framework for V1. Store the paid-card-without-payment override on the current `SailingCardRequest` approval/issuance path with a required note, approver, and timestamp, then show that state on `/admin/users/[id]` and any embedded pending-request/card controls.
@@ -161,10 +180,11 @@ Final report for each PR:
 - **Legacy payment storage:** store legacy paid memberships in the same membership payment/access model as Stripe payments with a source/method discriminator such as `legacy`. Stripe-specific fields stay nullable and empty for legacy records.
 - **Legacy-to-Stripe transition:** a legacy payment covers the imported/current season only and must not create a Stripe subscription or charge the member again for that covered season. Legacy-paid members should see a non-blocking dashboard/status prompt to add payment information and set up Stripe auto-renew for the next July 15 renewal. This prompt is optional and must not block current-season card issuance when the legacy payment is a confident match.
 - **Pavilion card issuance:** Sailing Card numbers are assigned manually by staff at the pavilion after the user shows MIT ID or another legal ID. If the user is taking one of the three intro classes, staff assigns the card at the end of class at the pavilion. If onboarding is complete but the intro-class prerequisite is not complete, the request remains pending with copy telling the user to take the required class and that card issuance happens during/after class at the pavilion.
+- **Profile pending state:** after a user submits onboarding, their profile must show the current-year Sailing Card request as pending until staff issues the card number. Legacy `sailing.mit.edu` shows "Requested," "Not yet assigned," and "Pending"; the Next.js profile can use clearer copy, but must preserve the status visibility.
 - **Manual card numbers:** preserve the existing card-number rule. Auto-suggested/blank issuance starts at 60 so lower numbers are not auto-assigned, but admins with card assignment permission can manually enter any positive card number as long as it is not already assigned for that card year.
 - **Admin pending search:** staff start from the person, not a queue. Preserve `/admin/users` and `/admin/users/[id]` as the primary Pavilion-staff path for finding a sailor, reviewing blockers, and issuing cards. Keep one user search across name, email, MIT ID, and card number. Add the simplest pending/card-type filters on `/admin/users` so staff can view pending normal, racing, or team racing requests, then open the user profile to resolve blockers and issue cards. Keep filtering bounded to the users surface; do not add a standalone card queue route or generic search framework.
 - **Cancellation:** users can turn off auto-renew in one in-app flow without a required survey step. The server sets Stripe `cancel_at_period_end=true`; optional feedback can record a reason enum and note after or alongside the primary action.
-- **Subscription consent:** before Stripe Checkout, the profile membership page shows the amount due today, the July 15 renewal amount, annual auto-renew behavior, and where to turn off auto-renew. The submit button says that the user is starting paid racing membership, not just continuing.
+- **Subscription consent:** paid Racing and Team Racing selection, required Sailing Card details, emergency contact fields, and swim-agreement approval stay in the signup/onboarding flow. Only after those required fields are complete does onboarding show the amount due today, the July 15 renewal amount, annual auto-renew behavior, and where to turn off auto-renew before sending the user to Stripe Checkout. The submit button says that the user is starting paid racing membership, not just continuing. Profile membership pages are for managing an existing paid membership after signup.
 - **Admin pricing:** admins edit app pricing records with effective dates and change reasons. Stripe Prices are immutable, so each usable price row stores the Stripe Price ID created for that amount/interval. Checkout never uses a price row until Stripe sync succeeds.
 - **Admin operations:** admins can search members by name/email/card/payment/subscription status and Stripe identifiers, filter failed/past-due/cancelled records, open Stripe Dashboard links, and mark a local issue handled with an internal note without erasing the original issue status.
 - **No racing/team reset surprise:** reminders go out before July 15 and explain the charge date, amount, renewal status, and cancellation link.
@@ -176,8 +196,8 @@ Final report for each PR:
 | MIT students | $0 | Hidden and server-rejected | MIT affiliation from account/warehouse | Membership dues are covered; staff still controls ratings and team/racing requirements separately. |
 | Verified MIT Recreation members | $0 | Hidden and server-rejected | `User.gymMembershipVerifiedAt` | User-facing copy says MIT Recreation membership, not gym membership. |
 | Self-reported MIT Recreation members | $0 pending review | Hidden and server-rejected during onboarding | Staff verifies before issuing card | Request records `SailingCardRequest.hasFitnessMembership=true` as the MIT Recreation self-report. |
-| Verified sailing-team members | $0 | Hidden and server-rejected | `User.sailingTeamMembershipVerifiedAt` | Membership dues are covered; this does not grant ratings by itself. |
-| Wellesley, Brandeis, Northeastern, Winsor, Brooks, NROTC, other students, MIT faculty/staff/alum/family/affiliate, other non-students, and non-MIT | Normal membership follows existing policy; paid racing/team-racing uses nonstudent age-band pricing | Visible when no free-normal rule applies | None for paid purchase | Tests cover every non-MIT-student affiliation, both paid card types, both age bands, before and after July 15. |
+| Wellesley, Brandeis, Northeastern, Winsor, Brooks, NROTC, and other students | Normal membership requires MIT Recreation unless another verified free-normal rule applies; paid racing/team-racing uses the legacy non-MIT student paid price category | Visible when no free-normal rule applies | None for paid purchase | These are affiliation dropdown choices, not free-normal eligibility. Tests cover each student paid-price affiliation, both paid card types, before and after July 15. |
+| MIT faculty/staff/alum/family/affiliate, other non-students, and non-MIT | Normal membership requires MIT Recreation unless another verified free-normal rule applies; paid racing/team-racing uses age-band pricing | Visible when no free-normal rule applies | None for paid purchase | Tests cover both paid card types, both age bands, before and after July 15. |
 
 ## Initial Paid Racing Price Catalog
 
@@ -207,7 +227,7 @@ Seed these amounts from the legacy racing-card rules. Admins can replace them la
 - Every PR starts with `Task 0: Confirm exact file list and budget`. Run `git diff --name-only origin/main...HEAD | wc -l` before implementation, after schema/generation handoff, after UI wiring, and before review. If the count reaches 70 or more, split before continuing; 80 changed files is the normal stop, and 100 changed files is the hard maximum.
 - Do not build a generic billing framework. No barrels, no class-based service layer, and no package-like abstractions. Each module exports narrow functions used by that PR.
 - Avoid agent slop: do not add tables, admin pages, components, services, permissions, states, or workflows when an existing surface plus a field, filter, or narrow helper fits the current slice. Split only when this PR proves a distinct lifecycle, permission, audit, retention, cardinality, transaction, operational, or external-platform boundary.
-- Current code already uses one `Payment` model with `purpose` and `source` for event, membership, Stripe, legacy, and admin-override records. Preserve that unified access/payment-record direction unless current Stripe docs via Context7 and local tests prove subscription state, invoice/payment state, or portal/cancellation lifecycle needs a separate local model.
+- Current code already uses one `Payment` model with `purpose` and `source` for event, membership, Stripe, legacy, and admin-override records. Preserve that unified payment-record direction for payments, invoices, refunds, disputes, legacy payments, and admin overrides. Stripe's subscription docs do justify a separate focused local subscription-state model, so PR 4A must introduce `SailingCardSubscription` for canonical subscription access state instead of overloading `Payment.stripeSubscriptionId`.
 
 ## PR Breakdown
 
@@ -242,7 +262,7 @@ Seed these amounts from the legacy racing-card rules. Admins can replace them la
 - Modify: `src/libs/mit-sailing/cmsValidation.test.ts`
 - Modify: `src/components/mit-sailing/admin/cards/AdminSailingCardControls.test.tsx`
 
-#### Task 1.1: Add sailing-team verification to users
+#### Task 1.1: Preserve existing MIT Recreation self-report schema
 
 - [ ] **Step 0: Confirm file budget**
 
@@ -253,50 +273,21 @@ Confirm the exact PR 1 file list before editing. Re-run the file-count check aft
 Add to `src/libs/mit-sailing/sailingCardRequestSchema.test.ts`:
 
 ```ts
-it('stores sailing team membership verification on users', () => {
-  expect(compactSchema).toContain('sailingTeamMembershipVerifiedAt DateTime?');
-  expect(compactSchema).toContain('@map("sailing_team_membership_verified_at")');
-});
-
 it('preserves MIT Recreation self-report on sailing card requests', () => {
   expect(compactSchema).toContain('hasFitnessMembership Boolean?');
   expect(compactSchema).toContain('@map("has_fitness_membership")');
 });
 ```
 
-- [ ] **Step 2: Run the failing test**
-
-Run: `npm run test -- src/libs/mit-sailing/sailingCardRequestSchema.test.ts`
-
-Expected: FAIL because the field is missing.
-
-- [ ] **Step 3: Add the field**
-
-In `zenstack/schema.zmodel`, add this field beside `gymMembershipVerifiedAt`:
-
-```prisma
-sailingTeamMembershipVerifiedAt DateTime? @map("sailing_team_membership_verified_at")
-```
-
-Do not add a second MIT Recreation self-report column. `SailingCardRequest.hasFitnessMembership Boolean? @map("has_fitness_membership")` already stores the pending verification state from onboarding; admin/user copy should read that field.
-
-Add an index:
-
-```prisma
-@@index([sailingTeamMembershipVerifiedAt])
-```
-
-- [ ] **Step 4: Generate and run schema tests**
-
-Maintainer handoff: run `npx zenstack generate` once `AGENTS.md` permits it or the owner runs it outside the agent loop.
+- [ ] **Step 2: Run the schema test**
 
 Run: `npm run test -- src/libs/mit-sailing/sailingCardRequestSchema.test.ts`
 
 Expected: PASS.
 
-- [ ] **Step 5: Add the admin verification action contract**
+- [ ] **Step 3: Do not add sailing-team schema**
 
-Add action tests that only admins can mutate `sailingTeamMembershipVerifiedAt`, record the current timestamp when enabled, clear it when disabled, and revalidate the user detail page. The visible admin control is implemented in Task 1.7.
+Do not add a second MIT Recreation self-report column. `SailingCardRequest.hasFitnessMembership Boolean? @map("has_fitness_membership")` already stores the pending verification state from onboarding; admin/user copy should read that field. Do not add `User.sailingTeamMembershipVerifiedAt`; MIT sailing-team members are MIT students and use the MIT student Normal path, while team racing is a paid plan.
 
 #### Task 1.2: Centralize membership eligibility
 
@@ -315,7 +306,6 @@ describe('sailing card membership eligibility', () => {
   const baseUser = {
     gymMembershipVerifiedAt: null,
     sailingAffiliation: SailingAffiliation.MIT_ALUM,
-    sailingTeamMembershipVerifiedAt: null,
   };
 
   it('grants free normal membership to MIT students', () => {
@@ -324,7 +314,7 @@ describe('sailing card membership eligibility', () => {
         ...baseUser,
         sailingAffiliation: SailingAffiliation.MIT_STUDENT,
       })
-    ).toEqual({ kind: 'free_normal', reason: 'mit_student' });
+    ).toEqual({ kind: 'free_normal', reason: 'automatic_mit_recreation_membership' });
   });
 
   it('grants free normal membership to verified recreation members', () => {
@@ -345,15 +335,6 @@ describe('sailing card membership eligibility', () => {
     ).toEqual({ kind: 'pending_recreation_verification' });
   });
 
-  it('grants free normal membership to verified sailing team members', () => {
-    expect(
-      membershipAccessForSailingCardUser({
-        ...baseUser,
-        sailingTeamMembershipVerifiedAt: new Date('2026-05-01T12:00:00.000Z'),
-      })
-    ).toEqual({ kind: 'free_normal', reason: 'verified_sailing_team' });
-  });
-
   it('allows paid racing only when no free normal membership applies', () => {
     expect(
       canRequestPaidRacingMembership({
@@ -363,7 +344,7 @@ describe('sailing card membership eligibility', () => {
     ).toBe(true);
     expect(
       canRequestPaidRacingMembership({
-        access: { kind: 'free_normal', reason: 'mit_student' },
+        access: { kind: 'free_normal', reason: 'automatic_mit_recreation_membership' },
         cardType: SailingCardType.racing,
       })
     ).toBe(false);
@@ -385,14 +366,13 @@ Create `src/libs/mit-sailing/sailingCardMembershipEligibility.ts`:
 import { SailingAffiliation, SailingCardType } from '@/generated/prisma/enums';
 
 export type SailingCardMembershipAccess =
-  | { readonly kind: 'free_normal'; readonly reason: 'mit_student' | 'verified_mit_recreation_membership' | 'verified_sailing_team' }
+  | { readonly kind: 'free_normal'; readonly reason: 'automatic_mit_recreation_membership' | 'verified_mit_recreation_membership' }
   | { readonly kind: 'pending_recreation_verification' }
   | { readonly kind: 'paid_racing_available' };
 
 type SailingCardMembershipUser = {
   readonly gymMembershipVerifiedAt: Date | null;
   readonly sailingAffiliation: SailingAffiliation | null;
-  readonly sailingTeamMembershipVerifiedAt: Date | null;
 };
 
 type SailingCardMembershipOnboardingRequest = SailingCardMembershipUser & {
@@ -403,13 +383,10 @@ export function membershipAccessForSailingCardUser(
   user: SailingCardMembershipUser
 ): SailingCardMembershipAccess {
   if (user.sailingAffiliation === SailingAffiliation.MIT_STUDENT) {
-    return { kind: 'free_normal', reason: 'mit_student' };
+    return { kind: 'free_normal', reason: 'automatic_mit_recreation_membership' };
   }
   if (user.gymMembershipVerifiedAt !== null) {
     return { kind: 'free_normal', reason: 'verified_mit_recreation_membership' };
-  }
-  if (user.sailingTeamMembershipVerifiedAt !== null) {
-    return { kind: 'free_normal', reason: 'verified_sailing_team' };
   }
   return { kind: 'paid_racing_available' };
 }
@@ -488,17 +465,17 @@ it('keeps non-MIT student affiliates on nonstudent racing pricing', () => {
 });
 ```
 
-Add table-driven pricing policy tests for every `SailingAffiliation` other than `MIT_STUDENT`, covering `racing` and `team_racing`, under 30 and 30 or over, before and after July 15. The expected rule is nonstudent age-band paid racing pricing for paid card types unless a verified free-normal rule applies outside this pricing helper.
+Add table-driven pricing policy tests for every `SailingAffiliation` other than `MIT_STUDENT`, covering `racing` and `team_racing` before and after July 15. Wellesley, Brandeis, Northeastern, Winsor, Brooks, NROTC, and other students keep the legacy non-MIT student paid racing price category. MIT faculty/staff/alum/family/affiliate, other non-students, and non-MIT use age-band paid racing pricing. Verified free-normal rules apply outside this pricing helper.
 
 - [ ] **Step 2: Run the failing test**
 
 Run: `npm run test -- src/libs/mit-sailing/sailingCardMembership.test.ts`
 
-Expected: FAIL where old student-affiliate pricing assumptions remain.
+Expected: FAIL where paid pricing and free-normal eligibility are still coupled.
 
 - [ ] **Step 3: Simplify student pricing**
 
-In `src/libs/mit-sailing/sailingCardMembership.ts`, remove non-MIT affiliates from the internal student-price branch. Keep `MIT_STUDENT` as the only free-by-affiliation rule. Leave spring/full nonstudent prices in place until PR 2 replaces the source of truth with the pricing catalog.
+In `src/libs/mit-sailing/sailingCardMembership.ts`, keep `MIT_STUDENT` as the only free-by-affiliation rule, but preserve the old-site non-MIT student paid racing price category for Wellesley, Brandeis, Northeastern, Winsor, Brooks, NROTC, and other students. Leave spring/full hard-coded prices in place until PR 2 replaces the source of truth with the pricing catalog.
 
 - [ ] **Step 4: Run focused tests**
 
@@ -556,21 +533,13 @@ it('rejects paid racing for verified MIT Recreation members', async () => {
   ).rejects.toThrow(SailingCardOnboardingValidationError);
 });
 
-it('rejects paid racing for verified sailing team members', async () => {
-  await expect(
-    submitSailingCardOnboarding({
-      cardType: SailingCardType.team_racing,
-      user: { sailingTeamMembershipVerifiedAt: new Date('2026-05-01T12:00:00.000Z') },
-    })
-  ).rejects.toThrow(SailingCardOnboardingValidationError);
-});
 ```
 
 - [ ] **Step 2: Run the failing test**
 
 Run: `npm run test -- src/libs/mit-sailing/sailingCardOnboarding.test.ts`
 
-Expected: FAIL because current code records `hasFitnessMembership`, but paid racing and verified sailing-team restrictions are not yet centrally rejected.
+Expected: FAIL because current code records `hasFitnessMembership`, but paid racing restrictions for MIT students and MIT Recreation-covered users are not yet centrally rejected.
 
 - [ ] **Step 3: Extend onboarding input and validator**
 
@@ -610,7 +579,7 @@ In `src/libs/mit-sailing/sailingCardOnboardingActions.ts`, verify `parseSailingC
 hasFitnessMembership: parseFitnessMembership(values.hasFitnessMembership),
 ```
 
-In the Server Action, load the current user's `sailingAffiliation`, `gymMembershipVerifiedAt`, and `sailingTeamMembershipVerifiedAt`, then call `membershipAccessForOnboardingRequest({ verified user facts, hasFitnessMembership: parsed.hasFitnessMembership })` and `canRequestPaidRacingMembership`. Do not duplicate the central eligibility logic in the Server Action. Persist the self-reported MIT Recreation answer on the existing `SailingCardRequest.hasFitnessMembership` field so staff can see that verification is required before issuing the card. Add an action-level test that a crafted form with `hasFitnessMembership=yes` and `cardType=racing` is rejected even when the UI is bypassed.
+In the Server Action, load the current user's `sailingAffiliation` and `gymMembershipVerifiedAt`, then call `membershipAccessForOnboardingRequest({ verified user facts, hasFitnessMembership: parsed.hasFitnessMembership })` and `canRequestPaidRacingMembership`. Do not duplicate the central eligibility logic in the Server Action. Persist the self-reported MIT Recreation answer on the existing `SailingCardRequest.hasFitnessMembership` field so staff can see that verification is required before issuing the card. Add an action-level test that a crafted form with `hasFitnessMembership=yes` and `cardType=racing` is rejected even when the UI is bypassed.
 
 - [ ] **Step 5: Run focused tests**
 
@@ -639,7 +608,7 @@ Add interaction and accessibility assertions:
 
 - If a user previously selected `racing` or `team_racing` and then selects existing MIT Recreation membership, the form resets `cardType` to `normal`.
 - The submitted form never includes a stale hidden paid card type after eligibility changes.
-- Verified `gymMembershipVerifiedAt` and `sailingTeamMembershipVerifiedAt` users see only normal membership, because the UI receives and uses the same central eligibility state as the Server Action instead of relying only on affiliation and form state.
+- Verified `gymMembershipVerifiedAt` users see only normal membership, because the UI receives and uses the same central eligibility state as the Server Action instead of relying only on affiliation and form state.
 - The card type radio group uses `fieldset`/`legend` or equivalent accessible group labeling.
 - Help and validation copy is connected with `aria-describedby`.
 - Keyboard navigation still reaches the normal membership choice and submit button in order.
@@ -679,12 +648,12 @@ Expected: PASS.
 
 Modify `src/data/mit-sailing/cmsSeed.ts` and `src/locales/en.json` to say:
 
-- Normal membership is free for MIT students, verified MIT Recreation members, and verified sailing-team members.
+- Normal membership is free for anyone with MIT Recreation membership. MIT students qualify automatically; other users need verified MIT Recreation membership.
 - Paid racing membership is only for sailors who need racing access and do not already qualify for free normal membership.
 - Normal membership covers dues; racing access, team racing, and ratings may still require staff approval.
 - Sign in to see the current racing membership price and renewal details. Do not link to `/profile/membership` in public copy until that route exists.
 
-Add CMS validation or locale tests that the seeded public pricing copy includes "verified MIT Recreation" and "verified sailing-team" wording so the page does not imply self-report is approval.
+Add CMS validation or locale tests that the seeded public pricing copy includes "verified MIT Recreation" wording so the page does not imply self-report is approval.
 
 - [ ] **Step 2: Run i18n and CMS tests**
 
@@ -702,12 +671,11 @@ Add focused tests for the existing sailing-card request admin or member profile 
 
 - Self-reported MIT Recreation membership appears as "MIT Recreation verification needed".
 - Onboarding completion and dashboard/profile status show "MIT Recreation verification needed", "No payment needed now", and "Staff will verify before issuing your card" for self-reported MIT Recreation members.
-- Admins can set and clear `sailingTeamMembershipVerifiedAt`.
-- A verified sailing-team member no longer sees paid racing/team-racing purchase paths.
+- A verified MIT Recreation member no longer sees paid racing/team-racing purchase paths.
 
 - [ ] **Step 2: Add the smallest admin control**
 
-Reuse the existing member/request review surface. Add an inline admin action to set or clear sailing-team verification and display the MIT Recreation self-report state for staff. Preserve the pavilion workflow through `/admin/users` and `/admin/users/[id]`: staff must be able to use one user search, apply a pending/card-type filter when useful, open the user profile, and resolve blockers before issuing a card number. Keep pending visibility inside the users surface with bounded filtering over loaded rows. Do not introduce a separate team-management system, standalone card queue route, or generic search framework in this PR.
+Reuse the existing member/request review surface. Display the MIT Recreation self-report state for staff. Preserve the pavilion workflow through `/admin/users` and `/admin/users/[id]`: staff must be able to use one user search, apply a pending/card-type filter when useful, open the user profile, and resolve blockers before issuing a card number. Keep pending visibility inside the users surface with bounded filtering over loaded rows. Do not introduce a separate team-management system, standalone card queue route, or generic search framework in this PR.
 
 - [ ] **Step 3: Run focused tests**
 
@@ -734,7 +702,7 @@ Expected: all commands pass.
 
 **Goal:** Add the local billing schema foundation, then let admins maintain effective-dated membership prices in the app and sync immutable Stripe Prices without starting paid subscriptions yet.
 
-**Readiness reconciliation:** The schema snippets below were written before the current unified `Payment` model landed. Treat the price catalog as the default PR 2 schema work; defer subscription, cancellation, notification, and checkout-specific `Payment` fields until the PR that first needs them. Do not add separate `SailingCardMembershipPayment` or `SailingCardMembershipRefund` tables unless the structural simplicity review, current Stripe docs via Context7, and failing tests prove that `Payment` plus `purpose`, `source`, `status`, Stripe IDs, and narrow extension fields cannot represent the current PR's payment/refund/invoice needs. If a split is justified, record the lifecycle boundary in `local/agent-runs/<branch-slug>/conductor.md` before editing schema.
+**Readiness reconciliation:** The schema snippets below were written before the current unified `Payment` model landed. Treat the price catalog as the default PR 2 schema work; defer subscription, cancellation, notification, and checkout-specific `Payment` fields until the PR that first needs them. Do not add separate `SailingCardMembershipPayment` or `SailingCardMembershipRefund` tables unless the structural simplicity review, current Stripe docs via Context7, and failing tests prove that `Payment` plus `purpose`, `source`, `status`, Stripe IDs, and narrow extension fields cannot represent the current PR's payment/refund/invoice needs. Do add one focused `SailingCardSubscription` table in PR 4A because Stripe's subscription lifecycle docs call for local subscription identity/status storage for app access decisions. If any additional split is justified, record the lifecycle boundary in `local/agent-runs/<branch-slug>/conductor.md` before editing schema.
 
 **Estimated changed files:** 30-45 total, implemented as two review units by default.
 
@@ -774,7 +742,7 @@ Create `src/libs/mit-sailing/membershipBilling/membershipPricingSeed.test.ts` as
 - `racing` spring and full, under 30 and 30 or over.
 - `team_racing`, under 30 and 30 or over.
 - June 1 and July 15 dates in US Eastern.
-- Every `SailingAffiliation` except `MIT_STUDENT` uses nonstudent age-band paid racing pricing.
+- Free-normal eligibility and paid-pricing category are separate: `MIT_STUDENT` is free by affiliation, Wellesley/Brandeis/Northeastern/Winsor/Brooks/NROTC/other students use legacy non-MIT student paid racing prices when paid cards are allowed, and other paid affiliations use age-band pricing.
 - The seed output is identical whether run on June 1, July 15, or any later date because spring/full rows use fixed US Eastern reference instants rather than runtime `now`.
 
 - [ ] **Step 2: Add seed/backfill helper**
@@ -809,7 +777,7 @@ Add a focused schema test for the reconciled schema. If the structural simplicit
 ```ts
 expect(compactSchema).toContain('model SailingCardMembershipPrice');
 expect(compactSchema).toContain('enum SailingCardMembershipPriceKind');
-expect(compactSchema).toContain('enum SailingCardMembershipAgeBand');
+expect(compactSchema).toContain('enum SailingCardMembershipPriceCategory');
 expect(compactSchema).toContain('enum SailingCardMembershipBillingInterval');
 expect(compactSchema).toContain('model Payment');
 expect(compactSchema).toContain('purpose PaymentPurpose');
@@ -827,7 +795,8 @@ enum SailingCardMembershipPriceKind {
   full
 }
 
-enum SailingCardMembershipAgeBand {
+enum SailingCardMembershipPriceCategory {
+  student
   under_30
   thirty_or_over
 }
@@ -847,13 +816,12 @@ model SailingCardMembershipPrice {
   id String @id() @default(cuid())
   cardType SailingCardType @map("card_type")
   priceKind SailingCardMembershipPriceKind @map("price_kind")
-  ageBand SailingCardMembershipAgeBand @map("age_band")
+  priceCategory SailingCardMembershipPriceCategory @map("price_category")
   billingInterval SailingCardMembershipBillingInterval @map("billing_interval")
   amountCents Int @map("amount_cents")
   currency String @default("usd")
   active Boolean @default(true)
   effectiveAt DateTime @map("effective_at")
-  retiredAt DateTime? @map("retired_at")
   changeReason String @map("change_reason") @db.Text()
   stripePriceId String? @unique() @map("stripe_price_id")
   stripeSyncError String? @map("stripe_sync_error") @db.Text()
@@ -863,8 +831,7 @@ model SailingCardMembershipPrice {
   updatedAt DateTime @updatedAt() @map("updated_at")
   createdBy User? @relation("SailingCardMembershipPriceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
-  @@unique([cardType, priceKind, ageBand, billingInterval, effectiveAt])
-  @@index([cardType, priceKind, ageBand, billingInterval, active, effectiveAt])
+  @@unique([cardType, priceKind, priceCategory, billingInterval, effectiveAt])
   @@index([createdByUserId])
   @@map("sailing_card_membership_prices")
 }
@@ -944,12 +911,13 @@ Create `membershipPricing.test.ts` covering:
 - Before July 15, checkout pricing returns both the spring price due today and the full renewal price due on July 15.
 - Spring age band is calculated from the purchase date. Full-renewal age band is calculated from the July 15 billing anchor, including a date of birth that crosses age 30 between purchase and July 15, a birthday exactly on July 15 Eastern, and birthdays one day before and after the anchor.
 - Age band is computed from the relevant US Eastern calendar date; `thirty_or_over` starts on the 30th birthday. Include tests for birthdays on July 15 and July 16, plus UTC times that cross Eastern midnight.
+- Non-MIT student affiliations use the `student` price category and do not fall through to age pricing.
 - Inactive prices are ignored.
 - Future `effectiveAt` prices are ignored until their effective date.
-- Retired prices are ignored after `retiredAt`.
 - Future price changes keep the current checkout price active until `effectiveAt`.
-- Price changes create a new active row and set the previous matching row's `retiredAt` to the new row's `effectiveAt`, not to the write time.
-- Duplicate effective dates and overlapping active rows for the same card type, price kind, age band, and billing interval fail validation before checkout selection can become ambiguous.
+- Price changes create a new immutable row. Following Stripe Price practice, checkout keeps using the previous synced active row until the replacement row has `stripePriceId`, no `stripeSyncError`, and `stripeSyncedAt`; then the old row can be archived by setting `active=false`.
+- Duplicate effective dates for the same card type, price kind, price category, and billing interval fail validation before checkout selection can become ambiguous.
+- `spring + annual` price rows fail validation; only `spring + one_time`, `full + one_time`, and `full + annual` are valid catalog combinations.
 - Existing payments keep their initial and renewal price IDs, amount, and currency snapshot after later price changes.
 - Invalid amounts below Stripe minimum return field error.
 - Blank price-change reasons fail validation.
@@ -959,23 +927,27 @@ Create `membershipPricing.test.ts` covering:
 Create `membershipPricing.ts` with:
 
 ```ts
-export function membershipAgeBandForDateOfBirth(props: {
+export function membershipPriceCategoryForCardRequest(props: {
+  readonly affiliation: SailingAffiliation | '';
   readonly dateOfBirth: string;
   readonly now: Date;
-}): SailingCardMembershipAgeBand;
+}): SailingCardMembershipPriceCategory | null;
 
 export async function getActiveMembershipPrice(options: {
   readonly billingInterval: SailingCardMembershipBillingInterval;
   readonly cardType: SailingCardType;
-  readonly dateOfBirth: string;
   readonly now: Date;
+  readonly priceCategory: SailingCardMembershipPriceCategory;
   readonly priceKind: SailingCardMembershipPriceKind;
+  readonly requireStripeReady?: boolean;
 }): Promise<SailingCardMembershipPrice | null>;
 
 export async function getCheckoutMembershipPrices(options: {
+  readonly affiliation: SailingAffiliation | '';
   readonly cardType: SailingCardType;
   readonly dateOfBirth: string;
   readonly now: Date;
+  readonly requireStripeReady?: boolean;
 }): Promise<{
   readonly dueTodayPrice: SailingCardMembershipPrice;
   readonly renewalPrice: SailingCardMembershipPrice;
@@ -988,16 +960,16 @@ export async function replaceActiveMembershipPrice(options: {
   readonly changeReason: string;
   readonly createdByUserId: string;
   readonly priceKind: SailingCardMembershipPriceKind;
-  readonly ageBand: SailingCardMembershipAgeBand;
+  readonly priceCategory: SailingCardMembershipPriceCategory;
   readonly effectiveAt: Date;
 }): Promise<SailingCardMembershipPrice>;
 ```
 
-Use the existing sailing-card date-only parser before age-band math; do not construct age bands from arbitrary JavaScript `Date` values. Use a transaction for retiring the previous matching row at the new row's `effectiveAt` plus creating the new row. Do not call Stripe from this helper. Keep historical rows for audit and reminders; never mutate amount/currency on a row that may already be referenced by a payment or subscription.
+Use the existing sailing-card date-only parser before category math; do not construct age categories from arbitrary JavaScript `Date` values. Do not call Stripe from read helpers. Keep historical rows for audit and reminders; never mutate amount/currency on a row that may already be referenced by a payment or subscription.
 
 - [ ] **Step 3: Add admin pricing UI**
 
-Create a compact admin page that lists active prices by card type, price kind, and age band. The edit form uses native number inputs, preserves dollars-to-cents conversion server-side, and shows the Stripe Price sync state.
+Create a compact admin page that lists active prices by card type, price kind, and price category. The edit form uses native number inputs, preserves dollars-to-cents conversion server-side, and shows the Stripe Price sync state.
 
 The default admin page shows current active prices and sync state first. Retired/history rows and "subscriptions still using an older full-season Stripe Price" diagnostics live behind a history/details disclosure with a link to the filtered membership payments page. Pricing forms use dollar-prefix inputs, server-rendered cents preview, effective-date preview, a "will replace current price on {date}" summary, and disabled save until amount, effective date, and reason are valid. If a new row has not synced to Stripe, show that checkout will not use it until Stripe sync succeeds and that the previous synced price remains the checkout price.
 
@@ -1009,10 +981,10 @@ Create `src/libs/mit-sailing/membershipBilling/membershipPricingActions.test.ts`
 - dollars are converted to integer cents server-side
 - `changeReason` is required
 - `effectiveAt` must be a valid future-or-current date in US Eastern
-- the previous matching row is retired inside the same transaction
-- duplicate effective dates and overlapping active rows for the same price key are rejected
+- the previous matching row is archived only after the replacement Stripe Price is ready
+- duplicate effective dates for the same price key are rejected
 - `createdByUserId` is stored
-- synced rows cannot have `stripePriceId`, amount, currency, billing interval, card type, price kind, or age band edited in place
+- synced rows cannot have amount, currency, billing interval, card type, price kind, price category, effective date, or change reason edited in place
 - manual Stripe Price ID entry is rejected
 
 Implement `membershipPricingActions.ts` as thin Server Actions that call the pricing helper after authorization and validation.
@@ -1038,6 +1010,7 @@ In `membershipPricing.test.ts` or a separate `membershipStripePrices.test.ts`, m
 - Stripe sync failure keeps the row visible to admins with `stripeSyncError` and no `stripeSyncedAt`.
 - Checkout selection helpers only return rows with a non-null `stripePriceId` and no sync error.
 - Sync does not replace Stripe Prices on historical rows that already have `stripePriceId`.
+- When a locally active row with a synced `stripePriceId` is archived by setting `active=false`, the sync helper updates the matching Stripe Price to `active=false` instead of deleting or replacing it.
 
 - [ ] **Step 2: Implement sync helper**
 
@@ -1049,7 +1022,7 @@ metadata: {
   appPriceId: price.id,
   cardType: price.cardType,
   priceKind: price.priceKind,
-  ageBand: price.ageBand,
+  priceCategory: price.priceCategory,
   billingInterval: price.billingInterval,
 }
 ```
@@ -1099,7 +1072,7 @@ Expected: PASS.
 
 ### PR 4A: Subscription Checkout, Profile Billing, And Billing Portal
 
-**Goal:** Let eligible users choose paid racing or team racing, start the subscription through Stripe Checkout, and manage payment method/invoices through Stripe Portal. Membership webhooks and cancellation move to PR 4B so review stays small.
+**Goal:** Let eligible users choose paid racing or team racing during onboarding, review subscription terms after required Sailing Card details and swim-agreement approval, then start Stripe Checkout from that onboarding flow. Profile membership pages manage existing paid memberships, payment methods, invoices, and recovery states after signup. Membership webhooks and cancellation move to PR 4B so review stays small.
 
 **Estimated changed files:** 28-42.
 
@@ -1120,6 +1093,10 @@ Expected: PASS.
 - Create: `src/components/mit-sailing/profile/ProfileMembershipBillingView.tsx`
 - Create: `src/components/mit-sailing/profile/ProfileMembershipBillingView.test.tsx`
 - Create: `src/app/[locale]/(auth)/profile/membership/profileMembershipPage.test.tsx`
+- Modify: `src/app/[locale]/(marketing)/(site)/onboarding/page.tsx`
+- Modify: `src/components/mit-sailing/onboarding/SailingCardOnboardingForm.tsx`
+- Modify: `src/components/mit-sailing/onboarding/SailingCardOnboardingCardRequestFields.tsx`
+- Modify: `src/libs/mit-sailing/sailingCardOnboardingActions.ts`
 - Modify: `src/libs/Env.ts`
 - Modify: `src/app/[locale]/(auth)/layout.tsx`
 - Modify: `src/app/[locale]/(auth)/profile/layout.tsx`
@@ -1136,11 +1113,19 @@ Before editing, confirm the listed route, action, component, navigation, and tes
 
 - [ ] **Step 0: Add only checkout-needed subscription/payment schema**
 
-If PR 2 deferred subscription schema, start PR 4A with a focused schema test for the smallest local subscription-state model needed by Checkout/profile state and duplicate-subscription handling. Extend the existing `Payment` model for checkout/session/consent/price snapshot fields needed by PR 4A; do not create a parallel membership-payment table unless the structural simplicity review proves `Payment` cannot represent the lifecycle. Defer cancellation reason fields to PR 4B and renewal-notification rows to the reminder PR unless this PR's tests need them.
+Start PR 4A with a focused schema test for one local `SailingCardSubscription` model. This follows Stripe's build-subscriptions guidance to store subscription identity/status locally for access decisions and avoids overloading `Payment.stripeSubscriptionId`, which cannot represent one subscription producing many invoices/payments over time. Extend the existing `Payment` model only for checkout/session/consent/price snapshot fields and for linking membership payment rows to `SailingCardSubscription`; do not create parallel local tables for Stripe invoices, refunds, or events unless a test proves the app needs them. Defer cancellation reason fields to PR 4B and renewal-notification rows to the reminder PR unless this PR's tests need them.
+
+Minimum PR 4A subscription schema checklist:
+
+- [ ] `SailingCardSubscription` stores `userId`, `cardType`, Stripe customer ID, unique Stripe subscription ID, Stripe product ID, current renewal Stripe Price ID, local renewal price ID, Stripe subscription item ID, status, current period start/end, trial end, cancel-at-period-end, cancel/canceled/ended timestamps, canonical/duplicate state, created/updated timestamps, and last processed Stripe subscription event timestamp/ID.
+- [ ] `SailingCardSubscription` relates to `User` and to membership `Payment` rows; `Payment` rows may keep invoice/charge/payment intent facts but must not be the canonical subscription-status record.
+- [ ] `Payment.stripeSubscriptionId` uniqueness is removed or no longer used for multi-invoice membership payments once payments link to `SailingCardSubscription`; one Stripe subscription must be able to produce many local renewal payment rows.
+- [ ] The schema still has no `SailingCardMembershipPayment`, `SailingCardMembershipRefund`, or Stripe invoice/event mirror tables.
+- [ ] Local access/profile/admin state reads `SailingCardSubscription.status` plus current-season membership `Payment` status; it does not query Stripe during page render.
 
 - [ ] **Step 1: Write subscription-state tests**
 
-Create `src/libs/mit-sailing/membershipBilling/membershipSubscriptions.test.ts` covering active, trialing, incomplete, past-due, cancel-at-period-end, canceled, and duplicate-completion profile states. Include canonical active subscription selection, duplicate Stripe subscription completion recorded on the pending payment as `issueKind: duplicate_subscription` with `duplicateStripeSubscriptionId`, and the "paid renewal may be unnecessary" state when free-normal eligibility appears on a user with an active paid subscription.
+Create `src/libs/mit-sailing/membershipBilling/membershipSubscriptions.test.ts` covering active, trialing, incomplete, past-due, cancel-at-period-end, canceled, and duplicate-completion profile states. Include canonical active subscription selection, duplicate Stripe subscription completion recorded on the local subscription/payment issue state, and the "paid renewal may be unnecessary" state when free-normal eligibility appears on a user with an active paid subscription.
 
 - [ ] **Step 2: Implement subscription helpers**
 
@@ -1205,7 +1190,9 @@ export async function createMembershipCheckoutSession(options: {
 }): Promise<{ readonly url: string } | null>;
 ```
 
-Use the existing `getStripeClient`, `Env.NEXT_PUBLIC_APP_URL`, and event-payment idempotency style. Split Checkout tests into three bites: date/price selection, pending payment/session idempotency, and Stripe Checkout request construction. Create or reuse a pending local membership payment row in a transaction before calling Stripe. By default this is the existing `Payment` model with `purpose: membership`; use a separate membership-payment table only if the PR 4A structural simplicity decision proved that split. Store the accepted initial and renewal price IDs, amount due today, currency, card type, price kind, payment kind, `activeCheckoutKey`, `stripeCheckoutSessionUrl`, and `stripeCheckoutSessionExpiresAt` locally, then use the local payment ID as the Stripe idempotency-key source and metadata value. Store the metadata on both the Checkout Session and `subscription_data.metadata`. Store `stripeSubscriptionItemId` on webhook completion in PR 4B so future price changes can update active auto-renew subscriptions before renewal with `proration_behavior: 'none'`.
+Use the existing `getStripeClient`, `Env.NEXT_PUBLIC_APP_URL`, and event-payment idempotency style. Split Checkout tests into three bites: date/price selection, pending payment/session idempotency, and Stripe Checkout request construction. Create or reuse a pending local membership payment row plus pending local subscription record in one transaction before calling Stripe. Use the existing `Payment` model with `purpose: membership`; use a separate membership-payment table only if a new failing test proves `Payment` cannot represent invoice/payment/charge rows. Store the accepted initial and renewal price IDs, amount due today, currency, card type, price kind, payment kind, `activeCheckoutKey`, `stripeCheckoutSessionUrl`, and `stripeCheckoutSessionExpiresAt` locally, then use the local payment ID as the Stripe idempotency-key source and metadata value. Store metadata on both the Checkout Session and `subscription_data.metadata`. Store `stripeSubscriptionItemId` on `SailingCardSubscription` during webhook completion so future price changes can update active auto-renew subscriptions before renewal with `proration_behavior: 'none'`.
+
+Before calling `getCheckoutMembershipPrices`, Checkout must call the existing sailing-card membership eligibility helper and return no paid Checkout path for MIT students, verified MIT Recreation members, or pending free-normal verification users. Pricing helpers choose the paid price category only after free-normal eligibility has already been ruled out.
 
 The implementation must prove in Stripe test mode that spring Checkout does not create a prorated recurring charge before July 15. If Checkout Session parameters cannot express that safely, switch this task to a two-step flow: one-time Checkout for spring/full access plus a server-created subscription anchored to July 15 after successful payment. Do not ship a path where the initial invoice can include both spring and annual charges.
 
@@ -1215,35 +1202,36 @@ Run: `npm run test -- src/libs/mit-sailing/membershipBilling/membershipStripeChe
 
 Expected: PASS.
 
-#### Task 4A.3: Add user-facing membership subscription page
+#### Task 4A.3: Add onboarding checkout and profile membership management
 
 - [ ] **Step 1: Add route and action tests**
 
 Add tests that assert:
 
-- Eligible users see the paid racing call to action with amount and July 15 renewal date.
-- July 14 Eastern, July 15 00:00 Eastern, and after-July-15 component tests show the correct amount due today, next renewal date, and next renewal amount.
-- Before Checkout, consent copy includes: "Today: {springAmount}", "Renews automatically on July 15, 2026 for {fullAmount}", "Then renews every July 15 until auto-renew is off", and "Turn off auto-renew from Profile > Membership before the renewal date."
+- Eligible users who chose `racing` or `team_racing` in onboarding see the paid racing checkout call to action in onboarding after phone, emergency contact, date of birth, and swim agreement are complete.
+- July 14 Eastern, July 15 00:00 Eastern, and after-July-15 onboarding component tests show the correct amount due today, next renewal date, and next renewal amount before redirecting to Stripe.
+- Before Checkout, onboarding consent copy includes: "Today: {springAmount}", "Renews automatically on July 15, 2026 for {fullAmount}", "Then renews every July 15 until auto-renew is off", and "Turn off auto-renew from Profile > Membership before the renewal date."
 - On and after July 15, consent copy includes: "Today: {fullAmount}" and the next July 15 renewal amount/date.
-- The primary button says "Continue to Stripe and start paid racing membership" or the team racing equivalent for the selected card type.
+- The onboarding primary button says "Continue to Stripe and start paid racing membership" or the team racing equivalent for the selected card type.
 - Eligible users can choose `racing` or `team_racing` when both paid options are available.
-- Free-normal users see current eligibility and no paid Checkout button.
+- Free-normal users see current eligibility in onboarding and no paid Checkout button.
 - Submitted Checkout action redirects to Stripe URL.
 - The saved consent acceptance snapshot exactly matches the terms block shown before the member leaves for Stripe, including amount, renewal date, auto-renew text, cancellation path, selected card type, and submit button text.
-- The profile/dashboard and onboarding completion state link to `/profile/membership`.
-- No user-facing onboarding or profile surface displays stale one-time racing prices from `sailingCardMembershipPriceCents` after this PR. Onboarding completion links eligible paid users to `/profile/membership` and can pass/preselect the requested paid card type without showing the old price card as the payment path.
-- Public/home copy updates after the membership route exists: authenticated users can go directly to membership details, and unauthenticated users are sent through sign-in with a redirect back to membership details.
-- The page has clear states for free-normal, eligible unpaid, active, cancel-at-period-end, past-due, and canceled users.
+- Onboarding does not redirect eligible first-time paid users to `/profile/membership` as a separate initial purchase page. The checkout starts from the onboarding card choice after required details are complete.
+- The profile/dashboard links to `/profile/membership` only for managing an existing paid membership, recovering a pending checkout/payment issue, or viewing active/canceled/past-due state.
+- No user-facing onboarding or profile surface displays stale one-time racing prices from `sailingCardMembershipPriceCents` after this PR. Onboarding paid-card state shows the Checkout-backed amount due today and renewal amount before the Stripe redirect.
+- Public/home copy updates after the membership route exists: authenticated users can go to onboarding when they need a new Sailing Card request and to profile membership when they already have a paid membership to manage.
+- The profile membership page has clear states for free-normal, active, cancel-at-period-end, past-due, and canceled users; the first-purchase eligible-unpaid state belongs in onboarding.
 - If free-normal eligibility appears on a user with an active paid subscription, the page flags that paid renewal may be unnecessary. PR 4B adds the one-step turn-off-auto-renew flow.
-- Past-due/unpaid states show failed payment status, amount due if known, payment-method portal action, and whether racing access is still active or blocked.
-- Public home pricing copy is updated after this route exists to link authenticated users to `/profile/membership` and say: "Sign in to check your eligibility, price, and renewal date."
+- Past-due/unpaid profile states show failed payment status, amount due if known, payment-method portal action, and whether racing access is still active or blocked.
+- Public home pricing copy is updated after this route exists to send new requests through onboarding and existing paid members to `/profile/membership`.
 
 State hierarchy for the profile page:
 
 | State | Top status | Primary action |
 |---|---|---|
 | `free_normal` | "Normal membership is covered." | None unless another profile task is pending. |
-| `eligible_unpaid` | "Paid racing membership is available." | Continue to Stripe. |
+| `pending_checkout` | "Checkout is not complete." | Resume checkout or start over from onboarding. |
 | `active_paid` | "Paid racing membership is active through {date}." | Update payment method or invoice action; cancellation arrives in PR 4B. |
 | `free_normal_active_paid` | "Paid renewal may be unnecessary." | PR 4B turn-off-auto-renew action. |
 | `past_due` | "Payment needs attention." | Update payment method. |
@@ -1254,7 +1242,9 @@ State hierarchy for the profile page:
 Use:
 
 - `src/app/[locale]/(auth)/profile/membership/page.tsx`
+- `src/app/[locale]/(marketing)/(site)/onboarding/page.tsx`
 - `src/libs/mit-sailing/membershipBilling/membershipCheckoutActions.ts`
+- `src/components/mit-sailing/onboarding/SailingCardOnboardingForm.tsx`
 - `src/components/mit-sailing/profile/ProfileMembershipBillingView.tsx`
 
 Keep copy short:
@@ -1267,9 +1257,9 @@ Keep copy short:
 - access-through date
 - renewal status for active subscribers; the `Turn off auto-renew` action is added in PR 4B
 
-Use a radio group or segmented control for paid card type selection. The terms shown beside the primary Checkout button must update when the selected card type changes.
+Use a radio group or segmented control for paid card type selection in onboarding. The terms shown beside the onboarding Checkout button must update when the selected card type changes.
 
-`ProfileMembershipBillingView` layout rule: top status summary, one primary action, one compact "Today / Renews / Auto-renew" terms block, then secondary payment-method and invoice actions. If only one paid card type is available, do not show a selector. Add tests for fieldset/legend or equivalent group labels, visible labels, `aria-describedby` for help/errors, disabled/loading submit state, and keyboard order through card type, reason, note, and submit. Add mobile-width render assertions for single-column stacking, no unintended horizontal scrolling, and no broken button wrapping.
+`ProfileMembershipBillingView` layout rule: top status summary, one primary management/recovery action, one compact renewal/access summary for active or pending paid memberships, then secondary payment-method and invoice actions. If profile state has no active, pending, or failed paid membership, do not show a paid card selector or first-purchase Checkout button. Add tests for fieldset/legend or equivalent group labels, visible labels, `aria-describedby` for help/errors, disabled/loading submit state, and keyboard order through card type, reason, note, and submit where those controls are actually rendered. Add mobile-width render assertions for single-column stacking, no unintended horizontal scrolling, and no broken button wrapping.
 
 Use `useActionState` only where the component needs inline server validation errors.
 
@@ -1279,7 +1269,7 @@ Create `membershipBillingPortalActions.ts` with one Server Action that creates a
 
 - [ ] **Step 4: Run focused tests**
 
-Run: `npm run test -- src/components/mit-sailing/profile/ProfileMembershipBillingView.test.tsx 'src/app/[locale]/(auth)/profile/membership/profileMembershipPage.test.tsx' src/libs/mit-sailing/membershipBilling/membershipCheckoutActions.test.ts src/libs/mit-sailing/membershipBilling/membershipBillingPortalActions.test.ts`
+Run: `npm run test -- src/components/mit-sailing/onboarding/SailingCardOnboardingForm.test.tsx src/components/mit-sailing/profile/ProfileMembershipBillingView.test.tsx 'src/app/[locale]/(auth)/profile/membership/profileMembershipPage.test.tsx' src/libs/mit-sailing/membershipBilling/membershipCheckoutActions.test.ts src/libs/mit-sailing/membershipBilling/membershipBillingPortalActions.test.ts`
 
 Run: `npm run check:i18n`.
 

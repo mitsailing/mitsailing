@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { SailingAffiliation } from '@/generated/prisma/enums';
+import { SailingAffiliation, SailingCardType } from '@/generated/prisma/enums';
 import { sailingCardAgreement } from '@/libs/mit-sailing/sailingCardAgreementContent';
 import {
   emptyValues,
@@ -584,6 +584,112 @@ describe('SailingCardOnboardingForm', () => {
         })
       ).getByRole('radio', { name: /Normal/u })
     ).toBeChecked();
+    expect(
+      screen.queryByRole('radio', {
+        name: /Pavilion racing/u,
+      })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('radio', { name: /Thursday team racing/u })
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows only normal membership for verified MIT Recreation members', async () => {
+    renderForm({ hasVerifiedMitRecreationMembership: true });
+
+    await showWellesleyDetails();
+
+    expect(
+      screen.queryByRole('group', {
+        name: 'Do you already have MIT Recreation membership?',
+      })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'MIT Recreation membership is verified. Normal is included.'
+      )
+    ).toBeInTheDocument();
+    expect(
+      within(
+        screen.getByRole('group', {
+          name: 'Choose your sailing card',
+        })
+      ).getByRole('radio', { name: /Normal/u })
+    ).toBeChecked();
+    expect(
+      screen.queryByRole('radio', {
+        name: /Pavilion racing/u,
+      })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('radio', { name: /Thursday team racing/u })
+    ).not.toBeInTheDocument();
+  });
+
+  it('normalizes stale paid card type for verified MIT Recreation members', async () => {
+    renderForm({
+      hasVerifiedMitRecreationMembership: true,
+      initialValues: {
+        ...emptyValues,
+        affiliation: SailingAffiliation.WELLESLEY,
+        cardType: SailingCardType.racing,
+        firstName: 'Grace',
+        lastName: 'Hopper',
+      },
+    });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(
+      within(
+        screen.getByRole('group', {
+          name: 'Choose your sailing card',
+        })
+      ).getByRole('radio', { name: /Normal/u })
+    ).toBeChecked();
+    expect(
+      screen.queryByRole('radio', {
+        name: /Pavilion racing/u,
+      })
+    ).not.toBeInTheDocument();
+  });
+
+  it('resets paid card type when affiliation changes to mit student', async () => {
+    renderForm();
+    const user = userEvent.setup();
+
+    await showWellesleyDetails();
+    await user.click(screen.getByRole('radio', { name: /^No/u }));
+    await user.click(
+      screen.getByRole('radio', {
+        name: /Pavilion racing/u,
+      })
+    );
+    expect(
+      screen.getByRole('radio', {
+        name: /Pavilion racing/u,
+      })
+    ).toBeChecked();
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Affiliation' }),
+      SailingAffiliation.MIT_STUDENT
+    );
+    await user.type(screen.getByLabelText('MIT ID'), '123456789');
+
+    expect(
+      within(
+        screen.getByRole('group', {
+          name: 'Choose your sailing card',
+        })
+      ).getByRole('radio', { name: /Normal/u })
+    ).toBeChecked();
+    expect(
+      screen.queryByRole('radio', {
+        name: /Pavilion racing/u,
+      })
+    ).not.toBeInTheDocument();
   });
 
   it('includes required swim agreement checkbox', async () => {

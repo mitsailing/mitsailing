@@ -41,6 +41,9 @@ export function SailingCardOnboardingForm(
         manualNameRequired={model.manualNameRequired}
         mitIdRequired={model.mitIdRequired}
         now={model.now}
+        hasVerifiedMitRecreationMembership={
+          model.hasVerifiedMitRecreationMembership
+        }
         onContinueIdentity={model.handleContinueIdentity}
         register={model.form.register}
         setValue={model.form.setValue}

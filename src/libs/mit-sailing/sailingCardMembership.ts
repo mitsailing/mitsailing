@@ -2,8 +2,7 @@ import { SailingAffiliation, SailingCardType } from '@/generated/prisma/enums';
 import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { parseSailingCardDateOfBirth } from '@/libs/mit-sailing/sailingCardDateOfBirth';
 
-const studentAffiliations: ReadonlySet<SailingAffiliation> = new Set([
-  SailingAffiliation.MIT_STUDENT,
+const studentPaidRacingAffiliations: ReadonlySet<SailingAffiliation> = new Set([
   SailingAffiliation.WELLESLEY,
   SailingAffiliation.BRANDEIS,
   SailingAffiliation.NORTHEASTERN,
@@ -13,8 +12,9 @@ const studentAffiliations: ReadonlySet<SailingAffiliation> = new Set([
   SailingAffiliation.OTHER_STUDENT,
 ]);
 
-const isStudentSailingAffiliation = (affiliation: SailingAffiliation | '') =>
-  affiliation !== '' && studentAffiliations.has(affiliation);
+export const hasStudentPaidRacingPrice = (
+  affiliation: SailingAffiliation | ''
+) => affiliation !== '' && studentPaidRacingAffiliations.has(affiliation);
 
 export const hasAutomaticFitnessMembership = (
   affiliation: SailingAffiliation | ''
@@ -107,14 +107,16 @@ export const sailingCardMembershipPriceCents = (props: {
     return 0;
   }
 
-  const student = isStudentSailingAffiliation(props.affiliation);
   if (props.affiliation === SailingAffiliation.MIT_STUDENT) {
     return 0;
   }
+  const studentPaidRacingPrice = hasStudentPaidRacingPrice(props.affiliation);
   if (props.cardType === SailingCardType.team_racing) {
-    return student ? 2500 : nonStudentTeamRacingPriceCents(props);
+    return studentPaidRacingPrice
+      ? 2500
+      : nonStudentTeamRacingPriceCents(props);
   }
-  if (student) {
+  if (studentPaidRacingPrice) {
     return isSpringOnly(props.now) ? 2500 : 4000;
   }
 
