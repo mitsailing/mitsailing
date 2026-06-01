@@ -38,12 +38,14 @@ function priceRow(
       'amountCents' | 'billingInterval' | 'priceCategory' | 'priceKind'
     >
 ): SailingCardMembershipPriceRow {
+  const rowEffectiveAt = row.effectiveAt ?? effectiveAt;
+
   return {
     ...row,
     active: row.active ?? true,
     cardType: row.cardType ?? SailingCardType.racing,
     currency: row.currency ?? 'usd',
-    effectiveAt: row.effectiveAt ?? effectiveAt,
+    effectiveAt: rowEffectiveAt,
     id:
       row.id ??
       [
@@ -51,6 +53,7 @@ function priceRow(
         row.priceCategory,
         row.billingInterval,
         row.amountCents,
+        rowEffectiveAt.toISOString(),
       ].join('-'),
     stripePriceId: row.stripePriceId ?? null,
     stripeSyncError: row.stripeSyncError ?? null,
@@ -181,7 +184,10 @@ describe('membership pricing', () => {
     ).resolves.toMatchObject({
       status: 'ready',
       dueTodayPrice: { amountCents: 7000 },
-      renewalPrice: { amountCents: 12_500 },
+      renewalPrice: {
+        amountCents: 12_500,
+        billingInterval: SailingCardMembershipBillingInterval.annual,
+      },
     });
     expect(fixture.findMany).toHaveBeenCalledTimes(1);
   });
