@@ -311,6 +311,35 @@ describe('getReadinessHealth', () => {
     });
   });
 
+  it('skips public media checks for service readiness mode', async () => {
+    const httpCheck = vi.fn(async () => {});
+
+    const health = await getReadinessHealth({
+      mode: 'service',
+      env: productionReadinessEnv(),
+      checkers: {
+        http: httpCheck,
+        postgres: vi.fn(async () => {}),
+        redis: vi.fn(async () => {}),
+      },
+    });
+
+    expect(health.status).toBe('ok');
+    expect(httpCheck).not.toHaveBeenCalled();
+    expect(health.checks.mediaUpload).toEqual({
+      status: 'skip',
+      required: false,
+      latencyMs: 0,
+      code: 'service_mode',
+    });
+    expect(health.checks.mediaPublic).toEqual({
+      status: 'skip',
+      required: false,
+      latencyMs: 0,
+      code: 'service_mode',
+    });
+  });
+
   it('fails when postgres fails', async () => {
     const health = await getReadinessHealth({
       env: { appEnv: 'production', redisUrl: 'redis://redis:6379' },

@@ -210,17 +210,21 @@ function skippedDependencyCheck(required: boolean): DependencyHealth {
   };
 }
 
+function serviceModeDependencyCheck(): DependencyHealth {
+  return {
+    status: 'skip',
+    required: false,
+    latencyMs: 0,
+    code: 'service_mode',
+  };
+}
+
 function trafficCheck(params: {
   hostTrafficEnabled?: 'true' | 'false';
   mode: ReadinessMode;
 }): DependencyHealth {
   if (params.mode === 'service') {
-    return {
-      status: 'skip',
-      required: false,
-      latencyMs: 0,
-      code: 'service_mode',
-    };
+    return serviceModeDependencyCheck();
   }
   if (params.hostTrafficEnabled === 'false') {
     return {
@@ -294,22 +298,28 @@ export async function getReadinessHealth(
         },
       })
     : Promise.resolve(skippedDependencyCheck(isExternalDependencyRequired));
-  const mediaUploadPromise = optionalHttpCheck({
-    baseUrl: env.mediaUploadBaseUrl,
-    checkers,
-    method: 'OPTIONS',
-    path: '/cms-media/uploads/',
-    required: isExternalDependencyRequired,
-    timeoutMs,
-  });
-  const mediaPublicPromise = optionalHttpCheck({
-    baseUrl: env.mediaPublicBaseUrl,
-    checkers,
-    method: 'GET',
-    path: '/cms-media/healthz',
-    required: isExternalDependencyRequired,
-    timeoutMs,
-  });
+  const mediaUploadPromise =
+    mode === 'service'
+      ? Promise.resolve(serviceModeDependencyCheck())
+      : optionalHttpCheck({
+          baseUrl: env.mediaUploadBaseUrl,
+          checkers,
+          method: 'OPTIONS',
+          path: '/cms-media/uploads/',
+          required: isExternalDependencyRequired,
+          timeoutMs,
+        });
+  const mediaPublicPromise =
+    mode === 'service'
+      ? Promise.resolve(serviceModeDependencyCheck())
+      : optionalHttpCheck({
+          baseUrl: env.mediaPublicBaseUrl,
+          checkers,
+          method: 'GET',
+          path: '/cms-media/healthz',
+          required: isExternalDependencyRequired,
+          timeoutMs,
+        });
   const trafficPromise = (async () => {
     try {
       const hostTrafficState = await checkers.trafficState(

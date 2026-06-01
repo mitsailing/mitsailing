@@ -399,7 +399,7 @@ switch_to_ref() {
 
     const timeoutMs = Number(process.env.DEPLOY_HEALTH_TIMEOUT_SECONDS || 10) * 1000;
     const signal = AbortSignal.timeout(timeoutMs);
-    const res = await fetch("http://127.0.0.1:3000/api/health/ready", {
+    const res = await fetch("http://127.0.0.1:3000/api/health/ready?mode=service", {
       headers: { Authorization: `Bearer ${secret}` },
       signal,
     });

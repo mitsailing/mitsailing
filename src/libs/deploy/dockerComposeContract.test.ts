@@ -203,8 +203,15 @@ describe('production docker compose', () => {
       `"mkdir -p ${escapedAppDir}/bin ${escapedAppDir}/docker/postgres ${escapedAppDir}/docker/nginx"`
     );
     expect(deployWorkflow).toContain(
-      `"chmod +x ${escapedAppDir}/bin/deploy.sh"`
+      `chmod 755 ${escapedAppDir}/docker ${escapedAppDir}/docker/postgres ${escapedAppDir}/docker/nginx`
     );
+    expect(deployWorkflow).toContain(
+      `chmod 700 ${escapedAppDir}/bin/deploy.sh`
+    );
+    expect(deployWorkflow).toContain(
+      `chmod 644 ${escapedAppDir}/compose.yaml ${escapedAppDir}/compose.prod.yaml ${escapedAppDir}/docker/postgres/init.sql ${escapedAppDir}/docker/nginx/media.conf`
+    );
+    expect(deployWorkflow).not.toContain(`${escapedAppDir}/.env.production`);
     expect(deployWorkflow).toContain(
       `printf -v remote_data_root '%q' "${dollar}PRODUCTION_DATA_ROOT"`
     );
