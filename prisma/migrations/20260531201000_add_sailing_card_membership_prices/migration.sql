@@ -78,7 +78,10 @@ BEGIN
     OR NEW.currency IS DISTINCT FROM OLD.currency
     OR NEW.effective_at IS DISTINCT FROM OLD.effective_at
     OR NEW.change_reason IS DISTINCT FROM OLD.change_reason
-    OR NEW.created_by_user_id IS DISTINCT FROM OLD.created_by_user_id
+    OR (
+      NEW.created_by_user_id IS NOT NULL
+      AND NEW.created_by_user_id IS DISTINCT FROM OLD.created_by_user_id
+    )
     OR (
       OLD.stripe_price_id IS NOT NULL
       AND NEW.stripe_price_id IS DISTINCT FROM OLD.stripe_price_id
