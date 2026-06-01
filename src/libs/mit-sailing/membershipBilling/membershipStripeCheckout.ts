@@ -116,6 +116,9 @@ export async function createStripeMembershipCheckoutSession(options: {
       ],
       metadata,
       mode: 'subscription',
+      after_expiration: {
+        recovery: { enabled: true },
+      },
       cancel_url: options.cancelUrl,
       success_url: options.successUrl,
       subscription_data: {

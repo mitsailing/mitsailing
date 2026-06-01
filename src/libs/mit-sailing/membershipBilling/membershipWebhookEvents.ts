@@ -422,6 +422,9 @@ async function handleCheckoutExpired(options: {
   readonly object: Record<string, unknown>;
 }) {
   const checkoutSessionId = stringValue(options.object.id);
+  const recoveryUrl = stringValue(
+    objectValue(objectValue(options.object.after_expiration)?.recovery)?.url
+  );
   const payment = await findMembershipPayment({
     db: options.db,
     paymentId: localPaymentId(options.object),
@@ -433,10 +436,10 @@ async function handleCheckoutExpired(options: {
   await options.db.payment.updateMany({
     data: {
       activeCheckoutKey: null,
-      status: PaymentStatus.cancelled,
+      status: recoveryUrl ? PaymentStatus.pending : PaymentStatus.cancelled,
       stripeCheckoutSessionExpiresAt: null,
       stripeCheckoutSessionId: checkoutSessionId,
-      stripeCheckoutSessionUrl: null,
+      stripeCheckoutSessionUrl: recoveryUrl,
     },
     where: { id: payment.id, status: payment.status },
   });

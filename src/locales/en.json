@@ -97,6 +97,7 @@
     "util_donate": "Donate",
     "auth_log_in": "Log in",
     "auth_create_account": "Create account",
+    "auth_finish_onboarding": "Finish onboarding",
     "alerts_banner_heading": "Current site alerts",
     "alerts_banner_aria_prefix": "Site alerts",
     "alerts_view_all": "View all alerts",
@@ -327,6 +328,18 @@
     "finish_payment_link": "Finish payment",
     "admin_link": "Go to admin",
     "events_link": "Browse events"
+  },
+  "MembershipPaymentEmails": {
+    "reminder_subject": "Finish your MIT Sailing onboarding",
+    "reminder_preview": "Finish your sailing card request or update your eligibility.",
+    "reminder_heading": "Finish onboarding",
+    "reminder_body": "Your sailing card request is not complete yet. Return to onboarding to finish payment or update your eligibility if your MIT Recreation membership changed.",
+    "action_finish": "Return to onboarding",
+    "field_card": "Sailing card",
+    "field_year": "Card year",
+    "field_amount": "Amount due",
+    "card_type_racing": "Pavilion racing",
+    "card_type_team_racing": "Thursday team racing"
   },
   "PricingPage": {
     "meta_title": "Pricing",

@@ -21,6 +21,8 @@ type SiteShellHeaderNavProps = {
   initialSignedIn: boolean;
   /** True when the viewer is an admin and not impersonating. */
   initialShowAdminLink: boolean;
+  /** Account task route when current-year onboarding is incomplete. */
+  onboardingTaskHref: '/onboarding' | null;
 };
 
 /**
@@ -95,6 +97,7 @@ export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
       mobileUtilityItems={
         mobileUtilityItems.length > 0 ? mobileUtilityItems : undefined
       }
+      onboardingTaskHref={props.onboardingTaskHref}
     />
   );
 }

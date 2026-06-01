@@ -129,6 +129,22 @@ describe('SiteHeader', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('renders a finish onboarding task for signed-in users with incomplete onboarding', () => {
+    setSessionState({
+      data: { user: { id: 'user-1', role: 'user' }, session: {} },
+    });
+
+    renderHeader({ onboardingTaskHref: '/onboarding' });
+
+    const banner = screen.getByRole('banner');
+    expect(
+      within(banner).getByRole('link', { name: 'Finish onboarding' })
+    ).toHaveAttribute('href', '/onboarding');
+    expect(
+      within(banner).getByRole('link', { name: 'Profile' })
+    ).toHaveAttribute('href', '/profile');
+  });
+
   it('opens profile in a new tab while onboarding is in progress', () => {
     setSessionState({
       data: { user: { id: 'user-1', role: 'user' }, session: {} },

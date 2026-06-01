@@ -204,6 +204,37 @@ describe('handleMembershipStripeWebhookEvent', () => {
     );
   });
 
+  it('keeps expired membership checkout recoverable when Stripe returns a recovery URL', async () => {
+    const db = createDb();
+
+    await expect(
+      handleMembershipStripeWebhookEvent({
+        db,
+        event: membershipEvent('checkout.session.expired', {
+          after_expiration: {
+            recovery: {
+              url: 'https://checkout.stripe.com/c/pay/cs_recover',
+            },
+          },
+          id: 'cs_test',
+          metadata: membershipMetadata(),
+        }),
+      })
+    ).resolves.toEqual({ handled: true });
+
+    expect(db.payment.updateMany).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        activeCheckoutKey: null,
+        status: PaymentStatus.pending,
+        stripeCheckoutSessionExpiresAt: null,
+        stripeCheckoutSessionId: 'cs_test',
+        stripeCheckoutSessionUrl:
+          'https://checkout.stripe.com/c/pay/cs_recover',
+      }),
+      where: { id: 'payment_1', status: PaymentStatus.checkout_created },
+    });
+  });
+
   it('creates a renewal payment row from a paid invoice without splitting ledgers', async () => {
     const db = createDb({
       payment: null,

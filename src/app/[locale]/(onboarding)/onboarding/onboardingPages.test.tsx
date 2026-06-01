@@ -300,7 +300,7 @@ describe('onboarding pages', () => {
     expect(mocks.redirect).toHaveBeenCalledWith('/onboarding/success');
   });
 
-  it('redirects pending membership checkout to Stripe', async () => {
+  it('renders onboarding with a payment action instead of redirecting pending paid users to Stripe', async () => {
     mocks.findPayment.mockResolvedValue({
       status: PaymentStatus.checkout_created,
       stripeCheckoutSessionExpiresAt: new Date('2026-08-01T18:00:00.000Z'),
@@ -312,16 +312,18 @@ describe('onboarding pages', () => {
     });
     const { default: OnboardingPage } = await import('./page');
 
-    await expect(
-      OnboardingPage({
+    render(
+      await OnboardingPage({
         params: Promise.resolve({ locale: 'en' }),
         searchParams: Promise.resolve({}),
       })
-    ).rejects.toThrow(
-      'NEXT_REDIRECT:https://checkout.stripe.com/c/pay/cs_test'
     );
 
-    expect(mocks.redirect).toHaveBeenCalledWith(
+    expect(mocks.redirect).not.toHaveBeenCalledWith(
+      expect.stringContaining('checkout.stripe.com')
+    );
+    expect(screen.getByTestId('onboarding-form')).toHaveAttribute(
+      'data-initial-membership-checkout-url',
       'https://checkout.stripe.com/c/pay/cs_test'
     );
   });

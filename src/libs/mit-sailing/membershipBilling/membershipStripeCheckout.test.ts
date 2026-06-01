@@ -96,6 +96,9 @@ describe('membershipStripeCheckout', () => {
           { price: 'price_spring', quantity: 1 },
         ],
         mode: 'subscription',
+        after_expiration: {
+          recovery: { enabled: true },
+        },
         success_url:
           'https://sailing.mit.edu/onboarding/success?session_id={CHECKOUT_SESSION_ID}',
         subscription_data: expect.objectContaining({

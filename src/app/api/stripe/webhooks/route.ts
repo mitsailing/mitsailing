@@ -3,15 +3,18 @@ import type { Stripe } from 'stripe';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
+import { nyEventPaymentNotificationDateKey } from '@/libs/mit-sailing/eventPayments';
 import { handleMembershipStripeWebhookEvent } from '@/libs/mit-sailing/membershipBilling/membershipWebhookEvents';
 import { getStripeClient } from '@/libs/stripe/stripeClient';
 import {
   constructStripeWebhookEvent,
   processStripeWebhookEvent,
+  stripeEventCreatedAtDate,
   stripeWebhookReceiptEnqueuePendingError,
 } from '@/libs/stripe/stripeWebhookEvents';
 import { getDefaultQueue } from '@/worker/defaultQueue';
 import { enqueueEventPaymentEmailJob } from '@/worker/eventPaymentEmailJob';
+import { enqueueMembershipPaymentReminderJob } from '@/worker/membershipPaymentReminderJob';
 
 const stripeWebhookMaxBodyBytes = 256 * 1024;
 
@@ -53,6 +56,36 @@ async function stripeWebhookRawBody(request: Request) {
   }
 
   return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
+function stripeObject(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? Object.fromEntries(Object.entries(value))
+    : null;
+}
+
+function stripeString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function membershipPaymentReminderJobForEvent(event: Stripe.Event) {
+  if (event.type !== 'checkout.session.expired') {
+    return null;
+  }
+  const object = stripeObject(event.data.object);
+  const metadata = stripeObject(object?.metadata);
+  const paymentId = stripeString(metadata?.localPaymentId);
+  const domain = stripeString(metadata?.domain);
+  const recoveryUrl = stripeString(
+    stripeObject(stripeObject(object?.after_expiration)?.recovery)?.url
+  );
+  if (domain !== 'sailing_card_membership' || !paymentId || !recoveryUrl) {
+    return null;
+  }
+  return {
+    dateKey: nyEventPaymentNotificationDateKey(stripeEventCreatedAtDate(event)),
+    paymentId,
+  };
 }
 
 /**
@@ -137,6 +170,21 @@ export async function POST(request: Request) {
           { error: updateError }
         );
       }
+      return NextResponse.json({ ok: false }, { status: 500 });
+    }
+  }
+  const membershipReminderJob = membershipPaymentReminderJobForEvent(event);
+  if (membershipReminderJob) {
+    try {
+      await enqueueMembershipPaymentReminderJob(
+        getDefaultQueue(),
+        membershipReminderJob
+      );
+    } catch (error) {
+      logger.error(
+        'Failed to enqueue membership payment reminder job: {error}',
+        { error }
+      );
       return NextResponse.json({ ok: false }, { status: 500 });
     }
   }

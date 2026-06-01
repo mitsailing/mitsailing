@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { ImpersonationBanner } from '@/components/auth/ImpersonationBanner';
 import { adminHeaderLinkVisibleFromSession } from '@/libs/auth/adminHeaderLink';
 import { getSession } from '@/libs/auth/dal';
+import { getOnboardingTaskHrefForUser } from '@/libs/mit-sailing/onboardingTask';
 import { SiteFooter } from './site/SiteFooter';
 import { SiteHeader } from './site/SiteHeader';
 import {
@@ -51,6 +52,9 @@ export async function SiteShell(props: SiteShellProps) {
   const locale = await getLocale();
   const initialSignedIn = Boolean(session?.user?.id);
   const initialShowAdminLink = shouldShowAdminLink(session);
+  const onboardingTaskHref = session?.user?.id
+    ? await getOnboardingTaskHrefForUser({ userId: session.user.id })
+    : null;
 
   const tMitSite = await getTranslations('MitSailingSite');
 
@@ -72,12 +76,14 @@ export async function SiteShell(props: SiteShellProps) {
             fleetDropdownItems={[]}
             initialShowAdminLink={initialShowAdminLink}
             initialSignedIn={initialSignedIn}
+            onboardingTaskHref={onboardingTaskHref}
           />
         }
       >
         <SiteShellHeaderNav
           initialShowAdminLink={initialShowAdminLink}
           initialSignedIn={initialSignedIn}
+          onboardingTaskHref={onboardingTaskHref}
         />
       </Suspense>
       <div className="flex min-h-0 flex-1 flex-col" id="site-shell-inert-scope">

@@ -36,7 +36,7 @@ describe('SailingCardOnboardingForm', () => {
     expectDetailsHidden();
   });
 
-  it('shows a Stripe resume link for cancelled hosted checkout', () => {
+  it('shows a Stripe resume link without hiding onboarding choices', () => {
     renderForm({
       initialMembershipCheckoutUrl: 'https://checkout.stripe.com/c/pay/cs_test',
     });
@@ -48,8 +48,8 @@ describe('SailingCardOnboardingForm', () => {
       screen.getByRole('link', { name: 'Continue to Stripe' })
     ).toHaveAttribute('href', 'https://checkout.stripe.com/c/pay/cs_test');
     expect(
-      screen.queryByRole('combobox', { name: 'Affiliation' })
-    ).not.toBeInTheDocument();
+      screen.getByRole('combobox', { name: 'Affiliation' })
+    ).toBeInTheDocument();
   });
 
   it('shows a translated error when paid checkout cannot be started', () => {

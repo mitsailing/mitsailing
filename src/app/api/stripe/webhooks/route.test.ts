@@ -8,6 +8,7 @@ type TransactionOperation = {
 
 const mocks = vi.hoisted(() => ({
   constructEvent: vi.fn(),
+  enqueueMembershipPaymentReminderJob: vi.fn(),
   enqueueEventPaymentEmailJob: vi.fn(),
   env: {
     STRIPE_WEBHOOK_SECRET: 'stripe_webhook_secret',
@@ -72,6 +73,11 @@ vi.mock('@/worker/defaultQueue', () => ({
 
 vi.mock('@/worker/eventPaymentEmailJob', () => ({
   enqueueEventPaymentEmailJob: mocks.enqueueEventPaymentEmailJob,
+}));
+
+vi.mock('@/worker/membershipPaymentReminderJob', () => ({
+  enqueueMembershipPaymentReminderJob:
+    mocks.enqueueMembershipPaymentReminderJob,
 }));
 
 function stripeRequest(options: {
@@ -202,6 +208,9 @@ describe('stripe webhook route', () => {
     mocks.enqueueEventPaymentEmailJob.mockImplementation(async () => {
       await Promise.resolve();
     });
+    mocks.enqueueMembershipPaymentReminderJob.mockImplementation(async () => {
+      await Promise.resolve();
+    });
   });
 
   it('rejects missing signatures before constructing events or mutating data', async () => {
@@ -329,6 +338,51 @@ describe('stripe webhook route', () => {
       data: { processedAt: expect.any(Date), processingError: null },
       where: { id: 'stored-event-1' },
     });
+  });
+
+  it('queues a membership payment reminder when subscription Checkout expires with recovery', async () => {
+    mockStripeEvent('checkout.session.expired', {
+      after_expiration: {
+        recovery: {
+          url: 'https://checkout.stripe.com/c/pay/cs_recover',
+        },
+      },
+      id: 'cs_test',
+      metadata: {
+        domain: 'sailing_card_membership',
+        localPaymentId: 'payment-1',
+      },
+    });
+    mocks.tx.payment.findFirst.mockResolvedValue({
+      amountCents: 7000,
+      cardType: 'racing',
+      cardYear: 2026,
+      currency: 'usd',
+      id: 'payment-1',
+      purpose: 'membership',
+      status: PaymentStatus.checkout_created,
+      stripeCheckoutSessionId: 'cs_test',
+      userId: 'user-1',
+    });
+
+    const response = await POST(stripeRequest({}));
+
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(mocks.tx.payment.updateMany).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        status: PaymentStatus.pending,
+        stripeCheckoutSessionUrl:
+          'https://checkout.stripe.com/c/pay/cs_recover',
+      }),
+      where: { id: 'payment-1', status: PaymentStatus.checkout_created },
+    });
+    expect(mocks.enqueueMembershipPaymentReminderJob).toHaveBeenCalledWith(
+      { queue: true },
+      {
+        dateKey: '2026-05-01',
+        paymentId: 'payment-1',
+      }
+    );
   });
 
   it('leaves receipt-producing events retryable when queueing fails', async () => {

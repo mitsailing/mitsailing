@@ -73,9 +73,43 @@ export function SailingCardOnboardingForm(
 
   if (props.initialMembershipCheckoutUrl) {
     return (
-      <HostedMembershipCheckoutPrompt
-        checkoutUrl={props.initialMembershipCheckoutUrl}
-      />
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+        <HostedMembershipCheckoutPrompt
+          checkoutUrl={props.initialMembershipCheckoutUrl}
+        />
+        <form
+          ref={formRef}
+          className="flex w-full flex-col gap-6 text-sm"
+          onSubmit={model.handleSubmit}
+        >
+          <OnboardingFormErrorAlert formError={model.state.formError} />
+          <OnboardingFormFields
+            affiliation={model.affiliation}
+            cardTypeValue={model.cardTypeValue}
+            dateOfBirthValue={model.dateOfBirthValue}
+            fitnessMembershipReady={model.fitnessMembershipReady}
+            hasFitnessMembershipValue={model.hasFitnessMembershipValue}
+            identityComplete={model.identityComplete}
+            isPending={model.isPending}
+            clientErrors={model.form.formState.errors}
+            lockedIdentity={model.lockedIdentity}
+            manualNameRequired={model.manualNameRequired}
+            mitIdRequired={model.mitIdRequired}
+            now={model.now}
+            hasVerifiedMitRecreationMembership={
+              model.hasVerifiedMitRecreationMembership
+            }
+            onContinueIdentity={model.handleContinueIdentity}
+            register={model.form.register}
+            setValue={model.form.setValue}
+            showDetails={model.showDetails}
+            showLockedIdentity={model.identityVisibility.showLockedIdentity}
+            showManualName={model.identityVisibility.showManualName}
+            showMitId={model.identityVisibility.showMitId}
+            state={model.state}
+          />
+        </form>
+      </div>
     );
   }
 

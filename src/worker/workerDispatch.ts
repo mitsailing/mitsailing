@@ -15,6 +15,10 @@ import {
   processLegacyMysqlSyncJob,
 } from '@/worker/legacyMysqlSyncJob';
 import {
+  MEMBERSHIP_PAYMENT_REMINDER_JOB_NAME,
+  processMembershipPaymentReminderJob,
+} from '@/worker/membershipPaymentReminderJob';
+import {
   PAVILION_RESERVATION_SUBMITTED_EMAIL_JOB_NAME,
   processPavilionReservationSubmittedEmailJob,
 } from '@/worker/pavilionReservationSubmittedEmailJob';
@@ -48,6 +52,10 @@ export async function processDefaultQueueJob(
   }
   if (job.name === SAILING_CARD_ANNUAL_CLEARING_JOB_NAME) {
     await processSailingCardAnnualClearingJob();
+    return;
+  }
+  if (job.name === MEMBERSHIP_PAYMENT_REMINDER_JOB_NAME) {
+    await processMembershipPaymentReminderJob(job.data);
     return;
   }
   throw new Error(`Unknown worker job: ${job.name}`);

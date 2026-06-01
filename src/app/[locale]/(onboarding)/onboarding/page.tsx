@@ -154,7 +154,11 @@ async function getOnboardingUser(userId: string) {
 
 type OnboardingUser = Awaited<ReturnType<typeof getOnboardingUser>>;
 
-async function getPendingMembershipCheckout(userId: string) {
+async function getPendingMembershipCheckout(options: {
+  readonly cardType: SailingCardType;
+  readonly cardYear: number;
+  readonly userId: string;
+}) {
   const payment = await prisma.payment.findFirst({
     orderBy: { updatedAt: 'desc' },
     select: {
@@ -163,8 +167,10 @@ async function getPendingMembershipCheckout(userId: string) {
       stripeCheckoutSessionUrl: true,
     },
     where: {
+      cardType: options.cardType,
+      cardYear: options.cardYear,
       purpose: PaymentPurpose.membership,
-      userId,
+      userId: options.userId,
     },
   });
 
@@ -185,14 +191,26 @@ function activeMembershipCheckoutUrl(
   now: Date
 ) {
   if (
-    payment?.status !== PaymentStatus.checkout_created ||
-    !payment.stripeCheckoutSessionUrl ||
-    !payment.stripeCheckoutSessionExpiresAt ||
-    payment.stripeCheckoutSessionExpiresAt <= now
+    !payment?.stripeCheckoutSessionUrl ||
+    (payment.status !== PaymentStatus.checkout_created &&
+      payment.status !== PaymentStatus.pending)
   ) {
     return null;
   }
-  return payment.stripeCheckoutSessionUrl;
+  if (
+    payment.status === PaymentStatus.checkout_created &&
+    payment.stripeCheckoutSessionExpiresAt !== null &&
+    payment.stripeCheckoutSessionExpiresAt > now
+  ) {
+    return payment.stripeCheckoutSessionUrl;
+  }
+  if (
+    payment.status === PaymentStatus.pending &&
+    payment.stripeCheckoutSessionExpiresAt === null
+  ) {
+    return payment.stripeCheckoutSessionUrl;
+  }
+  return null;
 }
 
 function currentYearRequestCanUseSuccess(props: {
@@ -259,16 +277,18 @@ export default async function OnboardingPage(props: OnboardingPageProps) {
   const cardYear = getCurrentSailingCardYear();
   const currentUser = await getOnboardingUser(user.id);
   const currentRequest = currentUser?.sailingCardRequests.at(0) ?? null;
-  const membershipPayment = await getPendingMembershipCheckout(user.id);
+  const membershipPayment =
+    currentRequest === null
+      ? null
+      : await getPendingMembershipCheckout({
+          cardType: currentRequest.cardType,
+          cardYear,
+          userId: user.id,
+        });
   const pendingCheckoutUrl = activeMembershipCheckoutUrl(
     membershipPayment,
     new Date()
   );
-  const checkoutWasCancelled = searchParams.checkout === 'cancelled';
-
-  if (pendingCheckoutUrl !== null && !checkoutWasCancelled) {
-    redirect(pendingCheckoutUrl);
-  }
 
   if (
     currentUser !== null &&
@@ -307,9 +327,7 @@ export default async function OnboardingPage(props: OnboardingPageProps) {
           currentUser?.gymMembershipVerifiedAt !== undefined
         }
         initialValues={initialValues}
-        initialMembershipCheckoutUrl={
-          checkoutWasCancelled ? pendingCheckoutUrl : null
-        }
+        initialMembershipCheckoutUrl={pendingCheckoutUrl}
         lockedIdentity={lockedIdentity}
       />
     </OnboardingTaskShell>
