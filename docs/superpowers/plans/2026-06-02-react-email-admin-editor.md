@@ -1342,7 +1342,7 @@ git commit -m "feat: add admin email template editor"
 - Modify: `src/libs/newsletter/newsletterEmail.test.ts`
 - Modify: `emails/newsletter-broadcast.tsx`
 
-- [ ] **Step 1: Write failing newsletter editor tests**
+- [x] **Step 1: Write failing newsletter editor tests**
 
 Create `src/components/mit-sailing/admin/newsletters/AdminNewsletterBroadcastEditor.test.tsx` asserting:
 
@@ -1352,7 +1352,7 @@ Create `src/components/mit-sailing/admin/newsletters/AdminNewsletterBroadcastEdi
 - `bodyText` comes from `editorRef.current.getEmailText()`;
 - draft persists in same-tab storage and clears after successful submit.
 
-- [ ] **Step 2: Preserve validation contract**
+- [x] **Step 2: Preserve validation contract**
 
 Modify `src/libs/newsletter/newsletterValidation.ts` so `body` accepts editor body HTML, not only plain paragraphs. Keep existing min and max length limits.
 
@@ -1373,17 +1373,17 @@ it('accepts editor html body content', () => {
 });
 ```
 
-- [ ] **Step 3: Render newsletter body safely**
+- [x] **Step 3: Render newsletter body safely**
 
 Modify `emails/newsletter-broadcast.tsx` to render sanitized editor body HTML through `SafeEmailTemplateBodyHtml`. Keep plaintext fallback for old broadcasts whose body is plain text.
 
-- [ ] **Step 4: Replace textarea on new broadcast page**
+- [x] **Step 4: Replace textarea on new broadcast page**
 
 In `src/app/[locale]/(marketing)/(site)/admin/newsletter-broadcasts/new/page.tsx`, replace `Textarea` for `body` with `AdminNewsletterBroadcastEditor`.
 
 Keep the same Server Action, fields, labels, button names, and queue/draft intents.
 
-- [ ] **Step 5: Run newsletter tests**
+- [x] **Step 5: Run newsletter tests**
 
 Run:
 

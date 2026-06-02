@@ -1,6 +1,7 @@
 import 'server-only';
 import { getTranslations } from 'next-intl/server';
 import { render } from 'react-email';
+import sanitizeHtml from 'sanitize-html';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 import { routing } from '@/libs/I18nRouting';
 import { buildNewsletterManageToken } from '@/libs/newsletter/newsletterTokens';
@@ -59,10 +60,14 @@ function bodyToText(params: {
   subject: string;
   unsubscribeUrl: string;
 }): string {
+  const body = sanitizeHtml(params.body.replaceAll(/<br\s*\/?>/gi, '\n'), {
+    allowedAttributes: {},
+    allowedTags: [],
+  }).trim();
   return [
     params.subject,
     '',
-    params.body,
+    body,
     '',
     `Unsubscribe from ${params.listName}: ${params.unsubscribeUrl}`,
     `Manage email newsletters: ${params.manageUrl}`,

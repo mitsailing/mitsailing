@@ -37,6 +37,13 @@ vi.mock(
   })
 );
 
+vi.mock(
+  '@/components/mit-sailing/admin/newsletters/AdminNewsletterBroadcastEditor',
+  () => ({
+    AdminNewsletterBroadcastEditor: () => null,
+  })
+);
+
 vi.mock('@/components/ui/button', () => ({
   Button: () => null,
 }));

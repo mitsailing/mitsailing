@@ -2,10 +2,9 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { connection } from 'next/server';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
-import { Button } from '@/components/ui/button';
+import { AdminNewsletterBroadcastEditor } from '@/components/mit-sailing/admin/newsletters/AdminNewsletterBroadcastEditor';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import { requirePermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
@@ -90,12 +89,15 @@ export default async function AdminNewsletterBroadcastNewPage(
           {t(errorMessageKey(status))}
         </p>
       ) : null}
-      <form
-        aria-describedby={
-          status ? 'newsletter-broadcast-form-error' : undefined
-        }
+      <AdminNewsletterBroadcastEditor
         action={createNewsletterBroadcastAction.bind(null, locale)}
-        className="space-y-5 rounded-lg border border-border bg-card p-5"
+        ariaDescribedBy={status ? 'newsletter-broadcast-form-error' : undefined}
+        initialBody="<p></p>"
+        text={{
+          bodyLabel: t('field_body'),
+          queueBroadcast: t('queue_broadcast'),
+          saveDraft: t('save_draft'),
+        }}
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
@@ -194,24 +196,7 @@ export default async function AdminNewsletterBroadcastNewPage(
               ))}
           </div>
         </fieldset>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="newsletter-broadcast-body">{t('field_body')}</Label>
-          <Textarea
-            className="min-h-64"
-            id="newsletter-broadcast-body"
-            name="body"
-            required
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button name="intent" type="submit" value="draft" variant="outline">
-            {t('save_draft')}
-          </Button>
-          <Button name="intent" type="submit" value="queue" variant="mit">
-            {t('queue_broadcast')}
-          </Button>
-        </div>
-      </form>
+      </AdminNewsletterBroadcastEditor>
     </div>
   );
 }

@@ -71,6 +71,15 @@ describe('newsletter validation', () => {
     });
   });
 
+  it('accepts editor html body content', () => {
+    const formData = broadcastFormData();
+    formData.set('body', '<p>Hello sailors</p>');
+
+    expect(validateNewsletterBroadcastFormData(formData)).toMatchObject({
+      ok: true,
+    });
+  });
+
   it('parses scheduled broadcasts in New York time', () => {
     const result = validateNewsletterBroadcastFormData(
       broadcastFormData({ scheduledAt: '2026-05-14T09:00' })
