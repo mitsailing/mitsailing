@@ -710,6 +710,51 @@ describe('auth route shells', () => {
     });
   });
 
+  const profilePageFindUniqueArgs = {
+    select: {
+      emailBouncedAt: true,
+      emailSuppressedAt: true,
+      emailSuppressionReason: true,
+      emergencyContactName: true,
+      emergencyContactPhone: true,
+      firstName: true,
+      lastName: true,
+      mitClassYear: true,
+      mitDataWarehouseVerifiedAt: true,
+      mitId: true,
+      phone: true,
+      sailingAffiliation: true,
+      sailingCardExpiresOn: true,
+      sailingCardIssuedAt: true,
+      sailingCardNumber: true,
+      sailingCardRequests: {
+        orderBy: { requestedAt: 'desc' },
+        select: {
+          cardType: true,
+          cardYear: true,
+          requestedAt: true,
+          status: true,
+        },
+        take: 1,
+      },
+      sailingCardSwimAgreementInitialedAt: true,
+      sailingCardSwimAgreementInitials: true,
+      sailingCardYear: true,
+      legalAgreementAcceptances: {
+        orderBy: { acceptedAt: 'desc' },
+        select: {
+          acceptedAt: true,
+          agreementHash: true,
+          agreementVersion: true,
+        },
+        take: 1,
+      },
+      themePreference: true,
+      unconfirmedEmail: true,
+    },
+    where: { id: 'user-1' },
+  } as const;
+
   it('profile page forwards current user and database fields', async () => {
     render(
       await ProfilePage({
@@ -721,50 +766,9 @@ describe('auth route shells', () => {
       'en',
       '/profile'
     );
-    expect(routeMocks.findUnique).toHaveBeenCalledWith({
-      select: {
-        emailBouncedAt: true,
-        emailSuppressedAt: true,
-        emailSuppressionReason: true,
-        emergencyContactName: true,
-        emergencyContactPhone: true,
-        firstName: true,
-        lastName: true,
-        mitClassYear: true,
-        mitDataWarehouseVerifiedAt: true,
-        mitId: true,
-        phone: true,
-        sailingAffiliation: true,
-        sailingCardExpiresOn: true,
-        sailingCardIssuedAt: true,
-        sailingCardNumber: true,
-        sailingCardRequests: {
-          orderBy: { requestedAt: 'desc' },
-          select: {
-            cardType: true,
-            cardYear: true,
-            requestedAt: true,
-            status: true,
-          },
-          take: 1,
-        },
-        sailingCardSwimAgreementInitialedAt: true,
-        sailingCardSwimAgreementInitials: true,
-        sailingCardYear: true,
-        legalAgreementAcceptances: {
-          orderBy: { acceptedAt: 'desc' },
-          select: {
-            acceptedAt: true,
-            agreementHash: true,
-            agreementVersion: true,
-          },
-          take: 1,
-        },
-        themePreference: true,
-        unconfirmedEmail: true,
-      },
-      where: { id: 'user-1' },
-    });
+    expect(routeMocks.findUnique).toHaveBeenCalledWith(
+      profilePageFindUniqueArgs
+    );
     expect(
       screen.getByRole('region', { name: 'profile-account-client' })
     ).toHaveAttribute('data-theme', 'DARK');

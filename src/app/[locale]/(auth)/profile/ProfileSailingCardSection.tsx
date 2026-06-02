@@ -29,6 +29,18 @@ export type ProfileSailingCardSummary = {
   readonly swimAgreementInitials: string | null;
 };
 
+type ProfileSailingCardTranslations = ReturnType<
+  typeof useTranslations<'UserProfilePage'>
+>;
+
+type ProfileSailingCardFactsProps = {
+  readonly cardType: string;
+  readonly locale: string;
+  readonly statusLabel: string;
+  readonly summary: ProfileSailingCardSummary;
+  readonly t: ProfileSailingCardTranslations;
+};
+
 const assignmentMessageKeys = {
   cancelled: 'profile_sailing_card_assignment_cancelled',
   issued: 'profile_sailing_card_assignment_issued',
@@ -93,7 +105,7 @@ function swimAgreementValue(props: {
   readonly emptyValue: string;
   readonly locale: string;
   readonly summary: ProfileSailingCardSummary;
-  readonly value: string;
+  readonly t: ProfileSailingCardTranslations;
 }) {
   const date = formatProfileDate({
     iso: props.summary.swimAgreementInitialedAtIso,
@@ -102,13 +114,16 @@ function swimAgreementValue(props: {
   if (date === null || props.summary.swimAgreementInitials === null) {
     return props.emptyValue;
   }
-  return props.value;
+  return props.t('profile_sailing_card_swim_agreement_value', {
+    date,
+    initials: props.summary.swimAgreementInitials,
+  });
 }
 
 function ProfileSailingCardHeader(props: {
   readonly status: ProfileSailingCardStatus;
   readonly statusLabel: string;
-  readonly t: ReturnType<typeof useTranslations<'UserProfilePage'>>;
+  readonly t: ProfileSailingCardTranslations;
 }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -127,13 +142,32 @@ function ProfileSailingCardHeader(props: {
   );
 }
 
-function ProfileSailingCardFacts(props: {
-  readonly cardType: string;
-  readonly locale: string;
-  readonly statusLabel: string;
+function profileCardYearValue(props: {
+  readonly emptyValue: string;
   readonly summary: ProfileSailingCardSummary;
-  readonly t: ReturnType<typeof useTranslations<'UserProfilePage'>>;
 }) {
+  if (props.summary.cardYear === null) {
+    return props.emptyValue;
+  }
+  return String(props.summary.cardYear);
+}
+
+function ProfileSailingCardNumberFact(props: {
+  readonly summary: ProfileSailingCardSummary;
+  readonly t: ProfileSailingCardTranslations;
+}) {
+  if (props.summary.cardNumber === null) {
+    return null;
+  }
+  return (
+    <ProfileSailingCardFact
+      label={props.t('profile_sailing_card_number')}
+      value={String(props.summary.cardNumber)}
+    />
+  );
+}
+
+function ProfileSailingCardFacts(props: ProfileSailingCardFactsProps) {
   const expiresOn = formatProfileDate({
     iso: props.summary.expiresOnIso,
     locale: props.locale,
@@ -153,23 +187,17 @@ function ProfileSailingCardFacts(props: {
         label={props.t('profile_sailing_card_assignment')}
         value={props.t(assignmentMessageKeys[props.summary.assignment])}
       />
-      {props.summary.cardNumber === null ? null : (
-        <ProfileSailingCardFact
-          label={props.t('profile_sailing_card_number')}
-          value={String(props.summary.cardNumber)}
-        />
-      )}
+      <ProfileSailingCardNumberFact summary={props.summary} t={props.t} />
       <ProfileSailingCardFact
         label={props.t('profile_sailing_card_type')}
         value={props.cardType}
       />
       <ProfileSailingCardFact
         label={props.t('profile_sailing_card_year')}
-        value={
-          props.summary.cardYear === null
-            ? props.t('profile_not_set')
-            : String(props.summary.cardYear)
-        }
+        value={profileCardYearValue({
+          emptyValue: props.t('profile_not_set'),
+          summary: props.summary,
+        })}
       />
       <ProfileSailingCardFact
         label={props.t('profile_sailing_card_expires')}
@@ -185,14 +213,7 @@ function ProfileSailingCardFacts(props: {
           emptyValue: props.t('profile_not_set'),
           locale: props.locale,
           summary: props.summary,
-          value: props.t('profile_sailing_card_swim_agreement_value', {
-            date:
-              formatProfileDate({
-                iso: props.summary.swimAgreementInitialedAtIso,
-                locale: props.locale,
-              }) ?? '',
-            initials: props.summary.swimAgreementInitials ?? '',
-          }),
+          t: props.t,
         })}
       />
     </dl>

@@ -51,6 +51,36 @@ async function getSailingCardPdfLabels(cardNumber: number) {
   } satisfies SailingCardPdfLabels;
 }
 
+function reportSailingCardPdfError(props: {
+  readonly adminUserId: string;
+  readonly cardNumber: number | null;
+  readonly cardYear: number | null;
+  readonly error: unknown;
+  readonly targetUserId: string;
+}) {
+  logger.error('Failed to generate sailing-card PDF: {error}', {
+    adminUserId: props.adminUserId,
+    cardNumber: props.cardNumber,
+    cardYear: props.cardYear,
+    error: props.error,
+    targetUserId: props.targetUserId,
+  });
+  Sentry.captureException(props.error, {
+    contexts: {
+      sailingCardPdf: {
+        adminUserId: props.adminUserId,
+        cardNumber: props.cardNumber,
+        cardYear: props.cardYear,
+        targetUserId: props.targetUserId,
+      },
+    },
+    tags: {
+      action: 'generate',
+      feature: 'sailing-card-pdf',
+    },
+  });
+}
+
 export async function GET(_request: Request, props: SailingCardPdfRouteProps) {
   const session = await requirePermission(Permission.CARDS_PRINT);
   const { id } = await props.params;
@@ -82,26 +112,12 @@ export async function GET(_request: Request, props: SailingCardPdfRouteProps) {
       },
     });
   } catch (error) {
-    logger.error('Failed to generate sailing-card PDF: {error}', {
+    reportSailingCardPdfError({
       adminUserId: session.user.id,
       cardNumber,
       cardYear,
       error,
       targetUserId: id,
-    });
-    Sentry.captureException(error, {
-      contexts: {
-        sailingCardPdf: {
-          adminUserId: session.user.id,
-          cardNumber,
-          cardYear,
-          targetUserId: id,
-        },
-      },
-      tags: {
-        action: 'generate',
-        feature: 'sailing-card-pdf',
-      },
     });
 
     return jsonResponse({ error: 'pdf_generation_failed' }, 500);

@@ -9,6 +9,10 @@ import { OnboardingFormFields } from './SailingCardOnboardingFormSections';
 
 export { defaultSailingCardOnboardingAction } from './SailingCardOnboardingFormModel';
 
+type SailingCardOnboardingFormModel = ReturnType<
+  typeof useSailingCardOnboardingFormModel
+>;
+
 function OnboardingFormErrorAlert(props: {
   readonly formError?: 'membership_checkout_unavailable';
 }) {
@@ -63,6 +67,38 @@ function HostedMembershipCheckoutPrompt(props: {
   );
 }
 
+function OnboardingFormFieldsForModel(props: {
+  readonly model: SailingCardOnboardingFormModel;
+}) {
+  return (
+    <OnboardingFormFields
+      affiliation={props.model.affiliation}
+      cardTypeValue={props.model.cardTypeValue}
+      dateOfBirthValue={props.model.dateOfBirthValue}
+      fitnessMembershipReady={props.model.fitnessMembershipReady}
+      hasFitnessMembershipValue={props.model.hasFitnessMembershipValue}
+      identityComplete={props.model.identityComplete}
+      isPending={props.model.isPending}
+      clientErrors={props.model.form.formState.errors}
+      lockedIdentity={props.model.lockedIdentity}
+      manualNameRequired={props.model.manualNameRequired}
+      mitIdRequired={props.model.mitIdRequired}
+      now={props.model.now}
+      hasVerifiedMitRecreationMembership={
+        props.model.hasVerifiedMitRecreationMembership
+      }
+      onContinueIdentity={props.model.handleContinueIdentity}
+      register={props.model.form.register}
+      setValue={props.model.form.setValue}
+      showDetails={props.model.showDetails}
+      showLockedIdentity={props.model.identityVisibility.showLockedIdentity}
+      showManualName={props.model.identityVisibility.showManualName}
+      showMitId={props.model.identityVisibility.showMitId}
+      state={props.model.state}
+    />
+  );
+}
+
 export function SailingCardOnboardingForm(
   props: SailingCardOnboardingFormProps
 ) {
@@ -90,31 +126,7 @@ export function SailingCardOnboardingForm(
           onSubmit={model.handleSubmit}
         >
           <OnboardingFormErrorAlert formError={model.state.formError} />
-          <OnboardingFormFields
-            affiliation={model.affiliation}
-            cardTypeValue={model.cardTypeValue}
-            dateOfBirthValue={model.dateOfBirthValue}
-            fitnessMembershipReady={model.fitnessMembershipReady}
-            hasFitnessMembershipValue={model.hasFitnessMembershipValue}
-            identityComplete={model.identityComplete}
-            isPending={model.isPending}
-            clientErrors={model.form.formState.errors}
-            lockedIdentity={model.lockedIdentity}
-            manualNameRequired={model.manualNameRequired}
-            mitIdRequired={model.mitIdRequired}
-            now={model.now}
-            hasVerifiedMitRecreationMembership={
-              model.hasVerifiedMitRecreationMembership
-            }
-            onContinueIdentity={model.handleContinueIdentity}
-            register={model.form.register}
-            setValue={model.form.setValue}
-            showDetails={model.showDetails}
-            showLockedIdentity={model.identityVisibility.showLockedIdentity}
-            showManualName={model.identityVisibility.showManualName}
-            showMitId={model.identityVisibility.showMitId}
-            state={model.state}
-          />
+          <OnboardingFormFieldsForModel model={model} />
         </form>
       </div>
     );
@@ -128,31 +140,7 @@ export function SailingCardOnboardingForm(
       onSubmit={model.handleSubmit}
     >
       <OnboardingFormErrorAlert formError={model.state.formError} />
-      <OnboardingFormFields
-        affiliation={model.affiliation}
-        cardTypeValue={model.cardTypeValue}
-        dateOfBirthValue={model.dateOfBirthValue}
-        fitnessMembershipReady={model.fitnessMembershipReady}
-        hasFitnessMembershipValue={model.hasFitnessMembershipValue}
-        identityComplete={model.identityComplete}
-        isPending={model.isPending}
-        clientErrors={model.form.formState.errors}
-        lockedIdentity={model.lockedIdentity}
-        manualNameRequired={model.manualNameRequired}
-        mitIdRequired={model.mitIdRequired}
-        now={model.now}
-        hasVerifiedMitRecreationMembership={
-          model.hasVerifiedMitRecreationMembership
-        }
-        onContinueIdentity={model.handleContinueIdentity}
-        register={model.form.register}
-        setValue={model.form.setValue}
-        showDetails={model.showDetails}
-        showLockedIdentity={model.identityVisibility.showLockedIdentity}
-        showManualName={model.identityVisibility.showManualName}
-        showMitId={model.identityVisibility.showMitId}
-        state={model.state}
-      />
+      <OnboardingFormFieldsForModel model={model} />
     </form>
   );
 }

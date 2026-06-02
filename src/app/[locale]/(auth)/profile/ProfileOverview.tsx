@@ -7,6 +7,28 @@ type ProfileSectionHref =
   | '#member-information-section'
   | '#sailing-card-section';
 
+type ProfileOverviewProps = {
+  readonly affiliationSummary: string;
+  readonly contactLabel: string;
+  readonly contactSummary: string;
+  readonly currentEmail: string;
+  readonly emailLabel: string;
+  readonly emailStatus: string;
+  readonly emergencyLabel: string;
+  readonly emergencyMuted: boolean;
+  readonly emergencySummary: string;
+  readonly initials: string;
+  readonly memberLabel: string;
+  readonly note: string;
+  readonly overline: string;
+  readonly phoneLabel: string;
+  readonly phoneSummary: string;
+  readonly sailingCardLabel: string;
+  readonly sailingCardSummary: string;
+  readonly sectionsLabel: string;
+  readonly title: string;
+};
+
 function ProfileFact(props: {
   readonly label: string;
   readonly value: string;
@@ -168,27 +190,7 @@ function ProfileOverviewNav(props: {
   );
 }
 
-export function ProfileOverview(props: {
-  readonly affiliationSummary: string;
-  readonly contactLabel: string;
-  readonly contactSummary: string;
-  readonly currentEmail: string;
-  readonly emailLabel: string;
-  readonly emailStatus: string;
-  readonly emergencyLabel: string;
-  readonly emergencyMuted: boolean;
-  readonly emergencySummary: string;
-  readonly initials: string;
-  readonly memberLabel: string;
-  readonly note: string;
-  readonly overline: string;
-  readonly phoneLabel: string;
-  readonly phoneSummary: string;
-  readonly sailingCardLabel: string;
-  readonly sailingCardSummary: string;
-  readonly sectionsLabel: string;
-  readonly title: string;
-}) {
+export function ProfileOverview(props: ProfileOverviewProps) {
   return (
     <section
       aria-labelledby="profile-overview-heading"
