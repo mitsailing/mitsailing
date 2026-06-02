@@ -40,6 +40,7 @@ type RevisionHistoryText = Readonly<{
 const STATUS_MESSAGE_KEYS = {
   draft_saved: 'status_draft_saved',
   invalid_test_email: 'status_invalid_test_email',
+  publish_conflict: 'status_publish_conflict',
   published: 'status_published',
   render_failed: 'status_render_failed',
   test_failed: 'status_test_failed',

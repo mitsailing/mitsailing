@@ -2122,6 +2122,7 @@
     "revision_status_published": "Published",
     "status_draft_saved": "Draft saved.",
     "status_invalid_test_email": "Enter a valid test recipient email.",
+    "status_publish_conflict": "Another publish finished first. Reload before publishing.",
     "status_published": "Template published.",
     "status_render_failed": "This template could not render. Fix the content before sending or publishing.",
     "status_test_failed": "The test email could not be sent.",

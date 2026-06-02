@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Prisma } from '@/generated/prisma/client';
 import { Permission } from '@/libs/auth/permissions';
 
 vi.mock('server-only', () => ({}));
@@ -199,6 +200,32 @@ describe('publishEmailTemplateRevisionAction', () => {
 
     expect(mocks.revisionUpdateMany).not.toHaveBeenCalled();
     expect(mocks.revisionUpdate).not.toHaveBeenCalled();
+  });
+
+  it('redirects concurrent publish conflicts from unique constraint failures', async () => {
+    mocks.transaction.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        clientVersion: 'test',
+        code: 'P2002',
+        meta: {
+          target: ['email_template_revisions_one_published_per_template_idx'],
+        },
+      })
+    );
+    const { publishEmailTemplateRevisionAction } =
+      await import('@/libs/email-templates/emailTemplateAdminActions');
+
+    await expect(
+      publishEmailTemplateRevisionAction(
+        'en',
+        'event_payment_request',
+        'revision_1'
+      )
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/email-templates/event_payment_request?status=publish_conflict'
+    );
+
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 });
 

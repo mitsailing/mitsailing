@@ -96,6 +96,15 @@ function safeEditorJson(
   }
 }
 
+function isUniqueConstraintError(
+  error: unknown
+): error is Prisma.PrismaClientKnownRequestError {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2002'
+  );
+}
+
 function formPayload(formData: FormData): EmailTemplateFormPayload | null {
   const editorBodyHtml = formString(formData, 'editorBodyHtml');
   const previewText = formString(formData, 'previewText');
@@ -214,25 +223,32 @@ export async function publishEmailTemplateRevisionAction(
     adminRedirect(locale, detailPath, 'render_failed');
   }
 
-  await prisma.$transaction([
-    prisma.emailTemplateRevision.updateMany({
-      data: { status: 'archived' },
-      where: {
-        id: { not: revision.id },
-        status: 'published',
-        templateId: revision.templateId,
-      },
-    }),
-    prisma.emailTemplateRevision.update({
-      data: {
-        publishedAt: new Date(),
-        publishedByUserId: session.user.id,
-        renderHash: emailTemplateRenderHash(payload),
-        status: 'published',
-      },
-      where: { id: revision.id },
-    }),
-  ]);
+  try {
+    await prisma.$transaction([
+      prisma.emailTemplateRevision.updateMany({
+        data: { status: 'archived' },
+        where: {
+          id: { not: revision.id },
+          status: 'published',
+          templateId: revision.templateId,
+        },
+      }),
+      prisma.emailTemplateRevision.update({
+        data: {
+          publishedAt: new Date(),
+          publishedByUserId: session.user.id,
+          renderHash: emailTemplateRenderHash(payload),
+          status: 'published',
+        },
+        where: { id: revision.id },
+      }),
+    ]);
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      adminRedirect(locale, detailPath, 'publish_conflict');
+    }
+    throw error;
+  }
 
   revalidatePath(getI18nPath(ADMIN_EMAIL_TEMPLATES_PATH, locale));
   revalidatePath(getI18nPath(detailPath, locale));
