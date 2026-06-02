@@ -31,7 +31,7 @@ type CatalogCellValue = CatalogRow[string];
 function renderAdminCatalogNameListContent(props: {
   raw: CatalogCellValue;
   listNameEditHref?: string;
-}): React.ReactElement {
+}) {
   const str =
     props.raw === null || props.raw === undefined ? '' : String(props.raw);
   const display = str.trim();
@@ -59,7 +59,7 @@ function booleanListTone(
   return on ? 'danger' : 'neutral';
 }
 
-function renderUrlListContent(raw: string): React.ReactElement {
+function renderUrlListContent(raw: string) {
   const href = safeCmsHref(raw);
   if (!href) {
     return <span>{raw}</span>;
@@ -107,9 +107,7 @@ type AdminCatalogListCellProps = {
  * @param props - Field metadata and row payload
  * @returns Table cell inner content
  */
-export function AdminCatalogListCell(
-  props: AdminCatalogListCellProps
-): React.ReactElement {
+export function AdminCatalogListCell(props: AdminCatalogListCellProps) {
   const tCatalog = useTranslations('AdminCatalogResource');
   const tc = useTranslations('AdminCatalog');
   const raw = props.row[props.field];

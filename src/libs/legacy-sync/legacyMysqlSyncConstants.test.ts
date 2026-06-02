@@ -27,4 +27,14 @@ describe('isLegacyMysqlSyncCronPattern', () => {
   it('rejects semantically invalid cron fields', () => {
     expect(isLegacyMysqlSyncCronPattern('60 0 0 0 0 0')).toBe(false);
   });
+
+  it('rejects hashed cron syntax', () => {
+    expect(isLegacyMysqlSyncCronPattern('H * * * * *')).toBe(false);
+    expect(isLegacyMysqlSyncCronPattern('0 H/15 * * * *')).toBe(false);
+    expect(isLegacyMysqlSyncCronPattern('0 0 0 * * H#3')).toBe(false);
+  });
+
+  it('accepts day of week aliases', () => {
+    expect(isLegacyMysqlSyncCronPattern('0 0 0 * * THU')).toBe(true);
+  });
 });
