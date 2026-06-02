@@ -86,6 +86,33 @@ function baseProfileState(props: {
   };
 }
 
+function profileStateWithoutBillingActions(props: {
+  readonly kind: MembershipProfileStateKind;
+  readonly latestPayment: MembershipPaymentSummaryRow | null;
+  readonly subscription: MembershipSubscriptionRow | null;
+}) {
+  return {
+    ...baseProfileState(props),
+    canOpenBillingPortal: false,
+    canTurnOffAutoRenew: false,
+  };
+}
+
+function profileStateWithoutAutoRenewAction(props: {
+  readonly kind: MembershipProfileStateKind;
+  readonly latestPayment: MembershipPaymentSummaryRow | null;
+  readonly subscription: MembershipSubscriptionRow | null;
+}) {
+  return {
+    ...baseProfileState(props),
+    canTurnOffAutoRenew: false,
+  };
+}
+
+function inactiveProfileKind(access: 'free_normal' | 'paid_racing_available') {
+  return access === 'free_normal' ? 'free_normal' : 'no_paid_membership';
+}
+
 export function selectCanonicalMembershipSubscription(
   subscriptions: readonly MembershipSubscriptionRow[]
 ): MembershipSubscriptionRow | null {
@@ -116,8 +143,7 @@ export function membershipProfileState(props: {
       });
     }
     return baseProfileState({
-      kind:
-        props.access === 'free_normal' ? 'free_normal' : 'no_paid_membership',
+      kind: inactiveProfileKind(props.access),
       latestPayment: props.latestPayment,
       subscription: null,
     });
@@ -128,15 +154,11 @@ export function membershipProfileState(props: {
     props.subscription.status ===
       SailingCardSubscriptionStatus.incomplete_expired
   ) {
-    return {
-      ...baseProfileState({
-        kind: 'pending_checkout',
-        latestPayment: props.latestPayment,
-        subscription: props.subscription,
-      }),
-      canOpenBillingPortal: false,
-      canTurnOffAutoRenew: false,
-    };
+    return profileStateWithoutBillingActions({
+      kind: 'pending_checkout',
+      latestPayment: props.latestPayment,
+      subscription: props.subscription,
+    });
   }
 
   if (props.subscription.status === SailingCardSubscriptionStatus.past_due) {
@@ -151,41 +173,30 @@ export function membershipProfileState(props: {
     props.subscription.status === SailingCardSubscriptionStatus.canceled ||
     props.subscription.status === SailingCardSubscriptionStatus.unpaid
   ) {
-    return {
-      ...baseProfileState({
-        kind: 'canceled',
-        latestPayment: props.latestPayment,
-        subscription: props.subscription,
-      }),
-      canTurnOffAutoRenew: false,
-    };
+    return profileStateWithoutAutoRenewAction({
+      kind: 'canceled',
+      latestPayment: props.latestPayment,
+      subscription: props.subscription,
+    });
   }
 
   if (
     props.subscription.status === SailingCardSubscriptionStatus.paused ||
     props.subscription.status === SailingCardSubscriptionStatus.duplicate
   ) {
-    return {
-      ...baseProfileState({
-        kind:
-          props.access === 'free_normal' ? 'free_normal' : 'no_paid_membership',
-        latestPayment: props.latestPayment,
-        subscription: props.subscription,
-      }),
-      canOpenBillingPortal: false,
-      canTurnOffAutoRenew: false,
-    };
+    return profileStateWithoutBillingActions({
+      kind: inactiveProfileKind(props.access),
+      latestPayment: props.latestPayment,
+      subscription: props.subscription,
+    });
   }
 
   if (props.subscription.cancelAtPeriodEnd) {
-    return {
-      ...baseProfileState({
-        kind: 'cancel_at_period_end',
-        latestPayment: props.latestPayment,
-        subscription: props.subscription,
-      }),
-      canTurnOffAutoRenew: false,
-    };
+    return profileStateWithoutAutoRenewAction({
+      kind: 'cancel_at_period_end',
+      latestPayment: props.latestPayment,
+      subscription: props.subscription,
+    });
   }
 
   if (

@@ -261,6 +261,10 @@ export default async function OnboardingSuccessPage(
     </Link>
   ) : null;
   const actionHref = postSuccessHref(searchParams.callbackUrl);
+  const eventsAction = {
+    href: actionHref,
+    label: t('events_link'),
+  };
 
   if (latestRequest !== null && isPaidCardType(latestRequest.cardType)) {
     const payment = await getMembershipPaymentForRequest({
@@ -291,10 +295,7 @@ export default async function OnboardingSuccessPage(
 
     return (
       <SuccessSurface
-        action={{
-          href: actionHref,
-          label: t('events_link'),
-        }}
+        action={eventsAction}
         adminLink={adminLink}
         brandLabel={t('brand_label')}
         description={t('paid_description')}
@@ -305,10 +306,7 @@ export default async function OnboardingSuccessPage(
 
   return (
     <SuccessSurface
-      action={{
-        href: actionHref,
-        label: t('events_link'),
-      }}
+      action={eventsAction}
       adminLink={adminLink}
       brandLabel={t('brand_label')}
       description={t('description')}

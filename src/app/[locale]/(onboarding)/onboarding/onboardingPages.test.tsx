@@ -148,6 +148,24 @@ function onboardingUser() {
   };
 }
 
+function mockPaidCompletedRequest() {
+  mocks.findUser.mockResolvedValue({
+    sailingCardRequests: [
+      completedRequest('user-1', SailingCardType.team_racing),
+    ],
+  });
+  mocks.findPayment.mockResolvedValue({
+    status: PaymentStatus.checkout_created,
+    stripeCheckoutSessionExpiresAt: new Date('2026-08-01T18:00:00.000Z'),
+    stripeCheckoutSessionId: 'cs_paid',
+    stripeCheckoutSessionUrl: 'https://checkout.stripe.com/c/pay/cs_paid',
+  });
+  mocks.stripeCheckoutSessionRetrieve.mockResolvedValue({
+    payment_status: 'paid',
+    status: 'complete',
+  });
+}
+
 beforeEach(() => {
   vi.resetModules();
   vi.setSystemTime(new Date('2026-08-01T12:00:00-04:00'));
@@ -420,21 +438,7 @@ describe('onboarding pages', () => {
   });
 
   it('renders paid success only when the returned Checkout session is paid', async () => {
-    mocks.findUser.mockResolvedValue({
-      sailingCardRequests: [
-        completedRequest('user-1', SailingCardType.team_racing),
-      ],
-    });
-    mocks.findPayment.mockResolvedValue({
-      status: PaymentStatus.checkout_created,
-      stripeCheckoutSessionExpiresAt: new Date('2026-08-01T18:00:00.000Z'),
-      stripeCheckoutSessionId: 'cs_paid',
-      stripeCheckoutSessionUrl: 'https://checkout.stripe.com/c/pay/cs_paid',
-    });
-    mocks.stripeCheckoutSessionRetrieve.mockResolvedValue({
-      payment_status: 'paid',
-      status: 'complete',
-    });
+    mockPaidCompletedRequest();
     const { default: OnboardingSuccessPage } = await import('./success/page');
 
     render(
@@ -458,21 +462,7 @@ describe('onboarding pages', () => {
   });
 
   it('falls back from unsafe paid success callbacks', async () => {
-    mocks.findUser.mockResolvedValue({
-      sailingCardRequests: [
-        completedRequest('user-1', SailingCardType.team_racing),
-      ],
-    });
-    mocks.findPayment.mockResolvedValue({
-      status: PaymentStatus.checkout_created,
-      stripeCheckoutSessionExpiresAt: new Date('2026-08-01T18:00:00.000Z'),
-      stripeCheckoutSessionId: 'cs_paid',
-      stripeCheckoutSessionUrl: 'https://checkout.stripe.com/c/pay/cs_paid',
-    });
-    mocks.stripeCheckoutSessionRetrieve.mockResolvedValue({
-      payment_status: 'paid',
-      status: 'complete',
-    });
+    mockPaidCompletedRequest();
     const { default: OnboardingSuccessPage } = await import('./success/page');
 
     render(

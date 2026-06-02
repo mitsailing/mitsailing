@@ -359,6 +359,14 @@ const checkoutSuccessUrl = (successHref: string) => {
   }session_id={CHECKOUT_SESSION_ID}`;
 };
 
+const onboardingSuccessHref = (props: {
+  readonly destination: string;
+  readonly successHref: string;
+}) =>
+  props.destination === props.successHref
+    ? props.successHref
+    : authHrefWithCallback(props.successHref, props.destination);
+
 const errorName = (error: unknown) =>
   error instanceof Error ? error.name : 'unknown';
 
@@ -390,10 +398,10 @@ const membershipCheckoutStateForOnboarding = async (props: {
   if (props.cardType === SailingCardType.normal) {
     return { status: 'not_required' };
   }
-  const checkoutSuccessHref =
-    props.destination === props.successHref
-      ? props.successHref
-      : authHrefWithCallback(props.successHref, props.destination);
+  const checkoutSuccessHref = onboardingSuccessHref({
+    destination: props.destination,
+    successHref: props.successHref,
+  });
   let checkout: Awaited<
     ReturnType<typeof createMembershipCheckoutUrlForOnboarding>
   >;
@@ -438,10 +446,10 @@ export const submitSailingCardOnboardingAction = async (
   const successHref = getI18nPath('/onboarding/success', locale);
   const callbackUrl = formDataString(formData, 'callbackUrl');
   const destination = postOnboardingDestination({ callbackUrl, successHref });
-  const successDestination =
-    destination === successHref
-      ? successHref
-      : authHrefWithCallback(successHref, destination);
+  const successDestination = onboardingSuccessHref({
+    destination,
+    successHref,
+  });
 
   if (!session?.user?.id) {
     redirect(
