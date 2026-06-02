@@ -10,6 +10,7 @@ function stubRequiredBaseEnv(): void {
     'DATABASE_URL',
     'postgresql://postgres:postgres@localhost:5432/dev_db?sslmode=disable'
   );
+  vi.stubEnv('LEGACY_MYSQL_SYNC_CRON', LEGACY_MYSQL_SYNC_DEFAULT_CRON);
   vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000');
 }
 
@@ -48,6 +49,12 @@ function stubRequiredStripeEnv(): void {
     'STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID',
     'bpc_test_membership'
   );
+}
+
+function stubRequiredStripeCheckoutEnv(): void {
+  vi.stubEnv('STRIPE_SECRET_KEY', 'rk_test_restricted_key');
+  vi.stubEnv('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', 'pk_test_publishable_key');
+  vi.stubEnv('STRIPE_WEBHOOK_SECRET', 'whsec_test_webhook_secret');
 }
 
 function stubBlankStripeEnv(): void {
@@ -239,5 +246,25 @@ describe('Env legacy MySQL sync validation', () => {
     expect(Env.STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID).toBe(
       'bpc_test_membership'
     );
+  });
+
+  it('accepts production Stripe checkout without a billing portal configuration', async () => {
+    stubRequiredBaseEnv();
+    stubNewsletterRevalidateSecret();
+    vi.stubEnv('APP_ENV', 'production');
+    stubRequiredProductionEnv();
+    stubRequiredStripeCheckoutEnv();
+    vi.stubEnv('STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID', '');
+
+    const { Env } = await import('@/libs/Env');
+
+    expect(Env.STRIPE_SECRET_KEY).toBe('rk_test_restricted_key');
+    expect(Env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY).toBe(
+      'pk_test_publishable_key'
+    );
+    expect(Env.STRIPE_WEBHOOK_SECRET).toBe('whsec_test_webhook_secret');
+    expect(
+      Env.STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID
+    ).toBeUndefined();
   });
 });

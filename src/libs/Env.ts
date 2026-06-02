@@ -155,13 +155,6 @@ function validateDeploymentEnv(env: FinalEnv, ctx: z.RefinementCtx): void {
       'STRIPE_WEBHOOK_SECRET is required in staging and production.'
     );
   }
-  if (!env.STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID) {
-    addEnvIssue(
-      ctx,
-      'STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID',
-      'STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID is required in staging and production.'
-    );
-  }
 }
 
 function validateFinalEnv(env: FinalEnv, ctx: z.RefinementCtx): void {

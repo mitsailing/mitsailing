@@ -102,14 +102,15 @@ export type StripeWebhookDb = {
     }) => Promise<unknown>;
   };
   stripeWebhookEvent: {
-    create: (args: {
+    createMany: (args: {
       data: {
         eventType: string;
         processingError?: string | null;
         stripeCreatedAt: Date;
         stripeEventId: string;
       };
-    }) => Promise<{ id: string }>;
+      skipDuplicates: true;
+    }) => Promise<{ count: number }>;
     findUnique: (args: {
       select: { id: true; processedAt: true; processingError: true };
       where: { stripeEventId: string };
@@ -245,10 +246,6 @@ function isSailingCardMembershipStripeObject(
 
 function stripeEventNeedsFutureHandler(event: ProcessableStripeEvent): boolean {
   return isSailingCardMembershipStripeObject(eventDataObject(event));
-}
-
-function isUniqueConstraintError(error: unknown): boolean {
-  return objectValue(error)?.code === 'P2002';
 }
 
 function errorMessage(error: unknown): string {
@@ -760,46 +757,42 @@ export async function processStripeWebhookEvent(options: {
   let receiptPendingMarkerPersisted = false;
   let retryingReceiptEnqueue = false;
   let retryingUnprocessedEvent = false;
-  try {
-    storedEvent = await options.db.stripeWebhookEvent.create({
-      data: {
-        eventType: options.event.type,
-        processingError: stripeWebhookProcessingClaim(),
-        stripeCreatedAt: stripeEventCreatedAtDate(options.event),
-        stripeEventId: options.event.id,
-      },
+  const createResult = await options.db.stripeWebhookEvent.createMany({
+    data: {
+      eventType: options.event.type,
+      processingError: stripeWebhookProcessingClaim(),
+      stripeCreatedAt: stripeEventCreatedAtDate(options.event),
+      stripeEventId: options.event.id,
+    },
+    skipDuplicates: true,
+  });
+  const existingEvent = await options.db.stripeWebhookEvent.findUnique({
+    select: { id: true, processedAt: true, processingError: true },
+    where: { stripeEventId: options.event.id },
+  });
+  if (!existingEvent) {
+    throw new TypeError('Stripe webhook event reservation missing.');
+  }
+  if (createResult.count === 1) {
+    storedEvent = { id: existingEvent.id };
+  } else if (existingEvent.processedAt) {
+    return { duplicate: true, ok: true };
+  } else {
+    retryingReceiptEnqueue = Boolean(
+      existingEvent.processingError?.startsWith(
+        receiptEnqueuePendingProcessingError
+      )
+    );
+    receiptRecoveryPending = retryingReceiptEnqueue;
+    const claimedEvent = await claimExistingWebhookEvent({
+      db: options.db,
+      eventId: existingEvent.id,
     });
-  } catch (error) {
-    if (isUniqueConstraintError(error)) {
-      const existingEvent = await options.db.stripeWebhookEvent.findUnique({
-        select: { id: true, processedAt: true, processingError: true },
-        where: { stripeEventId: options.event.id },
-      });
-      if (existingEvent?.processedAt) {
-        return { duplicate: true, ok: true };
-      }
-      if (existingEvent) {
-        retryingReceiptEnqueue = Boolean(
-          existingEvent.processingError?.startsWith(
-            receiptEnqueuePendingProcessingError
-          )
-        );
-        receiptRecoveryPending = retryingReceiptEnqueue;
-        const claimedEvent = await claimExistingWebhookEvent({
-          db: options.db,
-          eventId: existingEvent.id,
-        });
-        if (!claimedEvent) {
-          return { ok: false };
-        }
-        storedEvent = claimedEvent;
-        retryingUnprocessedEvent = true;
-      } else {
-        throw error;
-      }
-    } else {
-      throw error;
+    if (!claimedEvent) {
+      return { ok: false };
     }
+    storedEvent = claimedEvent;
+    retryingUnprocessedEvent = true;
   }
 
   try {
