@@ -4,13 +4,18 @@ import { revalidatePath } from 'next/cache';
 import type { Stripe } from 'stripe';
 import { getSession } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
+import { logger } from '@/libs/Logger';
 import { getStripeClient } from '@/libs/stripe/stripeClient';
 import { getI18nPath } from '@/utils/Helpers';
 
 export type TurnOffMembershipAutoRenewResult =
   | { readonly ok: true }
   | {
-      readonly error: 'not_found' | 'stripe_failed' | 'unauthorized';
+      readonly error:
+        | 'db_update_failed'
+        | 'not_found'
+        | 'stripe_failed'
+        | 'unauthorized';
       readonly ok: false;
     };
 
@@ -86,12 +91,7 @@ export async function turnOffMembershipAutoRenew(options: {
   readonly client: MembershipCancellationClient;
   readonly now: Date;
   readonly note: string;
-  readonly reason:
-    | 'cost'
-    | 'duplicate_or_mistake'
-    | 'not_sailing_next_season'
-    | 'other'
-    | 'using_free_membership';
+  readonly reason: MembershipCancellationReasonValue;
   readonly stripe: MembershipCancellationStripe;
   readonly subscriptionId: string;
   readonly userId: string;
@@ -123,35 +123,60 @@ export async function turnOffMembershipAutoRenew(options: {
     return { error: 'stripe_failed', ok: false };
   }
 
-  await options.client.sailingCardSubscription.update({
-    data: {
-      autoRenew: false,
-      cancelAtPeriodEnd: true,
-      cancellationNote: options.note.trim() || null,
-      cancellationReason: options.reason,
-      cancellationRequestedAt: options.now,
-    },
-    where: { id: subscription.id },
-  });
+  try {
+    await options.client.sailingCardSubscription.update({
+      data: {
+        autoRenew: false,
+        cancelAtPeriodEnd: true,
+        cancellationNote: options.note.trim() || null,
+        cancellationReason: options.reason,
+        cancellationRequestedAt: options.now,
+      },
+      where: { id: subscription.id },
+    });
+  } catch (error) {
+    let revertError: unknown = null;
+    try {
+      await options.stripe.subscriptions.update(
+        subscription.stripeSubscriptionId,
+        {
+          cancel_at_period_end: false,
+        }
+      );
+    } catch (caughtRevertError) {
+      revertError = caughtRevertError;
+    }
+    logger.error(
+      '[membership:auto-renew-cancel] db_update_failed subscription_id={subscriptionId} stripe_subscription_id={stripeSubscriptionId} reason={reason}',
+      {
+        error,
+        reason: options.reason,
+        revertError,
+        stripeSubscriptionId: subscription.stripeSubscriptionId,
+        subscriptionId: subscription.id,
+      }
+    );
+    return { error: 'db_update_failed', ok: false };
+  }
 
   return { ok: true };
 }
 
-export async function turnOffMembershipAutoRenewAction(
+async function turnOffMembershipAutoRenewAction(
   locale: string,
   formData: FormData
-): Promise<void> {
+): Promise<TurnOffMembershipAutoRenewResult> {
   const session = await getSession();
   if (!session?.user?.id) {
-    return;
+    return { error: 'unauthorized', ok: false };
   }
   const subscriptionId = formData.get('subscriptionId');
   if (typeof subscriptionId !== 'string' || subscriptionId.trim() === '') {
-    return;
+    return { error: 'not_found', ok: false };
   }
   const note = formData.get('note');
 
-  await turnOffMembershipAutoRenew({
+  const result = await turnOffMembershipAutoRenew({
     client: prisma,
     note: typeof note === 'string' ? note : '',
     now: new Date(),
@@ -160,5 +185,16 @@ export async function turnOffMembershipAutoRenewAction(
     subscriptionId,
     userId: session.user.id,
   });
+  if (!result.ok) {
+    return result;
+  }
   revalidatePath(getI18nPath('/profile', locale));
+  return result;
+}
+
+export async function turnOffMembershipAutoRenewFormAction(
+  locale: string,
+  formData: FormData
+): Promise<void> {
+  await turnOffMembershipAutoRenewAction(locale, formData);
 }

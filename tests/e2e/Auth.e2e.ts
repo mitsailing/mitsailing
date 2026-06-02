@@ -365,7 +365,7 @@ test.describe('Auth', () => {
       await createVerifiedUser({ email, page, password: credential });
 
       await page.goto('/profile');
-      await expect(page).toHaveURL(/\/profile/);
+      await expect(page).toHaveURL(/\/profile\/?$/);
       const profileNav = page.getByRole('navigation', {
         name: 'Profile settings',
       });

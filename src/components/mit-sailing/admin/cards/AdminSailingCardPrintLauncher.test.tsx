@@ -1,6 +1,8 @@
 import * as Sentry from '@sentry/nextjs';
+import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  AdminSailingCardPrintLauncher,
   loadSailingCardPdfFrameSource,
   printSailingCardFrame,
 } from './AdminSailingCardPrintLauncher';
@@ -15,6 +17,38 @@ afterEach(() => {
 });
 
 describe('AdminSailingCardPrintLauncher', () => {
+  it('allows the PDF frame to run browser print scripts', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        await Promise.resolve();
+        return new Response(new Blob(['pdf'], { type: 'application/pdf' }), {
+          headers: { 'content-type': 'application/pdf' },
+        });
+      })
+    );
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:card-pdf');
+
+    render(
+      <AdminSailingCardPrintLauncher
+        failureLabel="Failed"
+        frameTitle="Sailing card PDF"
+        loadingLabel="Loading"
+        mode="print"
+        pdfHref="/api/admin/users/user-1/sailing-card/pdf"
+        readyLabel="Ready"
+        targetUserId="user-1"
+      />
+    );
+
+    const frame = await screen.findByTitle('Sailing card PDF');
+
+    expect(frame).toHaveAttribute(
+      'sandbox',
+      expect.stringContaining('allow-scripts')
+    );
+  });
+
   it('reports app-visible quick print launch failures to Sentry', () => {
     const error = new Error('print failed');
     const frame = document.createElement('iframe');

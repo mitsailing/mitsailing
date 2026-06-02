@@ -241,7 +241,7 @@ export function AdminSailingCardPrintLauncher(props: {
             setStatus(result.ok ? 'ready' : 'failed');
           }}
           ref={frameRef}
-          sandbox="allow-modals allow-same-origin"
+          sandbox="allow-modals allow-scripts"
           src={frameSource}
           title={props.frameTitle}
         />

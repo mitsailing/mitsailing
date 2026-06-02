@@ -65,17 +65,9 @@ export type UpdateProfileIdentityResult =
         | 'unauthorized';
     };
 
-const parseProfileAffiliation = (value: string) => {
-  const visibleAffiliations: ReadonlySet<SailingAffiliation> = new Set(
-    getSailingAffiliationOptions().map((option) => option.value)
-  );
-  for (const affiliation of visibleAffiliations) {
-    if (value === affiliation) {
-      return affiliation;
-    }
-  }
-  return null;
-};
+const parseProfileAffiliation = (value: string) =>
+  getSailingAffiliationOptions().find((option) => option.value === value)
+    ?.value ?? null;
 
 const validatesAffiliation = (props: {
   readonly affiliation: SailingAffiliation;
@@ -93,9 +85,31 @@ const validatesAffiliation = (props: {
   return true;
 };
 
-const isUniqueMitIdConflict = (error: unknown) =>
-  error instanceof Prisma.PrismaClientKnownRequestError &&
-  error.code === 'P2002';
+const uniqueConstraintTargets = (
+  error: Prisma.PrismaClientKnownRequestError
+) => {
+  const target = error.meta?.target;
+  if (Array.isArray(target)) {
+    return target.filter((value) => typeof value === 'string');
+  }
+  return typeof target === 'string' ? [target] : [];
+};
+
+const isMitIdUniqueConstraintTarget = (target: string) =>
+  target === 'mitId' ||
+  target === 'mit_id' ||
+  target.includes('mitId') ||
+  target.includes('mit_id');
+
+const isUniqueMitIdConflict = (error: unknown) => {
+  if (
+    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+    error.code !== 'P2002'
+  ) {
+    return false;
+  }
+  return uniqueConstraintTargets(error).some(isMitIdUniqueConstraintTarget);
+};
 
 const hasLinkedMitIdentity = (user: CurrentProfileIdentityUser) =>
   user.mitId !== null && user.mitDataWarehouseVerifiedAt !== null;

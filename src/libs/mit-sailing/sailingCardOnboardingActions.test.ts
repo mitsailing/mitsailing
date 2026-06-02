@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   prismaSailingCardRequestFindUnique: vi.fn(),
   prismaSailingCardRequestUpdateMany: vi.fn(),
   prismaTransaction: vi.fn(),
+  loggerError: vi.fn(),
   revalidatePath: vi.fn(),
   redirect: vi.fn((destination: string) => {
     throw new Error(`NEXT_REDIRECT:${destination}`);
@@ -130,6 +131,12 @@ vi.mock('@/libs/DB', () => ({
       create: mocks.prismaLegalAgreementAcceptanceCreate,
     },
     $transaction: mocks.prismaTransaction,
+  },
+}));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: {
+    error: mocks.loggerError,
   },
 }));
 
@@ -342,6 +349,38 @@ describe('submitSailingCardOnboardingAction', () => {
     ).rejects.toThrow('NEXT_REDIRECT:/login?callbackUrl=%2Fonboarding');
 
     expect(mocks.prismaUserUpdate).not.toHaveBeenCalled();
+  });
+
+  it('verifies mit identity before the rest of onboarding is completed', async () => {
+    mocks.lookupMitDataWarehouseIdentity.mockResolvedValue({
+      mitId: '123456789',
+      firstName: 'ADA',
+      lastName: 'LOVELACE',
+      kerberos: 'ada',
+      classYear: '2027',
+      personType: MitDataWarehousePersonType.CURRENT_STUDENT,
+    });
+    const { verifySailingCardOnboardingMitIdentityAction } =
+      await import('@/libs/mit-sailing/sailingCardOnboardingActions');
+
+    await expect(
+      verifySailingCardOnboardingMitIdentityAction({
+        affiliation: SailingAffiliation.MIT_STUDENT,
+        mitId: '123456789',
+      })
+    ).resolves.toEqual({
+      identity: {
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        mitClassYear: '2027',
+        mitId: '123456789',
+      },
+      ok: true,
+    });
+    expect(mocks.lookupMitDataWarehouseIdentity).toHaveBeenCalledWith({
+      mitId: '123456789',
+      verifiedKerberos: 'ada',
+    });
   });
 
   it('redirects users with an existing current-year request to success', async () => {
@@ -766,9 +805,8 @@ describe('submitSailingCardOnboardingAction', () => {
   );
 
   it('returns a recoverable error when paid checkout creation throws', async () => {
-    mocks.createMembershipCheckoutUrlForOnboarding.mockRejectedValue(
-      new Error('Stripe unavailable')
-    );
+    const error = new Error('Stripe unavailable');
+    mocks.createMembershipCheckoutUrlForOnboarding.mockRejectedValue(error);
     const submitSailingCardOnboardingAction =
       await loadSubmitSailingCardOnboardingAction();
 
@@ -785,6 +823,16 @@ describe('submitSailingCardOnboardingAction', () => {
     });
 
     expect(mocks.redirect).not.toHaveBeenCalledWith('/onboarding/success');
+    expect(mocks.loggerError).toHaveBeenCalledWith(
+      '[sailing-card-onboarding:membership-checkout] user_id={userId} card_type={cardType} error_name={errorName} error_code={errorCode}',
+      {
+        cardType: SailingCardType.racing,
+        error,
+        errorCode: 'unknown',
+        errorName: 'Error',
+        userId: 'user-1',
+      }
+    );
   });
 
   it('returns validation errors without crashing the page', async () => {

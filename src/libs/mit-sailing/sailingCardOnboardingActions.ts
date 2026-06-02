@@ -6,6 +6,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import {
   LegalAgreementAcceptanceSource,
+  MitDataWarehousePersonType,
   SailingAffiliation,
   SailingCardRequestStatus,
   SailingCardType,
@@ -17,11 +18,13 @@ import {
 import { getSession } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
+import { logger } from '@/libs/Logger';
 import { createMembershipCheckoutUrlForOnboarding } from '@/libs/mit-sailing/membershipBilling/membershipCheckoutActions';
 import {
   lookupMitDataWarehouseIdentity,
   verifiedKerberosFromEmail,
 } from '@/libs/mit-sailing/mitDataWarehouse';
+import { normalizeVerifiedMitDataWarehousePersonName } from '@/libs/mit-sailing/personName';
 import {
   sailingCardAgreement,
   sailingCardAgreementHash,
@@ -61,6 +64,24 @@ export type SailingCardOnboardingFormValues = {
   readonly phone: string;
   readonly swimAgreementAccepted: boolean;
 };
+
+export type VerifySailingCardOnboardingMitIdentityResult =
+  | {
+      readonly identity: {
+        readonly firstName: string;
+        readonly lastName: string;
+        readonly mitClassYear: string | null;
+        readonly mitId: string;
+      };
+      readonly ok: true;
+    }
+  | {
+      readonly fieldError:
+        | 'affiliation_mismatch'
+        | 'invalid_dw_identity'
+        | 'required_dw_identity';
+      readonly ok: false;
+    };
 
 const formDataString = (formData: FormData, key: string) => {
   const value = formData.get(key);
@@ -102,11 +123,15 @@ const currentYearSailingCardRequestSelect = {
   },
 } as const;
 
+type CurrentYearSailingCardRequest = NonNullable<
+  Parameters<typeof hasCompletedCurrentYearSailingCardRequest>[0]
+>;
+
 const canUpdatePendingNormalFitnessVerification = (request: {
   readonly cardType?: SailingCardType | null;
   readonly hasFitnessMembership?: boolean | null;
   readonly sailingAffiliation?: SailingAffiliation | null;
-  readonly status: string;
+  readonly status: CurrentYearSailingCardRequest['status'];
 }) =>
   request.status === SailingCardRequestStatus.pending &&
   request.cardType === SailingCardType.normal &&
@@ -119,7 +144,7 @@ const shouldRedirectCompletedCurrentYearRequest = (
   request: Parameters<typeof hasCompletedCurrentYearSailingCardRequest>[0]
 ) =>
   request !== null &&
-  request.status !== 'cancelled' &&
+  request.status !== SailingCardRequestStatus.cancelled &&
   hasCompletedCurrentYearSailingCardRequest(request) &&
   !canUpdatePendingNormalFitnessVerification(request);
 
@@ -147,18 +172,73 @@ const sailingCardRequestUpdateData = (props: {
 });
 
 const parseAffiliation = (value: string) => {
-  const affiliations: ReadonlySet<SailingAffiliation> = new Set(
-    Object.values(SailingAffiliation).filter(
-      (affiliation) => affiliation !== SailingAffiliation.NON_MIT
-    )
+  const affiliations = Object.values(SailingAffiliation).filter(
+    (affiliation) => affiliation !== SailingAffiliation.NON_MIT
   );
-  for (const affiliation of affiliations) {
-    if (value === affiliation) {
-      return affiliation;
-    }
-  }
-  return null;
+  return affiliations.find((affiliation) => affiliation === value) ?? null;
 };
+
+const requiredMitAffiliationMatchesIdentity = (props: {
+  readonly affiliation: SailingAffiliation;
+  readonly personType: MitDataWarehousePersonType;
+}) => {
+  if (props.affiliation === SailingAffiliation.MIT_STUDENT) {
+    return props.personType === MitDataWarehousePersonType.CURRENT_STUDENT;
+  }
+  if (
+    props.affiliation === SailingAffiliation.MIT_FACULTY ||
+    props.affiliation === SailingAffiliation.MIT_STAFF
+  ) {
+    return props.personType === MitDataWarehousePersonType.CURRENT_STAFF;
+  }
+  return true;
+};
+
+export async function verifySailingCardOnboardingMitIdentityAction(props: {
+  readonly affiliation: string;
+  readonly mitId: string;
+}): Promise<VerifySailingCardOnboardingMitIdentityResult> {
+  const session = await getSession();
+  const affiliation = parseAffiliation(props.affiliation);
+  if (affiliation === null) {
+    return { fieldError: 'affiliation_mismatch', ok: false };
+  }
+  if (props.mitId.trim() === '') {
+    return { fieldError: 'required_dw_identity', ok: false };
+  }
+
+  const identity = await lookupMitDataWarehouseIdentity({
+    mitId: props.mitId,
+    verifiedKerberos: verifiedKerberosFromEmail({
+      email:
+        typeof session?.user?.email === 'string' ? session.user.email : null,
+      emailVerified: session?.user?.emailVerified === true,
+    }),
+  });
+  if (identity === null) {
+    return { fieldError: 'invalid_dw_identity', ok: false };
+  }
+  if (
+    !requiredMitAffiliationMatchesIdentity({
+      affiliation,
+      personType: identity.personType,
+    })
+  ) {
+    return { fieldError: 'affiliation_mismatch', ok: false };
+  }
+
+  const personName = normalizeVerifiedMitDataWarehousePersonName(identity);
+
+  return {
+    identity: {
+      firstName: personName.firstName,
+      lastName: personName.lastName,
+      mitClassYear: identity.classYear,
+      mitId: identity.mitId,
+    },
+    ok: true,
+  };
+}
 
 const parseCardType = (value: string) => {
   const cardTypes: ReadonlySet<SailingCardType> = new Set(
@@ -279,6 +359,19 @@ const checkoutSuccessUrl = (successHref: string) => {
   }session_id={CHECKOUT_SESSION_ID}`;
 };
 
+const errorName = (error: unknown) =>
+  error instanceof Error ? error.name : 'unknown';
+
+const errorCode = (error: unknown) => {
+  if (error !== null && typeof error === 'object' && 'code' in error) {
+    const { code } = error;
+    if (typeof code === 'string' && code.trim() !== '') {
+      return code;
+    }
+  }
+  return 'unknown';
+};
+
 const membershipCheckoutStateForOnboarding = async (props: {
   readonly cardType: SailingCardType;
   readonly dateOfBirth: Date;
@@ -312,7 +405,17 @@ const membershipCheckoutStateForOnboarding = async (props: {
       successUrl: checkoutSuccessUrl(successHref),
       userId: props.userId,
     });
-  } catch {
+  } catch (error) {
+    logger.error(
+      '[sailing-card-onboarding:membership-checkout] user_id={userId} card_type={cardType} error_name={errorName} error_code={errorCode}',
+      {
+        cardType: props.cardType,
+        error,
+        errorCode: errorCode(error),
+        errorName: errorName(error),
+        userId: props.userId,
+      }
+    );
     return { status: 'failed' };
   }
   if (checkout?.status !== 'created') {

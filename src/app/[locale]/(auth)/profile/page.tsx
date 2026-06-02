@@ -23,7 +23,6 @@ type ProfileSailingCardRequest = {
 function profileSailingCardSummary(props: {
   readonly latestRequest: ProfileSailingCardRequest | null;
   readonly sailingCardExpiresOn: Date | null;
-  readonly sailingCardIssuedAt: Date | null;
   readonly sailingCardNumber: number | null;
   readonly sailingCardSwimAgreementInitialedAt: Date | null;
   readonly sailingCardSwimAgreementInitials: string | null;
@@ -183,7 +182,6 @@ export default async function ProfilePage(props: ProfilePageProps) {
       initialSailingCardSummary={profileSailingCardSummary({
         latestRequest: dbUser.sailingCardRequests.at(0) ?? null,
         sailingCardExpiresOn: dbUser.sailingCardExpiresOn,
-        sailingCardIssuedAt: dbUser.sailingCardIssuedAt,
         sailingCardNumber: dbUser.sailingCardNumber,
         sailingCardSwimAgreementInitialedAt:
           dbUser.sailingCardSwimAgreementInitialedAt,

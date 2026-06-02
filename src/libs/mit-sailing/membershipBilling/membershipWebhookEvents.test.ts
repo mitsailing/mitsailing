@@ -165,6 +165,15 @@ describe('handleMembershipStripeWebhookEvent', () => {
       }),
       where: { stripeSubscriptionId: 'sub_test' },
     });
+    expect(db.sailingCardSubscription.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          cardType: SailingCardType.racing,
+          stripeSubscriptionId: { not: 'sub_test' },
+          userId: 'user_1',
+        }),
+      })
+    );
     expect(db.payment.updateMany).toHaveBeenCalledWith({
       data: expect.objectContaining({
         activeCheckoutKey: null,

@@ -1259,6 +1259,12 @@ model Payment {
       duplicateStripeSubscriptionId != null ||
       stripeRefundId != null ||
       stripeDisputeId != null ||
+      stripeCheckoutSessionUrl != null ||
+      stripeCheckoutSessionExpiresAt != null ||
+      lastStripePaymentEventId != null ||
+      lastStripePaymentEventCreatedAt != null ||
+      lastStripeInvoiceEventId != null ||
+      lastStripeInvoiceEventCreatedAt != null ||
       stripeReceiptUrl != null
     )
   )
@@ -1292,6 +1298,7 @@ model Payment {
   )
   @@deny('create,update', amountCents < 0)
   @@deny('create,update', refundedAmountCents != null && refundedAmountCents < 0)
+  @@deny('create,update', refundedAmountCents != null && refundedAmountCents > amountCents)
   @@deny('create,update', issueHandledAt != null && (issueHandledNote == null || issueHandledNote == '' || issueHandledByUserId == null))
   @@allow('read', auth() != null && userId != null && userId == auth().id)
   @@allow('read,create,update,delete', purpose == event_payment && check(event, 'update'))
@@ -1343,7 +1350,7 @@ model SailingCardSubscription {
   payments            Payment[]
 
   @@deny('create,update', cardType == normal)
-  @@deny('create,update', cancellationRequestedAt != null && cancellationReason == null && cancellationNote != null && cancellationNote == '')
+  @@deny('create,update', cancellationRequestedAt != null && cancellationReason == null)
   @@allow('read', auth() != null && userId == auth().id)
   @@allow('read,create,update', auth() != null && (
     auth().appRole == 'admin' ||

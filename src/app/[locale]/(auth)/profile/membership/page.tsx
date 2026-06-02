@@ -65,7 +65,7 @@ export default async function ProfileMembershipPage(
             stripeCustomerId: true,
             stripeSubscriptionId: true,
           },
-          take: 3,
+          take: 1,
         },
       },
       where: { id: user.id },
@@ -97,7 +97,6 @@ export default async function ProfileMembershipPage(
         ? 'free_normal'
         : 'paid_racing_available',
     latestPayment,
-    now: new Date(),
     subscription,
   });
 

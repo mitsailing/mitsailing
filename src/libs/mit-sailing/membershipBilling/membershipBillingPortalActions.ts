@@ -1,39 +1,13 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import type { Stripe } from 'stripe';
+import { SailingCardSubscriptionStatus } from '@/generated/prisma/enums';
 import { getSession } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
+import { createMembershipBillingPortalSession } from '@/libs/mit-sailing/membershipBilling/membershipBillingPortalSession';
 import { getStripeClient } from '@/libs/stripe/stripeClient';
 import { getI18nPath } from '@/utils/Helpers';
-
-type MembershipBillingPortalStripe = {
-  readonly billingPortal: {
-    readonly sessions: {
-      create(
-        params: Stripe.BillingPortal.SessionCreateParams
-      ): Promise<Pick<Stripe.BillingPortal.Session, 'id' | 'url'>>;
-    };
-  };
-};
-
-export async function createMembershipBillingPortalSession(options: {
-  readonly configurationId: string;
-  readonly customerId: string;
-  readonly returnUrl: string;
-  readonly stripe: MembershipBillingPortalStripe;
-}): Promise<{ readonly url: string }> {
-  const session = await options.stripe.billingPortal.sessions.create({
-    configuration: options.configurationId,
-    customer: options.customerId,
-    return_url: options.returnUrl,
-  });
-  if (!session.url) {
-    throw new Error('Stripe did not return a Billing Portal URL.');
-  }
-  return { url: session.url };
-}
 
 export async function openMembershipBillingPortalAction(locale: string) {
   const session = await getSession();
@@ -49,7 +23,13 @@ export async function openMembershipBillingPortalAction(locale: string) {
     select: { stripeCustomerId: true },
     where: {
       userId: session.user.id,
-      status: { in: ['active', 'trialing', 'past_due'] },
+      status: {
+        in: [
+          SailingCardSubscriptionStatus.active,
+          SailingCardSubscriptionStatus.trialing,
+          SailingCardSubscriptionStatus.past_due,
+        ],
+      },
     },
   });
   if (!subscription) {

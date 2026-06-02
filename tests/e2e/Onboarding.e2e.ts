@@ -237,7 +237,7 @@ test.describe('Onboarding', () => {
       });
       const profilePage = await profilePagePromise;
       await expect(profilePage).toHaveURL(
-        /\/onboarding\?callbackUrl=%2Fprofile(?:%2Faccount)?$/
+        /\/onboarding\?callbackUrl=%2Fprofile$/
       );
       await profilePage.close();
       await expectOnboardingDraftValues(page);

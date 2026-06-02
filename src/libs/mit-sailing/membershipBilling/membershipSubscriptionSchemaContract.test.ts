@@ -41,6 +41,7 @@ describe('membership subscription schema contract', () => {
     );
     expect(compactZmodel).toContain('activeCheckoutKey String? @unique');
     expect(compactZmodel).toContain('stripeCheckoutSessionUrl');
+    expect(compactZmodel).toContain('stripeCheckoutSessionExpiresAt');
     expect(compactZmodel).toContain('stripeHostedInvoiceUrl');
     expect(compactZmodel).toContain('stripeInvoicePdfUrl');
     expect(compactZmodel).toContain('stripeInvoiceLineItemId');
@@ -50,6 +51,16 @@ describe('membership subscription schema contract', () => {
     expect(compactZmodel).toContain('issueKind');
     expect(compactZmodel).toContain('issueHandledByUserId');
     expect(compactZmodel).toContain('membershipConsentSnapshot Json?');
+    expect(compactZmodel).toContain('source != stripe && (');
+    expect(compactZmodel).toContain(
+      "@@deny('create,update', refundedAmountCents != null && refundedAmountCents > amountCents)"
+    );
+  });
+
+  it('requires a cancellation reason when auto-renew cancellation is requested', () => {
+    expect(compactZmodel).toContain(
+      "@@deny('create,update', cancellationRequestedAt != null && cancellationReason == null)"
+    );
   });
 
   it('allows one Stripe subscription to produce many payment rows', () => {

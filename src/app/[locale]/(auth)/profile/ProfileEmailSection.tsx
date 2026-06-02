@@ -34,12 +34,19 @@ function strongText(chunks: React.ReactNode) {
   return <strong>{chunks}</strong>;
 }
 
-function supportEmailLink(chunks: React.ReactNode) {
-  return (
-    <a className="underline" href="mailto:support@mitsailing.com">
-      {chunks}
-    </a>
-  );
+const fallbackSupportEmail = 'support@mitsailing.com';
+
+function supportEmailLink(email: string) {
+  return function renderSupportEmailLink(chunks: React.ReactNode) {
+    const supportEmail = isValidEmailAddress(email)
+      ? normalizeEmailAddress(email)
+      : fallbackSupportEmail;
+    return (
+      <a className="underline" href={`mailto:${supportEmail}`}>
+        {chunks}
+      </a>
+    );
+  };
 }
 
 function EmailDeliverabilityNotice(props: {
@@ -322,7 +329,7 @@ export function ProfileEmailSection(props: {
                   </Button>
                   <span className="text-muted-foreground">
                     {t.rich('pending_email_support', {
-                      support: supportEmailLink,
+                      support: supportEmailLink(t('support_email_address')),
                     })}
                   </span>
                 </div>

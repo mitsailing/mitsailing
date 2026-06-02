@@ -5,7 +5,6 @@ import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { adminHeaderLinkVisibleFromSession } from '@/libs/auth/adminHeaderLink';
 import { getSession } from '@/libs/auth/dal';
 import { Env } from '@/libs/Env';
-import { getOnboardingTaskHrefForUser } from '@/libs/mit-sailing/onboardingTask';
 import { SiteFooter } from './site/SiteFooter';
 import { SiteHeader } from './site/SiteHeader';
 import {
@@ -66,9 +65,6 @@ export async function SiteShell(props: SiteShellProps) {
   const initialSignedIn = Boolean(session?.user?.id);
   const initialShowAdminLink = shouldShowAdminLink(session);
   const shouldShowStagingBanner = Env.STAGING_BANNER === 'yes';
-  const onboardingTaskHref = session?.user?.id
-    ? await getOnboardingTaskHrefForUser({ userId: session.user.id })
-    : null;
 
   const tMitSite = await getTranslations('MitSailingSite');
 
@@ -99,14 +95,14 @@ export async function SiteShell(props: SiteShellProps) {
             initialShowAdminLink={initialShowAdminLink}
             initialSignedIn={initialSignedIn}
             mobileUtilityItems={[]}
-            onboardingTaskHref={onboardingTaskHref}
+            onboardingTaskHref={null}
           />
         }
       >
         <SiteShellHeaderNav
           initialShowAdminLink={initialShowAdminLink}
           initialSignedIn={initialSignedIn}
-          onboardingTaskHref={onboardingTaskHref}
+          userId={session?.user?.id}
         />
       </Suspense>
       <div className="flex min-h-0 flex-1 flex-col" id="site-shell-inert-scope">

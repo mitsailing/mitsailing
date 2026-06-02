@@ -36,7 +36,6 @@ export const emptyValues = {
 
 const actionStateMock = vi.hoisted(() => ({
   formAction: vi.fn(),
-  routerPush: vi.fn(),
   state: {
     fieldErrors: {},
     status: 'idle',
@@ -54,6 +53,7 @@ const actionStateMock = vi.hoisted(() => ({
       swimAgreementAccepted: false,
     },
   } as SailingCardOnboardingFormState,
+  verifyIdentity: vi.fn(),
 }));
 
 vi.mock('react', async (importOriginal) => {
@@ -76,14 +76,9 @@ vi.mock('next-intl', async () => {
   };
 });
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: actionStateMock.routerPush,
-  }),
-}));
-
 vi.mock('@/libs/mit-sailing/sailingCardOnboardingActions', () => ({
   submitSailingCardOnboardingAction: vi.fn(),
+  verifySailingCardOnboardingMitIdentityAction: actionStateMock.verifyIdentity,
 }));
 
 export function resetOnboardingFormTestState() {
@@ -95,6 +90,15 @@ export function resetOnboardingFormTestState() {
     status: 'idle',
     values: emptyValues,
   };
+  actionStateMock.verifyIdentity.mockResolvedValue({
+    ok: true,
+    identity: {
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      mitClassYear: '2027',
+      mitId: '123456789',
+    },
+  });
 }
 
 export function setOnboardingFormActionState(
@@ -119,6 +123,22 @@ export function renderForm(props: RenderFormProps = {}) {
     </SailingCardOnboardingDraftProvider>
   );
 }
+
+export function setOnboardingMitIdentityResult(
+  result: Awaited<ReturnType<typeof actionStateMock.verifyIdentity>>
+) {
+  actionStateMock.verifyIdentity.mockResolvedValue(result);
+}
+
+export const expectMitIdentityVerificationCalledWith = (props: {
+  readonly affiliation: SailingAffiliation;
+  readonly mitId: string;
+}) => {
+  expect(actionStateMock.verifyIdentity).toHaveBeenCalledWith({
+    affiliation: props.affiliation,
+    mitId: props.mitId,
+  });
+};
 
 function PersistentDraftFormHarness(
   props: RenderFormProps & {

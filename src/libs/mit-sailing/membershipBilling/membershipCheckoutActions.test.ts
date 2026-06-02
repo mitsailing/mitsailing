@@ -110,9 +110,12 @@ describe('membershipCheckoutActions', () => {
         }),
       })
     );
+    expect(checkoutCreate).toHaveBeenCalledTimes(1);
   });
 
   it('reuses a non-expired pending hosted checkout payment', async () => {
+    const checkoutCreate = vi.fn();
+
     const result = await createMembershipCheckoutForOnboarding({
       cancelUrl: 'https://sailing.mit.edu/onboarding?checkout=cancelled',
       cardType: SailingCardType.racing,
@@ -136,7 +139,7 @@ describe('membershipCheckoutActions', () => {
       now: new Date('2026-05-31T12:00:00.000Z'),
       renewalPrice,
       stripe: {
-        checkout: { sessions: { create: vi.fn() } },
+        checkout: { sessions: { create: checkoutCreate } },
         customers: {
           create: vi.fn(),
           search: vi.fn(),
@@ -157,5 +160,6 @@ describe('membershipCheckoutActions', () => {
       status: 'created',
       url: 'https://checkout.stripe.com/c/pay/cs_existing',
     });
+    expect(checkoutCreate).not.toHaveBeenCalled();
   });
 });

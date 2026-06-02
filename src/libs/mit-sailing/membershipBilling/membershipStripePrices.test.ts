@@ -652,6 +652,33 @@ describe('membership Stripe Prices', () => {
     });
   });
 
+  it('archives a newly created Stripe Price when local persistence fails', async () => {
+    mocks.priceUpdate
+      .mockRejectedValueOnce(new Error('database unavailable'))
+      .mockResolvedValueOnce(
+        priceRow({ stripeSyncError: 'database unavailable' })
+      );
+
+    await expect(
+      syncSailingCardMembershipPrice({
+        db: syncDb(),
+        now: syncedAt,
+        price: priceRow(),
+        stripe: stripeClient(),
+      })
+    ).resolves.toMatchObject({
+      error: 'database unavailable',
+      status: 'failed',
+      stripePriceId: null,
+    });
+
+    expect(mocks.pricesUpdate).toHaveBeenCalledWith(
+      'price_123',
+      { active: false },
+      { idempotencyKey: 'membership-price-archive-price-row-1' }
+    );
+  });
+
   it('preserves prior Stripe sync timestamps when a verified Price fails to resync', async () => {
     mocks.pricesUpdate.mockRejectedValueOnce(new Error('Stripe timeout'));
 

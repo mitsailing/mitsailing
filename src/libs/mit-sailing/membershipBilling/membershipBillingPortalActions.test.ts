@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createMembershipBillingPortalSession } from '@/libs/mit-sailing/membershipBilling/membershipBillingPortalActions';
+import { createMembershipBillingPortalSession } from '@/libs/mit-sailing/membershipBilling/membershipBillingPortalSession';
 
 vi.mock('server-only', () => ({}));
 

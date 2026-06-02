@@ -5,6 +5,8 @@ vi.mock('server-only', () => ({}));
 
 describe('membershipStripeCustomers', () => {
   it('reuses the latest local customer id before calling Stripe', async () => {
+    const create = vi.fn();
+    const search = vi.fn();
     const customerId = await getOrCreateMembershipStripeCustomer({
       client: {
         payment: {
@@ -20,14 +22,16 @@ describe('membershipStripeCustomers', () => {
       name: 'Member Example',
       stripe: {
         customers: {
-          create: vi.fn(),
-          search: vi.fn(),
+          create,
+          search,
         },
       },
       userId: 'user_1',
     });
 
     expect(customerId).toBe('cus_local');
+    expect(create).not.toHaveBeenCalled();
+    expect(search).not.toHaveBeenCalled();
   });
 
   it('falls back to Stripe customer search by email', async () => {

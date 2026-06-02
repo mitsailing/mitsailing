@@ -86,19 +86,23 @@ function OnboardingDetailsFields(props: {
 
 export function OnboardingFormFields(props: {
   readonly affiliation: SailingAffiliation | '';
+  readonly canContinueIdentity: boolean;
   readonly cardTypeValue: string | undefined;
   readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly dateOfBirthValue: string | undefined;
   readonly fitnessMembershipReady: boolean;
   readonly hasFitnessMembershipValue: string | undefined;
   readonly hasVerifiedMitRecreationMembership?: boolean;
+  readonly identityContinueMode: 'continue' | 'skipMitId' | 'validateMitId';
   readonly identityComplete: boolean;
+  readonly identityValidationPending: boolean;
   readonly isPending: boolean;
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
   readonly manualNameRequired: boolean;
   readonly mitIdRequired: boolean;
   readonly now: Date;
   readonly onContinueIdentity: () => void;
+  readonly onValidateMitIdentity: () => void;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly setValue: UseFormSetValue<SailingCardOnboardingFormValues>;
   readonly showDetails: boolean;
@@ -121,12 +125,16 @@ export function OnboardingFormFields(props: {
       />
       {props.affiliation === '' ? null : (
         <IdentityFields
+          canContinue={props.canContinueIdentity}
           identityComplete={props.identityComplete}
           clientErrors={props.clientErrors}
+          continueMode={props.identityContinueMode}
+          isValidationPending={props.identityValidationPending}
           lockedIdentity={props.lockedIdentity}
           manualNameRequired={props.manualNameRequired}
           mitIdRequired={props.mitIdRequired}
           onContinue={props.onContinueIdentity}
+          onValidateMitId={props.onValidateMitIdentity}
           register={props.register}
           showContinue={!props.showDetails}
           showLockedIdentity={props.showLockedIdentity}

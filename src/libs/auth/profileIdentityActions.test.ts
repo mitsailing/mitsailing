@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Prisma } from '@/generated/prisma/client';
 import {
   MitDataWarehousePersonType,
   SailingAffiliation,
@@ -238,5 +239,34 @@ describe('updateProfileIdentityAction', () => {
 
     expect(transaction).not.toHaveBeenCalled();
     expect(userUpdate).not.toHaveBeenCalled();
+  });
+
+  it('does not report non-MIT-ID unique failures as MIT ID duplicates', async () => {
+    const { updateProfileIdentityAction } =
+      await import('@/libs/auth/profileIdentityActions');
+    lookupMitDataWarehouseIdentity.mockResolvedValue({
+      classYear: '2027',
+      firstName: 'ADA',
+      kerberos: 'ada',
+      lastName: 'LOVELACE',
+      mitId: '123456789',
+      personType: MitDataWarehousePersonType.CURRENT_STUDENT,
+    });
+    transaction.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        clientVersion: 'test',
+        code: 'P2002',
+        meta: { target: ['email'] },
+      })
+    );
+
+    await expect(
+      updateProfileIdentityAction('en', {
+        affiliation: SailingAffiliation.MIT_STUDENT,
+        firstName: '',
+        lastName: '',
+        mitId: '123456789',
+      })
+    ).rejects.toMatchObject({ code: 'P2002' });
   });
 });

@@ -247,6 +247,15 @@ export default async function OnboardingSuccessPage(
   }
 
   const latestRequest = currentUser.sailingCardRequests.at(0) ?? null;
+  const adminLink = canViewAdmin ? (
+    <Link
+      className="rounded-md border border-border px-4 py-2 text-sm font-semibold text-mit-text no-underline hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red"
+      href="/admin"
+    >
+      {t('admin_link')}
+    </Link>
+  ) : null;
+
   if (latestRequest !== null && isPaidCardType(latestRequest.cardType)) {
     const payment = await getMembershipPaymentForRequest({
       cardType: latestRequest.cardType,
@@ -280,16 +289,7 @@ export default async function OnboardingSuccessPage(
           href: '/events',
           label: t('events_link'),
         }}
-        adminLink={
-          canViewAdmin ? (
-            <Link
-              className="rounded-md border border-border px-4 py-2 text-sm font-semibold text-mit-text no-underline hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red"
-              href="/admin"
-            >
-              {t('admin_link')}
-            </Link>
-          ) : null
-        }
+        adminLink={adminLink}
         brandLabel={t('brand_label')}
         description={t('paid_description')}
         title={t('paid_title')}
@@ -303,16 +303,7 @@ export default async function OnboardingSuccessPage(
         href: '/events',
         label: t('events_link'),
       }}
-      adminLink={
-        canViewAdmin ? (
-          <Link
-            className="rounded-md border border-border px-4 py-2 text-sm font-semibold text-mit-text no-underline hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red"
-            href="/admin"
-          >
-            {t('admin_link')}
-          </Link>
-        ) : null
-      }
+      adminLink={adminLink}
       brandLabel={t('brand_label')}
       description={t('description')}
       title={t('title')}

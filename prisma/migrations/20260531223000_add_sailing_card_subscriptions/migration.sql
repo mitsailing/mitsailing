@@ -151,12 +151,23 @@ ALTER TABLE "payments"
   ON DELETE SET NULL
   ON UPDATE CASCADE,
   ADD CONSTRAINT "payments_refunded_amount_cents_chk"
-  CHECK ("refunded_amount_cents" IS NULL OR "refunded_amount_cents" >= 0),
+  CHECK (
+    "refunded_amount_cents" IS NULL
+    OR (
+      "refunded_amount_cents" >= 0
+      AND "refunded_amount_cents" <= "amount_cents"
+    )
+  ),
   ADD CONSTRAINT "payments_issue_handled_fields_chk"
   CHECK (
-    "issue_handled_at" IS NULL
+    (
+      "issue_handled_at" IS NULL
+      AND "issue_handled_note" IS NULL
+      AND "issue_handled_by_user_id" IS NULL
+    )
     OR (
-      "issue_handled_note" IS NOT NULL
+      "issue_handled_at" IS NOT NULL
+      AND "issue_handled_note" IS NOT NULL
       AND length(trim("issue_handled_note")) >= 1
       AND "issue_handled_by_user_id" IS NOT NULL
     )
@@ -183,6 +194,10 @@ ALTER TABLE "payments"
       AND "stripe_refund_id" IS NULL
       AND "stripe_dispute_id" IS NULL
       AND "stripe_receipt_url" IS NULL
+      AND "last_stripe_payment_event_id" IS NULL
+      AND "last_stripe_payment_event_created_at" IS NULL
+      AND "last_stripe_invoice_event_id" IS NULL
+      AND "last_stripe_invoice_event_created_at" IS NULL
     )
   );
 

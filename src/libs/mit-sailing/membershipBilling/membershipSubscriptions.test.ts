@@ -9,7 +9,6 @@ import {
   selectCanonicalMembershipSubscription,
 } from '@/libs/mit-sailing/membershipBilling/membershipSubscriptions';
 
-const now = new Date('2026-05-31T12:00:00.000Z');
 const periodEnd = new Date('2026-07-15T04:00:00.000Z');
 
 const subscription = (
@@ -61,7 +60,6 @@ describe('membershipSubscriptions', () => {
       membershipProfileState({
         access: 'paid_racing_available',
         latestPayment: payment(),
-        now,
         subscription: subscription(),
       })
     ).toMatchObject({
@@ -75,7 +73,6 @@ describe('membershipSubscriptions', () => {
       membershipProfileState({
         access: 'paid_racing_available',
         latestPayment: payment(),
-        now,
         subscription: subscription({
           status: SailingCardSubscriptionStatus.trialing,
         }),
@@ -88,7 +85,6 @@ describe('membershipSubscriptions', () => {
       membershipProfileState({
         access: 'paid_racing_available',
         latestPayment: payment({ status: PaymentStatus.checkout_created }),
-        now,
         subscription: subscription({
           status: SailingCardSubscriptionStatus.incomplete,
         }),
@@ -105,7 +101,6 @@ describe('membershipSubscriptions', () => {
       membershipProfileState({
         access: 'paid_racing_available',
         latestPayment: payment({ status: PaymentStatus.past_due }),
-        now,
         subscription: subscription({
           status: SailingCardSubscriptionStatus.past_due,
         }),
@@ -122,7 +117,6 @@ describe('membershipSubscriptions', () => {
       membershipProfileState({
         access: 'paid_racing_available',
         latestPayment: payment(),
-        now,
         subscription: subscription({ cancelAtPeriodEnd: true }),
       })
     ).toMatchObject({
@@ -136,7 +130,6 @@ describe('membershipSubscriptions', () => {
       membershipProfileState({
         access: 'free_normal',
         latestPayment: payment(),
-        now,
         subscription: subscription(),
       })
     ).toMatchObject({
@@ -150,7 +143,6 @@ describe('membershipSubscriptions', () => {
       membershipProfileState({
         access: 'free_normal',
         latestPayment: null,
-        now,
         subscription: null,
       }).kind
     ).toBe('free_normal');
@@ -159,7 +151,6 @@ describe('membershipSubscriptions', () => {
       membershipProfileState({
         access: 'paid_racing_available',
         latestPayment: null,
-        now,
         subscription: null,
       }).kind
     ).toBe('no_paid_membership');
@@ -170,7 +161,6 @@ describe('membershipSubscriptions', () => {
       membershipProfileState({
         access: 'paid_racing_available',
         latestPayment: payment({ status: PaymentStatus.checkout_created }),
-        now,
         subscription: null,
       }).kind
     ).toBe('pending_checkout');

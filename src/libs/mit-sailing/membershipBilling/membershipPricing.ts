@@ -75,8 +75,8 @@ export type CheckoutMembershipPricesResult =
 
 const membershipPriceSelect: Record<keyof SailingCardMembershipPriceRow, true> =
   {
-    amountCents: true,
     active: true,
+    amountCents: true,
     billingInterval: true,
     cardType: true,
     currency: true,

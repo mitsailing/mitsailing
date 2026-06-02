@@ -608,6 +608,13 @@ export async function syncSailingCardMembershipPrice(options: {
       stripePriceId,
     };
   } catch (error) {
+    if (existingStripePriceId === null && stripePriceId !== null) {
+      await archiveMembershipStripePrice({
+        price: options.price,
+        stripe: options.stripe,
+        stripePriceId,
+      });
+    }
     const message = stripeSyncErrorMessage(error);
     const updatedPrice = await db.sailingCardMembershipPrice.update({
       data: {

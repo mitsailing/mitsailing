@@ -1,9 +1,12 @@
 import type { getTranslations } from 'next-intl/server';
 import { Button } from '@/components/ui/button';
-import type { SailingCardType } from '@/generated/prisma/enums';
+import type {
+  MembershipCancellationReason,
+  SailingCardType,
+} from '@/generated/prisma/enums';
 import { Link } from '@/libs/I18nNavigation';
 import { openMembershipBillingPortalAction } from '@/libs/mit-sailing/membershipBilling/membershipBillingPortalActions';
-import { turnOffMembershipAutoRenewAction } from '@/libs/mit-sailing/membershipBilling/membershipCancellationActions';
+import { turnOffMembershipAutoRenewFormAction } from '@/libs/mit-sailing/membershipBilling/membershipCancellationActions';
 import type { MembershipProfileStateKind } from '@/libs/mit-sailing/membershipBilling/membershipSubscriptions';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 import { safeStripeHostedPaymentHref } from '@/libs/stripe/stripeHostedPaymentHref';
@@ -59,7 +62,7 @@ const cancellationReasonKeys = {
   not_sailing_next_season: 'membership_cancel_reason_not_sailing_next_season',
   other: 'membership_cancel_reason_other',
   using_free_membership: 'membership_cancel_reason_using_free_membership',
-} as const;
+} as const satisfies Record<MembershipCancellationReason, string>;
 
 function SummaryRow(props: { readonly label: string; readonly value: string }) {
   return (
@@ -81,7 +84,7 @@ export function ProfileMembershipBillingView(
     null,
     props.locale
   );
-  const cancelAction = turnOffMembershipAutoRenewAction.bind(
+  const cancelAction = turnOffMembershipAutoRenewFormAction.bind(
     null,
     props.locale
   );

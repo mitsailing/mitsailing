@@ -12,6 +12,7 @@ import type {
   SailingCardSubscriptionStatus as SailingCardSubscriptionStatusType,
   SailingCardType as SailingCardTypeType,
 } from '@/generated/prisma/enums';
+import { logger } from '@/libs/Logger';
 import type {
   ProcessableStripeEvent,
   StripeWebhookDb,
@@ -293,6 +294,7 @@ async function findMembershipPayment(options: {
 }
 
 async function existingCanonicalSubscription(options: {
+  readonly cardType: SailingCardTypeType;
   readonly db: MembershipWebhookDbWithWrites;
   readonly stripeSubscriptionId: string;
   readonly userId: string;
@@ -301,6 +303,7 @@ async function existingCanonicalSubscription(options: {
     orderBy: { createdAt: 'asc' },
     where: {
       canonicalSubscriptionId: null,
+      cardType: options.cardType,
       status: { in: activeCanonicalSubscriptionStatuses },
       stripeSubscriptionId: { not: options.stripeSubscriptionId },
       userId: options.userId,
@@ -320,6 +323,7 @@ async function upsertMembershipSubscription(options: {
   readonly userId: string;
 }) {
   const canonicalSubscription = await existingCanonicalSubscription({
+    cardType: options.cardType,
     db: options.db,
     stripeSubscriptionId: options.subscriptionId,
     userId: options.userId,
@@ -501,7 +505,21 @@ function invoiceSubscriptionId(object: Record<string, unknown>) {
 }
 
 function invoiceAmountCents(object: Record<string, unknown>) {
-  return numberValue(object.amount_paid) ?? numberValue(object.amount_due) ?? 0;
+  const amountPaid = numberValue(object.amount_paid);
+  const amountDue = numberValue(object.amount_due);
+  if (amountPaid !== null) {
+    return amountPaid;
+  }
+  if (amountDue !== null) {
+    return amountDue;
+  }
+  logger.warn(
+    '[membership-webhook] missing_invoice_amount invoice_id={invoiceId}',
+    {
+      invoiceId: stringValue(object.id) ?? 'unknown',
+    }
+  );
+  return 0;
 }
 
 function invoiceCurrency(object: Record<string, unknown>) {

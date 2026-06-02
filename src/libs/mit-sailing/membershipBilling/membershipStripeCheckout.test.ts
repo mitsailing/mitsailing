@@ -109,6 +109,7 @@ describe('membershipStripeCheckout', () => {
       { idempotencyKey: 'membership-checkout-payment_1' }
     );
     const params = create.mock.calls[0]?.[0];
+    expect(params).toBeDefined();
     expect(params).not.toHaveProperty('return_url');
     expect(params.subscription_data).not.toHaveProperty('trial_end');
     expect(params.metadata).toMatchObject({

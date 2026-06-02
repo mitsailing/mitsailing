@@ -68,13 +68,13 @@ vi.mock('@/components/mit-sailing/SiteShellAlertsTopBar', () => ({
 vi.mock('@/components/mit-sailing/SiteShellHeaderNav', () => ({
   SiteShellHeaderNav: (props: {
     initialShowAdminLink?: boolean;
-    onboardingTaskHref?: string | null;
+    userId?: string;
   }) =>
     React.createElement(
       'div',
       { 'data-testid': 'header-nav' },
-      props.onboardingTaskHref
-        ? React.createElement('a', { href: props.onboardingTaskHref }, 'Task')
+      props.userId
+        ? React.createElement('span', { 'data-user-id': props.userId }, 'User')
         : null,
       props.initialShowAdminLink
         ? React.createElement('a', { href: '/admin' }, 'Admin')
@@ -208,18 +208,15 @@ describe('SiteShell', () => {
       expect(renderToStaticMarkup(hiddenTree)).not.toContain('Admin');
     });
 
-    it('passes the onboarding task to the streamed header when current-year onboarding is incomplete', async () => {
+    it('passes the user id to the streamed header without blocking on onboarding task lookup', async () => {
       const { SiteShell } = await import('./SiteShell');
 
       getOnboardingTaskHrefForUser.mockResolvedValue('/onboarding');
       const tree = await SiteShell({ children: null });
       const html = renderToStaticMarkup(tree);
 
-      expect(getOnboardingTaskHrefForUser).toHaveBeenCalledWith({
-        userId: 'user-1',
-      });
-      expect(html).toContain('href="/onboarding"');
-      expect(html).toContain('Task');
+      expect(getOnboardingTaskHrefForUser).not.toHaveBeenCalled();
+      expect(html).toContain('data-user-id="user-1"');
     });
   });
 });

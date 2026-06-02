@@ -9,6 +9,7 @@ import {
   listFleetBoatsForNav,
   mapFleetBoatsToNavDropdownItems,
 } from '@/libs/mit-sailing/fleetQueries';
+import { getOnboardingTaskHrefForUser } from '@/libs/mit-sailing/onboardingTask';
 import type {
   SiteHeaderMenuItem,
   SiteHeaderMobileUtilityItem,
@@ -21,8 +22,8 @@ type SiteShellHeaderNavProps = {
   initialSignedIn: boolean;
   /** True when the viewer is an admin and not impersonating. */
   initialShowAdminLink: boolean;
-  /** Account task route when current-year onboarding is incomplete. */
-  onboardingTaskHref: '/onboarding' | null;
+  /** Signed-in user id from the parent shell. */
+  userId?: string;
 };
 
 /**
@@ -33,14 +34,23 @@ type SiteShellHeaderNavProps = {
  * @returns Sticky header with populated dropdowns when data loads
  */
 export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
-  const [categories, fleetBoats, headerMenu, mobileUtilityMenu, t] =
-    await Promise.all([
-      listClassCategoriesForNav(),
-      listFleetBoatsForNav(),
-      loadCmsMenu('header'),
-      loadCmsMenu('mobile_utility'),
-      getTranslations('MitSailingSite'),
-    ]);
+  const [
+    categories,
+    fleetBoats,
+    headerMenu,
+    mobileUtilityMenu,
+    onboardingTaskHref,
+    t,
+  ] = await Promise.all([
+    listClassCategoriesForNav(),
+    listFleetBoatsForNav(),
+    loadCmsMenu('header'),
+    loadCmsMenu('mobile_utility'),
+    props.userId
+      ? getOnboardingTaskHrefForUser({ userId: props.userId })
+      : null,
+    getTranslations('MitSailingSite'),
+  ]);
 
   const headerMenuItems = headerMenu.flatMap<SiteHeaderMenuItem>((item) => {
     const href = safeCmsHref(item.href) ?? undefined;
@@ -92,7 +102,7 @@ export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
       initialShowAdminLink={props.initialShowAdminLink}
       initialSignedIn={props.initialSignedIn}
       mobileUtilityItems={mobileUtilityItems}
-      onboardingTaskHref={props.onboardingTaskHref}
+      onboardingTaskHref={onboardingTaskHref}
     />
   );
 }

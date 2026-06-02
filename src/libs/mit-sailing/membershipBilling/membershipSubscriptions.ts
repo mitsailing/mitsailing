@@ -105,7 +105,6 @@ export function selectCanonicalMembershipSubscription(
 export function membershipProfileState(props: {
   readonly access: 'free_normal' | 'paid_racing_available';
   readonly latestPayment: MembershipPaymentSummaryRow | null;
-  readonly now: Date;
   readonly subscription: MembershipSubscriptionRow | null;
 }): MembershipProfileState {
   if (!props.subscription) {

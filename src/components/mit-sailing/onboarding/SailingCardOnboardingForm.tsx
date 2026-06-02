@@ -73,11 +73,14 @@ function OnboardingFormFieldsForModel(props: {
   return (
     <OnboardingFormFields
       affiliation={props.model.affiliation}
+      canContinueIdentity={props.model.canContinueIdentity}
       cardTypeValue={props.model.cardTypeValue}
       dateOfBirthValue={props.model.dateOfBirthValue}
       fitnessMembershipReady={props.model.fitnessMembershipReady}
       hasFitnessMembershipValue={props.model.hasFitnessMembershipValue}
+      identityContinueMode={props.model.identityContinueMode}
       identityComplete={props.model.identityComplete}
+      identityValidationPending={props.model.identityValidationPending}
       isPending={props.model.isPending}
       clientErrors={props.model.form.formState.errors}
       lockedIdentity={props.model.lockedIdentity}
@@ -88,6 +91,7 @@ function OnboardingFormFieldsForModel(props: {
         props.model.hasVerifiedMitRecreationMembership
       }
       onContinueIdentity={props.model.handleContinueIdentity}
+      onValidateMitIdentity={props.model.handleValidateMitIdentity}
       register={props.model.form.register}
       setValue={props.model.form.setValue}
       showDetails={props.model.showDetails}
@@ -121,6 +125,7 @@ export function SailingCardOnboardingForm(
           checkoutUrl={props.initialMembershipCheckoutUrl}
         />
         <form
+          autoComplete="on"
           ref={formRef}
           className="flex w-full flex-col gap-6 text-sm"
           onSubmit={model.handleSubmit}

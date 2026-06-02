@@ -6,10 +6,12 @@ import { sailingCardAgreement } from '@/libs/mit-sailing/sailingCardAgreementCon
 import {
   emptyValues,
   expectDetailsHidden,
+  expectMitIdentityVerificationCalledWith,
   renderForm,
   renderFormWithPersistentDraftProvider,
   resetOnboardingFormTestState,
   selectAffiliation,
+  setOnboardingMitIdentityResult,
   setOnboardingFormActionState,
   showWellesleyDetails,
 } from './SailingCardOnboardingForm.testHelpers';
@@ -50,6 +52,9 @@ describe('SailingCardOnboardingForm', () => {
     expect(
       screen.getByRole('combobox', { name: 'Affiliation' })
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('combobox', { name: 'Affiliation' }).closest('form')
+    ).toHaveAttribute('autocomplete', 'on');
   });
 
   it('shows a translated error when paid checkout cannot be started', () => {
@@ -123,11 +128,13 @@ describe('SailingCardOnboardingForm', () => {
     );
     await user.type(screen.getByLabelText('MIT ID'), '34343343');
 
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Validate MIT ID' })
+    ).toBeDisabled();
     expectDetailsHidden();
   });
 
-  it('reveals final details only after continuing from complete mit id input', async () => {
+  it('verifies required mit id before revealing final details', async () => {
     renderForm();
     const user = userEvent.setup();
 
@@ -138,12 +145,44 @@ describe('SailingCardOnboardingForm', () => {
     await user.type(screen.getByLabelText('MIT ID'), '123456789');
 
     expectDetailsHidden();
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(
+      screen.getByRole('button', { name: 'Validate MIT ID' })
+    ).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Validate MIT ID' }));
 
+    expectMitIdentityVerificationCalledWith({
+      affiliation: SailingAffiliation.MIT_STUDENT,
+      mitId: '123456789',
+    });
+    expect(await screen.findByLabelText('First name')).toHaveValue('Ada');
+    expect(screen.getByLabelText('First name')).toHaveAttribute('readOnly');
+    expect(screen.getByLabelText('Last name')).toHaveValue('Lovelace');
+    expect(screen.getByLabelText('Last name')).toHaveAttribute('readOnly');
     expect(
       screen.getByRole('heading', { name: 'Contact and safety' })
     ).toBeInTheDocument();
+  });
+
+  it('keeps required mit id users on identity step when verification fails', async () => {
+    setOnboardingMitIdentityResult({
+      ok: false,
+      fieldError: 'invalid_dw_identity',
+    });
+    renderForm();
+    const user = userEvent.setup();
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Affiliation' }),
+      SailingAffiliation.MIT_STUDENT
+    );
+    await user.type(screen.getByLabelText('MIT ID'), '123456789');
+    await user.click(screen.getByRole('button', { name: 'Validate MIT ID' }));
+
+    expectDetailsHidden();
+    expect(
+      screen.getByText('Enter an MIT ID that matches your account.')
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('First name')).not.toBeInTheDocument();
   });
 
   it('hides mit id and shows required manual name for wellesley', async () => {
@@ -214,6 +253,54 @@ describe('SailingCardOnboardingForm', () => {
 
     expect(screen.getByLabelText('First name')).not.toBeRequired();
     expect(screen.getByLabelText('Last name')).not.toBeRequired();
+  });
+
+  it('lets mit family skip mit id validation and continue with manual name', async () => {
+    renderForm();
+    const user = userEvent.setup();
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Affiliation' }),
+      SailingAffiliation.MIT_FAMILY
+    );
+    await user.type(screen.getByLabelText('First name'), 'Grace');
+    await user.type(screen.getByLabelText('Last name'), 'Hopper');
+
+    expect(screen.getByRole('button', { name: 'Skip MIT ID' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Skip MIT ID' }));
+
+    expect(
+      screen.getByRole('heading', { name: 'Contact and safety' })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('First name')).not.toHaveAttribute('readOnly');
+  });
+
+  it('validates optional mit id and locks verified mit family names', async () => {
+    renderForm();
+    const user = userEvent.setup();
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Affiliation' }),
+      SailingAffiliation.MIT_FAMILY
+    );
+    await user.type(screen.getByLabelText('MIT ID'), '123456789');
+
+    expect(
+      screen.getByRole('button', { name: 'Validate MIT ID' })
+    ).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Validate MIT ID' }));
+
+    expectMitIdentityVerificationCalledWith({
+      affiliation: SailingAffiliation.MIT_FAMILY,
+      mitId: '123456789',
+    });
+    expect(await screen.findByLabelText('First name')).toHaveValue('Ada');
+    expect(screen.getByLabelText('First name')).toHaveAttribute('readOnly');
+    expect(screen.getByLabelText('Last name')).toHaveValue('Lovelace');
+    expect(screen.getByLabelText('Last name')).toHaveAttribute('readOnly');
+    expect(
+      screen.getByRole('heading', { name: 'Contact and safety' })
+    ).toBeInTheDocument();
   });
 
   it('shows locked verified identity fields when a data warehouse identity is active', () => {
@@ -314,7 +401,7 @@ describe('SailingCardOnboardingForm', () => {
       'bday'
     );
     expect(screen.getByLabelText('Date of birth')).toHaveAccessibleDescription(
-      'Use a 4-digit year, like 03/24/1988. Short years are accepted and expanded when possible.'
+      'Use MM/DD/YYYY, like 03/24/1988. Short years are accepted and expanded when possible.'
     );
     expect(screen.getByLabelText('Your phone number')).toBeRequired();
     expect(screen.getByLabelText('Your phone number')).toHaveAttribute(
@@ -359,7 +446,7 @@ describe('SailingCardOnboardingForm', () => {
     expect(dateOfBirth).toHaveValue('02/30/2000');
     expect(dateOfBirth).toHaveAttribute('aria-invalid', 'true');
     expect(
-      screen.getByText('Enter date of birth as MM/DD/YYYY with a 4-digit year.')
+      screen.getByText('Enter a valid date of birth as MM/DD/YYYY.')
     ).toBeInTheDocument();
   });
 
@@ -487,7 +574,7 @@ describe('SailingCardOnboardingForm', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Normal is included for MIT Recreation members. Answer No if you do not have it yet.'
+        'Tell us whether MIT Recreation already covers your sailing access.'
       )
     ).toBeInTheDocument();
     expect(
@@ -504,12 +591,11 @@ describe('SailingCardOnboardingForm', () => {
     await user.click(screen.getByRole('radio', { name: /^Yes/u }));
 
     expect(
-      within(
-        screen.getByRole('group', {
-          name: 'Choose your sailing card',
-        })
-      ).getByRole('radio', { name: /Normal/u })
-    ).toBeEnabled();
+      screen.queryByRole('group', {
+        name: 'Choose your sailing card',
+      })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /^Yes/u })).toBeChecked();
   });
 
   it('shows server errors for missing mit recreation answer', () => {
@@ -544,53 +630,19 @@ describe('SailingCardOnboardingForm', () => {
     );
   });
 
-  it('renders sailing card options with clear comparison copy', async () => {
+  it('hides sailing card plan choices when mit recreation membership is present', async () => {
     renderForm();
     const user = userEvent.setup();
 
     await showWellesleyDetails();
     await user.click(screen.getByRole('radio', { name: /^Yes/u }));
 
-    const cardType = screen.getByRole('group', {
-      name: 'Choose your sailing card',
-    });
-    const cardTypeControls = within(cardType);
-
-    expect(cardType).toBeInTheDocument();
     expect(
-      cardTypeControls.getByRole('radio', { name: /Normal/u })
-    ).toHaveAttribute('value', 'normal');
-    expect(
-      cardTypeControls.queryByRole('radio', {
-        name: /Pavilion racing/u,
+      screen.queryByRole('group', {
+        name: 'Choose your sailing card',
       })
     ).not.toBeInTheDocument();
-    expect(
-      cardTypeControls.queryByRole('radio', { name: /Thursday team racing/u })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getAllByText(
-        'Included for MIT students and MIT Recreation members. Pavilion sailing, classes, ratings, Charles River racing, and Mashnee, the 48-foot Boston Harbor blue-water sailboat, when approved.'
-      ).length
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getByText(
-        'Normal covers Pavilion sailing and Charles River racing. Prices use your affiliation and date of birth.'
-      )
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        'MIT students and MIT Recreation members usually choose Normal. The racing cards are already covered by Normal.'
-      )
-    ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See pricing' })).toHaveAttribute(
-      'href',
-      '/pricing'
-    );
-    expect(screen.getByRole('link', { name: 'See pricing' })).toHaveAttribute(
-      'target',
-      '_blank'
-    );
+    expect(screen.getByRole('radio', { name: /^Yes/u })).toBeChecked();
     expect(
       screen.queryByRole('radio', { name: /Virtual/u })
     ).not.toBeInTheDocument();
@@ -639,7 +691,7 @@ describe('SailingCardOnboardingForm', () => {
       SailingAffiliation.MIT_STUDENT
     );
     await user.type(screen.getByLabelText('MIT ID'), '123456789');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Validate MIT ID' }));
 
     expect(
       screen.queryByRole('group', {
@@ -647,15 +699,16 @@ describe('SailingCardOnboardingForm', () => {
       })
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText('MIT students get Normal included.')
+      screen.getByText(
+        'MIT Recreation membership is included for MIT students.'
+      )
     ).toBeInTheDocument();
+    expect(screen.queryByText(/Normal/u)).not.toBeInTheDocument();
     expect(
-      within(
-        screen.getByRole('group', {
-          name: 'Choose your sailing card',
-        })
-      ).getByRole('radio', { name: /Normal/u })
-    ).toBeChecked();
+      screen.queryByRole('group', {
+        name: 'Choose your sailing card',
+      })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('radio', {
         name: /Pavilion racing/u,
@@ -666,7 +719,7 @@ describe('SailingCardOnboardingForm', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows only normal membership for verified MIT Recreation members', async () => {
+  it('hides plan choices for verified MIT Recreation members', async () => {
     renderForm({ hasVerifiedMitRecreationMembership: true });
 
     await showWellesleyDetails();
@@ -677,17 +730,14 @@ describe('SailingCardOnboardingForm', () => {
       })
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText(
-        'MIT Recreation membership is verified. Normal is included.'
-      )
+      screen.getByText('MIT Recreation membership is verified.')
     ).toBeInTheDocument();
+    expect(screen.queryByText(/Normal/u)).not.toBeInTheDocument();
     expect(
-      within(
-        screen.getByRole('group', {
-          name: 'Choose your sailing card',
-        })
-      ).getByRole('radio', { name: /Normal/u })
-    ).toBeChecked();
+      screen.queryByRole('group', {
+        name: 'Choose your sailing card',
+      })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('radio', {
         name: /Pavilion racing/u,
@@ -714,12 +764,10 @@ describe('SailingCardOnboardingForm', () => {
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(
-      within(
-        screen.getByRole('group', {
-          name: 'Choose your sailing card',
-        })
-      ).getByRole('radio', { name: /Normal/u })
-    ).toBeChecked();
+      screen.queryByRole('group', {
+        name: 'Choose your sailing card',
+      })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('radio', {
         name: /Pavilion racing/u,
@@ -749,14 +797,13 @@ describe('SailingCardOnboardingForm', () => {
       SailingAffiliation.MIT_STUDENT
     );
     await user.type(screen.getByLabelText('MIT ID'), '123456789');
+    await user.click(screen.getByRole('button', { name: 'Validate MIT ID' }));
 
     expect(
-      within(
-        screen.getByRole('group', {
-          name: 'Choose your sailing card',
-        })
-      ).getByRole('radio', { name: /Normal/u })
-    ).toBeChecked();
+      screen.queryByRole('group', {
+        name: 'Choose your sailing card',
+      })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('radio', {
         name: /Pavilion racing/u,

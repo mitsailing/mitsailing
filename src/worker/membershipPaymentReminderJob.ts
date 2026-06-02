@@ -135,6 +135,9 @@ async function sendReminderForPayment(options: {
   >;
 }) {
   try {
+    if (options.payment.currency !== 'usd') {
+      throw new TypeError('Membership payment reminders require usd currency.');
+    }
     return await sendMembershipPaymentReminderEmail({
       amount: formatUsdMinorUnitsAsCurrency(
         options.payment.amountCents,
