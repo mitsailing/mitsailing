@@ -1,10 +1,11 @@
 import { ApiCheck, AssertionBuilder, Frequency } from 'checkly/constructs';
 import { emailChannel } from './alertChannels';
+import { checklyEnvironmentUrl, checklyHealthcheckSecret } from './env';
 
-const environmentUrl =
-  process.env.ENVIRONMENT_URL ??
-  process.env.NEXT_PUBLIC_APP_URL ??
-  'http://localhost:3000';
+// Checkly loads this file outside the app runtime; importing Env would require
+// the full production app environment during monitor registration.
+const environmentUrl = checklyEnvironmentUrl(process.env);
+const healthcheckSecret = checklyHealthcheckSecret(process.env);
 
 export const healthLiveApi = new ApiCheck('health-live-api', {
   name: 'Health live API',
@@ -25,7 +26,7 @@ export const healthLiveApi = new ApiCheck('health-live-api', {
   },
 });
 
-export const healthReadyApi = process.env.HEALTHCHECK_SECRET
+export const healthReadyApi = healthcheckSecret
   ? new ApiCheck('health-ready-api', {
       name: 'Health ready API',
       frequency: Frequency.EVERY_5M,
@@ -37,7 +38,7 @@ export const healthReadyApi = process.env.HEALTHCHECK_SECRET
       environmentVariables: [
         {
           key: 'HEALTHCHECK_SECRET',
-          value: process.env.HEALTHCHECK_SECRET,
+          value: healthcheckSecret,
           secret: true,
         },
       ],
