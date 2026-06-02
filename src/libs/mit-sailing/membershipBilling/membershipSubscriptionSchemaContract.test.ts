@@ -12,16 +12,18 @@ const issueHandledKindMigration = readFileSync(
   'prisma/migrations/20260602143000_payment_issue_handled_kind_check/migration.sql',
   'utf8'
 );
-const paymentIssueHandledConstraint = compactSql(
-  issueHandledKindMigration
-).match(/ADD CONSTRAINT "payments_issue_handled_fields_chk" CHECK \(.+\)/);
+const paymentIssueHandledConstraint =
+  /ADD CONSTRAINT "payments_issue_handled_fields_chk" CHECK \(.+\)/.exec(
+    compactSql(issueHandledKindMigration)
+  );
 const expectedPaymentIssueHandledConstraint =
   'ADD CONSTRAINT "payments_issue_handled_fields_chk" CHECK ( ( "issue_handled_at" IS NULL AND "issue_handled_note" IS NULL AND "issue_handled_by_user_id" IS NULL ) OR ( "issue_kind" IS NOT NULL AND "issue_handled_at" IS NOT NULL AND "issue_handled_note" IS NOT NULL AND length(trim("issue_handled_note")) >= 1 AND "issue_handled_by_user_id" IS NOT NULL ) )';
 const expectedPaymentIssueHandledPolicy =
   "(issueHandledAt != null || issueHandledNote != null || issueHandledByUserId != null) && (issueHandledAt == null || issueHandledNote == null || issueHandledNote == '' || issueHandledByUserId == null || issueKind == null)";
-const paymentIssueHandledPolicy = compactZmodel.match(
-  /@@deny\('create,update', \(issueHandledAt != null.+?issueKind == null\)\)/
-);
+const paymentIssueHandledPolicy =
+  /@@deny\('create,update', \(issueHandledAt != null.+?issueKind == null\)\)/.exec(
+    compactZmodel
+  );
 
 describe('membership subscription schema contract', () => {
   it('stores Stripe subscription state in one local subscription model', () => {
