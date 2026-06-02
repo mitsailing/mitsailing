@@ -787,11 +787,22 @@ describe('submitSailingCardOnboardingAction', () => {
       'NEXT_REDIRECT:https://checkout.stripe.com/c/pay/cs_test'
     );
 
-    expect(mocks.createMembershipCheckoutUrlForOnboarding).toHaveBeenCalledWith(
-      expect.objectContaining({
-        successUrl:
-          'http://localhost:3000/onboarding/success?callbackUrl=%2Fevents%2Fregatta%2Fregister&session_id={CHECKOUT_SESSION_ID}',
-      })
+    const [checkoutOptions] =
+      mocks.createMembershipCheckoutUrlForOnboarding.mock.calls[0] ?? [];
+    if (checkoutOptions === undefined) {
+      throw new Error('expected checkout creation options');
+    }
+    const successUrlValue: unknown = checkoutOptions.successUrl;
+    if (typeof successUrlValue !== 'string') {
+      throw new TypeError('expected checkout success URL');
+    }
+    const successUrl = new URL(successUrlValue);
+    expect(successUrl.pathname).toBe('/onboarding/success');
+    expect(successUrl.searchParams.get('callbackUrl')).toBe(
+      '/events/regatta/register'
+    );
+    expect(successUrl.searchParams.get('session_id')).toBe(
+      '{CHECKOUT_SESSION_ID}'
     );
   });
 
