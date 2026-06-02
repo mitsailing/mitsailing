@@ -416,13 +416,16 @@ describe('handleMembershipStripeWebhookEvent', () => {
         issueKind: 'refunded_current_season',
         refundedAmountCents: 2500,
         status: PaymentStatus.refunded,
-        stripeRefundId: 'ch_test',
+        stripeChargeId: 'ch_test',
       }),
       where: { id: 'payment_1', status: PaymentStatus.paid },
     });
+    expect(
+      db.payment.updateMany.mock.calls.at(-1)?.[0].data
+    ).not.toHaveProperty('stripeRefundId');
   });
 
-  it('matches membership refund updates through the persisted payment intent id', async () => {
+  it('matches succeeded membership refund updates through the persisted payment intent id', async () => {
     const db = createDb({
       payment: membershipPayment({
         status: PaymentStatus.paid,
@@ -438,6 +441,7 @@ describe('handleMembershipStripeWebhookEvent', () => {
           charge: 'ch_test',
           id: 're_test',
           payment_intent: 'pi_test',
+          status: 'succeeded',
         }),
       })
     ).resolves.toEqual({ handled: true });
@@ -453,12 +457,38 @@ describe('handleMembershipStripeWebhookEvent', () => {
     expect(db.payment.updateMany).toHaveBeenCalledWith({
       data: expect.objectContaining({
         issueKind: 'refunded_current_season',
-        refundedAmountCents: 1500,
         status: PaymentStatus.refunded,
         stripeRefundId: 're_test',
       }),
       where: { id: 'payment_1', status: PaymentStatus.paid },
     });
+    expect(
+      db.payment.updateMany.mock.calls.at(-1)?.[0].data
+    ).not.toHaveProperty('refundedAmountCents');
+  });
+
+  it('does not mark pending refund updates as refunded', async () => {
+    const db = createDb({
+      payment: membershipPayment({
+        status: PaymentStatus.paid,
+        stripePaymentIntentId: 'pi_test',
+      }),
+    });
+
+    await expect(
+      handleMembershipStripeWebhookEvent({
+        db,
+        event: membershipEvent('refund.updated', {
+          amount: 1500,
+          charge: 'ch_test',
+          id: 're_test',
+          payment_intent: 'pi_test',
+          status: 'pending',
+        }),
+      })
+    ).resolves.toEqual({ handled: true });
+
+    expect(db.payment.updateMany).not.toHaveBeenCalled();
   });
 
   it('matches membership disputes through the persisted payment intent id', async () => {
@@ -502,6 +532,33 @@ describe('handleMembershipStripeWebhookEvent', () => {
     });
   });
 
+  it('does not apply stale membership payment issue events', async () => {
+    const db = createDb({
+      payment: membershipPayment({
+        lastStripePaymentEventCreatedAt: new Date(
+          (stripeEventCreated + 60) * 1000
+        ),
+        status: PaymentStatus.refunded,
+        stripePaymentIntentId: 'pi_test',
+      }),
+    });
+
+    await expect(
+      handleMembershipStripeWebhookEvent({
+        db,
+        event: membershipEvent('refund.updated', {
+          amount: 1500,
+          charge: 'ch_test',
+          id: 're_test',
+          payment_intent: 'pi_test',
+          status: 'succeeded',
+        }),
+      })
+    ).resolves.toEqual({ handled: true });
+
+    expect(db.payment.updateMany).not.toHaveBeenCalled();
+  });
+
   it('does not revert a refunded payment when a late paid invoice arrives', async () => {
     const db = createDb({
       payment: membershipPayment({
@@ -528,6 +585,36 @@ describe('handleMembershipStripeWebhookEvent', () => {
           invoice_pdf: 'https://pay.stripe.com/invoice/test/pdf',
           parent: { subscription_details: { metadata: membershipMetadata() } },
           payment_intent: 'pi_test',
+          subscription: subscriptionObject({ status: 'active' }),
+        }),
+      })
+    ).resolves.toEqual({ handled: true });
+
+    expect(db.payment.updateMany).toHaveBeenCalledWith({
+      data: expect.not.objectContaining({
+        status: PaymentStatus.paid,
+      }),
+      where: { id: 'payment_1', status: PaymentStatus.refunded },
+    });
+  });
+
+  it('does not revert a refunded payment when a late completed checkout arrives', async () => {
+    const db = createDb({
+      payment: membershipPayment({
+        status: PaymentStatus.refunded,
+        stripePaymentIntentId: 'pi_test',
+      }),
+      subscription: null,
+    });
+
+    await expect(
+      handleMembershipStripeWebhookEvent({
+        db,
+        event: membershipEvent('checkout.session.completed', {
+          customer: 'cus_test',
+          id: 'cs_test',
+          metadata: membershipMetadata(),
+          payment_status: 'paid',
           subscription: subscriptionObject({ status: 'active' }),
         }),
       })

@@ -265,6 +265,12 @@ function hasMembershipWebhookDbWrites(
   );
 }
 
+function canApplyPaidPaymentTransition(payment: {
+  readonly status: PaymentStatusType;
+}) {
+  return !terminalMembershipPaymentStatuses.has(payment.status);
+}
+
 async function findMembershipPayment(options: {
   readonly chargeId?: string | null;
   readonly db: MembershipWebhookDbWithWrites;
@@ -431,10 +437,10 @@ async function handleCheckoutCompleted(options: {
     data: {
       activeCheckoutKey: null,
       membershipSubscriptionId: localSubscription.id,
-      status:
-        stringValue(options.object.payment_status) === 'paid'
-          ? PaymentStatus.paid
-          : payment.status,
+      ...(stringValue(options.object.payment_status) === 'paid' &&
+      canApplyPaidPaymentTransition(payment)
+        ? { status: PaymentStatus.paid }
+        : {}),
       stripeCheckoutSessionId: checkoutSessionId,
       stripeCustomerId: customerId,
       stripeSubscriptionId: subscriptionId,
@@ -549,17 +555,58 @@ function invoiceCurrency(object: Record<string, unknown>) {
   return stringValue(object.currency)?.toLowerCase() ?? 'usd';
 }
 
-function canApplyPaidInvoiceTransition(payment: {
-  readonly status: PaymentStatusType;
-}) {
-  return !terminalMembershipPaymentStatuses.has(payment.status);
-}
-
 function objectChargeId(object: Record<string, unknown>) {
   return (
     stripeExpandableId(object.charge) ??
     stripeExpandableId(object.latest_charge) ??
     null
+  );
+}
+
+function refundObjectId(object: Record<string, unknown>) {
+  const id = stringValue(object.id);
+  return id?.startsWith('re_') ? id : null;
+}
+
+function refundedChargeId(object: Record<string, unknown>) {
+  const chargeId = stripeExpandableId(object.charge);
+  if (chargeId) {
+    return chargeId;
+  }
+  const id = stringValue(object.id);
+  return id?.startsWith('ch_') ? id : null;
+}
+
+function issueRefundedAmountCents(options: {
+  readonly object: Record<string, unknown>;
+  readonly status:
+    | typeof PaymentStatus.disputed
+    | typeof PaymentStatus.refunded;
+}) {
+  return options.status === PaymentStatus.refunded
+    ? numberValue(options.object.amount_refunded)
+    : numberValue(options.object.amount);
+}
+
+function canApplyRefundObjectTransition(options: {
+  readonly eventType: string;
+  readonly object: Record<string, unknown>;
+}) {
+  return (
+    (options.eventType !== 'refund.created' &&
+      options.eventType !== 'refund.updated') ||
+    stringValue(options.object.status) === 'succeeded'
+  );
+}
+
+function isStalePaymentIssueEvent(options: {
+  readonly event: ProcessableStripeEvent;
+  readonly payment: { readonly lastStripePaymentEventCreatedAt?: Date | null };
+}) {
+  const lastEventCreatedAt = options.payment.lastStripePaymentEventCreatedAt;
+  return (
+    lastEventCreatedAt instanceof Date &&
+    lastEventCreatedAt > stripeEventCreatedAtDate(options.event)
   );
 }
 
@@ -617,7 +664,7 @@ async function handleInvoicePaid(options: {
     await options.db.payment.updateMany({
       data: {
         ...invoiceData,
-        ...(canApplyPaidInvoiceTransition(payment)
+        ...(canApplyPaidPaymentTransition(payment)
           ? { status: PaymentStatus.paid }
           : {}),
       },
@@ -737,6 +784,7 @@ async function handleInvoicePaymentFailed(options: {
 
 async function markMembershipPaymentIssue(options: {
   readonly db: MembershipWebhookDbWithWrites;
+  readonly event: ProcessableStripeEvent;
   readonly issueKind: MembershipPaymentIssueKindType;
   readonly object: Record<string, unknown>;
   readonly status:
@@ -746,14 +794,12 @@ async function markMembershipPaymentIssue(options: {
   const subscriptionId = stripeExpandableId(options.object.subscription);
   const chargeId =
     options.status === PaymentStatus.refunded
-      ? (stripeExpandableId(options.object.charge) ??
-        stringValue(options.object.id))
+      ? refundedChargeId(options.object)
       : stripeExpandableId(options.object.charge);
-  const refundedAmountCents =
-    options.status === PaymentStatus.refunded
-      ? (numberValue(options.object.amount_refunded) ??
-        numberValue(options.object.amount))
-      : numberValue(options.object.amount);
+  const refundedAmountCents = issueRefundedAmountCents({
+    object: options.object,
+    status: options.status,
+  });
   const payment = await findMembershipPayment({
     chargeId,
     db: options.db,
@@ -764,18 +810,34 @@ async function markMembershipPaymentIssue(options: {
   if (!payment) {
     return { handled: isMembershipStripeObject(options.object) };
   }
+  if (
+    options.status === PaymentStatus.refunded &&
+    !canApplyRefundObjectTransition({
+      eventType: options.event.type,
+      object: options.object,
+    })
+  ) {
+    return { handled: true };
+  }
+  if (isStalePaymentIssueEvent({ event: options.event, payment })) {
+    return { handled: true };
+  }
+  const refundId = refundObjectId(options.object);
   await options.db.payment.updateMany({
     data: {
-      disputeStatus: stringValue(options.object.status),
+      ...(options.status === PaymentStatus.disputed
+        ? { disputeStatus: stringValue(options.object.status) }
+        : {}),
       issueKind: options.issueKind,
-      refundedAmountCents,
+      lastStripePaymentEventCreatedAt: stripeEventCreatedAtDate(options.event),
+      lastStripePaymentEventId: options.event.id,
+      ...(refundedAmountCents === null ? {} : { refundedAmountCents }),
       status: options.status,
+      ...(chargeId ? { stripeChargeId: chargeId } : {}),
       ...(options.status === PaymentStatus.disputed
         ? { stripeDisputeId: stringValue(options.object.id) }
         : {}),
-      ...(options.status === PaymentStatus.refunded
-        ? { stripeRefundId: stringValue(options.object.id) }
-        : {}),
+      ...(refundId ? { stripeRefundId: refundId } : {}),
     },
     where: { id: payment.id, status: payment.status },
   });
@@ -799,6 +861,7 @@ export async function handleMembershipStripeWebhookEvent(options: {
     }
     const result = await markMembershipPaymentIssue({
       db: options.db,
+      event: options.event,
       issueKind: MembershipPaymentIssueKind.refunded_current_season,
       object,
       status: PaymentStatus.refunded,
@@ -816,6 +879,7 @@ export async function handleMembershipStripeWebhookEvent(options: {
     }
     const result = await markMembershipPaymentIssue({
       db: options.db,
+      event: options.event,
       issueKind: MembershipPaymentIssueKind.disputed_current_season,
       object,
       status: PaymentStatus.disputed,

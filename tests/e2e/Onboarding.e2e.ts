@@ -139,7 +139,10 @@ async function expectOnboardingDraftValues(page: Page) {
     '(617) 555-0101'
   );
   await expect(page.getByRole('radio', { name: /^Yes/ })).toBeChecked();
-  await expect(page.getByRole('radio', { name: /^Normal/ })).toBeChecked();
+  await expect(
+    page.getByRole('group', { name: 'Choose your sailing card' })
+  ).toBeHidden();
+  await expect(page.locator('input[name="cardType"]')).toHaveValue('normal');
   await expect(
     page.getByLabel(
       'I have read and agree to the swim agreement and liability release.'
