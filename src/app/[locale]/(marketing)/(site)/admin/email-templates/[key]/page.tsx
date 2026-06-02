@@ -146,7 +146,10 @@ export default async function AdminEmailTemplateDetailPage(props: PageProps) {
   const { key, locale } = await props.params;
   const { status = '' } = await props.searchParams;
   setRequestLocale(locale);
-  const session = await requirePermission(Permission.NEWSLETTER_MANAGE, locale);
+  const session = await requirePermission(
+    Permission.EMAIL_TEMPLATES_MANAGE,
+    locale
+  );
   const t = await getTranslations({ locale, namespace: 'AdminEmailTemplates' });
   const detail = await getAdminEmailTemplateDetail(key);
   if (!detail) {
@@ -197,11 +200,18 @@ export default async function AdminEmailTemplateDetailPage(props: PageProps) {
               testEmail={session.user.email ?? ''}
               text={{
                 bodyLabel: t('field_body'),
+                boldLabel: t('editor_bold'),
+                bulletListLabel: t('editor_bullet_list'),
+                headingLabel: t('editor_heading'),
+                italicLabel: t('editor_italic'),
+                orderedListLabel: t('editor_ordered_list'),
                 previewTextLabel: t('field_preview_text'),
                 saveDraft: t('save_draft'),
                 sendTest: t('send_test'),
                 subjectLabel: t('field_subject'),
                 testEmailLabel: t('field_test_email'),
+                toolbarLabel: t('editor_toolbar'),
+                underlineLabel: t('editor_underline'),
               }}
             />
           ) : (

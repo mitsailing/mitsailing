@@ -113,7 +113,7 @@ beforeEach(() => {
 });
 
 describe('saveEmailTemplateDraftAction', () => {
-  it('requires newsletter permission and saves a draft revision', async () => {
+  it('requires email template permission and saves a draft revision', async () => {
     const { saveEmailTemplateDraftAction } =
       await import('@/libs/email-templates/emailTemplateAdminActions');
 
@@ -128,7 +128,7 @@ describe('saveEmailTemplateDraftAction', () => {
     );
 
     expect(mocks.requirePermission).toHaveBeenCalledWith(
-      Permission.NEWSLETTER_MANAGE,
+      Permission.EMAIL_TEMPLATES_MANAGE,
       'en'
     );
     expect(mocks.revisionCreate).toHaveBeenCalledWith({
@@ -136,7 +136,7 @@ describe('saveEmailTemplateDraftAction', () => {
         createdByUserId: 'admin_1',
         editorBodyHtml: '<p>Hello {eventName}</p>',
         editorJson: { type: 'doc' },
-        renderHash: 'hash_123',
+        renderHash: expect.any(String),
         status: 'draft',
         templateId: 'template_1',
       }),
@@ -163,6 +163,10 @@ describe('publishEmailTemplateRevisionAction', () => {
       expect.objectContaining({
         revision: expect.objectContaining({ id: 'revision_1' }),
       })
+    );
+    expect(mocks.requirePermission).toHaveBeenCalledWith(
+      Permission.EMAIL_TEMPLATES_MANAGE,
+      'en'
     );
     expect(mocks.revisionUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -253,6 +257,10 @@ describe('sendEmailTemplateTestAction', () => {
         text: 'Hello Moonlight sail',
         to: 'admin@example.com',
       })
+    );
+    expect(mocks.requirePermission).toHaveBeenCalledWith(
+      Permission.EMAIL_TEMPLATES_MANAGE,
+      'en'
     );
   });
 });

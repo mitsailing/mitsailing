@@ -9,6 +9,7 @@ export const Permission = {
   EVENTS_ASSIGNED_MANAGE: 'events.assignedManage',
   PAVILION_RESERVATIONS_MANAGE: 'pavilionReservations.manage',
   NEWSLETTER_MANAGE: 'newsletter.manage',
+  EMAIL_TEMPLATES_MANAGE: 'emailTemplates.manage',
   DONATION_FUNDS_MANAGE: 'donationFunds.manage',
   EVENT_CATEGORIES_MANAGE: 'eventCategories.manage',
   CLASS_CATEGORIES_MANAGE: 'classCategories.manage',

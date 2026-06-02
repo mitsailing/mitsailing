@@ -3,6 +3,8 @@
 import { EmailEditor } from '@react-email/editor';
 import type { EmailEditorRef } from '@react-email/editor';
 import { useEffect, useRef, useState } from 'react';
+import { AdminEmailEditorToolbar } from '@/components/mit-sailing/admin/email-templates/AdminEmailEditorToolbar';
+import type { AdminEmailEditorToolbarText } from '@/components/mit-sailing/admin/email-templates/AdminEmailEditorToolbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +16,8 @@ type AdminEmailTemplateEditorText = Readonly<{
   sendTest: string;
   subjectLabel: string;
   testEmailLabel: string;
-}>;
+}> &
+  AdminEmailEditorToolbarText;
 
 type StoredDraft = Readonly<{
   content: string;
@@ -153,16 +156,19 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
 
       <div className="flex flex-col gap-1.5">
         <Label>{props.text.bodyLabel}</Label>
-        <div className="min-h-[420px] rounded-lg border border-border bg-card p-3">
-          <EmailEditor
-            content={content}
-            key={content}
-            onUpdate={(ref) => {
-              persistDraft({ content: ref.editor?.getHTML() ?? content });
-            }}
-            ref={editorRef}
-            theme="basic"
-          />
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
+          <AdminEmailEditorToolbar editorRef={editorRef} text={props.text} />
+          <div className="min-h-[420px] p-3">
+            <EmailEditor
+              content={content}
+              key={content}
+              onUpdate={(ref) => {
+                persistDraft({ content: ref.editor?.getHTML() ?? content });
+              }}
+              ref={editorRef}
+              theme="basic"
+            />
+          </div>
         </div>
       </div>
 
