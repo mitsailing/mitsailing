@@ -406,7 +406,6 @@ export function IdentityFields(props: {
   readonly canContinue: boolean;
   readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly continueMode: 'continue' | 'skipMitId' | 'validateMitId';
-  readonly identityComplete: boolean;
   readonly isValidationPending: boolean;
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
   readonly manualNameRequired: boolean;

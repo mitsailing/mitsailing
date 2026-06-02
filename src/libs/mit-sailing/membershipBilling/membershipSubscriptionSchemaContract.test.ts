@@ -61,6 +61,11 @@ describe('membership subscription schema contract', () => {
     expect(compactZmodel).toContain(
       "@@deny('create,update', cancellationRequestedAt != null && cancellationReason == null)"
     );
+    expect(migration).toContain(
+      'CONSTRAINT "sailing_card_subscriptions_cancel_reason_required_chk"'
+    );
+    expect(migration).toContain('"cancellation_requested_at" IS NULL');
+    expect(migration).toContain('"cancellation_reason" IS NOT NULL');
   });
 
   it('allows one Stripe subscription to produce many payment rows', () => {

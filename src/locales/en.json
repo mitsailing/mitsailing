@@ -321,7 +321,7 @@
     "paid_title": "Payment received",
     "paid_description": "Your paid sailing card request is pending staff review; staff will assign your card number at the Pavilion after they confirm your request.",
     "payment_required_title": "Finish payment",
-    "payment_required_description": "Your paid sailing card request is not complete yet. Finish Stripe Checkout before staff review and assign a card number.",
+    "payment_required_description": "Your paid sailing card request is not complete yet. Finish Stripe Checkout before staff can review your request and assign a card number.",
     "finish_payment_link": "Finish payment",
     "admin_link": "Go to admin",
     "events_link": "Browse events"

@@ -64,6 +64,11 @@ CREATE TABLE "sailing_card_subscriptions" (
   CONSTRAINT "sailing_card_subscriptions_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "sailing_card_subscriptions_paid_card_type_chk"
     CHECK ("card_type" <> 'normal'),
+  CONSTRAINT "sailing_card_subscriptions_cancel_reason_required_chk"
+    CHECK (
+      "cancellation_requested_at" IS NULL
+      OR "cancellation_reason" IS NOT NULL
+    ),
   CONSTRAINT "sailing_card_subscriptions_cancel_note_not_blank_chk"
     CHECK (
       "cancellation_requested_at" IS NULL

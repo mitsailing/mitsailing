@@ -214,6 +214,38 @@ describe('handleMembershipStripeWebhookEvent', () => {
     );
   });
 
+  it('does not overwrite a newer local subscription with a stale Stripe event', async () => {
+    const db = createDb();
+    db.sailingCardSubscription.findFirst.mockResolvedValueOnce({
+      cardType: SailingCardType.racing,
+      id: 'local_sub_1',
+      lastStripeSubscriptionEventCreatedAt: new Date(
+        (stripeEventCreated + 60) * 1000
+      ),
+      stripeCustomerId: 'cus_test',
+      userId: 'user_1',
+    });
+
+    await expect(
+      handleMembershipStripeWebhookEvent({
+        db,
+        event: membershipEvent(
+          'customer.subscription.updated',
+          subscriptionObject({ status: 'active' })
+        ),
+      })
+    ).resolves.toEqual({ handled: true });
+
+    expect(db.sailingCardSubscription.upsert).not.toHaveBeenCalled();
+    expect(db.payment.updateMany).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        membershipSubscriptionId: 'local_sub_1',
+        stripeSubscriptionId: 'sub_test',
+      }),
+      where: { id: 'payment_1', status: PaymentStatus.checkout_created },
+    });
+  });
+
   it('keeps expired membership checkout recoverable when Stripe returns a recovery URL', async () => {
     const db = createDb();
 
@@ -263,6 +295,7 @@ describe('handleMembershipStripeWebhookEvent', () => {
           amount_paid: 12_500,
           currency: 'usd',
           customer: 'cus_test',
+          charge: 'ch_invoice',
           hosted_invoice_url: 'https://pay.stripe.com/invoice/test',
           id: 'in_test',
           invoice_pdf: 'https://pay.stripe.com/invoice/test/pdf',
@@ -280,6 +313,7 @@ describe('handleMembershipStripeWebhookEvent', () => {
         membershipSubscriptionId: 'local_sub_1',
         purpose: 'membership',
         status: PaymentStatus.paid,
+        stripeChargeId: 'ch_invoice',
         stripeInvoiceId: 'in_test',
         stripeReceiptUrl: 'https://pay.stripe.com/invoice/test',
       }),
@@ -317,6 +351,193 @@ describe('handleMembershipStripeWebhookEvent', () => {
         stripeInvoiceId: 'in_test',
       }),
       where: { id: 'payment_1', status: PaymentStatus.checkout_created },
+    });
+  });
+
+  it('stores charge references from membership charge events for later issue matching', async () => {
+    const db = createDb({
+      payment: membershipPayment({
+        status: PaymentStatus.paid,
+        stripePaymentIntentId: 'pi_test',
+      }),
+    });
+
+    await expect(
+      handleMembershipStripeWebhookEvent({
+        db,
+        event: membershipEvent('charge.succeeded', {
+          id: 'ch_test',
+          metadata: membershipMetadata(),
+          payment_intent: 'pi_test',
+        }),
+      })
+    ).resolves.toEqual({ handled: true });
+
+    expect(db.payment.updateMany).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        lastStripePaymentEventId: 'evt_charge_succeeded',
+        stripeChargeId: 'ch_test',
+        stripePaymentIntentId: 'pi_test',
+      }),
+      where: { id: 'payment_1', status: PaymentStatus.paid },
+    });
+  });
+
+  it('uses cumulative partial refund totals from Stripe charge refunds', async () => {
+    const db = createDb({
+      payment: membershipPayment({
+        status: PaymentStatus.paid,
+        stripePaymentIntentId: 'pi_test',
+      }),
+    });
+
+    await expect(
+      handleMembershipStripeWebhookEvent({
+        db,
+        event: membershipEvent('charge.refunded', {
+          amount: 12_500,
+          amount_refunded: 2500,
+          id: 'ch_test',
+          payment_intent: 'pi_test',
+        }),
+      })
+    ).resolves.toEqual({ handled: true });
+
+    expect(db.payment.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([{ stripePaymentIntentId: 'pi_test' }]),
+          purpose: 'membership',
+        }),
+      })
+    );
+    expect(db.payment.updateMany).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        issueKind: 'refunded_current_season',
+        refundedAmountCents: 2500,
+        status: PaymentStatus.refunded,
+        stripeRefundId: 'ch_test',
+      }),
+      where: { id: 'payment_1', status: PaymentStatus.paid },
+    });
+  });
+
+  it('matches membership refund updates through the persisted payment intent id', async () => {
+    const db = createDb({
+      payment: membershipPayment({
+        status: PaymentStatus.paid,
+        stripePaymentIntentId: 'pi_test',
+      }),
+    });
+
+    await expect(
+      handleMembershipStripeWebhookEvent({
+        db,
+        event: membershipEvent('refund.updated', {
+          amount: 1500,
+          charge: 'ch_test',
+          id: 're_test',
+          payment_intent: 'pi_test',
+        }),
+      })
+    ).resolves.toEqual({ handled: true });
+
+    expect(db.payment.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([{ stripePaymentIntentId: 'pi_test' }]),
+          purpose: 'membership',
+        }),
+      })
+    );
+    expect(db.payment.updateMany).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        issueKind: 'refunded_current_season',
+        refundedAmountCents: 1500,
+        status: PaymentStatus.refunded,
+        stripeRefundId: 're_test',
+      }),
+      where: { id: 'payment_1', status: PaymentStatus.paid },
+    });
+  });
+
+  it('matches membership disputes through the persisted payment intent id', async () => {
+    const db = createDb({
+      payment: membershipPayment({
+        status: PaymentStatus.paid,
+        stripePaymentIntentId: 'pi_test',
+      }),
+    });
+
+    await expect(
+      handleMembershipStripeWebhookEvent({
+        db,
+        event: membershipEvent('charge.dispute.created', {
+          amount: 12_500,
+          charge: 'ch_test',
+          id: 'dp_test',
+          payment_intent: 'pi_test',
+          status: 'needs_response',
+        }),
+      })
+    ).resolves.toEqual({ handled: true });
+
+    expect(db.payment.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([{ stripePaymentIntentId: 'pi_test' }]),
+          purpose: 'membership',
+        }),
+      })
+    );
+    expect(db.payment.updateMany).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        disputeStatus: 'needs_response',
+        issueKind: 'disputed_current_season',
+        refundedAmountCents: 12_500,
+        status: PaymentStatus.disputed,
+        stripeDisputeId: 'dp_test',
+      }),
+      where: { id: 'payment_1', status: PaymentStatus.paid },
+    });
+  });
+
+  it('does not revert a refunded payment when a late paid invoice arrives', async () => {
+    const db = createDb({
+      payment: membershipPayment({
+        status: PaymentStatus.refunded,
+        stripePaymentIntentId: 'pi_test',
+      }),
+      subscription: {
+        cardType: SailingCardType.racing,
+        id: 'local_sub_1',
+        stripeCustomerId: 'cus_test',
+        userId: 'user_1',
+      },
+    });
+
+    await expect(
+      handleMembershipStripeWebhookEvent({
+        db,
+        event: membershipEvent('invoice.paid', {
+          amount_paid: 12_500,
+          currency: 'usd',
+          customer: 'cus_test',
+          hosted_invoice_url: 'https://pay.stripe.com/invoice/test',
+          id: 'in_test',
+          invoice_pdf: 'https://pay.stripe.com/invoice/test/pdf',
+          parent: { subscription_details: { metadata: membershipMetadata() } },
+          payment_intent: 'pi_test',
+          subscription: subscriptionObject({ status: 'active' }),
+        }),
+      })
+    ).resolves.toEqual({ handled: true });
+
+    expect(db.payment.updateMany).toHaveBeenCalledWith({
+      data: expect.not.objectContaining({
+        status: PaymentStatus.paid,
+      }),
+      where: { id: 'payment_1', status: PaymentStatus.refunded },
     });
   });
 

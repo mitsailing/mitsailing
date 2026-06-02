@@ -94,7 +94,6 @@ export function OnboardingFormFields(props: {
   readonly hasFitnessMembershipValue: string | undefined;
   readonly hasVerifiedMitRecreationMembership?: boolean;
   readonly identityContinueMode: 'continue' | 'skipMitId' | 'validateMitId';
-  readonly identityComplete: boolean;
   readonly identityValidationPending: boolean;
   readonly isPending: boolean;
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
@@ -126,7 +125,6 @@ export function OnboardingFormFields(props: {
       {props.affiliation === '' ? null : (
         <IdentityFields
           canContinue={props.canContinueIdentity}
-          identityComplete={props.identityComplete}
           clientErrors={props.clientErrors}
           continueMode={props.identityContinueMode}
           isValidationPending={props.identityValidationPending}

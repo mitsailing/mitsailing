@@ -162,4 +162,133 @@ describe('membershipCheckoutActions', () => {
     });
     expect(checkoutCreate).not.toHaveBeenCalled();
   });
+
+  it('clears checkout reservation when Stripe session creation fails', async () => {
+    const paymentUpdate = vi.fn();
+    const checkoutError = new Error('Stripe unavailable');
+
+    await expect(
+      createMembershipCheckoutForOnboarding({
+        cancelUrl: 'https://sailing.mit.edu/onboarding?checkout=cancelled',
+        cardType: SailingCardType.racing,
+        client: {
+          payment: {
+            create: vi.fn().mockResolvedValue({
+              activeCheckoutKey:
+                'membership:user_1:2026:racing:price_initial:price_renewal',
+              cardType: SailingCardType.racing,
+              cardYear: 2026,
+              id: 'payment_1',
+              userId: 'user_1',
+            }),
+            findFirst: vi.fn().mockResolvedValue(null),
+            update: paymentUpdate,
+          },
+          sailingCardSubscription: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
+        },
+        dueTodayPrice,
+        now: new Date('2026-05-31T12:00:00.000Z'),
+        renewalPrice,
+        stripe: {
+          checkout: {
+            sessions: { create: vi.fn().mockRejectedValue(checkoutError) },
+          },
+          customers: {
+            create: vi.fn(),
+            search: vi.fn().mockResolvedValue({ data: [{ id: 'cus_test' }] }),
+          },
+        },
+        successUrl:
+          'https://sailing.mit.edu/onboarding/success?session_id={CHECKOUT_SESSION_ID}',
+        user: {
+          dateOfBirth: '1998-01-01',
+          email: 'member@example.com',
+          id: 'user_1',
+          name: 'Member Example',
+          sailingAffiliation: SailingAffiliation.OTHER_NON_STUDENT,
+        },
+      })
+    ).rejects.toThrow('Stripe unavailable');
+
+    expect(paymentUpdate).toHaveBeenCalledWith({
+      data: {
+        activeCheckoutKey: null,
+        status: PaymentStatus.cancelled,
+      },
+      where: { id: 'payment_1' },
+    });
+  });
+
+  it('clears checkout reservation when local session persistence fails', async () => {
+    const updateError = new Error('database unavailable');
+    const paymentUpdate = vi
+      .fn()
+      .mockRejectedValueOnce(updateError)
+      .mockResolvedValueOnce({});
+
+    await expect(
+      createMembershipCheckoutForOnboarding({
+        cancelUrl: 'https://sailing.mit.edu/onboarding?checkout=cancelled',
+        cardType: SailingCardType.racing,
+        client: {
+          payment: {
+            create: vi.fn().mockResolvedValue({
+              activeCheckoutKey:
+                'membership:user_1:2026:racing:price_initial:price_renewal',
+              cardType: SailingCardType.racing,
+              cardYear: 2026,
+              id: 'payment_1',
+              userId: 'user_1',
+            }),
+            findFirst: vi.fn().mockResolvedValue(null),
+            update: paymentUpdate,
+          },
+          sailingCardSubscription: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
+        },
+        dueTodayPrice,
+        now: new Date('2026-05-31T12:00:00.000Z'),
+        renewalPrice,
+        stripe: {
+          checkout: {
+            sessions: {
+              create: vi.fn().mockResolvedValue({
+                customer: 'cus_test',
+                expires_at: 1_780_000_000,
+                id: 'cs_test',
+                url: 'https://checkout.stripe.com/c/pay/cs_test',
+              }),
+            },
+          },
+          customers: {
+            create: vi.fn(),
+            search: vi.fn().mockResolvedValue({ data: [{ id: 'cus_test' }] }),
+          },
+        },
+        successUrl:
+          'https://sailing.mit.edu/onboarding/success?session_id={CHECKOUT_SESSION_ID}',
+        user: {
+          dateOfBirth: '1998-01-01',
+          email: 'member@example.com',
+          id: 'user_1',
+          name: 'Member Example',
+          sailingAffiliation: SailingAffiliation.OTHER_NON_STUDENT,
+        },
+      })
+    ).rejects.toThrow('database unavailable');
+
+    expect(paymentUpdate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: {
+          activeCheckoutKey: null,
+          status: PaymentStatus.cancelled,
+        },
+        where: { id: 'payment_1' },
+      })
+    );
+  });
 });

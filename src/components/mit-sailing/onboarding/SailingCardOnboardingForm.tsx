@@ -79,7 +79,6 @@ function OnboardingFormFieldsForModel(props: {
       fitnessMembershipReady={props.model.fitnessMembershipReady}
       hasFitnessMembershipValue={props.model.hasFitnessMembershipValue}
       identityContinueMode={props.model.identityContinueMode}
-      identityComplete={props.model.identityComplete}
       identityValidationPending={props.model.identityValidationPending}
       isPending={props.model.isPending}
       clientErrors={props.model.form.formState.errors}

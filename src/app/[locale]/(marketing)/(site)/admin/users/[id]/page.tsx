@@ -94,9 +94,7 @@ function userSailingAffiliationLabelKey(affiliation: SailingAffiliation) {
 function isSailingAffiliation(value: unknown): value is SailingAffiliation {
   return (
     typeof value === 'string' &&
-    Object.values(SailingAffiliation).some(
-      (affiliation) => affiliation === value
-    )
+    (Object.values(SailingAffiliation) as readonly string[]).includes(value)
   );
 }
 

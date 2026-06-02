@@ -13,6 +13,7 @@ vi.mock('@sentry/nextjs', () => ({
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 

@@ -189,6 +189,7 @@ async function turnOffMembershipAutoRenewAction(
     return result;
   }
   revalidatePath(getI18nPath('/profile', locale));
+  revalidatePath(getI18nPath('/profile/membership', locale));
   return result;
 }
 

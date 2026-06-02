@@ -5,7 +5,10 @@ import { PaymentPurpose } from '@/generated/prisma/enums';
 import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
-import { membershipProfileState } from '@/libs/mit-sailing/membershipBilling/membershipSubscriptions';
+import {
+  membershipProfileState,
+  selectCanonicalMembershipSubscription,
+} from '@/libs/mit-sailing/membershipBilling/membershipSubscriptions';
 import { membershipAccessForSailingCardUser } from '@/libs/mit-sailing/sailingCardMembershipEligibility';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -65,7 +68,7 @@ export default async function ProfileMembershipPage(
             stripeCustomerId: true,
             stripeSubscriptionId: true,
           },
-          take: 1,
+          take: 10,
         },
       },
       where: { id: user.id },
@@ -90,7 +93,9 @@ export default async function ProfileMembershipPage(
     throw new Error('Missing db user after auth');
   }
 
-  const subscription = dbUser.sailingCardSubscriptions.at(0) ?? null;
+  const subscription = selectCanonicalMembershipSubscription(
+    dbUser.sailingCardSubscriptions
+  );
   const state = membershipProfileState({
     access:
       membershipAccessForSailingCardUser(dbUser).kind === 'free_normal'

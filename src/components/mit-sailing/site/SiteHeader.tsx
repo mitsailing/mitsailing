@@ -163,7 +163,7 @@ function MobileOnboardingTaskLink(props: {
   return (
     <Link
       className={mobileOnboardingTaskClass}
-      href={props.path}
+      href="/onboarding"
       onClick={props.onNavigate}
     >
       {props.label}
@@ -179,7 +179,7 @@ function DesktopOnboardingTaskLink(props: {
     return null;
   }
   return (
-    <Link className={desktopOnboardingTaskClass} href={props.path}>
+    <Link className={desktopOnboardingTaskClass} href="/onboarding">
       {props.label}
     </Link>
   );

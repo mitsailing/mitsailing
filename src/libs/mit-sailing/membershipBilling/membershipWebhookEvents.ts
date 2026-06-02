@@ -9,6 +9,7 @@ import {
 } from '@/generated/prisma/enums';
 import type {
   MembershipPaymentIssueKind as MembershipPaymentIssueKindType,
+  PaymentStatus as PaymentStatusType,
   SailingCardSubscriptionStatus as SailingCardSubscriptionStatusType,
   SailingCardType as SailingCardTypeType,
 } from '@/generated/prisma/enums';
@@ -24,26 +25,24 @@ type MembershipWebhookPaymentCreate = (args: {
   readonly data: Record<string, unknown>;
 }) => Promise<unknown>;
 
+type MembershipWebhookSubscriptionRecord = {
+  readonly cardType?: SailingCardTypeType | null;
+  readonly id: string;
+  readonly lastStripeSubscriptionEventCreatedAt?: Date | null;
+  readonly stripeCustomerId?: string | null;
+  readonly userId: string;
+};
+
 type MembershipWebhookSubscriptionClient = {
   findFirst(args: {
     readonly orderBy?: Record<string, unknown>;
     readonly where: Record<string, unknown>;
-  }): Promise<{
-    readonly cardType?: SailingCardTypeType | null;
-    readonly id: string;
-    readonly stripeCustomerId?: string | null;
-    readonly userId: string;
-  } | null>;
+  }): Promise<MembershipWebhookSubscriptionRecord | null>;
   upsert(args: {
     readonly create: Record<string, unknown>;
     readonly update: Record<string, unknown>;
     readonly where: { readonly stripeSubscriptionId: string };
-  }): Promise<{
-    readonly cardType?: SailingCardTypeType | null;
-    readonly id: string;
-    readonly stripeCustomerId?: string | null;
-    readonly userId: string;
-  }>;
+  }): Promise<MembershipWebhookSubscriptionRecord>;
 };
 
 type MembershipWebhookDbWithWrites = StripeWebhookDb & {
@@ -82,6 +81,12 @@ const activeCanonicalSubscriptionStatuses: readonly SailingCardSubscriptionStatu
     SailingCardSubscriptionStatus.trialing,
     SailingCardSubscriptionStatus.past_due,
   ];
+const terminalMembershipPaymentStatuses: ReadonlySet<PaymentStatusType> =
+  new Set([
+    PaymentStatus.disputed,
+    PaymentStatus.handled,
+    PaymentStatus.refunded,
+  ]);
 
 function objectValue(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -261,15 +266,23 @@ function hasMembershipWebhookDbWrites(
 }
 
 async function findMembershipPayment(options: {
+  readonly chargeId?: string | null;
   readonly db: MembershipWebhookDbWithWrites;
   readonly invoiceId?: string | null;
   readonly paymentId?: string | null;
+  readonly paymentIntentId?: string | null;
   readonly sessionId?: string | null;
   readonly subscriptionId?: string | null;
 }) {
   const OR: Record<string, unknown>[] = [];
+  if (options.chargeId) {
+    OR.push({ stripeChargeId: options.chargeId });
+  }
   if (options.paymentId) {
     OR.push({ id: options.paymentId });
+  }
+  if (options.paymentIntentId) {
+    OR.push({ stripePaymentIntentId: options.paymentIntentId });
   }
   if (options.sessionId) {
     OR.push({ stripeCheckoutSessionId: options.sessionId });
@@ -322,6 +335,17 @@ async function upsertMembershipSubscription(options: {
   readonly subscriptionId: string;
   readonly userId: string;
 }) {
+  const eventCreatedAt = stripeEventCreatedAtDate(options.event);
+  const existingSubscription =
+    await options.db.sailingCardSubscription.findFirst({
+      where: { stripeSubscriptionId: options.subscriptionId },
+    });
+  if (
+    existingSubscription?.lastStripeSubscriptionEventCreatedAt &&
+    existingSubscription.lastStripeSubscriptionEventCreatedAt > eventCreatedAt
+  ) {
+    return existingSubscription;
+  }
   const canonicalSubscription = await existingCanonicalSubscription({
     cardType: options.cardType,
     db: options.db,
@@ -334,7 +358,6 @@ async function upsertMembershipSubscription(options: {
         eventType: options.event.type,
         value: options.subscription?.status,
       });
-  const eventCreatedAt = stripeEventCreatedAtDate(options.event);
   const update = {
     autoRenew: !options.subscription?.cancel_at_period_end,
     cancelAtPeriodEnd: Boolean(options.subscription?.cancel_at_period_end),
@@ -526,6 +549,20 @@ function invoiceCurrency(object: Record<string, unknown>) {
   return stringValue(object.currency)?.toLowerCase() ?? 'usd';
 }
 
+function canApplyPaidInvoiceTransition(payment: {
+  readonly status: PaymentStatusType;
+}) {
+  return !terminalMembershipPaymentStatuses.has(payment.status);
+}
+
+function objectChargeId(object: Record<string, unknown>) {
+  return (
+    stripeExpandableId(object.charge) ??
+    stripeExpandableId(object.latest_charge) ??
+    null
+  );
+}
+
 async function handleInvoicePaid(options: {
   readonly db: MembershipWebhookDbWithWrites;
   readonly event: ProcessableStripeEvent;
@@ -562,22 +599,28 @@ async function handleInvoicePaid(options: {
     subscriptionId,
     userId,
   });
+  const chargeId = objectChargeId(options.object);
   const invoiceData = {
     lastStripeInvoiceEventCreatedAt: stripeEventCreatedAtDate(options.event),
     lastStripeInvoiceEventId: options.event.id,
     membershipSubscriptionId: localSubscription.id,
-    status: PaymentStatus.paid,
     stripeCustomerId: customerId,
     stripeHostedInvoiceUrl: stringValue(options.object.hosted_invoice_url),
     stripeInvoiceId: invoiceId,
     stripeInvoicePdfUrl: stringValue(options.object.invoice_pdf),
+    ...(chargeId ? { stripeChargeId: chargeId } : {}),
     stripePaymentIntentId: stripeExpandableId(options.object.payment_intent),
     stripeReceiptUrl: stringValue(options.object.hosted_invoice_url),
     stripeSubscriptionId: subscriptionId,
   };
   if (payment) {
     await options.db.payment.updateMany({
-      data: invoiceData,
+      data: {
+        ...invoiceData,
+        ...(canApplyPaidInvoiceTransition(payment)
+          ? { status: PaymentStatus.paid }
+          : {}),
+      },
       where: { id: payment.id, status: payment.status },
     });
     return { handled: true };
@@ -593,8 +636,43 @@ async function handleInvoicePaid(options: {
       membershipRenewalPriceId: stringValue(metadata.renewalMembershipPriceId),
       purpose: PaymentPurpose.membership,
       source: PaymentSource.stripe,
+      status: PaymentStatus.paid,
       userId,
     },
+  });
+  return { handled: true };
+}
+
+async function handlePaymentReferenceSucceeded(options: {
+  readonly db: MembershipWebhookDbWithWrites;
+  readonly event: ProcessableStripeEvent;
+  readonly object: Record<string, unknown>;
+}) {
+  const chargeId =
+    options.event.type === 'charge.succeeded'
+      ? stringValue(options.object.id)
+      : objectChargeId(options.object);
+  const paymentIntentId =
+    options.event.type === 'payment_intent.succeeded'
+      ? stringValue(options.object.id)
+      : stripeExpandableId(options.object.payment_intent);
+  const payment = await findMembershipPayment({
+    chargeId,
+    db: options.db,
+    paymentId: localPaymentId(options.object),
+    paymentIntentId,
+  });
+  if (!payment) {
+    return { handled: true };
+  }
+  await options.db.payment.updateMany({
+    data: {
+      lastStripePaymentEventCreatedAt: stripeEventCreatedAtDate(options.event),
+      lastStripePaymentEventId: options.event.id,
+      ...(chargeId ? { stripeChargeId: chargeId } : {}),
+      ...(paymentIntentId ? { stripePaymentIntentId: paymentIntentId } : {}),
+    },
+    where: { id: payment.id, status: payment.status },
   });
   return { handled: true };
 }
@@ -666,19 +744,31 @@ async function markMembershipPaymentIssue(options: {
     | typeof PaymentStatus.refunded;
 }) {
   const subscriptionId = stripeExpandableId(options.object.subscription);
+  const chargeId =
+    options.status === PaymentStatus.refunded
+      ? (stripeExpandableId(options.object.charge) ??
+        stringValue(options.object.id))
+      : stripeExpandableId(options.object.charge);
+  const refundedAmountCents =
+    options.status === PaymentStatus.refunded
+      ? (numberValue(options.object.amount_refunded) ??
+        numberValue(options.object.amount))
+      : numberValue(options.object.amount);
   const payment = await findMembershipPayment({
+    chargeId,
     db: options.db,
     paymentId: stringValue(objectMetadata(options.object).localPaymentId),
+    paymentIntentId: stripeExpandableId(options.object.payment_intent),
     subscriptionId,
   });
   if (!payment) {
-    return { handled: true };
+    return { handled: isMembershipStripeObject(options.object) };
   }
   await options.db.payment.updateMany({
     data: {
       disputeStatus: stringValue(options.object.status),
       issueKind: options.issueKind,
-      refundedAmountCents: numberValue(options.object.amount),
+      refundedAmountCents,
       status: options.status,
       ...(options.status === PaymentStatus.disputed
         ? { stripeDisputeId: stringValue(options.object.id) }
@@ -697,6 +787,41 @@ export async function handleMembershipStripeWebhookEvent(options: {
   readonly event: ProcessableStripeEvent;
 }): Promise<StripeWebhookDispatchHandlerResult> {
   const object = eventObject(options.event);
+  if (
+    options.event.type === 'charge.refunded' ||
+    options.event.type === 'refund.created' ||
+    options.event.type === 'refund.updated'
+  ) {
+    if (!hasMembershipWebhookDbWrites(options.db)) {
+      throw new Error(
+        'Membership Stripe webhooks require membership db access.'
+      );
+    }
+    const result = await markMembershipPaymentIssue({
+      db: options.db,
+      issueKind: MembershipPaymentIssueKind.refunded_current_season,
+      object,
+      status: PaymentStatus.refunded,
+    });
+    return result;
+  }
+  if (
+    options.event.type === 'charge.dispute.created' ||
+    options.event.type === 'charge.dispute.updated'
+  ) {
+    if (!hasMembershipWebhookDbWrites(options.db)) {
+      throw new Error(
+        'Membership Stripe webhooks require membership db access.'
+      );
+    }
+    const result = await markMembershipPaymentIssue({
+      db: options.db,
+      issueKind: MembershipPaymentIssueKind.disputed_current_season,
+      object,
+      status: PaymentStatus.disputed,
+    });
+    return result;
+  }
   if (!isMembershipStripeObject(object)) {
     return { handled: false };
   }
@@ -748,24 +873,14 @@ export async function handleMembershipStripeWebhookEvent(options: {
     });
     return result;
   }
-  if (options.event.type === 'charge.refunded') {
-    const result = await markMembershipPaymentIssue({
-      db,
-      issueKind: MembershipPaymentIssueKind.refunded_current_season,
-      object,
-      status: PaymentStatus.refunded,
-    });
-    return result;
-  }
   if (
-    options.event.type === 'charge.dispute.created' ||
-    options.event.type === 'charge.dispute.updated'
+    options.event.type === 'payment_intent.succeeded' ||
+    options.event.type === 'charge.succeeded'
   ) {
-    const result = await markMembershipPaymentIssue({
+    const result = await handlePaymentReferenceSucceeded({
       db,
-      issueKind: MembershipPaymentIssueKind.disputed_current_season,
+      event: options.event,
       object,
-      status: PaymentStatus.disputed,
     });
     return result;
   }

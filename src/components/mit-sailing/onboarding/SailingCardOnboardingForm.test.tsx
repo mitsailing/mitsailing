@@ -178,10 +178,10 @@ describe('SailingCardOnboardingForm', () => {
     await user.type(screen.getByLabelText('MIT ID'), '123456789');
     await user.click(screen.getByRole('button', { name: 'Validate MIT ID' }));
 
-    expectDetailsHidden();
     expect(
-      screen.getByText('Enter an MIT ID that matches your account.')
+      await screen.findByText('Enter an MIT ID that matches your account.')
     ).toBeInTheDocument();
+    expectDetailsHidden();
     expect(screen.queryByLabelText('First name')).not.toBeInTheDocument();
   });
 

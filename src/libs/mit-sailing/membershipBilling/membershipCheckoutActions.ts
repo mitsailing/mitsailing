@@ -102,6 +102,19 @@ function activeCheckoutKey(options: {
   ].join(':');
 }
 
+async function cancelUncreatedMembershipCheckoutPayment(options: {
+  readonly client: MembershipCheckoutClient;
+  readonly paymentId: string;
+}) {
+  await options.client.payment.update({
+    data: {
+      activeCheckoutKey: null,
+      status: PaymentStatus.cancelled,
+    },
+    where: { id: options.paymentId },
+  });
+}
+
 function consentSnapshot(options: {
   readonly cardType: SailingCardType;
   readonly dueTodayPrice: SailingCardMembershipPriceRow;
@@ -217,39 +230,66 @@ export async function createMembershipCheckoutForOnboarding(options: {
     payment.cardYear === null ||
     payment.userId === null
   ) {
+    await cancelUncreatedMembershipCheckoutPayment({
+      client: options.client,
+      paymentId: payment.id,
+    });
     throw new Error('Created membership payment is missing required fields.');
   }
 
-  const session = await createStripeMembershipCheckoutSession({
-    cancelUrl: options.cancelUrl,
-    customerId,
-    initialPrice: options.dueTodayPrice,
-    now: options.now,
-    payment: {
-      activeCheckoutKey: checkoutKey,
-      cardType: payment.cardType,
-      cardYear: payment.cardYear,
-      id: payment.id,
-      userId: payment.userId,
-    },
-    renewalPrice: options.renewalPrice,
-    stripe: options.stripe,
-    successUrl: options.successUrl,
-  });
+  let session: Awaited<
+    ReturnType<typeof createStripeMembershipCheckoutSession>
+  >;
+  try {
+    session = await createStripeMembershipCheckoutSession({
+      cancelUrl: options.cancelUrl,
+      customerId,
+      initialPrice: options.dueTodayPrice,
+      now: options.now,
+      payment: {
+        activeCheckoutKey: checkoutKey,
+        cardType: payment.cardType,
+        cardYear: payment.cardYear,
+        id: payment.id,
+        userId: payment.userId,
+      },
+      renewalPrice: options.renewalPrice,
+      stripe: options.stripe,
+      successUrl: options.successUrl,
+    });
+  } catch (error) {
+    await cancelUncreatedMembershipCheckoutPayment({
+      client: options.client,
+      paymentId: payment.id,
+    });
+    throw error;
+  }
   if (session.status === 'rollover_blocked') {
+    await cancelUncreatedMembershipCheckoutPayment({
+      client: options.client,
+      paymentId: payment.id,
+    });
     return session;
   }
 
-  await options.client.payment.update({
-    data: {
-      status: PaymentStatus.checkout_created,
-      stripeCheckoutSessionExpiresAt: session.expiresAt,
-      stripeCheckoutSessionId: session.checkoutSessionId,
-      stripeCheckoutSessionUrl: session.url,
-      stripeCustomerId: session.customerId,
-    },
-    where: { id: payment.id },
-  });
+  try {
+    await options.client.payment.update({
+      data: {
+        status: PaymentStatus.checkout_created,
+        stripeCheckoutSessionExpiresAt: session.expiresAt,
+        stripeCheckoutSessionId: session.checkoutSessionId,
+        stripeCheckoutSessionUrl: session.url,
+        stripeCustomerId: session.customerId,
+      },
+      where: { id: payment.id },
+    });
+  } catch (error) {
+    await cancelUncreatedMembershipCheckoutPayment({
+      client: options.client,
+      paymentId: payment.id,
+    });
+    throw error;
+  }
 
   return { status: 'created', url: session.url };
 }
