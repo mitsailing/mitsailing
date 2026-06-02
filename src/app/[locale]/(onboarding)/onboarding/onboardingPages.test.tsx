@@ -457,6 +457,41 @@ describe('onboarding pages', () => {
     );
   });
 
+  it('falls back from unsafe paid success callbacks', async () => {
+    mocks.findUser.mockResolvedValue({
+      sailingCardRequests: [
+        completedRequest('user-1', SailingCardType.team_racing),
+      ],
+    });
+    mocks.findPayment.mockResolvedValue({
+      status: PaymentStatus.checkout_created,
+      stripeCheckoutSessionExpiresAt: new Date('2026-08-01T18:00:00.000Z'),
+      stripeCheckoutSessionId: 'cs_paid',
+      stripeCheckoutSessionUrl: 'https://checkout.stripe.com/c/pay/cs_paid',
+    });
+    mocks.stripeCheckoutSessionRetrieve.mockResolvedValue({
+      payment_status: 'paid',
+      status: 'complete',
+    });
+    const { default: OnboardingSuccessPage } = await import('./success/page');
+
+    render(
+      await OnboardingSuccessPage({
+        params: Promise.resolve({ locale: 'en' }),
+        searchParams: Promise.resolve({
+          callbackUrl: 'https://evil.example/phish',
+          session_id: 'cs_paid',
+        }),
+      })
+    );
+
+    expect(mocks.stripeCheckoutSessionRetrieve).toHaveBeenCalledWith('cs_paid');
+    expect(screen.getByRole('link', { name: 'events_link' })).toHaveAttribute(
+      'href',
+      '/events'
+    );
+  });
+
   it('renders the admin success link only for admin users', async () => {
     mocks.requireCurrentUser.mockResolvedValue({
       id: 'user-1',

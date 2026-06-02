@@ -11,6 +11,10 @@ const issueHandledKindMigration = readFileSync(
   'prisma/migrations/20260602143000_payment_issue_handled_kind_check/migration.sql',
   'utf8'
 );
+const compactIssueHandledKindMigration = issueHandledKindMigration.replaceAll(
+  /\s+/g,
+  ' '
+);
 
 describe('membership subscription schema contract', () => {
   it('stores Stripe subscription state in one local subscription model', () => {
@@ -55,11 +59,10 @@ describe('membership subscription schema contract', () => {
     expect(compactZmodel).toContain('issueKind');
     expect(compactZmodel).toContain('issueHandledByUserId');
     expect(compactZmodel).toContain(
-      "issueHandledAt != null && (issueHandledNote == null || issueHandledNote == '' || issueHandledByUserId == null || issueKind == null)"
+      "(issueHandledAt != null || issueHandledNote != null || issueHandledByUserId != null) && (issueHandledAt == null || issueHandledNote == null || issueHandledNote == '' || issueHandledByUserId == null || issueKind == null)"
     );
-    expect(issueHandledKindMigration).toContain('"issue_kind" IS NOT NULL');
-    expect(issueHandledKindMigration).toContain(
-      '"payments_issue_handled_fields_chk"'
+    expect(compactIssueHandledKindMigration).toContain(
+      'ADD CONSTRAINT "payments_issue_handled_fields_chk" CHECK ( ( "issue_handled_at" IS NULL AND "issue_handled_note" IS NULL AND "issue_handled_by_user_id" IS NULL ) OR ( "issue_kind" IS NOT NULL AND "issue_handled_at" IS NOT NULL AND "issue_handled_note" IS NOT NULL AND length(trim("issue_handled_note")) >= 1 AND "issue_handled_by_user_id" IS NOT NULL ) )'
     );
     expect(compactZmodel).toContain('membershipConsentSnapshot Json?');
     expect(compactZmodel).toContain('source != stripe && (');

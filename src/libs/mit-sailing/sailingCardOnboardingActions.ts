@@ -437,6 +437,11 @@ export const submitSailingCardOnboardingAction = async (
   const session = await getSession();
   const successHref = getI18nPath('/onboarding/success', locale);
   const callbackUrl = formDataString(formData, 'callbackUrl');
+  const destination = postOnboardingDestination({ callbackUrl, successHref });
+  const successDestination =
+    destination === successHref
+      ? successHref
+      : authHrefWithCallback(successHref, destination);
 
   if (!session?.user?.id) {
     redirect(
@@ -498,7 +503,7 @@ export const submitSailingCardOnboardingAction = async (
 
   const latestRequest = currentUser.sailingCardRequests.at(0) ?? null;
   if (shouldRedirectCompletedCurrentYearRequest(latestRequest)) {
-    redirect(successHref);
+    redirect(successDestination);
   }
 
   const input = parseSailingCardOnboardingFormData(formData);
@@ -611,7 +616,7 @@ export const submitSailingCardOnboardingAction = async (
       });
 
       if (requestUpdate.count === 0) {
-        redirect(successHref);
+        redirect(successDestination);
       }
     }
 
@@ -619,10 +624,8 @@ export const submitSailingCardOnboardingAction = async (
   });
 
   if (transactionResult.status === 'alreadyCompleted') {
-    redirect(successHref);
+    redirect(successDestination);
   }
-
-  const destination = postOnboardingDestination({ callbackUrl, successHref });
 
   revalidateOnboardingDestination({ destination, successHref });
   const checkout = await membershipCheckoutStateForOnboarding({

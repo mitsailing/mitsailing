@@ -384,6 +384,8 @@ describe('submitSailingCardOnboardingAction', () => {
   });
 
   it('redirects users with an existing current-year request to success', async () => {
+    const formData = onboardingFormData();
+    formData.set('callbackUrl', '/events/regatta/register');
     mocks.prismaUserFindUnique.mockResolvedValue(
       currentUserFixture({
         sailingCardRequests: [
@@ -413,8 +415,10 @@ describe('submitSailingCardOnboardingAction', () => {
       await import('@/libs/mit-sailing/sailingCardOnboardingActions');
 
     await expect(
-      submitSailingCardOnboardingAction(idleState, onboardingFormData())
-    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+      submitSailingCardOnboardingAction(idleState, formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/onboarding/success?callbackUrl=%2Fevents%2Fregatta%2Fregister'
+    );
 
     expect(mocks.lookupMitDataWarehouseIdentity).not.toHaveBeenCalled();
     expect(mocks.prismaTransaction).not.toHaveBeenCalled();
