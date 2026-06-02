@@ -114,9 +114,11 @@ export function PavilionReservationEmailTemplate(
           </>
         ) : null}
 
-        <Text style={{ ...paragraph, marginTop: 24 }}>
-          {props.copy.footer_contact}
-        </Text>
+        {props.bodyHtml ? null : (
+          <Text style={{ ...paragraph, marginTop: 24 }}>
+            {props.copy.footer_contact}
+          </Text>
+        )}
       </Section>
     </EmailLayout>
   );

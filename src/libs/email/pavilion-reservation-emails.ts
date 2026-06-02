@@ -1,7 +1,8 @@
 import { render } from 'react-email';
+import { PavilionReservationEmailTemplate } from '@/../emails/pavilion-reservation';
+import { renderPublishedEmailTemplateForSend } from '@/libs/email-templates/emailTemplateRendering';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 import enMessages from '@/locales/en.json';
-import { PavilionReservationEmailTemplate } from '../../../emails/pavilion-reservation';
 
 type PavilionReservationEmailCopy = typeof enMessages.PavilionReservationEmails;
 
@@ -68,6 +69,17 @@ function statusText(
   ].join('\n\n');
 }
 
+type PublishedEmailTemplateRender = NonNullable<
+  Awaited<ReturnType<typeof renderPublishedEmailTemplateForSend>>
+>;
+
+function emailTemplateMetadata(rendered: PublishedEmailTemplateRender) {
+  return {
+    emailTemplateKey: rendered.emailTemplateKey,
+    emailTemplateRevisionId: rendered.emailTemplateRevisionId,
+  };
+}
+
 /**
  * Sends the public submission receipt for a Pavilion reservation request.
  *
@@ -77,6 +89,27 @@ export async function sendPavilionReservationSubmittedEmail(
   params: PavilionReservationEmailParams
 ): Promise<void> {
   const copy = enMessages.PavilionReservationEmails;
+  const publishedTemplate = await renderPublishedEmailTemplateForSend({
+    context: {
+      pavilionReservation: { scheduleLines: params.scheduleLines },
+    },
+    key: 'pavilion_reservation_submitted',
+    values: {
+      eventName: params.eventName,
+      referenceCode: params.referenceCode,
+    },
+  });
+  if (publishedTemplate) {
+    await sendTransactionalEmail({
+      html: publishedTemplate.html,
+      metadata: emailTemplateMetadata(publishedTemplate),
+      subject: publishedTemplate.subject,
+      text: publishedTemplate.text,
+      to: params.requesterEmail,
+    });
+    return;
+  }
+
   const body = replaceReservationEmailValues(copy.submitted_body, {
     eventName: params.eventName,
     referenceCode: params.referenceCode,
@@ -115,6 +148,28 @@ export async function sendPavilionReservationStatusEmail(
   }
 ): Promise<void> {
   const copy = enMessages.PavilionReservationEmails;
+  const publishedTemplate = await renderPublishedEmailTemplateForSend({
+    context: {
+      pavilionReservation: { scheduleLines: params.scheduleLines },
+    },
+    key: 'pavilion_reservation_status',
+    values: {
+      eventName: params.eventName,
+      referenceCode: params.referenceCode,
+      status: params.statusLabel,
+    },
+  });
+  if (publishedTemplate) {
+    await sendTransactionalEmail({
+      html: publishedTemplate.html,
+      metadata: emailTemplateMetadata(publishedTemplate),
+      subject: publishedTemplate.subject,
+      text: publishedTemplate.text,
+      to: params.requesterEmail,
+    });
+    return;
+  }
+
   const body = replaceReservationEmailValues(copy.status_body, {
     eventName: params.eventName,
     referenceCode: params.referenceCode,

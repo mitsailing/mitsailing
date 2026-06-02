@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/nextjs';
 import type * as React from 'react';
-import { render } from 'react-email';
+import { render, toPlainText } from 'react-email';
 import { EventPaymentAdminDigestTemplate } from '@/../emails/event-payment-admin-digest';
 import { EventPaymentReceiptTemplate } from '@/../emails/event-payment-receipt';
 import { EventPaymentReminderTemplate } from '@/../emails/event-payment-reminder';
@@ -10,6 +10,7 @@ import { NewsletterBroadcastTemplate } from '@/../emails/newsletter-broadcast';
 import { PavilionReservationEmailTemplate } from '@/../emails/pavilion-reservation';
 import { sanitizeEmailTemplateBodyHtml } from '@/libs/email-templates/emailTemplateBodyHtml';
 import type { EditableEmailTemplateKey } from '@/libs/email-templates/emailTemplateKeys';
+import { choosePublishedRevision } from '@/libs/email-templates/emailTemplatePublishing';
 import { emailTemplateRegistryEntry } from '@/libs/email-templates/emailTemplateRegistry';
 import {
   interpolateTemplateTokens,
@@ -26,7 +27,23 @@ type RevisionLike = Readonly<{
   template: Readonly<{ key: EditableEmailTemplateKey }>;
 }>;
 
+type EmailTemplateRenderContext = Readonly<{
+  eventPaymentAdminDigest?: Readonly<{
+    overduePayments: readonly {
+      amount: string;
+      id: string;
+      recipientEmail: string;
+      recipientName: string;
+      selectedFeeDescription: string;
+    }[];
+  }>;
+  pavilionReservation?: Readonly<{
+    scheduleLines: readonly string[];
+  }>;
+}>;
+
 type RenderParams = Readonly<{
+  context?: EmailTemplateRenderContext;
   revision: RevisionLike;
   values: Readonly<Record<string, string | null | undefined>>;
 }>;
@@ -64,175 +81,157 @@ function interpolated(
   return interpolateTemplateTokens(value, replacements).trim();
 }
 
-function valueFor(
-  values: RenderParams['values'],
-  key: string,
-  fallback = ''
-): string {
+function valueFor(values: RenderParams['values'], key: string, fallback = '') {
   return values[key] ?? fallback;
 }
 
-async function renderTemplateHtml(params: {
+type RenderTemplateParams = Readonly<{
   bodyHtml: string;
+  context?: EmailTemplateRenderContext;
   key: EditableEmailTemplateKey;
   previewText: string;
   subject: string;
   text: string;
   values: RenderParams['values'];
-}) {
-  const eventCopy = enMessages.EventPaymentEmails;
-  const membershipCopy = enMessages.MembershipPaymentEmails;
-  const pavilionCopy = enMessages.PavilionReservationEmails;
-  let email: React.ReactElement;
+}>;
 
-  switch (params.key) {
-    case 'event_payment_request': {
-      email = EventPaymentRequestTemplate({
-        actionLabel: eventCopy.action_pay,
-        amount: valueFor(params.values, 'amount'),
-        body: params.text,
-        bodyHtml: params.bodyHtml,
-        checkoutUrl: valueFor(params.values, 'checkoutUrl'),
-        deadline: valueFor(params.values, 'deadline'),
-        eventAddress: valueFor(params.values, 'eventAddress') || null,
-        eventAddressUrl: valueFor(params.values, 'eventAddressUrl') || null,
-        eventName: valueFor(params.values, 'eventName'),
-        feeDescription: valueFor(params.values, 'selectedFeeDescription'),
-        fieldAddress: eventCopy.field_address,
-        fieldAmount: eventCopy.field_amount,
-        fieldDeadline: eventCopy.field_deadline,
-        fieldEvent: eventCopy.field_event,
-        fieldFee: eventCopy.field_fee,
-        previewText: params.previewText,
-        title: params.subject,
-      });
-      break;
-    }
-    case 'event_payment_reminder': {
-      email = EventPaymentReminderTemplate({
-        actionLabel: eventCopy.action_pay,
-        amount: valueFor(params.values, 'amount'),
-        body: params.text,
-        bodyHtml: params.bodyHtml,
-        checkoutUrl: valueFor(params.values, 'checkoutUrl'),
-        deadline: valueFor(params.values, 'deadline'),
-        eventAddress: valueFor(params.values, 'eventAddress') || null,
-        eventAddressUrl: valueFor(params.values, 'eventAddressUrl') || null,
-        eventName: valueFor(params.values, 'eventName'),
-        feeDescription: valueFor(params.values, 'selectedFeeDescription'),
-        fieldAddress: eventCopy.field_address,
-        fieldAmount: eventCopy.field_amount,
-        fieldDeadline: eventCopy.field_deadline,
-        fieldEvent: eventCopy.field_event,
-        fieldFee: eventCopy.field_fee,
-        previewText: params.previewText,
-        title: params.subject,
-      });
-      break;
-    }
-    case 'event_payment_receipt': {
-      email = EventPaymentReceiptTemplate({
-        actionLabel: eventCopy.action_receipt,
-        amount: valueFor(params.values, 'amount'),
-        body: params.text,
-        bodyHtml: params.bodyHtml,
-        eventAddress: valueFor(params.values, 'eventAddress') || null,
-        eventAddressUrl: valueFor(params.values, 'eventAddressUrl') || null,
-        eventName: valueFor(params.values, 'eventName'),
-        feeDescription: valueFor(params.values, 'selectedFeeDescription'),
-        fieldAddress: eventCopy.field_address,
-        fieldAmount: eventCopy.field_amount,
-        fieldEvent: eventCopy.field_event,
-        fieldFee: eventCopy.field_fee,
-        previewText: params.previewText,
-        receiptUrl: valueFor(params.values, 'receiptUrl') || null,
-        title: params.subject,
-      });
-      break;
-    }
-    case 'event_payment_admin_digest': {
-      email = EventPaymentAdminDigestTemplate({
-        body: params.text,
-        bodyHtml: params.bodyHtml,
-        deadline: valueFor(params.values, 'deadline'),
-        eventName: valueFor(params.values, 'eventName'),
-        fieldDeadline: eventCopy.field_deadline,
-        overduePayments: [],
-        previewText: params.previewText,
-        title: params.subject,
-      });
-      break;
-    }
-    case 'pavilion_reservation_submitted': {
-      email = PavilionReservationEmailTemplate({
-        body: params.text,
-        bodyHtml: params.bodyHtml,
-        copy: pavilionCopy,
-        eventName: valueFor(params.values, 'eventName'),
-        previewText: params.previewText,
-        referenceCode: valueFor(params.values, 'referenceCode'),
-        scheduleLines: [],
-        title: params.subject,
-      });
-      break;
-    }
-    case 'pavilion_reservation_status': {
-      email = PavilionReservationEmailTemplate({
-        body: params.text,
-        bodyHtml: params.bodyHtml,
-        copy: pavilionCopy,
-        eventName: valueFor(params.values, 'eventName'),
-        previewText: params.previewText,
-        referenceCode: valueFor(params.values, 'referenceCode'),
-        scheduleLines: [],
-        statusLabel: valueFor(params.values, 'status'),
-        title: params.subject,
-      });
-      break;
-    }
-    case 'membership_payment_reminder': {
-      email = MembershipPaymentReminderTemplate({
-        actionLabel: membershipCopy.action_finish,
-        amount: valueFor(params.values, 'amount'),
-        body: params.text,
-        bodyHtml: params.bodyHtml,
-        cardType: valueFor(params.values, 'cardType'),
-        cardYear: valueFor(params.values, 'cardYear'),
-        fieldAmount: membershipCopy.field_amount,
-        fieldCard: membershipCopy.field_card,
-        fieldYear: membershipCopy.field_year,
-        onboardingUrl: valueFor(params.values, 'onboardingUrl'),
-        previewText: params.previewText,
-        title: params.subject,
-      });
-      break;
-    }
-    case 'newsletter_broadcast': {
-      email = NewsletterBroadcastTemplate({
-        body: params.bodyHtml,
-        listName: valueFor(params.values, 'listName', 'General'),
-        manageUrl: valueFor(
-          params.values,
-          'manageUrl',
-          'https://mitsailing.com/newsletter'
-        ),
-        postalAddress: valueFor(params.values, 'postalAddress'),
-        previewText: params.previewText,
-        subject: params.subject,
-        unsubscribeUrl: valueFor(
-          params.values,
-          'unsubscribeUrl',
-          'https://mitsailing.com/newsletter'
-        ),
-      });
-      break;
-    }
-    default: {
-      throw new EmailTemplateRenderError('Unhandled email template key');
-    }
-  }
+type TemplateBuilder = (params: RenderTemplateParams) => React.ReactElement;
 
-  const html = await render(email);
+const eventCopy = enMessages.EventPaymentEmails;
+const membershipCopy = enMessages.MembershipPaymentEmails;
+const pavilionCopy = enMessages.PavilionReservationEmails;
+
+const templateBuilders = {
+  event_payment_request: (params) =>
+    EventPaymentRequestTemplate({
+      actionLabel: eventCopy.action_pay,
+      amount: valueFor(params.values, 'amount'),
+      body: params.text,
+      bodyHtml: params.bodyHtml,
+      checkoutUrl: valueFor(params.values, 'checkoutUrl'),
+      deadline: valueFor(params.values, 'deadline'),
+      eventAddress: valueFor(params.values, 'eventAddress') || null,
+      eventAddressUrl: valueFor(params.values, 'eventAddressUrl') || null,
+      eventName: valueFor(params.values, 'eventName'),
+      feeDescription: valueFor(params.values, 'selectedFeeDescription'),
+      fieldAddress: eventCopy.field_address,
+      fieldAmount: eventCopy.field_amount,
+      fieldDeadline: eventCopy.field_deadline,
+      fieldEvent: eventCopy.field_event,
+      fieldFee: eventCopy.field_fee,
+      previewText: params.previewText,
+      title: params.subject,
+    }),
+  event_payment_reminder: (params) =>
+    EventPaymentReminderTemplate({
+      actionLabel: eventCopy.action_pay,
+      amount: valueFor(params.values, 'amount'),
+      body: params.text,
+      bodyHtml: params.bodyHtml,
+      checkoutUrl: valueFor(params.values, 'checkoutUrl'),
+      deadline: valueFor(params.values, 'deadline'),
+      eventAddress: valueFor(params.values, 'eventAddress') || null,
+      eventAddressUrl: valueFor(params.values, 'eventAddressUrl') || null,
+      eventName: valueFor(params.values, 'eventName'),
+      feeDescription: valueFor(params.values, 'selectedFeeDescription'),
+      fieldAddress: eventCopy.field_address,
+      fieldAmount: eventCopy.field_amount,
+      fieldDeadline: eventCopy.field_deadline,
+      fieldEvent: eventCopy.field_event,
+      fieldFee: eventCopy.field_fee,
+      previewText: params.previewText,
+      title: params.subject,
+    }),
+  event_payment_receipt: (params) =>
+    EventPaymentReceiptTemplate({
+      actionLabel: eventCopy.action_receipt,
+      amount: valueFor(params.values, 'amount'),
+      body: params.text,
+      bodyHtml: params.bodyHtml,
+      eventAddress: valueFor(params.values, 'eventAddress') || null,
+      eventAddressUrl: valueFor(params.values, 'eventAddressUrl') || null,
+      eventName: valueFor(params.values, 'eventName'),
+      feeDescription: valueFor(params.values, 'selectedFeeDescription'),
+      fieldAddress: eventCopy.field_address,
+      fieldAmount: eventCopy.field_amount,
+      fieldEvent: eventCopy.field_event,
+      fieldFee: eventCopy.field_fee,
+      previewText: params.previewText,
+      receiptUrl: valueFor(params.values, 'receiptUrl') || null,
+      title: params.subject,
+    }),
+  event_payment_admin_digest: (params) =>
+    EventPaymentAdminDigestTemplate({
+      body: params.text,
+      bodyHtml: params.bodyHtml,
+      deadline: valueFor(params.values, 'deadline'),
+      eventName: valueFor(params.values, 'eventName'),
+      fieldDeadline: eventCopy.field_deadline,
+      overduePayments:
+        params.context?.eventPaymentAdminDigest?.overduePayments ?? [],
+      previewText: params.previewText,
+      title: params.subject,
+    }),
+  membership_payment_reminder: (params) =>
+    MembershipPaymentReminderTemplate({
+      actionLabel: membershipCopy.action_finish,
+      amount: valueFor(params.values, 'amount'),
+      body: params.text,
+      bodyHtml: params.bodyHtml,
+      cardType: valueFor(params.values, 'cardType'),
+      cardYear: valueFor(params.values, 'cardYear'),
+      fieldAmount: membershipCopy.field_amount,
+      fieldCard: membershipCopy.field_card,
+      fieldYear: membershipCopy.field_year,
+      onboardingUrl: valueFor(params.values, 'onboardingUrl'),
+      previewText: params.previewText,
+      title: params.subject,
+    }),
+  newsletter_broadcast: (params) =>
+    NewsletterBroadcastTemplate({
+      body: params.bodyHtml,
+      listName: valueFor(params.values, 'listName', 'General'),
+      manageUrl: valueFor(
+        params.values,
+        'manageUrl',
+        'https://mitsailing.com/newsletter'
+      ),
+      postalAddress: valueFor(params.values, 'postalAddress'),
+      previewText: params.previewText,
+      subject: params.subject,
+      unsubscribeUrl: valueFor(
+        params.values,
+        'unsubscribeUrl',
+        'https://mitsailing.com/newsletter'
+      ),
+    }),
+  pavilion_reservation_status: (params) =>
+    PavilionReservationEmailTemplate({
+      body: params.text,
+      bodyHtml: params.bodyHtml,
+      copy: pavilionCopy,
+      eventName: valueFor(params.values, 'eventName'),
+      previewText: params.previewText,
+      referenceCode: valueFor(params.values, 'referenceCode'),
+      scheduleLines: params.context?.pavilionReservation?.scheduleLines ?? [],
+      statusLabel: valueFor(params.values, 'status'),
+      title: params.subject,
+    }),
+  pavilion_reservation_submitted: (params) =>
+    PavilionReservationEmailTemplate({
+      body: params.text,
+      bodyHtml: params.bodyHtml,
+      copy: pavilionCopy,
+      eventName: valueFor(params.values, 'eventName'),
+      previewText: params.previewText,
+      referenceCode: valueFor(params.values, 'referenceCode'),
+      scheduleLines: params.context?.pavilionReservation?.scheduleLines ?? [],
+      title: params.subject,
+    }),
+} satisfies Record<EditableEmailTemplateKey, TemplateBuilder>;
+
+async function renderTemplateHtml(params: RenderTemplateParams) {
+  const html = await render(templateBuilders[params.key](params));
   return html;
 }
 
@@ -264,8 +263,8 @@ export async function renderEditableEmailTemplate(params: RenderParams) {
     const bodyHtml = sanitizeEmailTemplateBodyHtml(
       interpolated(params.revision.editorBodyHtml, params.values)
     );
-    const text = interpolated(params.revision.renderedText, params.values);
-    if (!subject || !previewText || !bodyHtml || !text) {
+    const bodyText = interpolated(params.revision.renderedText, params.values);
+    if (!subject || !previewText || !bodyHtml || !bodyText) {
       throw new EmailTemplateRenderError(
         `Email template ${key} revision ${params.revision.id} rendered empty content`
       );
@@ -273,12 +272,19 @@ export async function renderEditableEmailTemplate(params: RenderParams) {
 
     const html = await renderTemplateHtml({
       bodyHtml,
+      context: params.context,
       key,
       previewText,
       subject,
-      text,
+      text: bodyText,
       values: params.values,
     });
+    const text = toPlainText(html).trim();
+    if (!text) {
+      throw new EmailTemplateRenderError(
+        `Email template ${key} revision ${params.revision.id} rendered empty text`
+      );
+    }
     return { bodyHtml, html, previewText, subject, text };
   } catch (error) {
     const renderError =
@@ -293,4 +299,43 @@ export async function renderEditableEmailTemplate(params: RenderParams) {
     });
     throw renderError;
   }
+}
+
+export async function renderPublishedEmailTemplateForSend(params: {
+  context?: EmailTemplateRenderContext;
+  key: EditableEmailTemplateKey;
+  values: RenderParams['values'];
+}) {
+  const { prisma } = await import('@/libs/DB');
+  const template = await prisma.emailTemplate.findUnique({
+    include: { revisions: true },
+    where: { key: params.key },
+  });
+  if (!template) {
+    return null;
+  }
+
+  const revision = choosePublishedRevision(template.revisions);
+  if (!revision) {
+    return null;
+  }
+
+  const rendered = await renderEditableEmailTemplate({
+    context: params.context,
+    revision: {
+      editorBodyHtml: revision.editorBodyHtml,
+      id: revision.id,
+      previewText: revision.previewText,
+      renderedText: revision.renderedText,
+      subject: revision.subject,
+      template: { key: params.key },
+    },
+    values: params.values,
+  });
+
+  return {
+    ...rendered,
+    emailTemplateKey: params.key,
+    emailTemplateRevisionId: revision.id,
+  };
 }

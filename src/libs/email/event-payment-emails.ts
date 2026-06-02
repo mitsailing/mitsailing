@@ -3,6 +3,7 @@ import { EventPaymentAdminDigestTemplate } from '@/../emails/event-payment-admin
 import { EventPaymentReceiptTemplate } from '@/../emails/event-payment-receipt';
 import { EventPaymentReminderTemplate } from '@/../emails/event-payment-reminder';
 import { EventPaymentRequestTemplate } from '@/../emails/event-payment-request';
+import { renderPublishedEmailTemplateForSend } from '@/libs/email-templates/emailTemplateRendering';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 import type { SendEmailResult } from '@/libs/email/sendTransactional';
 import enMessages from '@/locales/en.json';
@@ -128,10 +129,51 @@ function paymentIdempotencyKey(
   return [`event-payment-${kind}`, params.emailDedupeKey].join(':');
 }
 
+type PublishedEmailTemplateRender = NonNullable<
+  Awaited<ReturnType<typeof renderPublishedEmailTemplateForSend>>
+>;
+
+function emailTemplateMetadata(rendered: PublishedEmailTemplateRender) {
+  return {
+    emailTemplateKey: rendered.emailTemplateKey,
+    emailTemplateRevisionId: rendered.emailTemplateRevisionId,
+  };
+}
+
+function paymentTemplateValues(params: EventPaymentEmailParams) {
+  return {
+    amount: params.amount,
+    checkoutUrl: params.checkoutUrl,
+    deadline: params.deadline,
+    eventAddress: params.eventAddress,
+    eventAddressUrl: params.eventAddressUrl,
+    eventName: params.eventName,
+    receiptUrl: params.receiptUrl,
+    recipientName: params.recipientName,
+    selectedFeeDescription: params.selectedFeeDescription,
+  };
+}
+
 export async function sendEventPaymentRequestEmail(
   params: EventPaymentEmailParams
 ): Promise<SendEmailResult> {
   const copy = enMessages.EventPaymentEmails;
+  const publishedTemplate = await renderPublishedEmailTemplateForSend({
+    key: 'event_payment_request',
+    values: paymentTemplateValues(params),
+  });
+  if (publishedTemplate) {
+    return sendTransactionalEmail({
+      category: 'event_payment_request',
+      html: publishedTemplate.html,
+      idempotencyKey: paymentIdempotencyKey('request', params),
+      metadata: emailTemplateMetadata(publishedTemplate),
+      subject: publishedTemplate.subject,
+      text: publishedTemplate.text,
+      to: params.recipientEmail,
+    });
+  }
+
   const html = await render(
     EventPaymentRequestTemplate({
       actionLabel: copy.action_pay,
@@ -166,6 +208,22 @@ export async function sendEventPaymentReceiptEmail(
   params: EventPaymentEmailParams
 ): Promise<SendEmailResult> {
   const copy = enMessages.EventPaymentEmails;
+  const publishedTemplate = await renderPublishedEmailTemplateForSend({
+    key: 'event_payment_receipt',
+    values: paymentTemplateValues(params),
+  });
+  if (publishedTemplate) {
+    return sendTransactionalEmail({
+      category: 'event_payment_receipt',
+      html: publishedTemplate.html,
+      idempotencyKey: paymentIdempotencyKey('receipt', params),
+      metadata: emailTemplateMetadata(publishedTemplate),
+      subject: publishedTemplate.subject,
+      text: publishedTemplate.text,
+      to: params.recipientEmail,
+    });
+  }
+
   const html = await render(
     EventPaymentReceiptTemplate({
       actionLabel: copy.action_receipt,
@@ -198,6 +256,22 @@ export async function sendEventPaymentReminderEmail(
   params: EventPaymentEmailParams
 ): Promise<SendEmailResult> {
   const copy = enMessages.EventPaymentEmails;
+  const publishedTemplate = await renderPublishedEmailTemplateForSend({
+    key: 'event_payment_reminder',
+    values: paymentTemplateValues(params),
+  });
+  if (publishedTemplate) {
+    return sendTransactionalEmail({
+      category: 'event_payment_reminder',
+      html: publishedTemplate.html,
+      idempotencyKey: paymentIdempotencyKey('reminder', params),
+      metadata: emailTemplateMetadata(publishedTemplate),
+      subject: publishedTemplate.subject,
+      text: publishedTemplate.text,
+      to: params.recipientEmail,
+    });
+  }
+
   const html = await render(
     EventPaymentReminderTemplate({
       actionLabel: copy.action_pay,
@@ -232,6 +306,28 @@ export async function sendEventPaymentAdminDigestEmail(
   params: AdminDigestEmailParams
 ): Promise<SendEmailResult> {
   const copy = enMessages.EventPaymentEmails;
+  const publishedTemplate = await renderPublishedEmailTemplateForSend({
+    context: {
+      eventPaymentAdminDigest: { overduePayments: params.overduePayments },
+    },
+    key: 'event_payment_admin_digest',
+    values: {
+      deadline: params.deadline,
+      eventName: params.eventName,
+    },
+  });
+  if (publishedTemplate) {
+    return sendTransactionalEmail({
+      category: 'event_payment_admin_digest',
+      html: publishedTemplate.html,
+      idempotencyKey: `event-payment-admin-digest:${params.emailDedupeKey}`,
+      metadata: emailTemplateMetadata(publishedTemplate),
+      subject: publishedTemplate.subject,
+      text: publishedTemplate.text,
+      to: params.adminEmail,
+    });
+  }
+
   const html = await render(
     EventPaymentAdminDigestTemplate({
       body: replacePaymentValues(copy.admin_digest_body, params),

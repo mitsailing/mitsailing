@@ -1118,7 +1118,7 @@ git commit -m "feat: seed editable email template defaults"
 - Modify: `src/libs/email/membership-payment-emails.ts`
 - Add: `src/libs/email/membership-payment-emails.test.ts`
 
-- [ ] **Step 1: Write failing send-path tests**
+- [x] **Step 1: Write failing send-path tests**
 
 Update or add tests asserting each send function:
 
@@ -1139,11 +1139,11 @@ it('does not send when the published template render fails', async () => {
 });
 ```
 
-- [ ] **Step 2: Add a published-revision loader**
+- [x] **Step 2: Add a published-revision loader**
 
 Add `renderPublishedEmailTemplateForSend` in `src/libs/email-templates/emailTemplateRendering.ts`. It loads the template by key, chooses the newest published revision, returns `null` when no published revision exists, and throws on invalid published content.
 
-- [ ] **Step 3: Convert each sender conservatively**
+- [x] **Step 3: Convert each sender conservatively**
 
 For each covered sender:
 
@@ -1154,7 +1154,7 @@ For each covered sender:
 
 Do not catch render errors in the sender.
 
-- [ ] **Step 4: Run send-path tests**
+- [x] **Step 4: Run send-path tests**
 
 Run:
 
