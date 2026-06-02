@@ -179,7 +179,7 @@ describe('ProfileAccountClient', () => {
     expect(screen.getByText('Normal')).toBeVisible();
     expect(
       screen.getByText(
-        'Your card request is pending. Pavilion staff will assign a card number after review.'
+        'Your card request is pending. Pavilion staff will assign and print cards at the Pavilion after review.'
       )
     ).toBeVisible();
     expect(screen.queryByText('Card number')).not.toBeInTheDocument();
@@ -201,6 +201,11 @@ describe('ProfileAccountClient', () => {
     });
 
     expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(
+        'Your sailing card is active for the current card year. Cards are printed by Pavilion staff at the Pavilion.'
+      )
+    ).toBeVisible();
     expect(screen.getByText('Card number')).toBeVisible();
     expect(screen.getByText('61')).toBeVisible();
   });

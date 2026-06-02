@@ -255,6 +255,16 @@ vi.mock(
         data-suggested-card-number={props.suggestedCardNumber}
       />
     ),
+    AdminSailingCardPrintActions: (props: { userId: string }) => (
+      <div>
+        <a href={`/admin/users/${props.userId}/sailing-card/print`}>
+          Print card
+        </a>
+        <a href={`/admin/users/${props.userId}/sailing-card/quick-print`}>
+          Quick print
+        </a>
+      </div>
+    ),
   })
 );
 
@@ -649,6 +659,26 @@ describe('admin user pages', () => {
     expect(
       screen.getByRole('form', { name: 'Change sailing card number' })
     ).toHaveAttribute('data-current-card-number', '61');
+  });
+
+  it('shows card print actions for current cards', async () => {
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(screen.getByRole('link', { name: 'Print card' })).toHaveAttribute(
+      'href',
+      '/admin/users/user-1/sailing-card/print'
+    );
+    expect(screen.getByRole('link', { name: 'Quick print' })).toHaveAttribute(
+      'href',
+      '/admin/users/user-1/sailing-card/quick-print'
+    );
   });
 
   it('shows admin override payment bypass on the user sailing-card panel', async () => {

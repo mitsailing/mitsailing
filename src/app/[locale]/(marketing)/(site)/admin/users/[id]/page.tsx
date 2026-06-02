@@ -9,6 +9,7 @@ import {
   AdminSailingCardExpireForm,
   AdminSailingCardHistory,
   AdminSailingCardIssueForm,
+  AdminSailingCardPrintActions,
 } from '@/components/mit-sailing/admin/cards/AdminSailingCardControls';
 import type { AdminSailingCardPaymentAccess } from '@/components/mit-sailing/admin/cards/AdminSailingCardControls';
 import { AdminUserRatingsPanel } from '@/components/mit-sailing/admin/users/AdminUserRatingsPanel';
@@ -701,6 +702,7 @@ function AdminUserSailingCardDetailsList(props: {
 function AdminUserSailingCardSection(props: {
   readonly canAssignCards: boolean;
   readonly canExpireCards: boolean;
+  readonly canPrintCards: boolean;
   readonly history: AdminUserSailingCardDetails['history'];
   readonly loadError: boolean;
   readonly locale: string;
@@ -741,6 +743,11 @@ function AdminUserSailingCardSection(props: {
           t={props.t}
           userId={props.userId}
         />
+        {props.canPrintCards && model.hasCurrentCard ? (
+          <div className="mt-4">
+            <AdminSailingCardPrintActions userId={props.userId} />
+          </div>
+        ) : null}
         <AdminUserSailingCardDetailsList
           locale={props.locale}
           model={model}
@@ -1059,6 +1066,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     Permission.CARDS_ASSIGN_NUMBER
   );
   const canExpireCards = hasPermission(permissions, Permission.CARDS_EXPIRE);
+  const canPrintCards = hasPermission(permissions, Permission.CARDS_PRINT);
 
   const user = await usersAdminHandlers.getById(id);
   if (!user) {
@@ -1182,6 +1190,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
       <AdminUserSailingCardSection
         canAssignCards={canAssignCards}
         canExpireCards={canExpireCards}
+        canPrintCards={canPrintCards}
         history={sailingCardDetails.history}
         loadError={sailingCardDetails.loadError}
         locale={locale}
