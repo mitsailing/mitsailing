@@ -23,6 +23,7 @@ type StoredDraft = Readonly<{
 }>;
 
 type AdminEmailTemplateEditorProps = Readonly<{
+  clearDraftOnMount?: boolean;
   content: string;
   previewText: string;
   saveAction: (formData: FormData) => Promise<void>;
@@ -95,6 +96,11 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
   }
 
   useEffect(() => {
+    if (props.clearDraftOnMount) {
+      globalThis.localStorage.removeItem(storageKey);
+      return;
+    }
+
     const draft = storedDraft(globalThis.localStorage.getItem(storageKey));
     if (!draft) {
       return;
@@ -102,7 +108,7 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
     setContent(draft.content);
     setPreviewText(draft.previewText);
     setSubject(draft.subject);
-  }, [storageKey]);
+  }, [props.clearDraftOnMount, storageKey]);
 
   return (
     <form
@@ -150,6 +156,7 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
         <div className="min-h-[420px] rounded-lg border border-border bg-card p-3">
           <EmailEditor
             content={content}
+            key={content}
             onUpdate={(ref) => {
               persistDraft({ content: ref.editor?.getHTML() ?? content });
             }}

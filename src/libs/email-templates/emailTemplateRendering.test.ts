@@ -1,5 +1,8 @@
 import * as Sentry from '@sentry/nextjs';
+import * as React from 'react';
+import { render as renderEmail } from 'react-email';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SafeEmailTemplateBodyHtml } from '@/libs/email-templates/emailTemplateBodyHtml';
 import {
   EmailTemplateRenderError,
   renderEditableEmailTemplate,
@@ -37,6 +40,27 @@ describe('sanitizeEmailTemplateBodyHtml', () => {
     expect(
       sanitizeEmailTemplateBodyHtml('<p>Hello</p><script>alert(1)</script>')
     ).toBe('<p>Hello</p>');
+  });
+
+  it('keeps only formatting that the email renderer preserves', async () => {
+    const html = await renderEmail(
+      React.createElement(SafeEmailTemplateBodyHtml, {
+        html: '<p><strong>Hello</strong> <em>sailors</em></p><ol><li>First</li></ol>',
+      })
+    );
+
+    expect(
+      sanitizeEmailTemplateBodyHtml(
+        '<p><strong>Hello</strong> <em>sailors</em></p><ol><li>First</li></ol>'
+      )
+    ).toBe('<p>Hello sailors</p><li>First</li>');
+    expect(html).toContain('Hello sailors');
+    expect(html).toContain('• ');
+    expect(html).toContain('First');
+    expect(html).not.toContain('<strong');
+    expect(html).not.toContain('<em');
+    expect(html).not.toContain('<ol');
+    expect(html).not.toContain('<ul');
   });
 });
 

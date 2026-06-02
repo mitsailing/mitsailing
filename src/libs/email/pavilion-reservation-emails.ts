@@ -1,6 +1,9 @@
 import { render } from 'react-email';
 import { PavilionReservationEmailTemplate } from '@/../emails/pavilion-reservation';
-import { renderPublishedEmailTemplateForSend } from '@/libs/email-templates/emailTemplateRendering';
+import {
+  emailTemplateMetadata,
+  renderPublishedEmailTemplateForSend,
+} from '@/libs/email-templates/emailTemplateRendering';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 import enMessages from '@/locales/en.json';
 
@@ -67,17 +70,6 @@ function statusText(
     ...params.scheduleLines.map((line) => `${copy.field_schedule}: ${line}`),
     copy.footer_contact,
   ].join('\n\n');
-}
-
-type PublishedEmailTemplateRender = NonNullable<
-  Awaited<ReturnType<typeof renderPublishedEmailTemplateForSend>>
->;
-
-function emailTemplateMetadata(rendered: PublishedEmailTemplateRender) {
-  return {
-    emailTemplateKey: rendered.emailTemplateKey,
-    emailTemplateRevisionId: rendered.emailTemplateRevisionId,
-  };
 }
 
 /**

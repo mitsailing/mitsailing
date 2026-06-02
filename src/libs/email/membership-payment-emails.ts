@@ -1,6 +1,9 @@
 import { render } from 'react-email';
 import { MembershipPaymentReminderTemplate } from '@/../emails/membership-payment-reminder';
-import { renderPublishedEmailTemplateForSend } from '@/libs/email-templates/emailTemplateRendering';
+import {
+  emailTemplateMetadata,
+  renderPublishedEmailTemplateForSend,
+} from '@/libs/email-templates/emailTemplateRendering';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 import type { SendEmailResult } from '@/libs/email/sendTransactional';
 import enMessages from '@/locales/en.json';
@@ -33,17 +36,6 @@ function reminderText(
     `${copy.field_amount}: ${params.amount}`,
     `${copy.action_finish}: ${params.onboardingUrl}`,
   ].join('\n\n');
-}
-
-type PublishedEmailTemplateRender = NonNullable<
-  Awaited<ReturnType<typeof renderPublishedEmailTemplateForSend>>
->;
-
-function emailTemplateMetadata(rendered: PublishedEmailTemplateRender) {
-  return {
-    emailTemplateKey: rendered.emailTemplateKey,
-    emailTemplateRevisionId: rendered.emailTemplateRevisionId,
-  };
 }
 
 export async function sendMembershipPaymentReminderEmail(

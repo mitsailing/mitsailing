@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminEmailTemplateEditor } from '@/components/mit-sailing/admin/email-templates/AdminEmailTemplateEditor';
 import { installComponentTestLocalStorage } from '@/test/component';
@@ -50,7 +51,9 @@ const editorText = {
   testEmailLabel: 'Test recipient',
 };
 
-function renderEditor() {
+function renderEditor(
+  props: Partial<React.ComponentProps<typeof AdminEmailTemplateEditor>> = {}
+) {
   return render(
     <AdminEmailTemplateEditor
       content="<p>Hello</p>"
@@ -61,6 +64,7 @@ function renderEditor() {
       templateKey="event_payment_request"
       testEmail="admin@example.com"
       text={editorText}
+      {...props}
     />
   );
 }
@@ -133,5 +137,27 @@ describe('AdminEmailTemplateEditor', () => {
         )
       ).toContain('Stored subject');
     });
+  });
+
+  it('clears stored draft content after confirmed save redirect', async () => {
+    globalThis.localStorage.setItem(
+      'admin-email-template-draft:event_payment_request',
+      JSON.stringify({
+        content: '<p>Stored</p>',
+        previewText: 'Stored preview',
+        subject: 'Stored subject',
+      })
+    );
+
+    renderEditor({ clearDraftOnMount: true });
+
+    await waitFor(() => {
+      expect(
+        globalThis.localStorage.getItem(
+          'admin-email-template-draft:event_payment_request'
+        )
+      ).toBeNull();
+    });
+    expect(screen.getByLabelText('Subject')).toHaveValue('Subject');
   });
 });

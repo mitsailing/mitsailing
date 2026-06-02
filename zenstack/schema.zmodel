@@ -614,6 +614,7 @@ model EmailTemplateRevision {
 
   @@allow('read', auth() != null && auth().appRole == 'admin')
   @@allow('all', auth() != null && auth().appRole == 'admin')
+  @@deny('post-update', templateId != before().templateId)
   @@index([templateId, status, publishedAt])
   @@index([createdByUserId])
   @@index([publishedByUserId])

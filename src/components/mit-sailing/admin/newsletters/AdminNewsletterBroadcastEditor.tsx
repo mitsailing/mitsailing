@@ -98,6 +98,7 @@ export function AdminNewsletterBroadcastEditor(
         <div className="min-h-[420px] rounded-lg border border-border bg-card p-3">
           <EmailEditor
             content={body}
+            key={body}
             onUpdate={(ref) => {
               const nextBody = ref.editor?.getHTML() ?? body;
               persistDraft(nextBody);

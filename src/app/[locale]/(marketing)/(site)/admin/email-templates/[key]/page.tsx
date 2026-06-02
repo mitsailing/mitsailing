@@ -176,6 +176,9 @@ export default async function AdminEmailTemplateDetailPage(props: PageProps) {
         <div className="rounded-lg border border-border bg-card p-5">
           {activeRevision ? (
             <AdminEmailTemplateEditor
+              clearDraftOnMount={
+                status === 'draft_saved' || status === 'published'
+              }
               content={activeRevision.editorBodyHtml}
               previewText={activeRevision.previewText}
               saveAction={saveEmailTemplateDraftAction.bind(

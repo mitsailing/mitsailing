@@ -1,11 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  emailTemplateMetadata: vi.fn(
+    (rendered: {
+      emailTemplateKey: string;
+      emailTemplateRevisionId: string;
+    }) => ({
+      emailTemplateKey: rendered.emailTemplateKey,
+      emailTemplateRevisionId: rendered.emailTemplateRevisionId,
+    })
+  ),
   renderPublishedEmailTemplateForSend: vi.fn(),
   sendTransactionalEmail: vi.fn(),
 }));
 
 vi.mock('@/libs/email-templates/emailTemplateRendering', () => ({
+  emailTemplateMetadata: mocks.emailTemplateMetadata,
   renderPublishedEmailTemplateForSend:
     mocks.renderPublishedEmailTemplateForSend,
 }));

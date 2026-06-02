@@ -224,9 +224,6 @@ async function renderTemplateHtml(params: RenderTemplateParams) {
 export async function renderEditableEmailTemplate(params: RenderParams) {
   const { key } = params.revision.template;
   const entry = emailTemplateRegistryEntry(key);
-  if (!entry) {
-    throw new EmailTemplateRenderError(`Unknown email template key: ${key}`);
-  }
 
   try {
     assertKnownTokens({
@@ -323,5 +320,16 @@ export async function renderPublishedEmailTemplateForSend(params: {
     ...rendered,
     emailTemplateKey: params.key,
     emailTemplateRevisionId: revision.id,
+  };
+}
+
+export type PublishedEmailTemplateRender = NonNullable<
+  Awaited<ReturnType<typeof renderPublishedEmailTemplateForSend>>
+>;
+
+export function emailTemplateMetadata(rendered: PublishedEmailTemplateRender) {
+  return {
+    emailTemplateKey: rendered.emailTemplateKey,
+    emailTemplateRevisionId: rendered.emailTemplateRevisionId,
   };
 }

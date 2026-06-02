@@ -47,6 +47,9 @@ CREATE INDEX "email_templates_family_name_idx" ON "email_templates"("family", "n
 CREATE INDEX "email_template_revisions_template_id_status_published_at_idx" ON "email_template_revisions"("template_id", "status", "published_at");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "email_template_revisions_one_published_per_template_idx" ON "email_template_revisions"("template_id") WHERE "status" = 'published';
+
+-- CreateIndex
 CREATE INDEX "email_template_revisions_created_by_user_id_idx" ON "email_template_revisions"("created_by_user_id");
 
 -- CreateIndex
@@ -60,3 +63,10 @@ ALTER TABLE "email_template_revisions" ADD CONSTRAINT "email_template_revisions_
 
 -- AddForeignKey
 ALTER TABLE "email_template_revisions" ADD CONSTRAINT "email_template_revisions_published_by_user_id_fkey" FOREIGN KEY ("published_by_user_id") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddCheck
+ALTER TABLE "email_template_revisions" ADD CONSTRAINT "email_template_revisions_publish_metadata_check" CHECK (
+    ("status" = 'published' AND "published_at" IS NOT NULL AND "published_by_user_id" IS NOT NULL)
+    OR ("status" = 'draft' AND "published_at" IS NULL AND "published_by_user_id" IS NULL)
+    OR "status" = 'archived'
+);

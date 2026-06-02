@@ -6,14 +6,10 @@ const allowedTags = [
   'a',
   'blockquote',
   'br',
-  'em',
   'h2',
   'h3',
   'li',
-  'ol',
   'p',
-  'strong',
-  'ul',
 ] satisfies string[];
 
 const allowedAttributes: Record<string, string[]> = {
