@@ -1,8 +1,8 @@
-import type { ReactElement, ReactNode } from 'react';
+import type * as React from 'react';
 
 export type ProfileBannerState = {
   kind: 'success' | 'error';
-  message: ReactNode;
+  message: React.ReactNode;
 } | null;
 
 /**
@@ -11,9 +11,7 @@ export type ProfileBannerState = {
  * @param props - Banner state
  * @returns Paragraph or null
  */
-export function ProfileInlineBanner(props: {
-  banner: ProfileBannerState;
-}): ReactElement | null {
+export function ProfileInlineBanner(props: { banner: ProfileBannerState }) {
   if (!props.banner) {
     return null;
   }
