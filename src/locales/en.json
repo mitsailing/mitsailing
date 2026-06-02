@@ -9,7 +9,6 @@
     "pending_saving": "Saving...",
     "pending_sending": "Sending...",
     "pending_submitting": "Submitting...",
-    "paste_code": "Paste code",
     "resend_wait": "You can request a new code in {seconds}"
   },
   "MitSailingHome": {
@@ -83,7 +82,6 @@
     "site_brand_sailing": "Sailing",
     "nav_classes": "Classes & Ratings",
     "nav_fleet": "Fleet",
-    "nav_bluewater": "Bluewater",
     "nav_racing": "Racing",
     "nav_calendar": "Calendar",
     "nav_pricing": "Pricing",

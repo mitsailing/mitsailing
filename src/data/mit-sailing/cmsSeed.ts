@@ -551,14 +551,6 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
       },
       {
         kind: 'url_link',
-        id: 'cms-menu-header-bluewater',
-        label: 'Bluewater',
-        isExternal: false,
-        isVisible: false,
-        displayOrder: 20,
-      },
-      {
-        kind: 'url_link',
         id: 'cms-menu-header-racing',
         label: 'Racing',
         isExternal: false,

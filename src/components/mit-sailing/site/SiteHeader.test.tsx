@@ -12,7 +12,11 @@ import {
   setComponentTestSearchParams,
 } from '@/test/component';
 import { SiteHeader } from './SiteHeader';
-import type { SiteHeaderProps } from './SiteHeader';
+import type {
+  SiteHeaderMenuItem,
+  SiteHeaderMobileUtilityItem,
+  SiteHeaderProps,
+} from './SiteHeader';
 
 const authClientMock = vi.hoisted(() => ({
   signOut: vi.fn(),
@@ -33,11 +37,38 @@ const fleetDropdownItems = [
   { label: 'Laser Radial', href: '/fleet/laser-radial' },
 ];
 
+const headerMenuItems: SiteHeaderMenuItem[] = [
+  {
+    href: '/classes',
+    id: 'classes',
+    label: 'Classes & Ratings',
+    systemKey: 'classes',
+  },
+  { href: '/fleet', id: 'fleet', label: 'Fleet', systemKey: 'fleet' },
+  { href: '#', id: 'racing', label: 'Racing' },
+  { href: '/events', id: 'calendar', label: 'Calendar' },
+  { href: '/pricing', id: 'pricing', label: 'Pricing' },
+  { href: '/about', id: 'about', label: 'About' },
+  { href: '#', id: 'resources', label: 'Resources' },
+];
+
+const mobileUtilityItems: SiteHeaderMobileUtilityItem[] = [
+  {
+    href: '/reserve',
+    id: 'reserve',
+    label: 'Reserve Pavilion',
+  },
+  { href: '/contact', id: 'directions', label: 'Directions' },
+  { href: '/donate', id: 'donate', label: 'Donate' },
+];
+
 function renderHeader(props: Partial<SiteHeaderProps> = {}) {
   return render(
     <SiteHeader
       classesDropdownItems={classesDropdownItems}
       fleetDropdownItems={fleetDropdownItems}
+      headerMenuItems={headerMenuItems}
+      mobileUtilityItems={mobileUtilityItems}
       {...props}
     />
   );
@@ -81,8 +112,8 @@ describe('SiteHeader', () => {
       within(primaryNav).getByRole('button', { name: 'Fleet' })
     ).toBeVisible();
     expect(
-      within(primaryNav).getByRole('link', { name: 'Bluewater' })
-    ).toHaveAttribute('href', '#');
+      within(primaryNav).queryByRole('link', { name: 'Bluewater' })
+    ).not.toBeInTheDocument();
     expect(
       within(primaryNav).getByRole('link', { name: 'Calendar' })
     ).toHaveAttribute('href', '/events');
@@ -102,6 +133,38 @@ describe('SiteHeader', () => {
       'href',
       '/signup?callbackUrl=%2Ffleet%3Fcategory%3Ddinghy'
     );
+  });
+
+  it('renders no CMS nav links when CMS menus are empty', async () => {
+    const user = userEvent.setup();
+
+    renderHeader({ headerMenuItems: [], mobileUtilityItems: [] });
+
+    const banner = screen.getByRole('banner');
+    const primaryNav = within(banner).getByRole('navigation', {
+      name: 'Main navigation',
+    });
+    expect(
+      within(primaryNav).queryByRole('button', { name: 'Classes & Ratings' })
+    ).not.toBeInTheDocument();
+    expect(
+      within(primaryNav).queryByRole('link', { name: 'Calendar' })
+    ).not.toBeInTheDocument();
+
+    const openButton = screen.getByRole('button', { name: 'Open menu' });
+    await waitFor(() => {
+      expect(openButton).toBeEnabled();
+    });
+
+    await user.click(openButton);
+    const dialog = screen.getByRole('dialog', { name: 'Main navigation' });
+    expect(
+      within(dialog).queryByRole('link', { name: 'Reserve Pavilion' })
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('link', { name: 'Calendar' })
+    ).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: 'Log in' })).toBeVisible();
   });
 
   it('renders profile and sign out for signed-in users', () => {
@@ -211,6 +274,8 @@ describe('SiteHeader', () => {
       <SiteHeader
         classesDropdownItems={classesDropdownItems}
         fleetDropdownItems={fleetDropdownItems}
+        headerMenuItems={headerMenuItems}
+        mobileUtilityItems={mobileUtilityItems}
       />
     );
 
@@ -356,6 +421,8 @@ describe('SiteHeader', () => {
           <SiteHeader
             classesDropdownItems={classesDropdownItems}
             fleetDropdownItems={fleetDropdownItems}
+            headerMenuItems={headerMenuItems}
+            mobileUtilityItems={mobileUtilityItems}
           />
         </>
       );

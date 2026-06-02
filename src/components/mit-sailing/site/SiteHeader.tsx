@@ -80,9 +80,9 @@ function sessionHasUser(data: unknown): data is { user: { id: string } } {
 
 export type SiteHeaderProps = {
   /** Top-level public nav items from the CMS header menu. */
-  headerMenuItems?: SiteHeaderMenuItem[];
+  headerMenuItems: SiteHeaderMenuItem[];
   /** Mobile-only public utility links from the CMS mobile utility menu. */
-  mobileUtilityItems?: SiteHeaderMobileUtilityItem[];
+  mobileUtilityItems: SiteHeaderMobileUtilityItem[];
   /** Items for the Fleet dropdown — generated server-side from Prisma. */
   fleetDropdownItems: NavigationDropdownItem[];
   /** Items for the Classes dropdown (ordered categories → `/classes#slug`). */
@@ -99,47 +99,6 @@ export type SiteHeaderProps = {
    */
   initialShowAdminLink?: boolean;
 };
-
-function defaultHeaderMenuItems(
-  t: ReturnType<typeof useTranslations<'MitSailingSite'>>
-): SiteHeaderMenuItem[] {
-  return [
-    {
-      id: 'classes',
-      label: t('nav_classes'),
-      href: '/classes',
-      systemKey: 'classes',
-    },
-    { id: 'fleet', label: t('nav_fleet'), href: '/fleet', systemKey: 'fleet' },
-    { id: 'bluewater', label: t('nav_bluewater'), href: '#' },
-    { id: 'racing', label: t('nav_racing'), href: '#' },
-    { id: 'calendar', label: t('nav_calendar'), href: '/events' },
-    { id: 'pricing', label: t('nav_pricing'), href: '/pricing' },
-    { id: 'about', label: t('nav_about'), href: '/about' },
-    { id: 'resources', label: t('nav_resources'), href: '#' },
-  ];
-}
-
-function defaultMobileUtilityItems(
-  t: ReturnType<typeof useTranslations<'MitSailingSite'>>
-): SiteHeaderMobileUtilityItem[] {
-  return [
-    {
-      id: 'reserve',
-      label: t('util_reserve_pavilion'),
-      href: '/reserve',
-    },
-    { id: 'directions', label: t('util_directions'), href: '/contact' },
-    { id: 'donate', label: t('util_donate'), href: '/donate' },
-  ];
-}
-
-function configuredHeaderMenuItems(props: {
-  headerMenuItems: SiteHeaderProps['headerMenuItems'];
-  t: ReturnType<typeof useTranslations<'MitSailingSite'>>;
-}): SiteHeaderMenuItem[] {
-  return props.headerMenuItems ?? defaultHeaderMenuItems(props.t);
-}
 
 function withGeneratedDropdowns(props: {
   items: SiteHeaderMenuItem[];
@@ -162,13 +121,6 @@ function withGeneratedDropdowns(props: {
     }
     return item;
   });
-}
-
-function configuredMobileUtilityItems(props: {
-  mobileUtilityItems: SiteHeaderProps['mobileUtilityItems'];
-  t: ReturnType<typeof useTranslations<'MitSailingSite'>>;
-}): SiteHeaderMobileUtilityItem[] {
-  return props.mobileUtilityItems ?? defaultMobileUtilityItems(props.t);
 }
 
 function profileLinkTargetProps(pathname: string) {
@@ -243,6 +195,120 @@ function PrimaryNavBranch(props: {
   );
 }
 
+function MobileUtilityLink(
+  props: Readonly<{
+    item: SiteHeaderMobileUtilityItem;
+    onNavigate: () => void;
+  }>
+) {
+  const href = safeCmsHref(props.item.href);
+  if (!href) {
+    return null;
+  }
+
+  if (props.item.isExternal || !isAppRelativeCmsHref(href)) {
+    return (
+      <a
+        className={mobileLinkClassName}
+        href={href}
+        onClick={props.onNavigate}
+        {...externalCmsLinkProps(href)}
+      >
+        {props.item.label}
+      </a>
+    );
+  }
+
+  return (
+    <Link
+      className={mobileLinkClassName}
+      href={href}
+      onClick={props.onNavigate}
+    >
+      {props.item.label}
+    </Link>
+  );
+}
+
+function MobileAuthActions(
+  props: Readonly<{
+    adminLabel: string;
+    authCallbackUrl: string;
+    displayAdminLink: boolean;
+    displayAuthenticated: boolean;
+    loadingLabel: string;
+    locale: string;
+    loginLabel: string;
+    onNavigate: () => void;
+    profileLabel: string;
+    profileLinkProps: ReturnType<typeof profileLinkTargetProps>;
+    showAuthPending: boolean;
+    signOutLabel: string;
+    signupLabel: string;
+  }>
+) {
+  return (
+    <div className="mt-4 flex min-h-[92px] flex-col gap-2 border-t border-mit-line pt-4">
+      {props.showAuthPending ? (
+        <div
+          aria-busy="true"
+          aria-live="polite"
+          className="flex min-h-[92px] flex-col justify-center"
+          role="status"
+        >
+          <span className="sr-only">{props.loadingLabel}</span>
+        </div>
+      ) : null}
+      {!props.showAuthPending && !props.displayAuthenticated ? (
+        <>
+          <Link
+            className={mobileGuestLoginClass}
+            href={authHrefWithCallback('/login', props.authCallbackUrl)}
+            onClick={props.onNavigate}
+          >
+            {props.loginLabel}
+          </Link>
+          <Link
+            className={mobileGuestSignupClass}
+            href={authHrefWithCallback('/signup', props.authCallbackUrl)}
+            onClick={props.onNavigate}
+          >
+            {props.signupLabel}
+          </Link>
+        </>
+      ) : null}
+      {!props.showAuthPending && props.displayAuthenticated ? (
+        <>
+          {props.displayAdminLink ? (
+            <Link
+              className={`${mobileGuestLoginClass} w-full`}
+              href="/admin"
+              onClick={props.onNavigate}
+            >
+              {props.adminLabel}
+            </Link>
+          ) : null}
+          <Link
+            className={`${mobileGuestLoginClass} w-full`}
+            href="/profile"
+            onClick={props.onNavigate}
+            {...props.profileLinkProps}
+          >
+            {props.profileLabel}
+          </Link>
+          <SignOutForm
+            buttonClassName={mobileSignOutClass}
+            label={props.signOutLabel}
+            locale={props.locale}
+            onSignOutStart={props.onNavigate}
+            redirectPath="/"
+          />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * Sticky top-of-page site header with primary nav, fleet/classes dropdowns, and mobile menu.
  *
@@ -290,17 +356,10 @@ export function SiteHeader(props: SiteHeaderProps) {
       : clientAdminLinkVisible;
 
   const navItems = withGeneratedDropdowns({
-    items: configuredHeaderMenuItems({
-      headerMenuItems: props.headerMenuItems,
-      t,
-    }),
+    items: props.headerMenuItems,
     fleetDropdownItems: props.fleetDropdownItems,
     classesDropdownItems: props.classesDropdownItems,
     sailingRatingsLabel: t('nav_sailing_ratings'),
-  });
-  const mobileUtilityItems = configuredMobileUtilityItems({
-    mobileUtilityItems: props.mobileUtilityItems,
-    t,
   });
   const search = searchParams?.toString() ?? '';
   const authCallbackUrl = safeAuthCallbackUrl(
@@ -393,32 +452,13 @@ export function SiteHeader(props: SiteHeaderProps) {
     return (
       <>
         <nav aria-label={primaryNavAria} className="flex flex-col gap-1">
-          {mobileUtilityItems.map((link) => {
-            const href = safeCmsHref(link.href);
-            if (!href) {
-              return null;
-            }
-            return link.isExternal || !isAppRelativeCmsHref(href) ? (
-              <a
-                className={mobileLinkClassName}
-                href={href}
-                key={link.id}
-                onClick={closeMobile}
-                {...externalCmsLinkProps(href)}
-              >
-                {link.label}
-              </a>
-            ) : (
-              <Link
-                className={mobileLinkClassName}
-                href={href}
-                key={link.id}
-                onClick={closeMobile}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
+          {props.mobileUtilityItems.map((link) => (
+            <MobileUtilityLink
+              item={link}
+              key={link.id}
+              onNavigate={closeMobile}
+            />
+          ))}
           {navItems.map((item) => (
             <PrimaryNavBranch
               flatLinkClass={mobileLinkClassName}
@@ -433,66 +473,21 @@ export function SiteHeader(props: SiteHeaderProps) {
             />
           ))}
         </nav>
-        <div className="mt-4 flex min-h-[92px] flex-col gap-2 border-t border-mit-line pt-4">
-          {showAuthPending ? (
-            <div
-              aria-busy="true"
-              aria-live="polite"
-              className="flex min-h-[92px] flex-col justify-center"
-              role="status"
-            >
-              <span className="sr-only">
-                {t('a11y_header_session_loading')}
-              </span>
-            </div>
-          ) : null}
-          {!showAuthPending && !displayAuthenticated ? (
-            <>
-              <Link
-                className={mobileGuestLoginClass}
-                href={loginHref}
-                onClick={closeMobile}
-              >
-                {t('auth_log_in')}
-              </Link>
-              <Link
-                className={mobileGuestSignupClass}
-                href={signupHref}
-                onClick={closeMobile}
-              >
-                {t('auth_create_account')}
-              </Link>
-            </>
-          ) : null}
-          {!showAuthPending && displayAuthenticated ? (
-            <>
-              {displayAdminLink ? (
-                <Link
-                  className={`${mobileGuestLoginClass} w-full`}
-                  href="/admin"
-                  onClick={closeMobile}
-                >
-                  {tAccount('admin_link')}
-                </Link>
-              ) : null}
-              <Link
-                className={`${mobileGuestLoginClass} w-full`}
-                href="/profile"
-                onClick={closeMobile}
-                {...profileLinkProps}
-              >
-                {tAccount('user_profile_link')}
-              </Link>
-              <SignOutForm
-                buttonClassName={mobileSignOutClass}
-                label={tAccount('sign_out')}
-                locale={locale}
-                onSignOutStart={closeMobile}
-                redirectPath="/"
-              />
-            </>
-          ) : null}
-        </div>
+        <MobileAuthActions
+          adminLabel={tAccount('admin_link')}
+          authCallbackUrl={authCallbackUrl}
+          displayAdminLink={displayAdminLink}
+          displayAuthenticated={displayAuthenticated}
+          loadingLabel={t('a11y_header_session_loading')}
+          locale={locale}
+          loginLabel={t('auth_log_in')}
+          onNavigate={closeMobile}
+          profileLabel={tAccount('user_profile_link')}
+          profileLinkProps={profileLinkProps}
+          showAuthPending={showAuthPending}
+          signOutLabel={tAccount('sign_out')}
+          signupLabel={t('auth_create_account')}
+        />
       </>
     );
   }

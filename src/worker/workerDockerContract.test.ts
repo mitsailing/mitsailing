@@ -29,6 +29,9 @@ function readPackageScripts(): Record<string, string> {
 }
 
 describe('worker Docker contract', () => {
+  const readonlySeedCopyPrefix =
+    'COPY --from=builder --chown=nextjs:nodejs --chmod=0444';
+
   it('builds an ESM worker bundle with a Node require shim', () => {
     const scripts = readPackageScripts();
     const dockerfile = readRepoFile('Dockerfile');
@@ -58,5 +61,56 @@ describe('worker Docker contract', () => {
 
     expect(composeFile).toContain('image: redis:8-alpine');
     expect(dockerWorkflow).toContain('redis:8-alpine');
+  });
+
+  it('ships production seed dependencies with the production image', () => {
+    const dockerfile = readRepoFile('Dockerfile');
+
+    expect(dockerfile).toContain(
+      `${readonlySeedCopyPrefix} /app/tsconfig.json ./tsconfig.json`
+    );
+    expect(dockerfile).toContain(
+      `${readonlySeedCopyPrefix} /app/src/lib/mit-sailing/nyTime.ts ./src/lib/mit-sailing/nyTime.ts`
+    );
+    expect(dockerfile).toContain(
+      `${readonlySeedCopyPrefix} /app/src/data ./src/data`
+    );
+    expect(dockerfile).toContain(
+      `${readonlySeedCopyPrefix} /app/src/generated ./src/generated`
+    );
+    expect(dockerfile).toContain(
+      `${readonlySeedCopyPrefix} /app/src/libs/DB.ts ./src/libs/DB.ts`
+    );
+    expect(dockerfile).toContain(
+      `${readonlySeedCopyPrefix} /app/src/libs/Env.ts ./src/libs/Env.ts`
+    );
+    expect(dockerfile).toContain(
+      `${readonlySeedCopyPrefix} /app/src/libs/auth/passwordHashing.ts ./src/libs/auth/passwordHashing.ts`
+    );
+    expect(dockerfile).toContain(
+      `${readonlySeedCopyPrefix} /app/src/libs/auth/roles.ts ./src/libs/auth/roles.ts`
+    );
+    expect(dockerfile).toContain(
+      `${readonlySeedCopyPrefix} /app/src/libs/legacy-sync/legacyMysqlSyncConstants.ts ./src/libs/legacy-sync/legacyMysqlSyncConstants.ts`
+    );
+    expect(dockerfile).toContain(
+      `${readonlySeedCopyPrefix} /app/src/libs/mit-sailing/pavilionReservationPersonas.ts ./src/libs/mit-sailing/pavilionReservationPersonas.ts`
+    );
+  });
+
+  it('raises Node heap only during the Docker builder stage', () => {
+    const dockerfile = readRepoFile('Dockerfile');
+    const builderStagePattern =
+      /FROM node:\$\{NODE_VERSION\} AS builder[\s\S]*?FROM node:\$\{NODE_VERSION\} AS prod/u;
+    const prodStagePattern = /FROM node:\$\{NODE_VERSION\} AS prod[\s\S]*/u;
+    const builderStage = builderStagePattern.exec(dockerfile)?.[0];
+    const prodStage = prodStagePattern.exec(dockerfile)?.[0];
+
+    expect(builderStage).toContain(
+      'ENV NODE_OPTIONS=--max-old-space-size=4096'
+    );
+    expect(prodStage).not.toContain(
+      'ENV NODE_OPTIONS=--max-old-space-size=4096'
+    );
   });
 });

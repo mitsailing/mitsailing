@@ -66,6 +66,21 @@ describe('single host deploy script', () => {
     expect(script).toContain('verify_started_app_cms_media_bind_mounts');
   });
 
+  it('resolves relative deploy dir before deriving state paths', () => {
+    const deployDirDefault = shellVariable('DEPLOY_DIR:-$HOME/apps/mitsailing');
+    const deployDir = shellVariable('DEPLOY_DIR');
+
+    expect(script).toContain('resolve_deploy_dir');
+    expect(script).toContain(
+      `readonly DEPLOY_DIR="$(resolve_deploy_dir "${deployDirDefault}")"`
+    );
+    expect(
+      script.indexOf('readonly DEPLOY_DIR="$(resolve_deploy_dir')
+    ).toBeLessThan(
+      script.indexOf(`readonly DEPLOY_STATE_DIR="${deployDir}/.deploy"`)
+    );
+  });
+
   it('keeps pgdata marker expansion inside the postgres container shell', () => {
     const pgdata = `${shellEscape}${shellVariable('PGDATA')}`;
     const pgdataWithFallback = `${shellEscape}${shellVariable('PGDATA:-')}`;
@@ -126,7 +141,7 @@ describe('single host deploy script', () => {
     );
     expect(script).toContain('const signal = AbortSignal.timeout(timeoutMs);');
     expect(script).toMatch(
-      /fetch\("http:\/\/127\.0\.0\.1:3000\/api\/health\/ready", \{\s+headers: \{ Authorization: `Bearer \$\{secret\}` \},\s+signal,\s+\}\)/u
+      /fetch\("http:\/\/127\.0\.0\.1:3000\/api\/health\/ready\?mode=service", \{\s+headers: \{ Authorization: `Bearer \$\{secret\}` \},\s+signal,\s+\}\)/u
     );
   });
 
