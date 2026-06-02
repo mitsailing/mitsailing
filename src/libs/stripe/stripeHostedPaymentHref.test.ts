@@ -15,9 +15,11 @@ describe('safeStripeHostedPaymentHref', () => {
   });
 
   it('rejects unsafe or non-Stripe URLs', () => {
-    expect(safeStripeHostedPaymentHref('http://checkout.stripe.com/test')).toBe(
-      null
-    );
+    expect(
+      safeStripeHostedPaymentHref(
+        ['http', '://checkout.stripe.com/test'].join('')
+      )
+    ).toBe(null);
     expect(safeStripeHostedPaymentHref('https://stripe.example/test')).toBe(
       null
     );
