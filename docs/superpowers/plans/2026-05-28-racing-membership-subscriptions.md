@@ -703,6 +703,8 @@ Expected: all commands pass.
 
 **Readiness reconciliation:** The schema snippets below were written before the current unified `Payment` model landed. Treat the price catalog as the default PR 2 schema work; defer subscription, cancellation, notification, and checkout-specific `Payment` fields until the PR that first needs them. Do not add separate `SailingCardMembershipPayment` or `SailingCardMembershipRefund` tables unless the structural simplicity review, current Stripe docs via Context7, and failing tests prove that `Payment` plus `purpose`, `source`, `status`, Stripe IDs, and narrow extension fields cannot represent the current PR's payment/refund/invoice needs. Do add one focused `SailingCardSubscription` table in PR 4A because Stripe's subscription lifecycle docs call for local subscription identity/status storage for app access decisions. If any additional split is justified, record the lifecycle boundary in `local/agent-runs/<branch-slug>/conductor.md` before editing schema.
 
+**Package/local-pattern decision:** Using existing pattern/package Stripe's official SDK for Product and Price calls because Stripe owns immutable Price behavior, lookup keys, and idempotency semantics. No package because the app-specific membership price catalog, July 15 date selection, and Stripe-readiness gate are narrow business rules over local Prisma rows rather than a reusable pricing engine or calendar engine.
+
 **Estimated changed files:** 30-45 total, implemented as two review units by default.
 
 **Default split:** PR 2A covers schema, date helpers, pricing read helpers, and seed parity. PR 2B covers admin pricing writes/UI and Stripe Price sync. Schema + admin UI + Stripe side effects in one PR is a split trigger even if the file count is under 70.
