@@ -43,6 +43,22 @@ type MembershipPaymentReminderQueue = Pick<
   'add'
 >;
 
+type MembershipPaymentReminderPayment = {
+  readonly amountCents: number;
+  readonly cardType: SailingCardType | null;
+  readonly cardYear: number | null;
+  readonly currency: string;
+  readonly id: string;
+  readonly purpose: PaymentPurpose;
+  readonly status: PaymentStatus;
+  readonly user: { readonly email: string; readonly id: string } | null;
+};
+
+type EligibleMembershipPayment = MembershipPaymentReminderPayment & {
+  readonly cardYear: number;
+  readonly user: { readonly email: string; readonly id: string };
+};
+
 const eligibleReminderStatuses: ReadonlySet<PaymentStatus> = new Set([
   PaymentStatus.pending,
   PaymentStatus.checkout_created,
@@ -64,6 +80,17 @@ function membershipCardType(
   return null;
 }
 
+function eligibleMembershipPayment(
+  payment: MembershipPaymentReminderPayment | null
+): payment is EligibleMembershipPayment {
+  return (
+    payment?.purpose === PaymentPurpose.membership &&
+    eligibleReminderStatuses.has(payment.status) &&
+    payment.cardYear !== null &&
+    Boolean(payment.user?.email)
+  );
+}
+
 async function findMembershipPayment(paymentId: string) {
   const payment = await prisma.payment.findUnique({
     select: {
@@ -79,14 +106,7 @@ async function findMembershipPayment(paymentId: string) {
     where: { id: paymentId },
   });
   const cardType = membershipCardType(payment?.cardType ?? null);
-  if (
-    !payment ||
-    payment.purpose !== PaymentPurpose.membership ||
-    !eligibleReminderStatuses.has(payment.status) ||
-    cardType === null ||
-    payment.cardYear === null ||
-    !payment.user?.email
-  ) {
+  if (!eligibleMembershipPayment(payment) || cardType === null) {
     return null;
   }
   return {
@@ -107,6 +127,36 @@ export async function enqueueMembershipPaymentReminderJob(
   });
 }
 
+async function sendReminderForPayment(options: {
+  readonly dateKey: string;
+  readonly marker: { readonly claimId: string; readonly id: string };
+  readonly payment: NonNullable<
+    Awaited<ReturnType<typeof findMembershipPayment>>
+  >;
+}) {
+  try {
+    return await sendMembershipPaymentReminderEmail({
+      amount: formatUsdMinorUnitsAsCurrency(
+        options.payment.amountCents,
+        'en-US'
+      ),
+      cardType: options.payment.cardType,
+      cardYear: options.payment.cardYear,
+      emailDedupeKey: `${options.payment.id}:${options.dateKey}`,
+      onboardingUrl: onboardingUrl(),
+      paymentId: options.payment.id,
+      recipientEmail: options.payment.user.email,
+      userId: options.payment.user.id,
+    });
+  } catch (error) {
+    await clearNotificationClaim({
+      claimId: options.marker.claimId,
+      notificationId: options.marker.id,
+    });
+    throw error;
+  }
+}
+
 export async function processMembershipPaymentReminderJob(
   data: unknown
 ): Promise<void> {
@@ -125,25 +175,11 @@ export async function processMembershipPaymentReminderJob(
       return;
     }
 
-    let result: SendEmailResult;
-    try {
-      result = await sendMembershipPaymentReminderEmail({
-        amount: formatUsdMinorUnitsAsCurrency(payment.amountCents, 'en-US'),
-        cardType: payment.cardType,
-        cardYear: payment.cardYear,
-        emailDedupeKey: `${payment.id}:${params.dateKey}`,
-        onboardingUrl: onboardingUrl(),
-        paymentId: payment.id,
-        recipientEmail: payment.user.email,
-        userId: payment.user.id,
-      });
-    } catch (error) {
-      await clearNotificationClaim({
-        claimId: marker.claimId,
-        notificationId: marker.id,
-      });
-      throw error;
-    }
+    const result: SendEmailResult = await sendReminderForPayment({
+      dateKey: params.dateKey,
+      marker,
+      payment,
+    });
     await recordProviderMessageId({
       claimId: marker.claimId,
       notificationId: marker.id,

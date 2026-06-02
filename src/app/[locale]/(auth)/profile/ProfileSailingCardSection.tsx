@@ -105,11 +105,35 @@ function swimAgreementValue(props: {
   return props.value;
 }
 
-export function ProfileSailingCardSection(props: {
-  readonly locale: string;
-  readonly summary: ProfileSailingCardSummary;
+function ProfileSailingCardHeader(props: {
+  readonly status: ProfileSailingCardStatus;
+  readonly statusLabel: string;
+  readonly t: ReturnType<typeof useTranslations<'UserProfilePage'>>;
 }) {
-  const t = useTranslations('UserProfilePage');
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h2 className="text-lg font-medium" id="sailing-card-heading">
+          {props.t('profile_sailing_card_heading')}
+        </h2>
+        <p className="mt-2 max-w-2xl text-sm text-mit-text">
+          {props.t(statusHelpMessageKeys[props.status])}
+        </p>
+      </div>
+      <span className="w-fit rounded-full border border-mit-line bg-muted px-3 py-1 text-sm font-semibold text-foreground">
+        {props.statusLabel}
+      </span>
+    </div>
+  );
+}
+
+function ProfileSailingCardFacts(props: {
+  readonly cardType: string;
+  readonly locale: string;
+  readonly statusLabel: string;
+  readonly summary: ProfileSailingCardSummary;
+  readonly t: ReturnType<typeof useTranslations<'UserProfilePage'>>;
+}) {
   const expiresOn = formatProfileDate({
     iso: props.summary.expiresOnIso,
     locale: props.locale,
@@ -118,6 +142,68 @@ export function ProfileSailingCardSection(props: {
     iso: props.summary.requestedAtIso,
     locale: props.locale,
   });
+
+  return (
+    <dl className="mt-5 grid gap-4 border-t border-mit-line pt-5 sm:grid-cols-2 lg:grid-cols-3">
+      <ProfileSailingCardFact
+        label={props.t('profile_sailing_card_status')}
+        value={props.statusLabel}
+      />
+      <ProfileSailingCardFact
+        label={props.t('profile_sailing_card_assignment')}
+        value={props.t(assignmentMessageKeys[props.summary.assignment])}
+      />
+      {props.summary.cardNumber === null ? null : (
+        <ProfileSailingCardFact
+          label={props.t('profile_sailing_card_number')}
+          value={String(props.summary.cardNumber)}
+        />
+      )}
+      <ProfileSailingCardFact
+        label={props.t('profile_sailing_card_type')}
+        value={props.cardType}
+      />
+      <ProfileSailingCardFact
+        label={props.t('profile_sailing_card_year')}
+        value={
+          props.summary.cardYear === null
+            ? props.t('profile_not_set')
+            : String(props.summary.cardYear)
+        }
+      />
+      <ProfileSailingCardFact
+        label={props.t('profile_sailing_card_expires')}
+        value={expiresOn ?? props.t('profile_not_set')}
+      />
+      <ProfileSailingCardFact
+        label={props.t('profile_sailing_card_requested')}
+        value={requestedAt ?? props.t('profile_not_set')}
+      />
+      <ProfileSailingCardFact
+        label={props.t('profile_sailing_card_swim_agreement')}
+        value={swimAgreementValue({
+          emptyValue: props.t('profile_not_set'),
+          locale: props.locale,
+          summary: props.summary,
+          value: props.t('profile_sailing_card_swim_agreement_value', {
+            date:
+              formatProfileDate({
+                iso: props.summary.swimAgreementInitialedAtIso,
+                locale: props.locale,
+              }) ?? '',
+            initials: props.summary.swimAgreementInitials ?? '',
+          }),
+        })}
+      />
+    </dl>
+  );
+}
+
+export function ProfileSailingCardSection(props: {
+  readonly locale: string;
+  readonly summary: ProfileSailingCardSummary;
+}) {
+  const t = useTranslations('UserProfilePage');
   const statusLabel = t(sailingCardStatusMessageKeys[props.summary.status]);
   const cardType =
     props.summary.cardType === null
@@ -130,72 +216,18 @@ export function ProfileSailingCardSection(props: {
       className="rounded-lg border border-mit-line bg-card p-6 shadow-sm"
       id="sailing-card-section"
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-lg font-medium" id="sailing-card-heading">
-            {t('profile_sailing_card_heading')}
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm text-mit-text">
-            {t(statusHelpMessageKeys[props.summary.status])}
-          </p>
-        </div>
-        <span className="w-fit rounded-full border border-mit-line bg-muted px-3 py-1 text-sm font-semibold text-foreground">
-          {statusLabel}
-        </span>
-      </div>
-
-      <dl className="mt-5 grid gap-4 border-t border-mit-line pt-5 sm:grid-cols-2 lg:grid-cols-3">
-        <ProfileSailingCardFact
-          label={t('profile_sailing_card_status')}
-          value={statusLabel}
-        />
-        <ProfileSailingCardFact
-          label={t('profile_sailing_card_assignment')}
-          value={t(assignmentMessageKeys[props.summary.assignment])}
-        />
-        {props.summary.cardNumber === null ? null : (
-          <ProfileSailingCardFact
-            label={t('profile_sailing_card_number')}
-            value={String(props.summary.cardNumber)}
-          />
-        )}
-        <ProfileSailingCardFact
-          label={t('profile_sailing_card_type')}
-          value={cardType}
-        />
-        <ProfileSailingCardFact
-          label={t('profile_sailing_card_year')}
-          value={
-            props.summary.cardYear === null
-              ? t('profile_not_set')
-              : String(props.summary.cardYear)
-          }
-        />
-        <ProfileSailingCardFact
-          label={t('profile_sailing_card_expires')}
-          value={expiresOn ?? t('profile_not_set')}
-        />
-        <ProfileSailingCardFact
-          label={t('profile_sailing_card_requested')}
-          value={requestedAt ?? t('profile_not_set')}
-        />
-        <ProfileSailingCardFact
-          label={t('profile_sailing_card_swim_agreement')}
-          value={swimAgreementValue({
-            emptyValue: t('profile_not_set'),
-            locale: props.locale,
-            summary: props.summary,
-            value: t('profile_sailing_card_swim_agreement_value', {
-              date:
-                formatProfileDate({
-                  iso: props.summary.swimAgreementInitialedAtIso,
-                  locale: props.locale,
-                }) ?? '',
-              initials: props.summary.swimAgreementInitials ?? '',
-            }),
-          })}
-        />
-      </dl>
+      <ProfileSailingCardHeader
+        status={props.summary.status}
+        statusLabel={statusLabel}
+        t={t}
+      />
+      <ProfileSailingCardFacts
+        cardType={cardType}
+        locale={props.locale}
+        statusLabel={statusLabel}
+        summary={props.summary}
+        t={t}
+      />
     </section>
   );
 }
