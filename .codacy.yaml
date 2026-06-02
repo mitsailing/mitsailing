@@ -4,17 +4,30 @@
 # should be fixed or triaged instead of hidden here.
 # React TSX is covered by Codacy's Biome config in .biome.json.
 exclude_paths:
+  # Local Codacy CLI state.
+  - '.codacy/**'
+  # Next.js and production build artifacts.
   - '.next/**'
   - 'out/**'
+  - 'build/**'
+  - '.vercel/**'
+  # Coverage and generated test result reports.
   - 'coverage/**'
+  - 'test-report.junit.xml'
   - 'playwright-report/**'
   - 'blob-report/**'
   - 'test-results/**'
   - 'vitest-test-results/**'
+  - '.vitest-attachments/**'
+  - 'playwright/.cache/**'
+  # Storybook build output.
   - 'storybook-static/**'
-  - 'node_modules/**'
+  # Generated framework and ORM output.
+  - '*.tsbuildinfo'
+  - 'next-env.d.ts'
   - 'src/generated/**'
   - 'zenstack/**'
+  # Database migrations are reviewed in code review, not static metrics.
   - 'prisma/migrations/**'
   # Repo agent instructions are policy prose, not app source.
   - 'AGENTS.md'
