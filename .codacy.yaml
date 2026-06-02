@@ -1,4 +1,7 @@
 ---
+# Keep Codacy exclusions scoped to generated, build, report, vendored, migration,
+# policy prose, or documented analyzer-mismatch files. App-owned source findings
+# should be fixed or triaged instead of hidden here.
 # React TSX is covered by Codacy's Biome config in .biome.json.
 exclude_paths:
   - '.next/**'
