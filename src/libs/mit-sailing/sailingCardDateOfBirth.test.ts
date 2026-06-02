@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   formatSailingCardDateOfBirthInput,
   normalizeSailingCardDateOfBirthInput,
@@ -8,6 +8,10 @@ import {
 const now = new Date('2026-05-31T12:00:00.000Z');
 
 describe('sailingCardDateOfBirth', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('expands short numeric birth years on blur', () => {
     expect(normalizeSailingCardDateOfBirthInput({ now, value: '032488' })).toBe(
       '03/24/1988'
@@ -16,6 +20,18 @@ describe('sailingCardDateOfBirth', () => {
 
   it('formats browser iso birthdays as us dates', () => {
     expect(formatSailingCardDateOfBirthInput('1988-03-24')).toBe('03/24/1988');
+  });
+
+  it('formats slash autofill birthdays without breaking typed short years', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    expect(formatSailingCardDateOfBirthInput('3/4/1988')).toBe('03/04/1988');
+    expect(formatSailingCardDateOfBirthInput('3/4/88')).toBe('03/04/1988');
+    expect(formatSailingCardDateOfBirthInput('03/24/88')).toBe('03/24/88');
+    expect(
+      normalizeSailingCardDateOfBirthInput({ now, value: '03/24/88' })
+    ).toBe('03/24/1988');
   });
 
   it('keeps invalid structured birthdays unchanged', () => {

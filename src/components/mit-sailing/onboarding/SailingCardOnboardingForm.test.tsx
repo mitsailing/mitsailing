@@ -467,15 +467,20 @@ describe('SailingCardOnboardingForm', () => {
     expect(dateOfBirth).not.toHaveAttribute('aria-invalid', 'true');
   });
 
-  it('normalizes browser autofilled iso dates of birth', async () => {
+  it.each([
+    ['Chrome or Android native date autofill', '1988-03-24', '03/24/1988'],
+    ['Windows or Chrome US slash autofill', '3/24/1988', '03/24/1988'],
+    ['iPhone short-year slash autofill', '3/24/88', '03/24/1988'],
+  ])('normalizes %s', async (_name, value, expected) => {
     renderForm();
 
     await showWellesleyDetails();
     const dateOfBirth = screen.getByLabelText('Date of birth');
 
-    fireEvent.change(dateOfBirth, { target: { value: '1988-03-24' } });
+    fireEvent.change(dateOfBirth, { target: { value } });
+    fireEvent.blur(dateOfBirth);
 
-    expect(dateOfBirth).toHaveValue('03/24/1988');
+    expect(dateOfBirth).toHaveValue(expected);
   });
 
   it('restores full draft progress after remount without storing contact details', async () => {

@@ -165,4 +165,23 @@ describe('membershipSubscriptions', () => {
       }).kind
     ).toBe('pending_checkout');
   });
+
+  it('does not treat paused or duplicate subscriptions as active paid access', () => {
+    for (const status of [
+      SailingCardSubscriptionStatus.paused,
+      SailingCardSubscriptionStatus.duplicate,
+    ]) {
+      expect(
+        membershipProfileState({
+          access: 'paid_racing_available',
+          latestPayment: payment(),
+          subscription: subscription({ status }),
+        })
+      ).toMatchObject({
+        canOpenBillingPortal: false,
+        canTurnOffAutoRenew: false,
+        kind: 'no_paid_membership',
+      });
+    }
+  });
 });

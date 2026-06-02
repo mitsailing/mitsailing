@@ -775,6 +775,26 @@ describe('submitSailingCardOnboardingAction', () => {
     expect(mocks.redirect).not.toHaveBeenCalledWith('/onboarding/success');
   });
 
+  it('preserves callback through paid racing checkout success', async () => {
+    const formData = paidRacingOnboardingFormData();
+    formData.set('callbackUrl', '/events/regatta/register');
+    const submitSailingCardOnboardingAction =
+      await loadSubmitSailingCardOnboardingAction();
+
+    await expect(
+      submitSailingCardOnboardingAction(idleState, formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:https://checkout.stripe.com/c/pay/cs_test'
+    );
+
+    expect(mocks.createMembershipCheckoutUrlForOnboarding).toHaveBeenCalledWith(
+      expect.objectContaining({
+        successUrl:
+          'http://localhost:3000/onboarding/success?callbackUrl=%2Fevents%2Fregatta%2Fregister&session_id={CHECKOUT_SESSION_ID}',
+      })
+    );
+  });
+
   it.each([
     ['unavailable', undefined],
     ['not eligible', { status: 'not_eligible' }],

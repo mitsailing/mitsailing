@@ -7,6 +7,10 @@ const migration = readFileSync(
   'prisma/migrations/20260531223000_add_sailing_card_subscriptions/migration.sql',
   'utf8'
 );
+const issueHandledKindMigration = readFileSync(
+  'prisma/migrations/20260602143000_payment_issue_handled_kind_check/migration.sql',
+  'utf8'
+);
 
 describe('membership subscription schema contract', () => {
   it('stores Stripe subscription state in one local subscription model', () => {
@@ -50,6 +54,13 @@ describe('membership subscription schema contract', () => {
     expect(compactZmodel).toContain('refundedAmountCents');
     expect(compactZmodel).toContain('issueKind');
     expect(compactZmodel).toContain('issueHandledByUserId');
+    expect(compactZmodel).toContain(
+      "issueHandledAt != null && (issueHandledNote == null || issueHandledNote == '' || issueHandledByUserId == null || issueKind == null)"
+    );
+    expect(issueHandledKindMigration).toContain('"issue_kind" IS NOT NULL');
+    expect(issueHandledKindMigration).toContain(
+      '"payments_issue_handled_fields_chk"'
+    );
     expect(compactZmodel).toContain('membershipConsentSnapshot Json?');
     expect(compactZmodel).toContain('source != stripe && (');
     expect(compactZmodel).toContain(

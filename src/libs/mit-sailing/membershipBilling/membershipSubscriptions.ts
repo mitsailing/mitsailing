@@ -161,6 +161,22 @@ export function membershipProfileState(props: {
     };
   }
 
+  if (
+    props.subscription.status === SailingCardSubscriptionStatus.paused ||
+    props.subscription.status === SailingCardSubscriptionStatus.duplicate
+  ) {
+    return {
+      ...baseProfileState({
+        kind:
+          props.access === 'free_normal' ? 'free_normal' : 'no_paid_membership',
+        latestPayment: props.latestPayment,
+        subscription: props.subscription,
+      }),
+      canOpenBillingPortal: false,
+      canTurnOffAutoRenew: false,
+    };
+  }
+
   if (props.subscription.cancelAtPeriodEnd) {
     return {
       ...baseProfileState({

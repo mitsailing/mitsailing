@@ -13,6 +13,7 @@ import {
   hasPermission,
   Permission,
 } from '@/libs/auth/appPermissions';
+import { safeAuthCallbackUrl } from '@/libs/auth/callbackUrl';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { Link } from '@/libs/I18nNavigation';
@@ -26,7 +27,7 @@ import { getI18nPath } from '@/utils/Helpers';
 
 type OnboardingSuccessPageProps = Readonly<{
   params: Promise<{ locale: string }>;
-  searchParams?: Promise<{ session_id?: string }>;
+  searchParams?: Promise<{ callbackUrl?: string; session_id?: string }>;
 }>;
 
 type SurfaceAction = {
@@ -177,6 +178,10 @@ function activeCheckoutUrl(payment: MembershipPaymentForRequest, now: Date) {
   return safeStripeHostedPaymentHref(payment.stripeCheckoutSessionUrl);
 }
 
+function postSuccessHref(callbackUrl: string | undefined) {
+  return safeAuthCallbackUrl(callbackUrl, '/events');
+}
+
 export async function generateMetadata(
   props: OnboardingSuccessPageProps
 ): Promise<Metadata> {
@@ -255,6 +260,7 @@ export default async function OnboardingSuccessPage(
       {t('admin_link')}
     </Link>
   ) : null;
+  const actionHref = postSuccessHref(searchParams.callbackUrl);
 
   if (latestRequest !== null && isPaidCardType(latestRequest.cardType)) {
     const payment = await getMembershipPaymentForRequest({
@@ -286,7 +292,7 @@ export default async function OnboardingSuccessPage(
     return (
       <SuccessSurface
         action={{
-          href: '/events',
+          href: actionHref,
           label: t('events_link'),
         }}
         adminLink={adminLink}
@@ -300,7 +306,7 @@ export default async function OnboardingSuccessPage(
   return (
     <SuccessSurface
       action={{
-        href: '/events',
+        href: actionHref,
         label: t('events_link'),
       }}
       adminLink={adminLink}

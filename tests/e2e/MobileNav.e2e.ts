@@ -2,9 +2,11 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 async function waitForSiteHeaderHydration(page: Page) {
-  await expect(
-    page.locator('button[aria-controls="site-header-mobile-menu"]').first()
-  ).toBeEnabled();
+  const mobileMenuButtons = page.locator(
+    'button[aria-controls="site-header-mobile-menu"]'
+  );
+  await expect(mobileMenuButtons).toHaveCount(1);
+  await expect(mobileMenuButtons).toBeEnabled();
 }
 
 test.describe('Mobile navigation', () => {

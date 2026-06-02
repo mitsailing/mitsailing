@@ -440,7 +440,10 @@ describe('onboarding pages', () => {
     render(
       await OnboardingSuccessPage({
         params: Promise.resolve({ locale: 'en' }),
-        searchParams: Promise.resolve({ session_id: 'cs_paid' }),
+        searchParams: Promise.resolve({
+          callbackUrl: '/events/regatta/register',
+          session_id: 'cs_paid',
+        }),
       })
     );
 
@@ -450,7 +453,7 @@ describe('onboarding pages', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'events_link' })).toHaveAttribute(
       'href',
-      '/events'
+      '/events/regatta/register'
     );
   });
 

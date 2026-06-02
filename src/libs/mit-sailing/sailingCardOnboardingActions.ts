@@ -375,8 +375,10 @@ const errorCode = (error: unknown) => {
 const membershipCheckoutStateForOnboarding = async (props: {
   readonly cardType: SailingCardType;
   readonly dateOfBirth: Date;
+  readonly destination: string;
   readonly locale: string;
   readonly sailingAffiliation: SailingAffiliation;
+  readonly successHref: string;
   readonly userEmail: string;
   readonly userId: string;
   readonly userName: string | null;
@@ -388,7 +390,10 @@ const membershipCheckoutStateForOnboarding = async (props: {
   if (props.cardType === SailingCardType.normal) {
     return { status: 'not_required' };
   }
-  const successHref = getI18nPath('/onboarding/success', props.locale);
+  const checkoutSuccessHref =
+    props.destination === props.successHref
+      ? props.successHref
+      : authHrefWithCallback(props.successHref, props.destination);
   let checkout: Awaited<
     ReturnType<typeof createMembershipCheckoutUrlForOnboarding>
   >;
@@ -402,7 +407,7 @@ const membershipCheckoutStateForOnboarding = async (props: {
       email: props.userEmail,
       name: props.userName,
       sailingAffiliation: props.sailingAffiliation,
-      successUrl: checkoutSuccessUrl(successHref),
+      successUrl: checkoutSuccessUrl(checkoutSuccessHref),
       userId: props.userId,
     });
   } catch (error) {
@@ -623,8 +628,10 @@ export const submitSailingCardOnboardingAction = async (
   const checkout = await membershipCheckoutStateForOnboarding({
     cardType,
     dateOfBirth,
+    destination,
     locale,
     sailingAffiliation: update.sailingAffiliation,
+    successHref,
     userEmail: typeof session.user.email === 'string' ? session.user.email : '',
     userId: session.user.id,
     userName: typeof session.user.name === 'string' ? session.user.name : null,
