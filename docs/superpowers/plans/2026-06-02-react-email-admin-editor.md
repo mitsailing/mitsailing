@@ -1165,7 +1165,7 @@ npm run check:types
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit transactional conversion**
+- [x] **Step 5: Commit transactional conversion**
 
 Run:
 
@@ -1321,7 +1321,7 @@ npm run check:types
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit admin editor**
+- [x] **Step 8: Commit admin editor**
 
 Run:
 
@@ -1395,7 +1395,7 @@ npm run check:types
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit newsletter editor**
+- [x] **Step 6: Commit newsletter editor**
 
 Run:
 
@@ -1410,7 +1410,7 @@ git commit -m "feat: use react email editor for newsletter broadcasts"
 - Modify: `README.md`
 - Add: `tests/e2e/AdminEmailTemplates.e2e.ts`
 
-- [ ] **Step 1: Add README directions**
+- [x] **Step 1: Add README directions**
 
 Modify `README.md` after the local admin login instructions with:
 
@@ -1428,7 +1428,7 @@ The React Email preview server uses the `react-email` CLI and `@react-email/ui`.
 Use the admin editor for newsletter broadcasts, Pavilion reservation emails, event payment emails, and membership payment reminders. Keep account-security/auth emails code-owned unless a later product/security review explicitly moves them into editable revisions.
 ```
 
-- [ ] **Step 2: Add e2e smoke**
+- [x] **Step 2: Add e2e smoke**
 
 Create `tests/e2e/AdminEmailTemplates.e2e.ts` based on the existing admin auth helper. The test should:
 
@@ -1439,7 +1439,7 @@ Create `tests/e2e/AdminEmailTemplates.e2e.ts` based on the existing admin auth h
 - save a draft with changed text;
 - verify the draft indicator appears.
 
-- [ ] **Step 3: Run local checks**
+- [x] **Step 3: Run local checks**
 
 Run:
 
@@ -1458,7 +1458,19 @@ Expected: PASS. If the e2e script does not accept a file argument, run:
 npm run e2e -- tests/e2e/AdminEmailTemplates.e2e.ts
 ```
 
-- [ ] **Step 4: Commit docs and verification**
+Verified on 2026-06-02 with:
+
+- `npm run check:deps`
+- `npm run lint`
+- `BETTER_AUTH_SECRET=development-secret-development-secret DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/dev_db NEXT_PUBLIC_APP_URL=http://localhost:3000 npm run check:types`
+- `npm run check:i18n`
+- `BETTER_AUTH_SECRET=development-secret-development-secret DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/dev_db NEXT_PUBLIC_APP_URL=http://localhost:3000 npm run test`
+- `BETTER_AUTH_SECRET=development-secret-development-secret NEXT_PUBLIC_APP_URL=http://localhost:3008 ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=dev-local-change-me PLAYWRIGHT_E2E_PORT=3008 npm run e2e:preflight`
+- `BETTER_AUTH_SECRET=development-secret-development-secret NEXT_PUBLIC_APP_URL=http://localhost:3008 ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=dev-local-change-me PLAYWRIGHT_E2E_PORT=3008 npm run e2e:build`
+- `BETTER_AUTH_SECRET=development-secret-development-secret NEXT_PUBLIC_APP_URL=http://localhost:3008 ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=dev-local-change-me PLAYWRIGHT_E2E_PORT=3008 npm run e2e -- tests/e2e/AdminEmailTemplates.e2e.ts`
+- `BETTER_AUTH_SECRET=development-secret-development-secret DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/dev_db NEXT_PUBLIC_APP_URL=http://localhost:3000 npm run build-local`
+
+- [x] **Step 4: Commit docs and verification**
 
 Run:
 
