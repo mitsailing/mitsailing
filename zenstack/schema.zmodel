@@ -173,6 +173,8 @@ model User {
   newsletterSubscriber                NewsletterSubscriber?
   newsletterBroadcasts                NewsletterBroadcast[]         @relation("NewsletterBroadcastCreatedBy")
   newsletterEvents                    NewsletterEvent[]             @relation("NewsletterEventActor")
+  emailTemplateRevisionsCreated       EmailTemplateRevision[]        @relation("EmailTemplateRevisionCreatedBy")
+  emailTemplateRevisionsPublished     EmailTemplateRevision[]        @relation("EmailTemplateRevisionPublishedBy")
   emailMessages                       EmailMessage[]
 
   @@unique([sailingCardYear, sailingCardNumber])
@@ -437,6 +439,23 @@ enum NewsletterBroadcastStatus {
   @@map("newsletter_broadcast_status")
 }
 
+enum EmailTemplateFamily {
+  newsletter
+  pavilion_reservation
+  event_payment
+  membership_payment
+
+  @@map("email_template_family")
+}
+
+enum EmailTemplateRevisionStatus {
+  draft
+  published
+  archived
+
+  @@map("email_template_revision_status")
+}
+
 enum NewsletterDeliveryStatus {
   queued
   sending
@@ -554,6 +573,52 @@ model NewsletterTemplate {
 
   @@index([isDefault])
   @@map("newsletter_templates")
+}
+
+model EmailTemplate {
+  id          String              @id @default(cuid())
+  key         String              @unique
+  family      EmailTemplateFamily
+  name        String
+  description String?             @db.Text
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  revisions EmailTemplateRevision[]
+
+  @@allow('read', auth() != null && auth().appRole == 'admin')
+  @@allow('all', auth() != null && auth().appRole == 'admin')
+  @@index([family, name])
+  @@map("email_templates")
+}
+
+model EmailTemplateRevision {
+  id                String                      @id @default(cuid())
+  templateId        String                      @map("template_id")
+  status            EmailTemplateRevisionStatus @default(draft)
+  subject           String
+  previewText       String                      @map("preview_text")
+  editorJson        Json?                       @map("editor_json")
+  editorBodyHtml    String                      @map("editor_body_html") @db.Text
+  renderedText      String                      @map("rendered_text") @db.Text
+  renderHash        String                      @map("render_hash")
+  createdByUserId   String?                     @map("created_by_user_id")
+  publishedByUserId String?                     @map("published_by_user_id")
+  publishedAt       DateTime?                   @map("published_at")
+  createdAt         DateTime                    @default(now()) @map("created_at")
+  updatedAt         DateTime                    @updatedAt @map("updated_at")
+
+  template    EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  createdBy   User?         @relation("EmailTemplateRevisionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  publishedBy User?         @relation("EmailTemplateRevisionPublishedBy", fields: [publishedByUserId], references: [id], onDelete: SetNull)
+
+  @@allow('read', auth() != null && auth().appRole == 'admin')
+  @@allow('all', auth() != null && auth().appRole == 'admin')
+  @@deny('post-update', templateId != before().templateId)
+  @@index([templateId, status, publishedAt])
+  @@index([createdByUserId])
+  @@index([publishedByUserId])
+  @@map("email_template_revisions")
 }
 
 model NewsletterBroadcast {

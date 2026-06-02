@@ -44,6 +44,18 @@ npm run db:seed
 
 Log in at `/login` with the `ADMIN_EMAIL` / `ADMIN_PASSWORD` values from `.env`.
 
+## Email Templates
+
+React Email templates live in `emails/` and can be previewed locally with:
+
+```shell
+npm run email:dev
+```
+
+The React Email preview server uses the `react-email` CLI and `@react-email/ui`. Admin-editable email content is managed at `/admin/email-templates` after logging in as an admin. The admin editor stores subject, preview text, editor JSON, sanitized editor body HTML, and plaintext revisions in the database; the TypeScript React Email files remain the code-owned layouts.
+
+Use the admin editor for newsletter broadcasts, Pavilion reservation emails, event payment emails, and membership payment reminders. Keep account-security/auth emails code-owned unless a later product/security review explicitly moves them into editable revisions.
+
 ## Production Data Locally
 
 Prefer developing against a fresh copy of production data when working on admin, CMS, reporting, auth, reservation, newsletter, or migration behavior.

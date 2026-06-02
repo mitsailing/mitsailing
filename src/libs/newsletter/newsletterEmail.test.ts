@@ -93,6 +93,26 @@ describe('newsletter email', () => {
     );
   });
 
+  it('renders editor html body safely', async () => {
+    const { renderNewsletterBroadcastEmail } =
+      await import('@/libs/newsletter/newsletterEmail');
+
+    const rendered = await renderNewsletterBroadcastEmail({
+      body: '<p>Hello sailors</p><script>alert("bad")</script>',
+      listName: 'General',
+      manageUrl: 'https://example.test/manage',
+      postalAddress: 'MIT Sailing Pavilion, Cambridge, MA',
+      previewText: 'News from the pavilion',
+      subject: 'Spring sailing',
+      unsubscribeUrl: 'https://example.test/unsubscribe',
+    });
+
+    expect(rendered.html).toContain('Hello sailors');
+    expect(rendered.html).not.toContain('<script>');
+    expect(rendered.text).toContain('Hello sailors');
+    expect(rendered.text).not.toContain('<p>');
+  });
+
   it('sends test copies without delivery tracking headers', async () => {
     const { sendNewsletterBroadcastTestEmail } =
       await import('@/libs/newsletter/newsletterEmail');

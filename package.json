@@ -79,6 +79,7 @@
     "@prisma/adapter-pg": "7.8.0",
     "@prisma/client": "7.8.0",
     "@prisma/extension-accelerate": "^3.0.1",
+    "@react-email/editor": "^1.5.3",
     "@sentry/nextjs": "^10.56.0",
     "@stripe/stripe-js": "9.7.0",
     "@t3-oss/env-nextjs": "^0.13.11",

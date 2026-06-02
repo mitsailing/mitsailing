@@ -4,6 +4,7 @@ export type EventPaymentReceiptTemplateProps = {
   actionLabel: string;
   amount: string;
   body: string;
+  bodyHtml?: string;
   eventName: string;
   eventAddress?: string | null;
   eventAddressUrl?: string | null;
@@ -25,6 +26,7 @@ export function EventPaymentReceiptTemplate(
       actionHref={props.receiptUrl ?? undefined}
       actionLabel={props.receiptUrl ? props.actionLabel : undefined}
       body={props.body}
+      bodyHtml={props.bodyHtml}
       details={[
         { label: props.fieldEvent, value: props.eventName },
         ...(props.eventAddress

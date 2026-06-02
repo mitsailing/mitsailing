@@ -1,9 +1,11 @@
 import { Heading, Section, Text } from 'react-email';
+import { SafeEmailTemplateBodyHtml } from '@/libs/email-templates/emailTemplateBodyHtml';
 import { EmailLayout } from './email-layout';
 import { heading, paragraph, section } from './email-styles';
 
 export type EventPaymentAdminDigestTemplateProps = {
   body: string;
+  bodyHtml?: string;
   deadline: string;
   eventName: string;
   fieldDeadline: string;
@@ -48,7 +50,11 @@ export function EventPaymentAdminDigestTemplate(
         <Heading as="h1" style={heading}>
           {props.title}
         </Heading>
-        <Text style={paragraph}>{props.body}</Text>
+        {props.bodyHtml ? (
+          <SafeEmailTemplateBodyHtml html={props.bodyHtml} />
+        ) : (
+          <Text style={paragraph}>{props.body}</Text>
+        )}
         <Section>
           <Text style={detailLabel}>{props.fieldDeadline}</Text>
           <Text style={detailValue}>{props.deadline}</Text>

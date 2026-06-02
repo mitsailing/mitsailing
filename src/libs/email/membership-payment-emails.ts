@@ -1,5 +1,9 @@
 import { render } from 'react-email';
 import { MembershipPaymentReminderTemplate } from '@/../emails/membership-payment-reminder';
+import {
+  emailTemplateMetadata,
+  renderPublishedEmailTemplateForSend,
+} from '@/libs/email-templates/emailTemplateRendering';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 import type { SendEmailResult } from '@/libs/email/sendTransactional';
 import enMessages from '@/locales/en.json';
@@ -38,6 +42,36 @@ export async function sendMembershipPaymentReminderEmail(
   params: MembershipPaymentReminderParams
 ): Promise<SendEmailResult> {
   const copy = enMessages.MembershipPaymentEmails;
+  const metadata = {
+    cardType: params.cardType,
+    cardYear: params.cardYear,
+    paymentId: params.paymentId,
+  };
+  const publishedTemplate = await renderPublishedEmailTemplateForSend({
+    key: 'membership_payment_reminder',
+    values: {
+      amount: params.amount,
+      cardType: copy[cardTypeLabels[params.cardType]],
+      cardYear: String(params.cardYear),
+      onboardingUrl: params.onboardingUrl,
+    },
+  });
+  if (publishedTemplate) {
+    return sendTransactionalEmail({
+      category: 'membership_payment_reminder',
+      html: publishedTemplate.html,
+      idempotencyKey: `membership-payment-reminder:${params.emailDedupeKey}`,
+      metadata: {
+        ...metadata,
+        ...emailTemplateMetadata(publishedTemplate),
+      },
+      subject: publishedTemplate.subject,
+      text: publishedTemplate.text,
+      to: params.recipientEmail,
+      userId: params.userId,
+    });
+  }
+
   const html = await render(
     MembershipPaymentReminderTemplate({
       actionLabel: copy.action_finish,
@@ -57,11 +91,7 @@ export async function sendMembershipPaymentReminderEmail(
     category: 'membership_payment_reminder',
     html,
     idempotencyKey: `membership-payment-reminder:${params.emailDedupeKey}`,
-    metadata: {
-      cardType: params.cardType,
-      cardYear: params.cardYear,
-      paymentId: params.paymentId,
-    },
+    metadata,
     subject: copy.reminder_subject,
     text: reminderText(params, copy),
     to: params.recipientEmail,

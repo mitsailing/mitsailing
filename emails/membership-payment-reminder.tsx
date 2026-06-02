@@ -4,6 +4,7 @@ export type MembershipPaymentReminderTemplateProps = Readonly<{
   actionLabel: string;
   amount: string;
   body: string;
+  bodyHtml?: string;
   cardType: string;
   cardYear: string;
   fieldAmount: string;
@@ -22,6 +23,7 @@ export function MembershipPaymentReminderTemplate(
       actionHref={props.onboardingUrl}
       actionLabel={props.actionLabel}
       body={props.body}
+      bodyHtml={props.bodyHtml}
       details={[
         { label: props.fieldCard, value: props.cardType },
         { label: props.fieldYear, value: props.cardYear },

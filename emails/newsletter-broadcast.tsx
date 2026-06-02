@@ -1,5 +1,6 @@
 import type * as React from 'react';
 import { Heading, Section, Text } from 'react-email';
+import { SafeEmailTemplateBodyHtml } from '@/libs/email-templates/emailTemplateBodyHtml';
 import { MarketingEmailLayout } from './email-layout';
 
 export type NewsletterBroadcastTemplateProps = Readonly<{
@@ -46,6 +47,10 @@ function bodyParagraphItems(body: string): { key: string; text: string }[] {
   }));
 }
 
+function containsHtml(value: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(value);
+}
+
 /**
  * Resend-style marketing broadcast email with local preference links.
  *
@@ -56,6 +61,7 @@ export function NewsletterBroadcastTemplate(
   props: NewsletterBroadcastTemplateProps
 ) {
   const paragraphs = bodyParagraphItems(props.body);
+  const isEditorHtml = containsHtml(props.body);
   return (
     <MarketingEmailLayout
       listName={props.listName}
@@ -68,11 +74,15 @@ export function NewsletterBroadcastTemplate(
         <Heading as="h1" style={heading}>
           {props.subject}
         </Heading>
-        {paragraphs.map((item) => (
-          <Text key={item.key} style={paragraph}>
-            {item.text}
-          </Text>
-        ))}
+        {isEditorHtml ? (
+          <SafeEmailTemplateBodyHtml html={props.body} />
+        ) : (
+          paragraphs.map((item) => (
+            <Text key={item.key} style={paragraph}>
+              {item.text}
+            </Text>
+          ))
+        )}
       </Section>
     </MarketingEmailLayout>
   );

@@ -1,6 +1,7 @@
 @layer theme, base, components, utilities;
 
 @import './mit-fonts.css';
+@import '@react-email/editor/themes/default.css';
 @import 'tailwindcss';
 @import './mit-theme.css';
 @import 'tw-animate-css';
