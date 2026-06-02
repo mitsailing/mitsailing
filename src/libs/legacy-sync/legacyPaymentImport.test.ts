@@ -5,6 +5,7 @@ import {
   PaymentStatus,
   SailingCardType,
 } from '@/generated/prisma/enums';
+import { Role } from '@/libs/auth/roles';
 import {
   buildLegacyMemberPaymentMap,
   importLegacyPaymentRows,
@@ -22,9 +23,8 @@ const mocks = vi.hoisted(() => ({
   executeRaw: vi.fn(),
   paymentCreateMany: vi.fn(),
   paymentFindMany: vi.fn(),
+  queryRaw: vi.fn(),
   transaction: vi.fn(),
-  userCreateMany: vi.fn(),
-  userFindMany: vi.fn(),
 }));
 
 type MockLegacyPaymentImportDb = {
@@ -33,10 +33,7 @@ type MockLegacyPaymentImportDb = {
     readonly findMany: typeof mocks.paymentFindMany;
   };
   readonly $executeRaw: typeof mocks.executeRaw;
-  readonly user: {
-    readonly createMany: typeof mocks.userCreateMany;
-    readonly findMany: typeof mocks.userFindMany;
-  };
+  readonly $queryRaw: typeof mocks.queryRaw;
 };
 
 type MockTransactionOperation = (
@@ -49,14 +46,72 @@ vi.mock('@/libs/DB', () => ({
   },
 }));
 
-function expectRawSqlContaining(
-  callIndex: number,
-  expected: readonly string[]
-) {
-  const query = String(mocks.executeRaw.mock.calls[callIndex]?.[0] ?? '');
-  for (const fragment of expected) {
-    expect(query).toContain(fragment);
+function rawSqlText(query: unknown): string {
+  if (Array.isArray(query)) {
+    return query.join('');
   }
+  if (typeof query === 'object' && query !== null && 'strings' in query) {
+    const candidate = query as { strings?: unknown };
+    if (Array.isArray(candidate.strings)) {
+      return candidate.strings.join('');
+    }
+  }
+  if (
+    typeof query === 'string' ||
+    typeof query === 'number' ||
+    typeof query === 'boolean'
+  ) {
+    return String(query);
+  }
+  return '';
+}
+
+function allRawSqlCalls(): string[] {
+  return [
+    ...mocks.executeRaw.mock.calls.map((call) => rawSqlText(call[0])),
+    ...mocks.queryRaw.mock.calls.map((call) => rawSqlText(call[0])),
+  ];
+}
+
+function expectAnyRawSqlContaining(expected: readonly string[]) {
+  const queries = allRawSqlCalls();
+  expect(
+    queries.some((query) =>
+      expected.every((fragment) => query.includes(fragment))
+    )
+  ).toBe(true);
+}
+
+function mockLegacyUserSqlSequence(props?: {
+  existing?: readonly { id: string; user_key: string }[];
+  inserted?: readonly {
+    id: string;
+    sailing_card_number: number | null;
+    user_key: string;
+  }[];
+  merged?: readonly { id: string }[];
+  staged?: readonly { id: string; user_key: string }[];
+}) {
+  mocks.queryRaw.mockReset();
+  mocks.queryRaw
+    .mockResolvedValueOnce(props?.existing ?? [])
+    .mockResolvedValueOnce(props?.merged ?? [])
+    .mockResolvedValueOnce(
+      props?.inserted ?? [
+        {
+          id: 'imported-user-1',
+          sailing_card_number: null,
+          user_key: 'id:123456789',
+        },
+      ]
+    )
+    .mockResolvedValueOnce(
+      props?.staged ?? [
+        { id: 'imported-user-1', user_key: 'id:123456789' },
+        { id: 'imported-user-1', user_key: 'id:AUTO0001' },
+        { id: 'imported-user-1', user_key: 'email:sailor@example.com' },
+      ]
+    );
 }
 
 function member(overrides: Partial<LegacyMemberRow> = {}): LegacyMemberRow {
@@ -101,8 +156,7 @@ function payment(overrides: Partial<LegacyPaymentRow> = {}): LegacyPaymentRow {
 describe('legacyPaymentImport', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.userFindMany.mockResolvedValue([]);
-    mocks.userCreateMany.mockResolvedValue({ count: 0 });
+    mockLegacyUserSqlSequence();
     mocks.paymentFindMany.mockResolvedValue([]);
     mocks.paymentCreateMany.mockResolvedValue({ count: 0 });
     mocks.executeRaw.mockResolvedValue(0);
@@ -110,13 +164,10 @@ describe('legacyPaymentImport', () => {
       async (operation: MockTransactionOperation) => {
         const result = await operation({
           $executeRaw: mocks.executeRaw,
+          $queryRaw: mocks.queryRaw,
           payment: {
             createMany: mocks.paymentCreateMany,
             findMany: mocks.paymentFindMany,
-          },
-          user: {
-            createMany: mocks.userCreateMany,
-            findMany: mocks.userFindMany,
           },
         });
         return result;
@@ -129,10 +180,10 @@ describe('legacyPaymentImport', () => {
       member({ id: '123456789', username: 'sailor' }),
       member({
         card: '44',
-        email: ' SAILOR@example.com ',
+        email: ' alternate@example.com ',
         expire_date: '2026-07-15',
         first: 'Other',
-        id: 'AUTO0001',
+        id: '123456789',
         record_date: '2026-03-01 09:00:00',
         username: 'old-sailor',
       }),
@@ -146,12 +197,43 @@ describe('legacyPaymentImport', () => {
 
     expect(map.canonicalUsers).toHaveLength(1);
     expect(map.memberUserKeyByLegacyId.get('123456789')).toBe(
-      map.memberUserKeyByLegacyId.get('AUTO0001')
+      map.memberUserKeyByEmail.get('alternate@example.com')
     );
     expect(map.memberUserKeyByUsername.get('old-sailor')).toBe(
       map.memberUserKeyByLegacyId.get('123456789')
     );
     expect(map.memberUserKeyByLegacyId.has('999999999')).toBe(false);
+  });
+
+  it('maps explicit volunteer and dock staff categories to app roles', () => {
+    const map = buildLegacyMemberPaymentMap([
+      member({ email: 'volunteer@example.com', memb_type: '4' }),
+      member({
+        email: 'instructor@example.com',
+        id: '222222222',
+        memb_type: '12',
+        username: 'instructor',
+      }),
+      member({
+        email: 'dockstaff@example.com',
+        id: '333333333',
+        memb_type: '6',
+        username: 'dockstaff',
+      }),
+      member({
+        email: 'sailing-team@example.com',
+        id: '444444444',
+        memb_type: '10',
+        username: 'sailing-team',
+      }),
+    ]);
+
+    expect(map.canonicalUsers.map((user) => [user.email, user.role])).toEqual([
+      ['volunteer@example.com', Role.VOLUNTEER],
+      ['instructor@example.com', Role.VOLUNTEER_INSTRUCTOR],
+      ['dockstaff@example.com', Role.DOCK_STAFF],
+      ['sailing-team@example.com', Role.USER],
+    ]);
   });
 
   it('classifies canonical racing card rows as membership payments', () => {
@@ -239,6 +321,20 @@ describe('legacyPaymentImport', () => {
   });
 
   it('imports legacy users and payments without storing legacy usernames', async () => {
+    mockLegacyUserSqlSequence({
+      inserted: [
+        {
+          id: 'imported-user-1',
+          sailing_card_number: 110,
+          user_key: 'id:AUTO0001',
+        },
+      ],
+      staged: [
+        { id: 'imported-user-1', user_key: 'id:123456789' },
+        { id: 'imported-user-1', user_key: 'id:AUTO0001' },
+      ],
+    });
+
     await expect(
       importLegacyPaymentRows({
         members: [
@@ -262,28 +358,18 @@ describe('legacyPaymentImport', () => {
       usersMatched: 0,
     });
 
-    expect(mocks.userCreateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.arrayContaining([
-          expect.not.objectContaining({
-            legacyUsername: expect.anything(),
-            username: expect.anything(),
-          }),
-        ]),
-      })
-    );
-    expect(mocks.userCreateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.arrayContaining([
-          expect.objectContaining({
-            sailingCardExpiresOn: new Date('2027-07-15T12:00:00.000Z'),
-            sailingCardIssuedAt: new Date('2026-06-01T12:00:00.000Z'),
-            sailingCardNumber: 110,
-            sailingCardYear: 2027,
-          }),
-        ]),
-      })
-    );
+    expectAnyRawSqlContaining(['CREATE TEMP TABLE legacy_import_users']);
+    expectAnyRawSqlContaining(['INSERT INTO legacy_import_users']);
+    expectAnyRawSqlContaining(['prepared.app_role::"AppRole"']);
+    expectAnyRawSqlContaining([
+      'CREATE TEMP TABLE legacy_import_credential_accounts',
+    ]);
+    expectAnyRawSqlContaining([
+      'INSERT INTO "account"',
+      'ON CONFLICT ("provider_id", "account_id") DO NOTHING',
+    ]);
+    expect(allRawSqlCalls().join('\n')).not.toContain('username');
+    expect(allRawSqlCalls().join('\n')).not.toContain('legacyUsername');
     expect(mocks.paymentCreateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.arrayContaining([
@@ -306,22 +392,23 @@ describe('legacyPaymentImport', () => {
     );
   });
 
-  it('refreshes created user ids after skipped duplicate inserts', async () => {
-    mocks.userFindMany.mockResolvedValueOnce([]).mockResolvedValueOnce([
-      {
-        email: 'sailor@example.com',
-        id: 'persisted-user-1',
-      },
-    ]);
+  it('uses staged final user ids after importing users', async () => {
+    mockLegacyUserSqlSequence({
+      inserted: [
+        {
+          id: 'generated-user-1',
+          sailing_card_number: null,
+          user_key: 'id:123456789',
+        },
+      ],
+      staged: [{ id: 'persisted-user-1', user_key: 'id:123456789' }],
+    });
 
     await importLegacyPaymentRows({
       members: [member()],
       payments: [payment()],
     });
 
-    expect(mocks.userCreateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ skipDuplicates: true })
-    );
     expect(mocks.paymentCreateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.arrayContaining([
@@ -332,20 +419,18 @@ describe('legacyPaymentImport', () => {
   });
 
   it('merges legacy card data onto matched existing users without overwriting assigned cards', async () => {
-    mocks.userFindMany.mockResolvedValueOnce([
-      {
-        email: 'sailor@example.com',
-        id: 'existing-user-1',
-        sailingCardNumber: null,
-        sailingCardYear: null,
-      },
-      {
-        email: 'assigned@example.com',
-        id: 'existing-user-2',
-        sailingCardNumber: 72,
-        sailingCardYear: 2027,
-      },
-    ]);
+    mockLegacyUserSqlSequence({
+      existing: [
+        { id: 'existing-user-1', user_key: 'id:123456789' },
+        { id: 'existing-user-2', user_key: 'id:987654321' },
+      ],
+      inserted: [],
+      merged: [{ id: 'existing-user-1' }],
+      staged: [
+        { id: 'existing-user-1', user_key: 'id:123456789' },
+        { id: 'existing-user-2', user_key: 'id:987654321' },
+      ],
+    });
 
     await expect(
       importLegacyPaymentRows({
@@ -373,11 +458,10 @@ describe('legacyPaymentImport', () => {
       usersMatched: 2,
     });
 
-    expect(mocks.executeRaw).toHaveBeenCalledTimes(1);
-    expectRawSqlContaining(0, [
+    expectAnyRawSqlContaining([
       'UPDATE "user" AS target',
       'SET "sailing_card_expires_on"',
-      'WHERE target."id" = source.id',
+      'lower(target."email") = prepared.email',
     ]);
   });
 
@@ -441,8 +525,7 @@ describe('legacyPaymentImport', () => {
     });
 
     expect(mocks.paymentCreateMany).not.toHaveBeenCalled();
-    expect(mocks.executeRaw).toHaveBeenCalledTimes(1);
-    expectRawSqlContaining(0, [
+    expectAnyRawSqlContaining([
       'UPDATE "payments" AS target',
       `WHEN target."status" = 'needs_review'`,
       'THEN source.status::text::"payment_status"',

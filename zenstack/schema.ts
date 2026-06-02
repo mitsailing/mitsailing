@@ -2650,6 +2650,13 @@ export class SchemaType implements SchemaDef {
                     id: true,
                     attributes: [{ name: "@id" }] as readonly AttributeApplication[]
                 },
+                legacyEventType: {
+                    name: "legacyEventType",
+                    type: "String",
+                    unique: true,
+                    optional: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("legacy_event_type") }] }] as readonly AttributeApplication[]
+                },
                 name: {
                     name: "name",
                     type: "String"
@@ -2689,7 +2696,8 @@ export class SchemaType implements SchemaDef {
             ] as readonly AttributeApplication[],
             idFields: ["id"],
             uniqueFields: {
-                id: { type: "String" }
+                id: { type: "String" },
+                legacyEventType: { type: "String" }
             }
         },
         Event: {
@@ -2700,6 +2708,13 @@ export class SchemaType implements SchemaDef {
                     type: "String",
                     id: true,
                     attributes: [{ name: "@id" }] as readonly AttributeApplication[]
+                },
+                legacyEventId: {
+                    name: "legacyEventId",
+                    type: "String",
+                    unique: true,
+                    optional: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("legacy_event_id") }] }] as readonly AttributeApplication[]
                 },
                 name: {
                     name: "name",
@@ -3007,6 +3022,7 @@ export class SchemaType implements SchemaDef {
             idFields: ["id"],
             uniqueFields: {
                 id: { type: "String" },
+                legacyEventId: { type: "String" },
                 slug: { type: "String" }
             }
         },
@@ -3116,6 +3132,13 @@ export class SchemaType implements SchemaDef {
                     id: true,
                     attributes: [{ name: "@id" }] as readonly AttributeApplication[]
                 },
+                legacySourceKey: {
+                    name: "legacySourceKey",
+                    type: "String",
+                    unique: true,
+                    optional: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("legacy_source_key") }] }] as readonly AttributeApplication[]
+                },
                 eventId: {
                     name: "eventId",
                     type: "String",
@@ -3220,6 +3243,7 @@ export class SchemaType implements SchemaDef {
             idFields: ["id"],
             uniqueFields: {
                 id: { type: "String" },
+                legacySourceKey: { type: "String" },
                 id_eventId_userId: { id: { type: "String" }, eventId: { type: "String" }, userId: { type: "String" } }
             }
         },
@@ -3282,6 +3306,13 @@ export class SchemaType implements SchemaDef {
                     id: true,
                     attributes: [{ name: "@id" }] as readonly AttributeApplication[]
                 },
+                legacySourceKey: {
+                    name: "legacySourceKey",
+                    type: "String",
+                    unique: true,
+                    optional: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("legacy_source_key") }] }] as readonly AttributeApplication[]
+                },
                 registrationId: {
                     name: "registrationId",
                     type: "String",
@@ -3330,6 +3361,7 @@ export class SchemaType implements SchemaDef {
             idFields: ["id"],
             uniqueFields: {
                 id: { type: "String" },
+                legacySourceKey: { type: "String" },
                 registrationId_boatNumber_position: { registrationId: { type: "String" }, boatNumber: { type: "Int" }, position: { type: "Int" } }
             }
         },
@@ -3465,6 +3497,13 @@ export class SchemaType implements SchemaDef {
                     id: true,
                     attributes: [{ name: "@id" }] as readonly AttributeApplication[]
                 },
+                legacySourceKey: {
+                    name: "legacySourceKey",
+                    type: "String",
+                    unique: true,
+                    optional: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("legacy_source_key") }] }] as readonly AttributeApplication[]
+                },
                 eventId: {
                     name: "eventId",
                     type: "String",
@@ -3516,6 +3555,7 @@ export class SchemaType implements SchemaDef {
             idFields: ["id"],
             uniqueFields: {
                 id: { type: "String" },
+                legacySourceKey: { type: "String" },
                 eventId_id: { eventId: { type: "String" }, id: { type: "String" } }
             }
         },
@@ -4887,6 +4927,13 @@ export class SchemaType implements SchemaDef {
                     id: true,
                     attributes: [{ name: "@id" }] as readonly AttributeApplication[]
                 },
+                legacyRatingType: {
+                    name: "legacyRatingType",
+                    type: "String",
+                    unique: true,
+                    optional: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("legacy_rating_type") }] }] as readonly AttributeApplication[]
+                },
                 slug: {
                     name: "slug",
                     type: "String",
@@ -4988,6 +5035,7 @@ export class SchemaType implements SchemaDef {
             idFields: ["id"],
             uniqueFields: {
                 id: { type: "String" },
+                legacyRatingType: { type: "String" },
                 slug: { type: "String" }
             }
         },
@@ -5284,6 +5332,13 @@ export class SchemaType implements SchemaDef {
                     attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
                     default: ExpressionUtils.call("cuid") as FieldDefault
                 },
+                legacyNewsId: {
+                    name: "legacyNewsId",
+                    type: "String",
+                    unique: true,
+                    optional: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("legacy_news_id") }] }] as readonly AttributeApplication[]
+                },
                 body: {
                     name: "body",
                     type: "String",
@@ -5324,7 +5379,8 @@ export class SchemaType implements SchemaDef {
             ] as readonly AttributeApplication[],
             idFields: ["id"],
             uniqueFields: {
-                id: { type: "String" }
+                id: { type: "String" },
+                legacyNewsId: { type: "String" }
             }
         },
         CmsPage: {

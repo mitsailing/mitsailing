@@ -444,12 +444,14 @@ export function legacyReservationSlotDeleteWhere(requestId: string): {
   return { requestId };
 }
 
-export async function importLegacyPavilionReservationRows(
-  rows: readonly LegacyReservationDbRow[]
-): Promise<{
+export type LegacyPavilionReservationImportResult = {
   imported: number;
   skipped: number;
-}> {
+};
+
+export async function importLegacyPavilionReservationRows(
+  rows: readonly LegacyReservationDbRow[]
+): Promise<LegacyPavilionReservationImportResult> {
   const items = await prisma.pavilionReservableItem.findMany({
     select: { id: true, slug: true },
     where: { kind: 'space' },
@@ -553,10 +555,7 @@ export async function importLegacyPavilionReservationRows(
   return { imported, skipped };
 }
 
-export async function importLegacyPavilionReservationsFromSchema(): Promise<{
-  imported: number;
-  skipped: number;
-}> {
+export async function importLegacyPavilionReservationsFromSchema(): Promise<LegacyPavilionReservationImportResult> {
   const rows = await prisma.$queryRaw<LegacyReservationDbRow[]>`
     SELECT *
     FROM legacy.reservations

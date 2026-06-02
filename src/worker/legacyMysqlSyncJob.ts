@@ -1,4 +1,5 @@
 import type { JobsOptions, Queue } from 'bullmq';
+import { importLegacyDataFromSchema } from '@/libs/legacy-sync/legacyDataImport';
 import { runLegacyMysqlSync } from '@/libs/legacy-sync/legacyMysqlSync';
 import type { LegacyMysqlSyncConfig } from '@/libs/legacy-sync/legacyMysqlSyncConfig';
 import {
@@ -6,8 +7,6 @@ import {
   LEGACY_MYSQL_SYNC_SCHEDULER_ID,
   legacyMysqlSyncConfigFromEnv,
 } from '@/libs/legacy-sync/legacyMysqlSyncConfig';
-import { importLegacyPavilionReservationsFromSchema } from '@/libs/legacy-sync/legacyPavilionReservationImport';
-import { importLegacyPaymentsFromSchema } from '@/libs/legacy-sync/legacyPaymentImport';
 
 export { LEGACY_MYSQL_SYNC_JOB_NAME } from '@/libs/legacy-sync/legacyMysqlSyncConfig';
 
@@ -63,6 +62,5 @@ export async function processLegacyMysqlSyncJob(): Promise<void> {
   if (result.skipped) {
     return;
   }
-  await importLegacyPavilionReservationsFromSchema();
-  await importLegacyPaymentsFromSchema();
+  await importLegacyDataFromSchema();
 }
