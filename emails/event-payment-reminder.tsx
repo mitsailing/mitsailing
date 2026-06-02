@@ -4,6 +4,7 @@ export type EventPaymentReminderTemplateProps = {
   actionLabel: string;
   amount: string;
   body: string;
+  bodyHtml?: string;
   checkoutUrl: string;
   deadline: string;
   eventName: string;
@@ -27,6 +28,7 @@ export function EventPaymentReminderTemplate(
       actionHref={props.checkoutUrl}
       actionLabel={props.actionLabel}
       body={props.body}
+      bodyHtml={props.bodyHtml}
       details={[
         { label: props.fieldEvent, value: props.eventName },
         ...(props.eventAddress

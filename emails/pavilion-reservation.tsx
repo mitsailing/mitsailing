@@ -1,5 +1,6 @@
 import type * as React from 'react';
 import { Heading, Section, Text } from 'react-email';
+import { SafeEmailTemplateBodyHtml } from '@/libs/email-templates/emailTemplateBodyHtml';
 import { EmailLayout } from './email-layout';
 import { heading, paragraph, section } from './email-styles';
 
@@ -21,6 +22,7 @@ export type PavilionReservationEmailCopy = {
 
 export type PavilionReservationEmailTemplateProps = {
   body: string;
+  bodyHtml?: string;
   copy: PavilionReservationEmailCopy;
   eventName: string;
   previewText: string;
@@ -82,7 +84,11 @@ export function PavilionReservationEmailTemplate(
         <Heading as="h1" style={heading}>
           {props.title}
         </Heading>
-        <Text style={paragraph}>{props.body}</Text>
+        {props.bodyHtml ? (
+          <SafeEmailTemplateBodyHtml html={props.bodyHtml} />
+        ) : (
+          <Text style={paragraph}>{props.body}</Text>
+        )}
 
         <Text style={detailLabel}>{props.copy.field_reference}</Text>
         <Text style={referenceValue}>{props.referenceCode}</Text>

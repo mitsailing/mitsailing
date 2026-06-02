@@ -1,5 +1,6 @@
 import type * as React from 'react';
 import { Heading, Link, Section, Text } from 'react-email';
+import { SafeEmailTemplateBodyHtml } from '@/libs/email-templates/emailTemplateBodyHtml';
 import { safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 import { EmailLayout } from './email-layout';
 import { heading, paragraph, section } from './email-styles';
@@ -14,6 +15,7 @@ type EventPaymentEmailTemplateProps = {
   actionHref?: string;
   actionLabel?: string;
   body: string;
+  bodyHtml?: string;
   details: readonly PaymentDetail[];
   previewText: string;
   title: string;
@@ -67,7 +69,11 @@ export function EventPaymentEmailTemplate(
         <Heading as="h1" style={heading}>
           {props.title}
         </Heading>
-        <Text style={paragraph}>{props.body}</Text>
+        {props.bodyHtml ? (
+          <SafeEmailTemplateBodyHtml html={props.bodyHtml} />
+        ) : (
+          <Text style={paragraph}>{props.body}</Text>
+        )}
         {props.details.map((detail) => (
           <Section key={detail.label}>
             <Text style={detailLabel}>{detail.label}</Text>
