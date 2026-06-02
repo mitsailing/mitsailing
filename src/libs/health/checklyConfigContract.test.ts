@@ -12,4 +12,9 @@ describe('checkly health ready config', () => {
       "AssertionBuilder.jsonBody('$.checks.mediaPublic.status').equals('ok')"
     );
   });
+
+  it('uses account-supported Checkly locations', () => {
+    expect(checklyHealthApi).toContain("locations: ['us-east-1', 'eu-west-2']");
+    expect(checklyHealthApi).not.toContain('eu-west-1');
+  });
 });

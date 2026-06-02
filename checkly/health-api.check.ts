@@ -10,7 +10,7 @@ const healthcheckSecret = checklyHealthcheckSecret(process.env);
 export const healthLiveApi = new ApiCheck('health-live-api', {
   name: 'Health live API',
   frequency: Frequency.EVERY_1M,
-  locations: ['us-east-1', 'eu-west-1'],
+  locations: ['us-east-1', 'eu-west-2'],
   tags: ['website', 'health', 'api'],
   alertChannels: [emailChannel],
   maxResponseTime: 5000,
@@ -30,7 +30,7 @@ export const healthReadyApi = healthcheckSecret
   ? new ApiCheck('health-ready-api', {
       name: 'Health ready API',
       frequency: Frequency.EVERY_5M,
-      locations: ['us-east-1', 'eu-west-1'],
+      locations: ['us-east-1', 'eu-west-2'],
       tags: ['website', 'health', 'api'],
       alertChannels: [emailChannel],
       maxResponseTime: 5000,
