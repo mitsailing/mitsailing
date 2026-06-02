@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminEmailTemplateEditor } from '@/components/mit-sailing/admin/email-templates/AdminEmailTemplateEditor';
+import { installComponentTestLocalStorage } from '@/test/component';
 
 const mocks = vi.hoisted(() => ({
   editorGetHTML: vi.fn(),
@@ -65,20 +66,7 @@ function renderEditor() {
 }
 
 beforeEach(() => {
-  const storage = new Map<string, string>();
-  Object.defineProperty(window, 'localStorage', {
-    configurable: true,
-    value: {
-      clear: () => {
-        storage.clear();
-      },
-      getItem: (key: string) => storage.get(key) ?? null,
-      removeItem: (key: string) => storage.delete(key),
-      setItem: (key: string, value: string) => {
-        storage.set(key, value);
-      },
-    },
-  });
+  installComponentTestLocalStorage();
   vi.clearAllMocks();
   mocks.editorGetHTML.mockReturnValue('<p>Editor draft</p>');
   mocks.getEmailHTML.mockResolvedValue('<html>Email ready</html>');
@@ -140,7 +128,7 @@ describe('AdminEmailTemplateEditor', () => {
 
     await waitFor(() => {
       expect(
-        window.localStorage.getItem(
+        globalThis.localStorage.getItem(
           'admin-email-template-draft:event_payment_request'
         )
       ).toContain('Stored subject');

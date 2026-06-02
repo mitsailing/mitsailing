@@ -27,6 +27,13 @@ type AdminNewsletterBroadcastEditorProps = Readonly<{
 
 const DRAFT_STORAGE_KEY = 'admin-newsletter-broadcast-draft';
 
+function persistDraft(nextBody: string) {
+  globalThis.localStorage.setItem(
+    DRAFT_STORAGE_KEY,
+    JSON.stringify({ body: nextBody })
+  );
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -57,13 +64,6 @@ export function AdminNewsletterBroadcastEditor(
     return editorRef.current?.editor?.getHTML() ?? body;
   }
 
-  function persistDraft(nextBody: string) {
-    window.localStorage.setItem(
-      DRAFT_STORAGE_KEY,
-      JSON.stringify({ body: nextBody })
-    );
-  }
-
   async function prepareFormData(formData: FormData) {
     const bodyHtml = currentBodyHtml();
     const bodyText = (await editorRef.current?.getEmailText()) ?? '';
@@ -74,7 +74,9 @@ export function AdminNewsletterBroadcastEditor(
   }
 
   useEffect(() => {
-    const draft = storedDraft(window.localStorage.getItem(DRAFT_STORAGE_KEY));
+    const draft = storedDraft(
+      globalThis.localStorage.getItem(DRAFT_STORAGE_KEY)
+    );
     if (draft) {
       setBody(draft.body);
     }
@@ -86,7 +88,7 @@ export function AdminNewsletterBroadcastEditor(
       action={async (formData) => {
         await prepareFormData(formData);
         await props.action(formData);
-        window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+        globalThis.localStorage.removeItem(DRAFT_STORAGE_KEY);
       }}
       className="space-y-5 rounded-lg border border-border bg-card p-5"
     >

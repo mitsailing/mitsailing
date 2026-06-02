@@ -5,14 +5,6 @@ import { connection } from 'next/server';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { AdminEmailTemplateEditor } from '@/components/mit-sailing/admin/email-templates/AdminEmailTemplateEditor';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import { requirePermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
@@ -27,6 +19,22 @@ import { Link } from '@/libs/I18nNavigation';
 type PageProps = Readonly<{
   params: Promise<{ key: string; locale: string }>;
   searchParams: Promise<{ status?: string }>;
+}>;
+
+type EmailTemplateDetail = NonNullable<
+  Awaited<ReturnType<typeof getAdminEmailTemplateDetail>>
+>;
+
+type EmailTemplateRevision = EmailTemplateDetail['revisions'][number];
+
+type RevisionHistoryText = Readonly<{
+  createdAt: string;
+  createdBy: string;
+  empty: string;
+  publishedAt: string;
+  publishedBy: string;
+  statuses: Readonly<Record<keyof typeof REVISION_STATUS_KEYS, string>>;
+  title: string;
 }>;
 
 const STATUS_MESSAGE_KEYS = {
@@ -61,8 +69,66 @@ function actorName(
   return actor?.name ?? actor?.email ?? '';
 }
 
-function revisionStatusKey(status: keyof typeof REVISION_STATUS_KEYS) {
-  return REVISION_STATUS_KEYS[status];
+function RevisionHistory(
+  props: Readonly<{
+    locale: string;
+    revisions: readonly EmailTemplateRevision[];
+    text: RevisionHistoryText;
+  }>
+) {
+  if (props.revisions.length === 0) {
+    return (
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">{props.text.title}</h2>
+        <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+          {props.text.empty}
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-lg font-semibold">{props.text.title}</h2>
+      <ol className="flex flex-col gap-3">
+        {props.revisions.map((revision) => (
+          <li
+            className="rounded-lg border border-border bg-card p-4"
+            key={revision.id}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-medium">{revision.subject}</p>
+                <p className="text-sm text-muted-foreground">
+                  {props.text.statuses[revision.status]}
+                </p>
+              </div>
+              <dl className="grid gap-x-4 gap-y-1 text-sm md:grid-cols-[auto_1fr]">
+                <dt className="text-muted-foreground">
+                  {props.text.createdAt}
+                </dt>
+                <dd>{formatAdminDate(revision.createdAt, props.locale)}</dd>
+                <dt className="text-muted-foreground">
+                  {props.text.createdBy}
+                </dt>
+                <dd>{actorName(revision.createdBy ?? null)}</dd>
+                <dt className="text-muted-foreground">
+                  {props.text.publishedAt}
+                </dt>
+                <dd>
+                  {formatAdminDate(revision.publishedAt, props.locale) || ''}
+                </dd>
+                <dt className="text-muted-foreground">
+                  {props.text.publishedBy}
+                </dt>
+                <dd>{actorName(revision.publishedBy ?? null)}</dd>
+              </dl>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
 }
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
@@ -174,51 +240,23 @@ export default async function AdminEmailTemplateDetailPage(props: PageProps) {
         </div>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">{t('revisions_title')}</h2>
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('column_status')}</TableHead>
-                <TableHead>{t('column_subject')}</TableHead>
-                <TableHead>{t('column_created_at')}</TableHead>
-                <TableHead>{t('column_created_by')}</TableHead>
-                <TableHead>{t('column_published_at')}</TableHead>
-                <TableHead>{t('column_published_by')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {detail.revisions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6}>{t('revisions_empty')}</TableCell>
-                </TableRow>
-              ) : (
-                detail.revisions.map((revision) => (
-                  <TableRow key={revision.id}>
-                    <TableCell>
-                      {t(revisionStatusKey(revision.status))}
-                    </TableCell>
-                    <TableCell>{revision.subject}</TableCell>
-                    <TableCell>
-                      {formatAdminDate(revision.createdAt, locale)}
-                    </TableCell>
-                    <TableCell>
-                      {actorName(revision.createdBy ?? null)}
-                    </TableCell>
-                    <TableCell>
-                      {formatAdminDate(revision.publishedAt, locale) || ''}
-                    </TableCell>
-                    <TableCell>
-                      {actorName(revision.publishedBy ?? null)}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </section>
+      <RevisionHistory
+        locale={locale}
+        revisions={detail.revisions}
+        text={{
+          createdAt: t('column_created_at'),
+          createdBy: t('column_created_by'),
+          empty: t('revisions_empty'),
+          publishedAt: t('column_published_at'),
+          publishedBy: t('column_published_by'),
+          statuses: {
+            archived: t('revision_status_archived'),
+            draft: t('revision_status_draft'),
+            published: t('revision_status_published'),
+          },
+          title: t('revisions_title'),
+        }}
+      />
     </div>
   );
 }

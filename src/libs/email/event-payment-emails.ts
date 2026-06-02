@@ -133,6 +133,19 @@ type PublishedEmailTemplateRender = NonNullable<
   Awaited<ReturnType<typeof renderPublishedEmailTemplateForSend>>
 >;
 
+type PublishedEventPaymentEmailParams = Readonly<{
+  category:
+    | 'event_payment_receipt'
+    | 'event_payment_reminder'
+    | 'event_payment_request';
+  idempotencyKind: 'receipt' | 'reminder' | 'request';
+  key:
+    | 'event_payment_receipt'
+    | 'event_payment_reminder'
+    | 'event_payment_request';
+  params: EventPaymentEmailParams;
+}>;
+
 function emailTemplateMetadata(rendered: PublishedEmailTemplateRender) {
   return {
     emailTemplateKey: rendered.emailTemplateKey,
@@ -154,24 +167,39 @@ function paymentTemplateValues(params: EventPaymentEmailParams) {
   };
 }
 
+async function sendPublishedEventPaymentEmail(
+  props: PublishedEventPaymentEmailParams
+): Promise<SendEmailResult | null> {
+  const publishedTemplate = await renderPublishedEmailTemplateForSend({
+    key: props.key,
+    values: paymentTemplateValues(props.params),
+  });
+  if (!publishedTemplate) {
+    return null;
+  }
+  return sendTransactionalEmail({
+    category: props.category,
+    html: publishedTemplate.html,
+    idempotencyKey: paymentIdempotencyKey(props.idempotencyKind, props.params),
+    metadata: emailTemplateMetadata(publishedTemplate),
+    subject: publishedTemplate.subject,
+    text: publishedTemplate.text,
+    to: props.params.recipientEmail,
+  });
+}
+
 export async function sendEventPaymentRequestEmail(
   params: EventPaymentEmailParams
 ): Promise<SendEmailResult> {
   const copy = enMessages.EventPaymentEmails;
-  const publishedTemplate = await renderPublishedEmailTemplateForSend({
+  const publishedSend = await sendPublishedEventPaymentEmail({
+    category: 'event_payment_request',
+    idempotencyKind: 'request',
     key: 'event_payment_request',
-    values: paymentTemplateValues(params),
+    params,
   });
-  if (publishedTemplate) {
-    return sendTransactionalEmail({
-      category: 'event_payment_request',
-      html: publishedTemplate.html,
-      idempotencyKey: paymentIdempotencyKey('request', params),
-      metadata: emailTemplateMetadata(publishedTemplate),
-      subject: publishedTemplate.subject,
-      text: publishedTemplate.text,
-      to: params.recipientEmail,
-    });
+  if (publishedSend) {
+    return publishedSend;
   }
 
   const html = await render(
@@ -208,20 +236,14 @@ export async function sendEventPaymentReceiptEmail(
   params: EventPaymentEmailParams
 ): Promise<SendEmailResult> {
   const copy = enMessages.EventPaymentEmails;
-  const publishedTemplate = await renderPublishedEmailTemplateForSend({
+  const publishedSend = await sendPublishedEventPaymentEmail({
+    category: 'event_payment_receipt',
+    idempotencyKind: 'receipt',
     key: 'event_payment_receipt',
-    values: paymentTemplateValues(params),
+    params,
   });
-  if (publishedTemplate) {
-    return sendTransactionalEmail({
-      category: 'event_payment_receipt',
-      html: publishedTemplate.html,
-      idempotencyKey: paymentIdempotencyKey('receipt', params),
-      metadata: emailTemplateMetadata(publishedTemplate),
-      subject: publishedTemplate.subject,
-      text: publishedTemplate.text,
-      to: params.recipientEmail,
-    });
+  if (publishedSend) {
+    return publishedSend;
   }
 
   const html = await render(
@@ -256,20 +278,14 @@ export async function sendEventPaymentReminderEmail(
   params: EventPaymentEmailParams
 ): Promise<SendEmailResult> {
   const copy = enMessages.EventPaymentEmails;
-  const publishedTemplate = await renderPublishedEmailTemplateForSend({
+  const publishedSend = await sendPublishedEventPaymentEmail({
+    category: 'event_payment_reminder',
+    idempotencyKind: 'reminder',
     key: 'event_payment_reminder',
-    values: paymentTemplateValues(params),
+    params,
   });
-  if (publishedTemplate) {
-    return sendTransactionalEmail({
-      category: 'event_payment_reminder',
-      html: publishedTemplate.html,
-      idempotencyKey: paymentIdempotencyKey('reminder', params),
-      metadata: emailTemplateMetadata(publishedTemplate),
-      subject: publishedTemplate.subject,
-      text: publishedTemplate.text,
-      to: params.recipientEmail,
-    });
+  if (publishedSend) {
+    return publishedSend;
   }
 
   const html = await render(

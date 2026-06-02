@@ -22,11 +22,13 @@ type AdminEmailTemplateListText = Readonly<{
   notPublished: string;
 }>;
 
-export function AdminEmailTemplateList(props: {
-  locale: string;
-  rows: readonly AdminEmailTemplateListRow[];
-  text: AdminEmailTemplateListText;
-}) {
+export function AdminEmailTemplateList(
+  props: Readonly<{
+    locale: string;
+    rows: readonly AdminEmailTemplateListRow[];
+    text: AdminEmailTemplateListText;
+  }>
+) {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <Table>

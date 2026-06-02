@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminNewsletterBroadcastEditor } from '@/components/mit-sailing/admin/newsletters/AdminNewsletterBroadcastEditor';
+import { installComponentTestLocalStorage } from '@/test/component';
 
 const mocks = vi.hoisted(() => ({
   action: vi.fn(),
@@ -56,20 +57,7 @@ function renderEditor() {
 }
 
 beforeEach(() => {
-  const storage = new Map<string, string>();
-  Object.defineProperty(window, 'localStorage', {
-    configurable: true,
-    value: {
-      clear: () => {
-        storage.clear();
-      },
-      getItem: (key: string) => storage.get(key) ?? null,
-      removeItem: (key: string) => storage.delete(key),
-      setItem: (key: string, value: string) => {
-        storage.set(key, value);
-      },
-    },
-  });
+  installComponentTestLocalStorage();
   vi.clearAllMocks();
   mocks.action.mockImplementation(async () => {
     await Promise.resolve();
@@ -123,14 +111,14 @@ describe('AdminNewsletterBroadcastEditor', () => {
     await user.type(screen.getByLabelText('Email body'), ' updated');
 
     expect(
-      window.localStorage.getItem('admin-newsletter-broadcast-draft')
+      globalThis.localStorage.getItem('admin-newsletter-broadcast-draft')
     ).toContain('Editor body');
 
     await user.click(screen.getByRole('button', { name: 'Save draft' }));
 
     await waitFor(() => {
       expect(
-        window.localStorage.getItem('admin-newsletter-broadcast-draft')
+        globalThis.localStorage.getItem('admin-newsletter-broadcast-draft')
       ).toBeNull();
     });
   });

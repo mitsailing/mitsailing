@@ -74,7 +74,7 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
   }
 
   function persistDraft(next: Partial<StoredDraft>) {
-    window.localStorage.setItem(
+    globalThis.localStorage.setItem(
       storageKey,
       JSON.stringify({
         content: next.content ?? currentEditorContent(),
@@ -95,7 +95,7 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
   }
 
   useEffect(() => {
-    const draft = storedDraft(window.localStorage.getItem(storageKey));
+    const draft = storedDraft(globalThis.localStorage.getItem(storageKey));
     if (!draft) {
       return;
     }

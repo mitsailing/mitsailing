@@ -1,4 +1,4 @@
-const TOKEN_PATTERN = /\{([A-Za-z][A-Za-z0-9_]*)\}/g;
+const TOKEN_PATTERN = /\{([A-Za-z]\w*)\}/g;
 
 function tokensInTemplate(value: string): string[] {
   const tokens = new Set<string>();
@@ -7,7 +7,7 @@ function tokensInTemplate(value: string): string[] {
       tokens.add(match[1]);
     }
   }
-  return [...tokens].toSorted();
+  return [...tokens].toSorted((left, right) => left.localeCompare(right));
 }
 
 export function interpolateTemplateTokens(

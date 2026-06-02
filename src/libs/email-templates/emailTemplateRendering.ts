@@ -101,47 +101,33 @@ const eventCopy = enMessages.EventPaymentEmails;
 const membershipCopy = enMessages.MembershipPaymentEmails;
 const pavilionCopy = enMessages.PavilionReservationEmails;
 
+function eventPaymentActionTemplateProps(params: RenderTemplateParams) {
+  return {
+    actionLabel: eventCopy.action_pay,
+    amount: valueFor(params.values, 'amount'),
+    body: params.text,
+    bodyHtml: params.bodyHtml,
+    checkoutUrl: valueFor(params.values, 'checkoutUrl'),
+    deadline: valueFor(params.values, 'deadline'),
+    eventAddress: valueFor(params.values, 'eventAddress') || null,
+    eventAddressUrl: valueFor(params.values, 'eventAddressUrl') || null,
+    eventName: valueFor(params.values, 'eventName'),
+    feeDescription: valueFor(params.values, 'selectedFeeDescription'),
+    fieldAddress: eventCopy.field_address,
+    fieldAmount: eventCopy.field_amount,
+    fieldDeadline: eventCopy.field_deadline,
+    fieldEvent: eventCopy.field_event,
+    fieldFee: eventCopy.field_fee,
+    previewText: params.previewText,
+    title: params.subject,
+  };
+}
+
 const templateBuilders = {
   event_payment_request: (params) =>
-    EventPaymentRequestTemplate({
-      actionLabel: eventCopy.action_pay,
-      amount: valueFor(params.values, 'amount'),
-      body: params.text,
-      bodyHtml: params.bodyHtml,
-      checkoutUrl: valueFor(params.values, 'checkoutUrl'),
-      deadline: valueFor(params.values, 'deadline'),
-      eventAddress: valueFor(params.values, 'eventAddress') || null,
-      eventAddressUrl: valueFor(params.values, 'eventAddressUrl') || null,
-      eventName: valueFor(params.values, 'eventName'),
-      feeDescription: valueFor(params.values, 'selectedFeeDescription'),
-      fieldAddress: eventCopy.field_address,
-      fieldAmount: eventCopy.field_amount,
-      fieldDeadline: eventCopy.field_deadline,
-      fieldEvent: eventCopy.field_event,
-      fieldFee: eventCopy.field_fee,
-      previewText: params.previewText,
-      title: params.subject,
-    }),
+    EventPaymentRequestTemplate(eventPaymentActionTemplateProps(params)),
   event_payment_reminder: (params) =>
-    EventPaymentReminderTemplate({
-      actionLabel: eventCopy.action_pay,
-      amount: valueFor(params.values, 'amount'),
-      body: params.text,
-      bodyHtml: params.bodyHtml,
-      checkoutUrl: valueFor(params.values, 'checkoutUrl'),
-      deadline: valueFor(params.values, 'deadline'),
-      eventAddress: valueFor(params.values, 'eventAddress') || null,
-      eventAddressUrl: valueFor(params.values, 'eventAddressUrl') || null,
-      eventName: valueFor(params.values, 'eventName'),
-      feeDescription: valueFor(params.values, 'selectedFeeDescription'),
-      fieldAddress: eventCopy.field_address,
-      fieldAmount: eventCopy.field_amount,
-      fieldDeadline: eventCopy.field_deadline,
-      fieldEvent: eventCopy.field_event,
-      fieldFee: eventCopy.field_fee,
-      previewText: params.previewText,
-      title: params.subject,
-    }),
+    EventPaymentReminderTemplate(eventPaymentActionTemplateProps(params)),
   event_payment_receipt: (params) =>
     EventPaymentReceiptTemplate({
       actionLabel: eventCopy.action_receipt,
