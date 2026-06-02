@@ -255,6 +255,16 @@ vi.mock(
         data-suggested-card-number={props.suggestedCardNumber}
       />
     ),
+    AdminSailingCardPrintActions: (props: { userId: string }) => (
+      <div>
+        <a href={`/admin/users/${props.userId}/sailing-card/print`}>
+          Print card
+        </a>
+        <a href={`/admin/users/${props.userId}/sailing-card/quick-print`}>
+          Quick print
+        </a>
+      </div>
+    ),
   })
 );
 
@@ -328,9 +338,14 @@ beforeEach(() => {
     emailDeliverabilityStatus: 'ok',
     emailSuppressionReason: null,
     emailVerified: true,
+    firstName: 'Sailor',
     id: 'user-1',
+    lastName: 'One',
+    mitClassYear: null,
+    mitDataWarehouseVerifiedAt: null,
     mitId: '123456789',
     name: 'Sailor One',
+    sailingAffiliation: 'OTHER_NON_STUDENT',
     sailingCardNumber: 61,
     appRole: 'user',
     updatedAt: new Date('2026-01-02T00:00:00.000Z'),
@@ -365,9 +380,14 @@ beforeEach(() => {
       emailSuppressedAt: null,
       emailSuppressionReason: null,
       emailVerified: true,
+      firstName: 'Sailor',
       id: 'user-1',
+      lastName: 'One',
+      mitClassYear: null,
+      mitDataWarehouseVerifiedAt: null,
       mitId: '123456789',
       name: 'Sailor One',
+      sailingAffiliation: 'OTHER_NON_STUDENT',
       sailingCardNumber: 61,
       sailingCardStatus: 'current',
       appRole: 'user',
@@ -562,6 +582,12 @@ describe('admin user pages', () => {
     );
 
     expect(screen.getByText('sailing_card_heading')).toBeInTheDocument();
+    expect(screen.getByText('identity_name')).toBeInTheDocument();
+    expect(screen.getByText('identity_affiliation')).toBeInTheDocument();
+    expect(
+      screen.getByText('affiliation_other_non_student')
+    ).toBeInTheDocument();
+    expect(screen.getByText('identity_source_manual')).toBeInTheDocument();
     expect(screen.getByText('123456789')).toBeInTheDocument();
     expect(screen.getAllByText('61').length).toBeGreaterThan(0);
     expect(screen.getByText('2026')).toBeInTheDocument();
@@ -570,7 +596,7 @@ describe('admin user pages', () => {
     expect(screen.getByTestId('ratings-panel')).toBeInTheDocument();
   });
 
-  it('shows pending card number assignment on the user detail page', async () => {
+  it('shows suggested issue number on the user detail page', async () => {
     mocks.getAdminUserSailingCardSummary.mockResolvedValue(
       pendingCardSummary()
     );
@@ -586,7 +612,9 @@ describe('admin user pages', () => {
     expect(
       screen.getByText('sailing_card_status_requested')
     ).toBeInTheDocument();
-    expect(screen.getByText('sailing_card_pending_number')).toBeInTheDocument();
+    expect(
+      screen.getByText('sailing_card_suggested_number')
+    ).toBeInTheDocument();
     expect(screen.getByText('2471')).toBeInTheDocument();
     expect(
       screen.getByText('sailing_card_assignment_pending')
@@ -631,6 +659,26 @@ describe('admin user pages', () => {
     expect(
       screen.getByRole('form', { name: 'Change sailing card number' })
     ).toHaveAttribute('data-current-card-number', '61');
+  });
+
+  it('shows card print actions for current cards', async () => {
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(screen.getByRole('link', { name: 'Print card' })).toHaveAttribute(
+      'href',
+      '/admin/users/user-1/sailing-card/print'
+    );
+    expect(screen.getByRole('link', { name: 'Quick print' })).toHaveAttribute(
+      'href',
+      '/admin/users/user-1/sailing-card/quick-print'
+    );
   });
 
   it('shows admin override payment bypass on the user sailing-card panel', async () => {
@@ -683,7 +731,9 @@ describe('admin user pages', () => {
       })
     );
 
-    expect(screen.getByText('Sailor One')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Sailor One' })
+    ).toBeInTheDocument();
     expect(screen.getByText('sailing_card_load_failed')).toBeInTheDocument();
     expect(screen.getByTestId('ratings-panel')).toBeInTheDocument();
   });
@@ -701,7 +751,9 @@ describe('admin user pages', () => {
       })
     );
 
-    expect(screen.getByText('Sailor One')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Sailor One' })
+    ).toBeInTheDocument();
     expect(screen.getByText('ratings-load-failed')).toBeInTheDocument();
     expect(screen.getByText('emails_heading')).toBeInTheDocument();
   });
@@ -719,7 +771,9 @@ describe('admin user pages', () => {
       })
     );
 
-    expect(screen.getByText('Sailor One')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Sailor One' })
+    ).toBeInTheDocument();
     expect(screen.getByText('emails_load_failed')).toBeInTheDocument();
     expect(screen.getByText('emails_empty')).toBeInTheDocument();
   });

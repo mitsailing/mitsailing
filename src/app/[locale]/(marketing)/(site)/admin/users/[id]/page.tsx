@@ -9,6 +9,7 @@ import {
   AdminSailingCardExpireForm,
   AdminSailingCardHistory,
   AdminSailingCardIssueForm,
+  AdminSailingCardPrintActions,
 } from '@/components/mit-sailing/admin/cards/AdminSailingCardControls';
 import type { AdminSailingCardPaymentAccess } from '@/components/mit-sailing/admin/cards/AdminSailingCardControls';
 import { AdminUserRatingsPanel } from '@/components/mit-sailing/admin/users/AdminUserRatingsPanel';
@@ -23,6 +24,7 @@ import {
 import {
   PaymentSource,
   PaymentStatus,
+  SailingAffiliation,
   SailingCardRequestStatus,
   SailingCardType,
 } from '@/generated/prisma/enums';
@@ -65,6 +67,35 @@ type AdminUserShowPageProps = Readonly<{
 
 function emailDeliverabilityStatus(value: unknown): EmailDeliverabilityStatus {
   return value === 'bounced' || value === 'suppressed' ? value : 'ok';
+}
+
+function userSailingAffiliationLabelKey(affiliation: SailingAffiliation) {
+  const keys = {
+    MIT_STUDENT: 'affiliation_mit_student',
+    MIT_FACULTY: 'affiliation_mit_faculty',
+    MIT_STAFF: 'affiliation_mit_staff',
+    MIT_ALUM: 'affiliation_mit_alum',
+    MIT_FAMILY: 'affiliation_mit_family',
+    MIT_AFFILIATE: 'affiliation_mit_affiliate',
+    WELLESLEY: 'affiliation_wellesley',
+    BRANDEIS: 'affiliation_brandeis',
+    NORTHEASTERN: 'affiliation_northeastern',
+    WINSOR: 'affiliation_winsor',
+    BROOKS: 'affiliation_brooks',
+    NROTC: 'affiliation_nrotc',
+    OTHER_STUDENT: 'affiliation_other_student',
+    OTHER_NON_STUDENT: 'affiliation_other_non_student',
+    NON_MIT: 'affiliation_non_mit',
+  } as const satisfies Record<SailingAffiliation, string>;
+
+  return keys[affiliation];
+}
+
+function isSailingAffiliation(value: unknown): value is SailingAffiliation {
+  return (
+    typeof value === 'string' &&
+    (Object.values(SailingAffiliation) as readonly string[]).includes(value)
+  );
 }
 
 type EmailEventMessageKey =
@@ -511,10 +542,10 @@ function AdminUserSailingCardStatusPanel(props: {
   readonly userId: string;
 }) {
   const cardNumberLabel = props.model.pendingRequest
-    ? props.t('sailing_card_pending_number')
+    ? props.t('sailing_card_suggested_number')
     : props.t('sailing_card_number');
   const cardNumberHelp = props.model.pendingRequest
-    ? props.t('sailing_card_pending_number_help')
+    ? props.t('sailing_card_suggested_number_help')
     : props.t('sailing_card_number_help');
   const statusHelp = props.model.pendingRequest
     ? props.t('sailing_card_status_requested_help')
@@ -674,6 +705,7 @@ function AdminUserSailingCardDetailsList(props: {
 function AdminUserSailingCardSection(props: {
   readonly canAssignCards: boolean;
   readonly canExpireCards: boolean;
+  readonly canPrintCards: boolean;
   readonly history: AdminUserSailingCardDetails['history'];
   readonly loadError: boolean;
   readonly locale: string;
@@ -714,6 +746,11 @@ function AdminUserSailingCardSection(props: {
           t={props.t}
           userId={props.userId}
         />
+        {props.canPrintCards && model.hasCurrentCard ? (
+          <div className="mt-4">
+            <AdminSailingCardPrintActions userId={props.userId} />
+          </div>
+        ) : null}
         <AdminUserSailingCardDetailsList
           locale={props.locale}
           model={model}
@@ -1032,6 +1069,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     Permission.CARDS_ASSIGN_NUMBER
   );
   const canExpireCards = hasPermission(permissions, Permission.CARDS_EXPIRE);
+  const canPrintCards = hasPermission(permissions, Permission.CARDS_PRINT);
 
   const user = await usersAdminHandlers.getById(id);
   if (!user) {
@@ -1053,12 +1091,28 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     ? await getNextAvailableSailingCardNumber({ cardYear })
     : 0;
   const t = await getTranslations({ locale, namespace: 'AdminUsers' });
+  const tOnboarding = await getTranslations({
+    locale,
+    namespace: 'OnboardingPage',
+  });
   const emailStatus = emailDeliverabilityStatus(user.emailDeliverabilityStatus);
   const emailStatusReason =
     typeof user.emailSuppressionReason === 'string'
       ? user.emailSuppressionReason
       : emailStatus;
   const hasEmailDeliverabilityWarning = emailStatus !== 'ok';
+  const userFirstName =
+    typeof user.firstName === 'string' ? user.firstName : '';
+  const userLastName = typeof user.lastName === 'string' ? user.lastName : '';
+  const userProfileName =
+    `${userFirstName} ${userLastName}`.trim() || user.name;
+  const userSailingAffiliation = isSailingAffiliation(user.sailingAffiliation)
+    ? tOnboarding(userSailingAffiliationLabelKey(user.sailingAffiliation))
+    : t('empty_value');
+  const userIdentitySource =
+    typeof user.mitDataWarehouseVerifiedAt === 'string'
+      ? t('identity_source_mit_id')
+      : t('identity_source_manual');
   const blockers = adminUserMembershipBlockers({
     cardRequest:
       currentPendingSailingCardRequest(sailingCardDetails.summary) ??
@@ -1085,6 +1139,18 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
       <div className="rounded-lg border border-border bg-card p-5 text-sm text-foreground">
         <dl className="m-0 grid gap-3 sm:grid-cols-3">
           <div>
+            <dt className="font-semibold">{t('identity_name')}</dt>
+            <dd className="m-0">{userProfileName}</dd>
+          </div>
+          <div>
+            <dt className="font-semibold">{t('identity_affiliation')}</dt>
+            <dd className="m-0">{userSailingAffiliation}</dd>
+          </div>
+          <div>
+            <dt className="font-semibold">{t('identity_source')}</dt>
+            <dd className="m-0">{userIdentitySource}</dd>
+          </div>
+          <div>
             <dt className="font-semibold">{t('column_email')}</dt>
             <dd className="m-0">{userEmail}</dd>
           </div>
@@ -1097,6 +1163,10 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
             <dd className="m-0">
               {user.sailingCardNumber ?? t('empty_value')}
             </dd>
+          </div>
+          <div>
+            <dt className="font-semibold">{t('identity_mit_class_year')}</dt>
+            <dd className="m-0">{user.mitClassYear ?? t('empty_value')}</dd>
           </div>
           <div>
             <dt className="font-semibold">{t('column_role')}</dt>
@@ -1123,6 +1193,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
       <AdminUserSailingCardSection
         canAssignCards={canAssignCards}
         canExpireCards={canExpireCards}
+        canPrintCards={canPrintCards}
         history={sailingCardDetails.history}
         loadError={sailingCardDetails.loadError}
         locale={locale}

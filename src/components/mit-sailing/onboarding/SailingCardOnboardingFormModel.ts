@@ -5,10 +5,14 @@ import { useForm, useWatch } from 'react-hook-form';
 import type { Control } from 'react-hook-form';
 import type { SailingAffiliation } from '@/generated/prisma/enums';
 import { hasAutomaticFitnessMembership } from '@/libs/mit-sailing/sailingCardMembership';
-import { submitSailingCardOnboardingAction } from '@/libs/mit-sailing/sailingCardOnboardingActions';
+import {
+  submitSailingCardOnboardingAction,
+  verifySailingCardOnboardingMitIdentityAction,
+} from '@/libs/mit-sailing/sailingCardOnboardingActions';
 import type {
   SailingCardOnboardingFormState,
   SailingCardOnboardingFormValues,
+  VerifySailingCardOnboardingMitIdentityResult,
 } from '@/libs/mit-sailing/sailingCardOnboardingActions';
 import { useSailingCardOnboardingDraftStore } from './SailingCardOnboardingDraftProvider';
 import type { SailingCardOnboardingMemoryDraft } from './SailingCardOnboardingDraftProvider';
@@ -25,6 +29,16 @@ import type { SailingCardOnboardingLockedIdentity } from './SailingCardOnboardin
 export const defaultSailingCardOnboardingAction =
   submitSailingCardOnboardingAction;
 
+const defaultSailingCardOnboardingMitIdentityAction =
+  verifySailingCardOnboardingMitIdentityAction;
+
+type VerifiedOnboardingMitIdentity = Extract<
+  VerifySailingCardOnboardingMitIdentityResult,
+  { readonly ok: true }
+>['identity'] & {
+  readonly affiliation: SailingAffiliation;
+};
+
 export type SailingCardOnboardingFormProps = {
   readonly action?: (
     previousState: SailingCardOnboardingFormState,
@@ -33,8 +47,13 @@ export type SailingCardOnboardingFormProps = {
   readonly callbackUrl?: string;
   readonly draftKey?: string;
   readonly initialValues?: SailingCardOnboardingFormValues;
+  readonly initialMembershipCheckoutUrl?: string | null;
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
   readonly hasVerifiedMitRecreationMembership?: boolean;
+  readonly verifyIdentityAction?: (props: {
+    readonly affiliation: string;
+    readonly mitId: string;
+  }) => Promise<VerifySailingCardOnboardingMitIdentityResult>;
 };
 
 const initialSailingCardOnboardingFormState: SailingCardOnboardingFormState = {
@@ -60,8 +79,25 @@ const hasAnyError = (
   fields: readonly (keyof SailingCardOnboardingFormState['fieldErrors'])[]
 ) => fields.some((field) => state.fieldErrors[field] !== undefined);
 
-const isCompleteMitId = (value: string | undefined) =>
-  /^\d{9}$/.test((value ?? '').replaceAll(/\D/g, ''));
+const normalizedCompleteMitId = (value: string | undefined) => {
+  const normalized = (value ?? '').replaceAll(/\D/g, '');
+  return normalized.length === 9 ? normalized : null;
+};
+
+const onboardingMitIdErrorMessage = (
+  fieldError: Extract<
+    VerifySailingCardOnboardingMitIdentityResult,
+    { readonly ok: false }
+  >['fieldError']
+) => {
+  if (fieldError === 'affiliation_mismatch') {
+    return 'error_mit_id_affiliation_mismatch';
+  }
+  if (fieldError === 'invalid_dw_identity') {
+    return 'error_mit_id_invalid_dw_identity';
+  }
+  return 'error_mit_id_required_dw_identity';
+};
 
 const hasCompleteManualName = (props: {
   readonly firstNameValue: string | undefined;
@@ -74,11 +110,6 @@ const hasLockedIdentity = (props: {
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
   readonly showLockedIdentity: boolean;
 }) => props.showLockedIdentity && props.lockedIdentity !== undefined;
-
-const hasUsableMitId = (props: {
-  readonly mitIdValue: string | undefined;
-  readonly showMitId: boolean;
-}) => props.showMitId && isCompleteMitId(props.mitIdValue);
 
 const canUseManualName = (props: {
   readonly mitIdValue: string | undefined;
@@ -106,14 +137,6 @@ const isIdentityComplete = (props: {
     hasLockedIdentity({
       lockedIdentity: props.lockedIdentity,
       showLockedIdentity: props.showLockedIdentity,
-    })
-  ) {
-    return true;
-  }
-  if (
-    hasUsableMitId({
-      mitIdValue: props.mitIdValue,
-      showMitId: props.showMitId,
     })
   ) {
     return true;
@@ -171,7 +194,8 @@ const getIdentityVisibility = (props: {
   const showMitId = showMitIdForRule(props.rule);
   const showLockedIdentity =
     showMitId &&
-    props.rule?.mitIdMode === 'required' &&
+    (props.rule?.mitIdMode === 'required' ||
+      props.rule?.mitIdMode === 'optional') &&
     props.lockedIdentity !== undefined;
   const showManualName = showManualNameForRule({
     lockedIdentity: showLockedIdentity,
@@ -199,6 +223,11 @@ type OnboardingDraft = {
   readonly detailsUnlocked: boolean;
   readonly values: SailingCardOnboardingFormValues;
 };
+
+type OnboardingIdentityContinueMode =
+  | 'continue'
+  | 'skipMitId'
+  | 'validateMitId';
 
 const stringFromDraft = (
   value: Record<string, unknown>,
@@ -271,6 +300,10 @@ function useOnboardingActionRuntime(props: SailingCardOnboardingFormProps) {
   const [detailsUnlocked, setDetailsUnlocked] = useState(
     () => initialDraft?.detailsUnlocked ?? false
   );
+  const [verifiedIdentity, setVerifiedIdentity] =
+    useState<VerifiedOnboardingMitIdentity | null>(null);
+  const [identityValidationPending, setIdentityValidationPending] =
+    useState(false);
   const [isPending, startTransition] = useTransition();
   const formValues =
     state.status === 'idle'
@@ -298,6 +331,56 @@ function useOnboardingActionRuntime(props: SailingCardOnboardingFormProps) {
       );
     });
   });
+  const verifyIdentity =
+    props.verifyIdentityAction ?? defaultSailingCardOnboardingMitIdentityAction;
+  const handleValidateMitIdentity = async (identityInput: {
+    readonly affiliation: SailingAffiliation;
+    readonly mitId: string;
+  }) => {
+    const normalizedMitId = normalizedCompleteMitId(identityInput.mitId);
+    if (normalizedMitId === null) {
+      form.setError('mitId', {
+        type: 'manual',
+        message: 'error_mit_id_format',
+      });
+      return;
+    }
+
+    setIdentityValidationPending(true);
+    try {
+      const result = await verifyIdentity({
+        affiliation: identityInput.affiliation,
+        mitId: normalizedMitId,
+      });
+      if (!result.ok) {
+        setVerifiedIdentity(null);
+        form.setError('mitId', {
+          type: 'server',
+          message: onboardingMitIdErrorMessage(result.fieldError),
+        });
+        return;
+      }
+
+      form.clearErrors('mitId');
+      form.setValue('mitId', result.identity.mitId, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      form.setValue('firstName', result.identity.firstName, {
+        shouldDirty: true,
+      });
+      form.setValue('lastName', result.identity.lastName, {
+        shouldDirty: true,
+      });
+      setVerifiedIdentity({
+        ...result.identity,
+        affiliation: identityInput.affiliation,
+      });
+      setDetailsUnlocked(true);
+    } finally {
+      setIdentityValidationPending(false);
+    }
+  };
 
   return {
     draftStore,
@@ -305,11 +388,14 @@ function useOnboardingActionRuntime(props: SailingCardOnboardingFormProps) {
     handleContinueIdentity: () => {
       setDetailsUnlocked(true);
     },
+    handleValidateMitIdentity,
     handleSubmit,
+    identityValidationPending,
     isPending,
     now,
     state,
     detailsUnlocked,
+    verifiedIdentity,
   };
 }
 
@@ -384,30 +470,100 @@ function useWatchedOnboardingValues(
   };
 }
 
+const activeVerifiedIdentityForValues = (props: {
+  readonly affiliation: SailingAffiliation | '';
+  readonly normalizedMitId: string | null;
+  readonly verifiedIdentity: VerifiedOnboardingMitIdentity | null;
+}) => {
+  if (
+    props.affiliation === '' ||
+    props.verifiedIdentity?.affiliation !== props.affiliation ||
+    props.verifiedIdentity.mitId !== props.normalizedMitId
+  ) {
+    return null;
+  }
+  return props.verifiedIdentity;
+};
+
+const identityContinueModeForState = (props: {
+  readonly hasVisibleLockedIdentity: boolean;
+  readonly rule: ReturnType<typeof getVisibleSailingAffiliationRule>;
+  readonly shouldValidateMitId: boolean;
+}): OnboardingIdentityContinueMode => {
+  if (props.hasVisibleLockedIdentity) {
+    return 'continue';
+  }
+  if (props.shouldValidateMitId) {
+    return 'validateMitId';
+  }
+  if (props.rule?.mitIdMode === 'optional') {
+    return 'skipMitId';
+  }
+  return 'continue';
+};
+
 function getOnboardingIdentityModel(props: {
   readonly affiliation: SailingAffiliation | '';
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
+  readonly verifiedIdentity: VerifiedOnboardingMitIdentity | null;
   readonly values: ReturnType<typeof useWatchedOnboardingValues>;
 }) {
   const rule = getVisibleSailingAffiliationRule(props.affiliation);
+  const normalizedMitId = normalizedCompleteMitId(props.values.mitIdValue);
+  const activeVerifiedIdentity = activeVerifiedIdentityForValues({
+    affiliation: props.affiliation,
+    normalizedMitId,
+    verifiedIdentity: props.verifiedIdentity,
+  });
+  const lockedIdentity =
+    activeVerifiedIdentity ??
+    (rule?.mitIdMode === 'required' ? props.lockedIdentity : undefined);
   const identityVisibility = getIdentityVisibility({
-    lockedIdentity: props.lockedIdentity,
+    lockedIdentity,
     rule,
   });
   const identityComplete = isIdentityComplete({
     firstNameValue: props.values.firstNameValue,
     lastNameValue: props.values.lastNameValue,
-    lockedIdentity: props.lockedIdentity,
+    lockedIdentity,
     mitIdValue: props.values.mitIdValue,
     rule,
     showLockedIdentity: identityVisibility.showLockedIdentity,
     showManualName: identityVisibility.showManualName,
     showMitId: identityVisibility.showMitId,
   });
+  const hasMitIdInput = (props.values.mitIdValue ?? '').trim() !== '';
+  const hasVisibleLockedIdentity =
+    identityVisibility.showLockedIdentity && lockedIdentity !== undefined;
+  const shouldValidateMitId =
+    identityVisibility.showMitId &&
+    (rule?.mitIdMode === 'required' || hasMitIdInput);
+  const identityContinueMode = identityContinueModeForState({
+    hasVisibleLockedIdentity,
+    rule,
+    shouldValidateMitId,
+  });
+  const canValidateMitId =
+    props.affiliation !== '' &&
+    normalizedMitId !== null &&
+    identityVisibility.showMitId;
+  const canSkipMitId =
+    rule?.mitIdMode === 'optional' &&
+    !hasMitIdInput &&
+    hasCompleteManualName({
+      firstNameValue: props.values.firstNameValue,
+      lastNameValue: props.values.lastNameValue,
+    });
 
   return {
+    canContinueIdentity:
+      identityContinueMode === 'validateMitId'
+        ? canValidateMitId
+        : canSkipMitId || identityComplete,
     identityComplete,
+    identityContinueMode,
     identityVisibility,
+    lockedIdentity,
     manualNameRequired: isManualNameRequired({
       mitIdValue: props.values.mitIdValue,
       rule,
@@ -432,6 +588,7 @@ export function useSailingCardOnboardingFormModel(
   const identity = getOnboardingIdentityModel({
     affiliation,
     lockedIdentity: props.lockedIdentity,
+    verifiedIdentity: runtime.verifiedIdentity,
     values,
   });
 
@@ -448,11 +605,23 @@ export function useSailingCardOnboardingFormModel(
     form: runtime.form,
     hasFitnessMembershipValue: values.hasFitnessMembershipValue,
     handleContinueIdentity: runtime.handleContinueIdentity,
+    handleValidateMitIdentity: async () => {
+      if (affiliation === '') {
+        return;
+      }
+      await runtime.handleValidateMitIdentity({
+        affiliation,
+        mitId: values.mitIdValue ?? '',
+      });
+    },
     handleSubmit: runtime.handleSubmit,
+    identityContinueMode: identity.identityContinueMode,
     identityComplete: identity.identityComplete,
     identityVisibility: identity.identityVisibility,
+    identityValidationPending: runtime.identityValidationPending,
     isPending: runtime.isPending,
-    lockedIdentity: props.lockedIdentity,
+    canContinueIdentity: identity.canContinueIdentity,
+    lockedIdentity: identity.lockedIdentity,
     manualNameRequired: identity.manualNameRequired,
     mitIdRequired: identity.mitIdRequired,
     now: runtime.now,

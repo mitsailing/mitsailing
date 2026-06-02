@@ -20,6 +20,7 @@ export type EmailMessageCategory =
   | 'event_payment_receipt'
   | 'event_payment_reminder'
   | 'event_payment_request'
+  | 'membership_payment_reminder'
   | 'newsletter'
   | 'newsletter_test'
   | 'other'

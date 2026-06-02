@@ -95,12 +95,14 @@ export async function SiteShell(props: SiteShellProps) {
             initialShowAdminLink={initialShowAdminLink}
             initialSignedIn={initialSignedIn}
             mobileUtilityItems={[]}
+            onboardingTaskHref={null}
           />
         }
       >
         <SiteShellHeaderNav
           initialShowAdminLink={initialShowAdminLink}
           initialSignedIn={initialSignedIn}
+          userId={session?.user?.id}
         />
       </Suspense>
       <div className="flex min-h-0 flex-1 flex-col" id="site-shell-inert-scope">

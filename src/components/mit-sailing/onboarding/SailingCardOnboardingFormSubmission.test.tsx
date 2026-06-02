@@ -65,8 +65,9 @@ describe('SailingCardOnboardingForm submission and errors', () => {
       SailingAffiliation.MIT_STUDENT
     );
     await user.type(screen.getByLabelText('MIT ID'), '123456789');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await user.type(screen.getByLabelText('Date of birth'), '01/02/2000');
+    await user.click(screen.getByRole('button', { name: 'Validate MIT ID' }));
+    const dateOfBirth = await screen.findByLabelText('Date of birth');
+    await user.type(dateOfBirth, '01/02/2000');
     await user.type(screen.getByLabelText('Your phone number'), '6175550100');
     await user.type(
       screen.getByLabelText('Emergency contact name'),

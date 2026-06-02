@@ -179,6 +179,17 @@ reviews:
         the physical `fleet_boats` table name. `StaffMember.id` is app-assigned
         from the staff slug in seed code; do not request `@default(cuid())`
         unless a real `staffMember.create` call omits an id.
+    - path: 'zenstack/schema.ts'
+      instructions: >-
+        This file is generated from `zenstack/schema.zmodel`; do not request
+        direct edits here. For `SailingCardMembershipPrice`, enum catalog-key
+        immutability is intentionally enforced by the migration trigger because
+        ZenStack `before()` comparisons for Postgres enum fields generate invalid
+        enum/text SQL in this model. Do not request adding enum `before()`
+        comparisons to the ZenStack post-update policy unless local generation
+        and tests prove the SQL is valid. ZenStack field-level policies cannot be
+        applied to relation fields; creator FK scalar fields remain read-denied,
+        and public app/API surfaces must avoid exposing creator relations.
     - path: 'compose.prod.yaml'
       instructions: >-
         Production CMS media intentionally uses a fixed in-container path:

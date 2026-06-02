@@ -2,7 +2,6 @@ import { render, screen, within } from '@testing-library/react';
 import React from 'react';
 import type { MockedFunction } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
 import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
 import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
 import ForgotPasswordPage, {
@@ -22,9 +21,6 @@ import SignUpPage, {
 import UnlockAccountPage from './(center)/unlock-account/page';
 import VerifyEmailPage from './(center)/verify-email/page';
 import AuthLayout from './layout';
-import ProfileAccountPage, {
-  generateMetadata as generateProfileAccountMetadata,
-} from './profile/account/page';
 import ProfileDeletePage, {
   generateMetadata as generateProfileDeleteMetadata,
 } from './profile/delete/page';
@@ -32,7 +28,9 @@ import ProfileLayout from './profile/layout';
 import ProfileNewsletterPage, {
   generateMetadata as generateProfileNewsletterMetadata,
 } from './profile/newsletter/page';
-import ProfileIndexPage from './profile/page';
+import ProfilePage, {
+  generateMetadata as generateProfileMetadata,
+} from './profile/page';
 import ProfilePasswordPage, {
   generateMetadata as generateProfilePasswordMetadata,
 } from './profile/password/page';
@@ -238,9 +236,15 @@ vi.mock('./profile/ProfileAccountClient', () => ({
     initialEmailDeliverabilityStatus: string;
     initialEmergencyContactName: string;
     initialEmergencyContactPhone: string;
-    initialGymMembershipVerifiedAt: string | null;
+    initialFirstName: string;
+    initialLastName: string;
+    initialMitClassYear: string | null;
+    initialMitId: string | null;
+    initialMitIdentityLocked: boolean;
     initialName: string | null;
     initialPhone: string;
+    initialSailingAffiliation: string | null;
+    initialSailingCardSummary: { status: string };
     initialThemePreference: string;
     initialUnconfirmedEmail: string | null;
     locale: string;
@@ -251,12 +255,16 @@ vi.mock('./profile/ProfileAccountClient', () => ({
       data-email-deliverability={props.initialEmailDeliverabilityStatus}
       data-emergency-contact-name={props.initialEmergencyContactName}
       data-emergency-contact-phone={props.initialEmergencyContactPhone}
-      data-gym-membership-verified-at={
-        props.initialGymMembershipVerifiedAt ?? ''
-      }
+      data-first-name={props.initialFirstName}
+      data-last-name={props.initialLastName}
       data-locale={props.locale}
+      data-locked-identity={String(props.initialMitIdentityLocked)}
+      data-mit-class-year={props.initialMitClassYear ?? ''}
+      data-mit-id={props.initialMitId ?? ''}
       data-name={props.initialName ?? ''}
       data-phone={props.initialPhone}
+      data-sailing-affiliation={props.initialSailingAffiliation ?? ''}
+      data-sailing-card-status={props.initialSailingCardSummary.status}
       data-theme={props.initialThemePreference}
       data-unconfirmed-email={props.initialUnconfirmedEmail ?? ''}
     />
@@ -356,8 +364,23 @@ beforeEach(() => {
     emailBouncedAt: new Date('2026-01-01T12:00:00Z'),
     emailSuppressedAt: null,
     emailSuppressionReason: null,
-    gymMembershipVerifiedAt: new Date('2026-01-02T12:00:00Z'),
+    emergencyContactName: 'Safety Person',
+    emergencyContactPhone: '+16175550199',
+    firstName: 'Sail',
+    lastName: 'Or',
+    legalAgreementAcceptances: [],
+    mitClassYear: null,
+    mitDataWarehouseVerifiedAt: null,
+    mitId: null,
+    phone: '+16175550100',
+    sailingAffiliation: 'OTHER_NON_STUDENT',
+    sailingCardExpiresOn: null,
+    sailingCardIssuedAt: null,
+    sailingCardNumber: null,
     sailingCardRequests: [],
+    sailingCardSwimAgreementInitialedAt: null,
+    sailingCardSwimAgreementInitials: null,
+    sailingCardYear: null,
     themePreference: 'DARK',
     unconfirmedEmail: 'pending@example.com',
   });
@@ -427,7 +450,7 @@ describe('auth route shells', () => {
     render(
       await SignInPage(
         routeProps({
-          callbackUrl: '/profile/account',
+          callbackUrl: '/profile',
           error: 'unlock_invalid',
         })
       )
@@ -435,7 +458,7 @@ describe('auth route shells', () => {
 
     expect(routeMocks.redirectIfAuthenticated).toHaveBeenCalledWith(
       'en',
-      '/profile/account'
+      '/profile'
     );
     expect(
       screen.getByRole('heading', { name: 'SignInPage.heading' })
@@ -445,11 +468,11 @@ describe('auth route shells', () => {
     );
     expect(screen.getByRole('form', { name: 'sign-in-form' })).toHaveAttribute(
       'data-callback-url',
-      '/profile/account'
+      '/profile'
     );
     expect(
       screen.getByRole('link', { name: 'SignInPage.sign_up_link' })
-    ).toHaveAttribute('href', '/signup?callbackUrl=%2Fprofile%2Faccount');
+    ).toHaveAttribute('href', '/signup?callbackUrl=%2Fprofile');
   });
 
   it('sign-in page renders unlocked banner without an error', async () => {
@@ -675,66 +698,77 @@ describe('auth route shells', () => {
 
     expect(screen.getByTestId('profile-settings-chrome')).toHaveAttribute(
       'data-callback-url',
-      '/profile/account'
+      '/profile'
     );
     expect(screen.getByText('Profile child')).toBeVisible();
   });
 
-  it('profile index redirects to account settings', async () => {
-    await expect(
-      ProfileIndexPage({ params: Promise.resolve({ locale: 'en' }) })
-    ).rejects.toThrow('NEXT_REDIRECT:/profile/account');
-
-    expect(routeMocks.redirect).toHaveBeenCalledWith('/profile/account');
+  it('profile metadata uses localized copy', async () => {
+    await expect(generateProfileMetadata(routeProps())).resolves.toEqual({
+      description: 'UserProfilePage.account_meta_description',
+      title: 'UserProfilePage.account_meta_title',
+    });
   });
 
-  it('profile account metadata uses localized copy', async () => {
-    await expect(generateProfileAccountMetadata(routeProps())).resolves.toEqual(
-      {
-        description: 'UserProfilePage.account_meta_description',
-        title: 'UserProfilePage.account_meta_title',
-      }
-    );
-  });
+  const profilePageFindUniqueArgs = {
+    select: {
+      emailBouncedAt: true,
+      emailSuppressedAt: true,
+      emailSuppressionReason: true,
+      emergencyContactName: true,
+      emergencyContactPhone: true,
+      firstName: true,
+      lastName: true,
+      mitClassYear: true,
+      mitDataWarehouseVerifiedAt: true,
+      mitId: true,
+      phone: true,
+      sailingAffiliation: true,
+      sailingCardExpiresOn: true,
+      sailingCardIssuedAt: true,
+      sailingCardNumber: true,
+      sailingCardRequests: {
+        orderBy: { requestedAt: 'desc' },
+        select: {
+          cardType: true,
+          cardYear: true,
+          requestedAt: true,
+          status: true,
+        },
+        take: 1,
+      },
+      sailingCardSwimAgreementInitialedAt: true,
+      sailingCardSwimAgreementInitials: true,
+      sailingCardYear: true,
+      legalAgreementAcceptances: {
+        orderBy: { acceptedAt: 'desc' },
+        select: {
+          acceptedAt: true,
+          agreementHash: true,
+          agreementVersion: true,
+        },
+        take: 1,
+      },
+      themePreference: true,
+      unconfirmedEmail: true,
+    },
+    where: { id: 'user-1' },
+  } as const;
 
-  it('profile account page forwards current user and database fields', async () => {
+  it('profile page forwards current user and database fields', async () => {
     render(
-      await ProfileAccountPage({
+      await ProfilePage({
         params: Promise.resolve({ locale: 'en' }),
       })
     );
 
     expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith(
       'en',
-      '/profile/account'
+      '/profile'
     );
-    expect(routeMocks.findUnique).toHaveBeenCalledWith({
-      select: {
-        emailBouncedAt: true,
-        emailSuppressedAt: true,
-        emailSuppressionReason: true,
-        emergencyContactName: true,
-        emergencyContactPhone: true,
-        gymMembershipVerifiedAt: true,
-        phone: true,
-        sailingCardRequests: {
-          orderBy: { requestedAt: 'desc' },
-          select: {
-            cardType: true,
-            cardYear: true,
-            hasFitnessMembership: true,
-            status: true,
-          },
-          take: 1,
-          where: {
-            cardYear: getCurrentSailingCardYear(),
-          },
-        },
-        themePreference: true,
-        unconfirmedEmail: true,
-      },
-      where: { id: 'user-1' },
-    });
+    expect(routeMocks.findUnique).toHaveBeenCalledWith(
+      profilePageFindUniqueArgs
+    );
     expect(
       screen.getByRole('region', { name: 'profile-account-client' })
     ).toHaveAttribute('data-theme', 'DARK');
@@ -744,15 +778,9 @@ describe('auth route shells', () => {
     expect(
       screen.getByRole('region', { name: 'profile-account-client' })
     ).toHaveAttribute('data-unconfirmed-email', 'pending@example.com');
-    expect(
-      screen.getByRole('region', { name: 'profile-account-client' })
-    ).toHaveAttribute(
-      'data-gym-membership-verified-at',
-      '2026-01-02T12:00:00.000Z'
-    );
   });
 
-  it('profile account page defaults nullable account fields', async () => {
+  it('profile page defaults nullable account fields', async () => {
     routeMocks.requireCurrentUser.mockResolvedValue({
       email: null,
       id: 'user-1',
@@ -762,14 +790,29 @@ describe('auth route shells', () => {
       emailBouncedAt: null,
       emailSuppressedAt: null,
       emailSuppressionReason: null,
-      gymMembershipVerifiedAt: null,
+      emergencyContactName: null,
+      emergencyContactPhone: null,
+      firstName: null,
+      lastName: null,
+      legalAgreementAcceptances: [],
+      mitClassYear: null,
+      mitDataWarehouseVerifiedAt: null,
+      mitId: null,
+      phone: null,
+      sailingAffiliation: null,
+      sailingCardExpiresOn: null,
+      sailingCardIssuedAt: null,
+      sailingCardNumber: null,
       sailingCardRequests: [],
+      sailingCardSwimAgreementInitialedAt: null,
+      sailingCardSwimAgreementInitials: null,
+      sailingCardYear: null,
       themePreference: null,
       unconfirmedEmail: null,
     });
 
     render(
-      await ProfileAccountPage({
+      await ProfilePage({
         params: Promise.resolve({ locale: 'en' }),
       })
     );
@@ -782,19 +825,34 @@ describe('auth route shells', () => {
     ).toHaveAttribute('data-theme', 'SYSTEM');
   });
 
-  it('profile account page prefers suppressed deliverability state', async () => {
+  it('profile page prefers suppressed deliverability state', async () => {
     routeMocks.findUnique.mockResolvedValue({
       emailBouncedAt: new Date('2026-01-01T12:00:00Z'),
       emailSuppressedAt: new Date('2026-01-01T12:00:00Z'),
       emailSuppressionReason: 'complained',
-      gymMembershipVerifiedAt: null,
+      emergencyContactName: null,
+      emergencyContactPhone: null,
+      firstName: null,
+      lastName: null,
+      legalAgreementAcceptances: [],
+      mitClassYear: null,
+      mitDataWarehouseVerifiedAt: null,
+      mitId: null,
+      phone: null,
+      sailingAffiliation: null,
+      sailingCardExpiresOn: null,
+      sailingCardIssuedAt: null,
+      sailingCardNumber: null,
       sailingCardRequests: [],
+      sailingCardSwimAgreementInitialedAt: null,
+      sailingCardSwimAgreementInitials: null,
+      sailingCardYear: null,
       themePreference: 'DARK',
       unconfirmedEmail: null,
     });
 
     render(
-      await ProfileAccountPage({
+      await ProfilePage({
         params: Promise.resolve({ locale: 'en' }),
       })
     );
@@ -804,11 +862,11 @@ describe('auth route shells', () => {
     ).toHaveAttribute('data-email-deliverability', 'suppressed');
   });
 
-  it('profile account page reports missing database users', async () => {
+  it('profile page reports missing database users', async () => {
     routeMocks.findUnique.mockResolvedValue(null);
 
     await expect(
-      ProfileAccountPage({
+      ProfilePage({
         params: Promise.resolve({ locale: 'en' }),
       })
     ).rejects.toThrow('Missing db user after auth');
@@ -920,7 +978,7 @@ describe('auth route shells', () => {
 
     expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith(
       'en',
-      '/profile/account'
+      '/profile'
     );
     expect(
       screen.getByRole('region', { name: 'profile-password-client' })
@@ -1049,7 +1107,7 @@ describe('auth route shells', () => {
 
     expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith(
       'en',
-      '/profile/account'
+      '/profile'
     );
     expect(
       screen.getByRole('region', { name: 'profile-security-client' })
@@ -1072,7 +1130,7 @@ describe('auth route shells', () => {
 
     expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith(
       'en',
-      '/profile/account'
+      '/profile'
     );
     expect(
       screen.getByRole('region', { name: 'profile-delete-account-client' })

@@ -351,7 +351,7 @@ test('admin opens pending card user profile by MIT ID search', async ({
 
   await openAdminUserProfile({ page, query: mitId, userName: 'Grace Hopper' });
 
-  await expect(page.getByText('Pending card number')).toBeVisible();
+  await expect(page.getByText('Suggested issue number')).toBeVisible();
   await expect(
     page.getByRole('form', { name: 'Issue sailing card' })
   ).toBeVisible();

@@ -1,20 +1,43 @@
 ---
+# Keep Codacy exclusions scoped to generated, build, report, vendored, migration,
+# policy prose, or documented analyzer-mismatch files. App-owned source findings
+# should be fixed or triaged instead of hidden here.
 # React TSX is covered by Codacy's Biome config in .biome.json.
+engines:
+  lizard:
+    exclude_paths:
+      # Codacy Lizard file-length is low signal for this integration-style UI test.
+      # Local Vitest coverage and repo lint/type gates still cover it.
+      - 'src/components/mit-sailing/admin/catalog/AdminCatalogRichText.test.tsx'
+
 exclude_paths:
+  # Local Codacy CLI state.
+  - '.codacy/**'
+  # Next.js and production build artifacts.
   - '.next/**'
   - 'out/**'
+  - 'build/**'
+  - '.vercel/**'
+  # Coverage and generated test result reports.
   - 'coverage/**'
+  - 'test-report.junit.xml'
   - 'playwright-report/**'
   - 'blob-report/**'
   - 'test-results/**'
   - 'vitest-test-results/**'
+  - '.vitest-attachments/**'
+  - 'playwright/.cache/**'
+  # Storybook build output.
   - 'storybook-static/**'
-  - 'node_modules/**'
+  # Generated framework and ORM output.
+  - '*.tsbuildinfo'
+  - 'next-env.d.ts'
+  - 'prisma/schema.prisma'
   - 'src/generated/**'
-  - 'zenstack/**'
+  - 'zenstack/input.ts'
+  - 'zenstack/models.ts'
+  - 'zenstack/schema.ts'
+  # Database migrations are reviewed in code review, not static metrics.
   - 'prisma/migrations/**'
   # Repo agent instructions are policy prose, not app source.
   - 'AGENTS.md'
-  # Codacy Lizard file-length is low signal for this integration-style UI test.
-  # Local Vitest coverage and repo lint/type gates still cover it.
-  - 'src/components/mit-sailing/admin/catalog/AdminCatalogRichText.test.tsx'

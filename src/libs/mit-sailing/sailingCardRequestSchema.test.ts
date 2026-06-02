@@ -1,7 +1,30 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const schema = readFileSync('zenstack/schema.zmodel', 'utf8');
+const membershipPriceMigrationPath = readdirSync('prisma/migrations', {
+  withFileTypes: true,
+})
+  .filter(
+    (entry) =>
+      entry.isDirectory() &&
+      /^\d+_add_sailing_card_membership_prices$/u.test(entry.name)
+  )
+  .map((entry) => join('prisma/migrations', entry.name, 'migration.sql'))
+  .toSorted()
+  .find((path) => existsSync(path));
+
+if (membershipPriceMigrationPath === undefined) {
+  throw new Error(
+    'Expected a migration matching *_add_sailing_card_membership_prices/migration.sql.'
+  );
+}
+
+const membershipPriceMigration = readFileSync(
+  membershipPriceMigrationPath,
+  'utf8'
+);
 const compactSchema = schema.replaceAll(/\s+/g, ' ');
 
 describe('sailing card request schema', () => {
@@ -31,5 +54,76 @@ describe('sailing card request schema', () => {
   it('preserves MIT Recreation self-report on sailing card requests', () => {
     expect(compactSchema).toContain('hasFitnessMembership Boolean?');
     expect(compactSchema).toContain('@map("has_fitness_membership")');
+  });
+
+  it('stores effective-dated sailing card membership prices', () => {
+    expect(compactSchema).toContain('model SailingCardMembershipPrice');
+    expect(compactSchema).toContain('enum SailingCardMembershipPriceKind');
+    expect(compactSchema).toContain('enum SailingCardMembershipPriceCategory');
+    expect(compactSchema).toContain(
+      'enum SailingCardMembershipBillingInterval'
+    );
+    expect(compactSchema).toContain('model Payment');
+    expect(compactSchema).toContain('purpose PaymentPurpose');
+    expect(compactSchema).toContain('membership');
+    expect(compactSchema).toContain('active Boolean @default(true)');
+    expect(compactSchema).toContain(
+      'priceKind == spring && billingInterval == annual'
+    );
+    expect(compactSchema).toContain(
+      'effectiveAt DateTime @map("effective_at")'
+    );
+    expect(compactSchema).toContain('priceCategory');
+    expect(compactSchema).not.toContain('@map("retired_at")');
+    expect(compactSchema).not.toContain('model SailingCardMembershipPayment');
+    expect(compactSchema).not.toContain('model SailingCardMembershipRefund');
+    expect(membershipPriceMigration).toContain(
+      'sailing_card_membership_prices_prevent_catalog_key_change'
+    );
+    expect(compactSchema).toContain("@@deny('post-update'");
+    expect(compactSchema).not.toContain('cardType != before().cardType');
+    expect(compactSchema).not.toContain('priceKind != before().priceKind');
+    expect(compactSchema).not.toContain(
+      'priceCategory != before().priceCategory'
+    );
+    expect(compactSchema).not.toContain(
+      'billingInterval != before().billingInterval'
+    );
+    expect(compactSchema).toContain('amountCents != before().amountCents');
+    expect(compactSchema).toContain(
+      'before().stripePriceId != null && (stripePriceId == null || stripePriceId != before().stripePriceId)'
+    );
+    expect(compactSchema).toContain(
+      "stripePriceId String? @deny('read', auth() == null || auth().appRole != 'admin')"
+    );
+    expect(compactSchema).toContain(
+      "stripeSyncError String? @deny('read', auth() == null || auth().appRole != 'admin')"
+    );
+    expect(compactSchema).toContain(
+      "stripeSyncedAt DateTime? @deny('read', auth() == null || auth().appRole != 'admin')"
+    );
+    expect(compactSchema).toContain(
+      "createdByUserId String? @deny('read', auth() == null || auth().appRole != 'admin')"
+    );
+    expect(compactSchema).toContain(
+      'createdBy User? @relation("SailingCardMembershipPriceCreatedBy"'
+    );
+    expect(compactSchema).toContain(
+      'sailingCardMembershipPricesCreated SailingCardMembershipPrice[]'
+    );
+    expect(membershipPriceMigration).toContain(
+      'sailing_card_membership_prices_price_kind_interval_chk'
+    );
+    expect(membershipPriceMigration).toContain(
+      'OLD.stripe_price_id IS NOT NULL'
+    );
+    expect(membershipPriceMigration).toContain(
+      'NEW.stripe_price_id IS DISTINCT FROM OLD.stripe_price_id'
+    );
+    expect(membershipPriceMigration).toMatch(
+      /OR \(\s*NEW\.created_by_user_id IS NOT NULL\s*AND NEW\.created_by_user_id IS DISTINCT FROM OLD\.created_by_user_id\s*\)/u
+    );
+    expect(membershipPriceMigration).toContain('ON UPDATE NO ACTION');
+    expect(membershipPriceMigration).not.toContain('ON UPDATE CASCADE');
   });
 });

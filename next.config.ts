@@ -4,6 +4,8 @@ import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 import './src/libs/Env';
 
+const isE2eBuild = process.env.IS_E2E === '1';
+
 // Define the base Next.js configuration
 const baseConfig: NextConfig = {
   devIndicators: {
@@ -21,6 +23,10 @@ const baseConfig: NextConfig = {
     '/': ['./prisma/migrations/**/*'],
   },
   images: {
+    // Playwright navigations wait for the browser load event by default. In the
+    // standalone E2E server, Next image optimization can keep local image
+    // requests open long enough to make unrelated route assertions flaky.
+    unoptimized: isE2eBuild,
     remotePatterns: [
       {
         protocol: 'https',

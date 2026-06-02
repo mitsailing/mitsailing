@@ -1,12 +1,263 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PaymentStatus } from '@/generated/prisma/enums';
+import type { PaymentStatus as PaymentStatusType } from '@/generated/prisma/enums';
 import {
   constructStripeWebhookEvent,
   processStripeWebhookEvent,
   stripeEventCreatedAtDate,
 } from '@/libs/stripe/stripeWebhookEvents';
+import type {
+  StripeWebhookDb,
+  StripeWebhookDispatchHandler,
+} from '@/libs/stripe/stripeWebhookEvents';
 
 vi.mock('server-only', () => ({}));
+
+type StripeWebhookPayment = NonNullable<
+  Awaited<ReturnType<StripeWebhookDb['payment']['findFirst']>>
+>;
+type StoredWebhookEvent = NonNullable<
+  Awaited<ReturnType<StripeWebhookDb['stripeWebhookEvent']['findUnique']>>
+>;
+
+const stripeEventCreated = 1_777_636_800;
+
+function duplicateStripeEventError() {
+  return Object.assign(new Error('duplicate'), { code: 'P2002' });
+}
+
+function eventPayment(
+  options: { id?: string; status?: PaymentStatusType } = {}
+): StripeWebhookPayment {
+  return {
+    amountCents: 4200,
+    currency: 'usd',
+    id: options.id ?? 'payment_123',
+    status: options.status ?? PaymentStatus.pending,
+  };
+}
+
+function storedWebhookEvent(
+  options: {
+    id?: string;
+    processedAt?: Date | null;
+    processingError?: string | null;
+  } = {}
+): StoredWebhookEvent {
+  return {
+    id: options.id ?? 'webhook_event_123',
+    processedAt: options.processedAt ?? null,
+    processingError: options.processingError ?? null,
+  };
+}
+
+function mockPaymentUpdate(result?: { count: number }) {
+  return vi
+    .fn<StripeWebhookDb['payment']['updateMany']>()
+    .mockResolvedValue(result ?? { count: 1 });
+}
+
+function mockReceiptUpsert() {
+  return vi
+    .fn<StripeWebhookDb['eventPaymentNotification']['upsert']>()
+    .mockResolvedValue({});
+}
+
+function mockWebhookCreate() {
+  return vi.fn<StripeWebhookDb['stripeWebhookEvent']['create']>();
+}
+
+function mockDuplicateWebhookCreate() {
+  return mockWebhookCreate().mockRejectedValue(duplicateStripeEventError());
+}
+
+function mockWebhookCreateThenDuplicate(webhookEventId = 'webhook_event_123') {
+  return mockWebhookCreate()
+    .mockResolvedValueOnce({ id: webhookEventId })
+    .mockRejectedValueOnce(duplicateStripeEventError());
+}
+
+function mockWebhookUpdate() {
+  return vi
+    .fn<StripeWebhookDb['stripeWebhookEvent']['update']>()
+    .mockResolvedValue({});
+}
+
+function mockWebhookUpdateMany(result?: { count: number }) {
+  return vi
+    .fn<StripeWebhookDb['stripeWebhookEvent']['updateMany']>()
+    .mockResolvedValue(result ?? { count: 1 });
+}
+
+function createWebhookDb(
+  options: {
+    createWebhookEvent?: StripeWebhookDb['stripeWebhookEvent']['create'];
+    payment?: StripeWebhookPayment | null;
+    storedWebhookEvent?: StoredWebhookEvent | null;
+    updateManyWebhookEvent?: StripeWebhookDb['stripeWebhookEvent']['updateMany'];
+    updatePayment?: StripeWebhookDb['payment']['updateMany'];
+    updateWebhookEvent?: StripeWebhookDb['stripeWebhookEvent']['update'];
+    upsertReceipt?: StripeWebhookDb['eventPaymentNotification']['upsert'];
+    webhookEventId?: string;
+  } = {}
+): StripeWebhookDb {
+  const webhookEventId = options.webhookEventId ?? 'webhook_event_123';
+  return {
+    payment: {
+      create: vi.fn().mockResolvedValue({}),
+      findFirst: vi
+        .fn<StripeWebhookDb['payment']['findFirst']>()
+        .mockResolvedValue(options.payment ?? null),
+      updateMany: options.updatePayment ?? mockPaymentUpdate({ count: 0 }),
+    },
+    eventPaymentNotification: {
+      upsert: options.upsertReceipt ?? mockReceiptUpsert(),
+    },
+    sailingCardSubscription: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({
+        id: 'membership_subscription_123',
+        userId: 'user_123',
+      }),
+    },
+    stripeWebhookEvent: {
+      create:
+        options.createWebhookEvent ??
+        mockWebhookCreate().mockResolvedValue({ id: webhookEventId }),
+      findUnique: vi
+        .fn<StripeWebhookDb['stripeWebhookEvent']['findUnique']>()
+        .mockResolvedValue(options.storedWebhookEvent ?? null),
+      update: options.updateWebhookEvent ?? mockWebhookUpdate(),
+      updateMany: options.updateManyWebhookEvent ?? mockWebhookUpdateMany(),
+    },
+  };
+}
+
+function paymentIntentSucceededEvent(
+  options: {
+    latestCharge?: string;
+    paymentId?: string;
+    paymentIntentId?: string;
+    stripeEventId?: string;
+  } = {}
+) {
+  return {
+    created: stripeEventCreated,
+    data: {
+      object: {
+        id: options.paymentIntentId ?? 'pi_123',
+        amount_received: 4200,
+        currency: 'usd',
+        latest_charge: options.latestCharge,
+        metadata: { paymentId: options.paymentId ?? 'payment_123' },
+      },
+    },
+    id: options.stripeEventId ?? 'evt_payment_intent_succeeded',
+    type: 'payment_intent.succeeded',
+  };
+}
+
+function membershipSubscriptionEvent() {
+  return {
+    created: stripeEventCreated,
+    data: {
+      object: {
+        id: 'sub_123',
+        metadata: { domain: 'sailing_card_membership' },
+      },
+    },
+    id: 'evt_customer_subscription_updated',
+    type: 'customer.subscription.updated',
+  };
+}
+
+function failingMembershipHandler(): StripeWebhookDispatchHandler {
+  return vi.fn(async () => {
+    await Promise.resolve();
+    throw new Error('membership handler down');
+  });
+}
+
+function succeedingMembershipHandler(): StripeWebhookDispatchHandler {
+  return vi.fn(async () => {
+    await Promise.resolve();
+    return { handled: true };
+  });
+}
+
+function createReceiptRecoveryScenario(options: {
+  processingError: string;
+  updateWebhookEvent?: StripeWebhookDb['stripeWebhookEvent']['update'];
+  upsertReceipt?: StripeWebhookDb['eventPaymentNotification']['upsert'];
+}) {
+  const updateWebhookEvent = options.updateWebhookEvent ?? mockWebhookUpdate();
+  const updateManyWebhookEvent = mockWebhookUpdateMany();
+  const updatePayment = mockPaymentUpdate();
+  const upsertReceipt = options.upsertReceipt ?? mockReceiptUpsert();
+  const paymentState = eventPayment();
+  const db = createWebhookDb({
+    createWebhookEvent: mockWebhookCreateThenDuplicate(),
+    payment: paymentState,
+    storedWebhookEvent: storedWebhookEvent({
+      processingError: options.processingError,
+    }),
+    updateManyWebhookEvent,
+    updatePayment,
+    updateWebhookEvent,
+    upsertReceipt,
+  });
+
+  return {
+    db,
+    event: paymentIntentSucceededEvent(),
+    paymentState,
+    updateManyWebhookEvent,
+    updatePayment,
+    updateWebhookEvent,
+    upsertReceipt,
+  };
+}
+
+async function expectReceiptRecoveryAfterInitialFailure(options: {
+  db: StripeWebhookDb;
+  event: ReturnType<typeof paymentIntentSucceededEvent>;
+  paymentState: StripeWebhookPayment;
+}) {
+  await expect(
+    processStripeWebhookEvent({ db: options.db, event: options.event })
+  ).resolves.toEqual({ ok: false });
+  options.paymentState.status = PaymentStatus.paid;
+  await expect(
+    processStripeWebhookEvent({ db: options.db, event: options.event })
+  ).resolves.toEqual({
+    ok: true,
+    receiptJob: { dateKey: '2026-05-01', paymentId: 'payment_123' },
+    stripeWebhookEventId: 'webhook_event_123',
+  });
+}
+
+async function expectHandlerFailureThenSuccess(options: {
+  beforeSuccess?: () => void;
+  db: StripeWebhookDb;
+  event: ReturnType<typeof paymentIntentSucceededEvent>;
+  successResult: Awaited<ReturnType<typeof processStripeWebhookEvent>>;
+}) {
+  await expect(
+    processStripeWebhookEvent({
+      db: options.db,
+      event: options.event,
+      handlers: [failingMembershipHandler()],
+    })
+  ).resolves.toEqual({ ok: false });
+  options.beforeSuccess?.();
+  await expect(
+    processStripeWebhookEvent({
+      db: options.db,
+      event: options.event,
+      handlers: [succeedingMembershipHandler()],
+    })
+  ).resolves.toEqual(options.successResult);
+}
 
 describe('constructStripeWebhookEvent', () => {
   it('verifies raw body with stripe webhook signature', () => {
@@ -49,44 +300,17 @@ describe('stripeEventCreatedAtDate', () => {
 
 describe('processStripeWebhookEvent', () => {
   it('records stale paid events without reverting terminal local status', async () => {
-    const updatePayment = vi.fn();
-    const updateWebhookEvent = vi.fn();
-    const db = {
-      payment: {
-        findFirst: vi.fn().mockResolvedValue({
-          amountCents: 4200,
-          currency: 'usd',
-          id: 'payment_123',
-          status: PaymentStatus.refunded,
-        }),
-        updateMany: updatePayment,
-      },
-      eventPaymentNotification: {
-        upsert: vi.fn(),
-      },
-      stripeWebhookEvent: {
-        create: vi.fn().mockResolvedValue({ id: 'webhook_event_123' }),
-        findUnique: vi.fn(),
-        update: updateWebhookEvent,
-        updateMany: vi.fn(),
-      },
-    };
+    const updatePayment = mockPaymentUpdate();
+    const updateWebhookEvent = mockWebhookUpdate();
+    const db = createWebhookDb({
+      payment: eventPayment({ status: PaymentStatus.refunded }),
+      updatePayment,
+      updateWebhookEvent,
+    });
 
     const result = await processStripeWebhookEvent({
       db,
-      event: {
-        created: 1_777_636_800,
-        data: {
-          object: {
-            id: 'pi_123',
-            amount_received: 4200,
-            currency: 'usd',
-            metadata: { paymentId: 'payment_123' },
-          },
-        },
-        id: 'evt_payment_intent_succeeded',
-        type: 'payment_intent.succeeded',
-      },
+      event: paymentIntentSucceededEvent(),
     });
 
     expect(result).toEqual({ ok: true });
@@ -98,56 +322,28 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('claims unprocessed duplicate events before retrying payment updates', async () => {
-    const updateManyWebhookEvent = vi.fn().mockResolvedValue({ count: 1 });
-    const updatePayment = vi.fn().mockResolvedValue({ count: 1 });
-    const db = {
-      payment: {
-        findFirst: vi.fn().mockResolvedValue({
-          amountCents: 4200,
-          currency: 'usd',
-          id: 'payment_123',
-          status: PaymentStatus.pending,
-        }),
-        updateMany: updatePayment,
-      },
-      eventPaymentNotification: {
-        upsert: vi.fn().mockResolvedValue({}),
-      },
-      stripeWebhookEvent: {
-        create: vi.fn().mockRejectedValue(
-          Object.assign(new Error('duplicate'), {
-            code: 'P2002',
-          })
-        ),
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'webhook_event_123',
-          processedAt: null,
-        }),
-        update: vi.fn(),
-        updateMany: updateManyWebhookEvent,
-      },
-    };
+    const updateManyWebhookEvent = mockWebhookUpdateMany();
+    const updatePayment = mockPaymentUpdate();
+    const db = createWebhookDb({
+      createWebhookEvent: mockDuplicateWebhookCreate(),
+      payment: eventPayment(),
+      storedWebhookEvent: storedWebhookEvent({
+        processingError: 'receipt_enqueue_pending',
+      }),
+      updateManyWebhookEvent,
+      updatePayment,
+      upsertReceipt: mockReceiptUpsert(),
+    });
 
     const result = await processStripeWebhookEvent({
       db,
-      event: {
-        created: 1_777_636_800,
-        data: {
-          object: {
-            id: 'pi_123',
-            amount_received: 4200,
-            currency: 'usd',
-            metadata: { paymentId: 'payment_123' },
-          },
-        },
-        id: 'evt_payment_intent_succeeded',
-        type: 'payment_intent.succeeded',
-      },
+      event: paymentIntentSucceededEvent(),
     });
 
     expect(result).toEqual({
       ok: true,
       receiptJob: { dateKey: '2026-05-01', paymentId: 'payment_123' },
+      stripeWebhookEventId: 'webhook_event_123',
     });
     expect(updateManyWebhookEvent).toHaveBeenCalledWith({
       data: { processingError: expect.stringMatching(/^processing:/u) },
@@ -161,6 +357,12 @@ describe('processStripeWebhookEvent', () => {
               not: { startsWith: 'processing:' },
             },
           },
+          {
+            processingError: {
+              lt: expect.stringMatching(/^processing:/u),
+              startsWith: 'processing:',
+            },
+          },
         ],
       },
     });
@@ -168,47 +370,386 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('fails unprocessed duplicate events when claim is unavailable', async () => {
-    const db = {
-      payment: {
-        findFirst: vi.fn(),
-        updateMany: vi.fn(),
-      },
-      eventPaymentNotification: {
-        upsert: vi.fn(),
-      },
-      stripeWebhookEvent: {
-        create: vi.fn().mockRejectedValue(
-          Object.assign(new Error('duplicate'), {
-            code: 'P2002',
-          })
-        ),
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'webhook_event_123',
-          processedAt: null,
-        }),
-        update: vi.fn(),
-        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
-      },
-    };
+    const db = createWebhookDb({
+      createWebhookEvent: mockDuplicateWebhookCreate(),
+      storedWebhookEvent: storedWebhookEvent(),
+      updateManyWebhookEvent: mockWebhookUpdateMany({ count: 0 }),
+    });
 
     const result = await processStripeWebhookEvent({
       db,
-      event: {
-        created: 1_777_636_800,
-        data: {
-          object: {
-            id: 'pi_123',
-            amount_received: 4200,
-            currency: 'usd',
-            metadata: { paymentId: 'payment_123' },
-          },
-        },
-        id: 'evt_payment_intent_succeeded',
-        type: 'payment_intent.succeeded',
-      },
+      event: paymentIntentSucceededEvent(),
     });
 
     expect(result).toEqual({ ok: false });
     expect(db.payment.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('creates new webhook events with a processing claim', async () => {
+    const db = createWebhookDb();
+
+    await processStripeWebhookEvent({
+      db,
+      event: membershipSubscriptionEvent(),
+    });
+
+    expect(db.stripeWebhookEvent.create).toHaveBeenCalledWith({
+      data: {
+        eventType: 'customer.subscription.updated',
+        processingError: expect.stringMatching(/^processing:/u),
+        stripeCreatedAt: new Date('2026-05-01T12:00:00.000Z'),
+        stripeEventId: 'evt_customer_subscription_updated',
+      },
+    });
+  });
+
+  it('records all-unhandled events for future domains without forcing Stripe retries', async () => {
+    const updateWebhookEvent = mockWebhookUpdate();
+    const db = createWebhookDb({ updateWebhookEvent });
+
+    const result = await processStripeWebhookEvent({
+      db,
+      event: membershipSubscriptionEvent(),
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(db.payment.findFirst).not.toHaveBeenCalled();
+    expect(updateWebhookEvent).toHaveBeenCalledWith({
+      data: {
+        processingError:
+          'Unhandled Stripe webhook event: customer.subscription.updated',
+      },
+      where: { id: 'webhook_event_123' },
+    });
+    expect(updateWebhookEvent.mock.calls[0]?.[0].data).not.toHaveProperty(
+      'processedAt'
+    );
+  });
+
+  it('records membership invoice events when domain is on subscription metadata', async () => {
+    const updateWebhookEvent = mockWebhookUpdate();
+    const db = createWebhookDb({
+      updateWebhookEvent,
+      webhookEventId: 'webhook_event_invoice',
+    });
+
+    const result = await processStripeWebhookEvent({
+      db,
+      event: {
+        created: stripeEventCreated,
+        data: {
+          object: {
+            id: 'in_123',
+            subscription_details: {
+              metadata: { domain: 'sailing_card_membership' },
+            },
+          },
+        },
+        id: 'evt_invoice_paid',
+        type: 'invoice.paid',
+      },
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(updateWebhookEvent).toHaveBeenCalledWith({
+      data: {
+        processingError: 'Unhandled Stripe webhook event: invoice.paid',
+      },
+      where: { id: 'webhook_event_invoice' },
+    });
+    expect(updateWebhookEvent.mock.calls[0]?.[0].data).not.toHaveProperty(
+      'processedAt'
+    );
+  });
+
+  it('marks unmatched non-membership payment events processed as no-ops', async () => {
+    const updateWebhookEvent = mockWebhookUpdate();
+    const db = createWebhookDb({ updateWebhookEvent });
+
+    const result = await processStripeWebhookEvent({
+      db,
+      event: {
+        created: stripeEventCreated,
+        data: {
+          object: {
+            id: 'pi_other',
+            amount_received: 4200,
+            currency: 'usd',
+          },
+        },
+        id: 'evt_payment_intent_succeeded_unmatched',
+        type: 'payment_intent.succeeded',
+      },
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(updateWebhookEvent).toHaveBeenCalledWith({
+      data: { processedAt: expect.any(Date), processingError: null },
+      where: { id: 'webhook_event_123' },
+    });
+  });
+
+  it('dispatches non-event-payment events to a later domain handler', async () => {
+    const updateWebhookEvent = mockWebhookUpdate();
+    const membershipHandler: StripeWebhookDispatchHandler = vi.fn(async () => {
+      await Promise.resolve();
+      return { handled: true };
+    });
+    const db = createWebhookDb({ updateWebhookEvent });
+    const event = membershipSubscriptionEvent();
+
+    const result = await processStripeWebhookEvent({
+      db,
+      event,
+      handlers: [membershipHandler],
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(membershipHandler).toHaveBeenCalledWith({
+      db,
+      event,
+      persistReceiptJob: expect.any(Function),
+      retryingReceiptEnqueue: false,
+      retryingUnprocessedEvent: false,
+    });
+    expect(updateWebhookEvent).toHaveBeenCalledWith({
+      data: { processedAt: expect.any(Date), processingError: null },
+      where: { id: 'webhook_event_123' },
+    });
+  });
+
+  it('does not requeue receipts for a separate paid Stripe event', async () => {
+    const updateWebhookEvent = mockWebhookUpdate();
+    const updatePayment = mockPaymentUpdate();
+    const upsertReceipt = mockReceiptUpsert();
+    const db = createWebhookDb({
+      payment: eventPayment({ status: PaymentStatus.paid }),
+      updatePayment,
+      updateWebhookEvent,
+      upsertReceipt,
+      webhookEventId: 'webhook_event_456',
+    });
+
+    const result = await processStripeWebhookEvent({
+      db,
+      event: paymentIntentSucceededEvent({
+        paymentIntentId: 'pi_456',
+        stripeEventId: 'evt_payment_intent_succeeded_later',
+      }),
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(upsertReceipt).not.toHaveBeenCalled();
+    expect(updatePayment).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        status: PaymentStatus.paid,
+        stripePaymentIntentId: 'pi_456',
+      }),
+      where: { id: 'payment_123', status: PaymentStatus.paid },
+    });
+    expect(updateWebhookEvent).toHaveBeenCalledWith({
+      data: { processedAt: expect.any(Date), processingError: null },
+      where: { id: 'webhook_event_456' },
+    });
+  });
+
+  it('merges charge receipt fields when a concurrent paid transition wins first', async () => {
+    const updatePayment = mockPaymentUpdate({ count: 0 });
+    const upsertReceipt = mockReceiptUpsert();
+    const db = createWebhookDb({
+      payment: eventPayment(),
+      updatePayment,
+      upsertReceipt,
+    });
+
+    const result = await processStripeWebhookEvent({
+      db,
+      event: {
+        created: stripeEventCreated,
+        data: {
+          object: {
+            id: 'ch_123',
+            amount: 4200,
+            currency: 'usd',
+            metadata: { paymentId: 'payment_123' },
+            payment_intent: 'pi_123',
+            receipt_url: 'https://pay.stripe.com/receipts/test',
+          },
+        },
+        id: 'evt_charge_succeeded',
+        type: 'charge.succeeded',
+      },
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(updatePayment).toHaveBeenLastCalledWith({
+      data: {
+        status: PaymentStatus.paid,
+        stripeChargeId: 'ch_123',
+        stripePaymentIntentId: 'pi_123',
+        stripeReceiptUrl: 'https://pay.stripe.com/receipts/test',
+      },
+      where: { id: 'payment_123', status: PaymentStatus.paid },
+    });
+    expect(upsertReceipt).not.toHaveBeenCalled();
+  });
+
+  it('does not synthesize receipts when retrying a failed later event that never created one', async () => {
+    const updateWebhookEvent = mockWebhookUpdate();
+    const updateManyWebhookEvent = mockWebhookUpdateMany();
+    const updatePayment = mockPaymentUpdate();
+    const upsertReceipt = mockReceiptUpsert();
+    const db = createWebhookDb({
+      createWebhookEvent: mockWebhookCreateThenDuplicate('webhook_event_456'),
+      payment: eventPayment({ status: PaymentStatus.paid }),
+      storedWebhookEvent: storedWebhookEvent({
+        id: 'webhook_event_456',
+        processingError: 'membership handler down',
+      }),
+      updateManyWebhookEvent,
+      updatePayment,
+      updateWebhookEvent,
+      upsertReceipt,
+    });
+    const event = paymentIntentSucceededEvent({
+      paymentIntentId: 'pi_456',
+      stripeEventId: 'evt_payment_intent_succeeded_later',
+    });
+    await expectHandlerFailureThenSuccess({
+      db,
+      event,
+      successResult: { ok: true },
+    });
+
+    expect(upsertReceipt).not.toHaveBeenCalled();
+    expect(updateManyWebhookEvent).toHaveBeenCalled();
+    expect(updateWebhookEvent).toHaveBeenLastCalledWith({
+      data: { processedAt: expect.any(Date), processingError: null },
+      where: { id: 'webhook_event_456' },
+    });
+  });
+
+  it('does not claim unpaid membership checkout sessions as event payments', async () => {
+    const updateWebhookEvent = mockWebhookUpdate();
+    const db = createWebhookDb({ updateWebhookEvent });
+
+    const result = await processStripeWebhookEvent({
+      db,
+      event: {
+        created: stripeEventCreated,
+        data: {
+          object: {
+            id: 'cs_membership',
+            client_reference_id: 'membership-payment-1',
+            metadata: {
+              domain: 'sailing_card_membership',
+              paymentId: 'membership-payment-1',
+            },
+            payment_status: 'unpaid',
+          },
+        },
+        id: 'evt_checkout_session_completed',
+        type: 'checkout.session.completed',
+      },
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(db.payment.findFirst).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { id: 'membership-payment-1' },
+          { stripeCheckoutSessionId: 'cs_membership' },
+        ],
+        purpose: 'event_payment',
+      },
+    });
+    expect(updateWebhookEvent).toHaveBeenCalledWith({
+      data: {
+        processingError:
+          'Unhandled Stripe webhook event: checkout.session.completed',
+      },
+      where: { id: 'webhook_event_123' },
+    });
+  });
+
+  it('recovers receipts when marker creation fails after the paid transition', async () => {
+    const upsertReceipt = mockReceiptUpsert();
+    upsertReceipt.mockRejectedValueOnce(new Error('receipt marker down'));
+    const { db, event, paymentState, updateWebhookEvent } =
+      createReceiptRecoveryScenario({
+        processingError: 'receipt_enqueue_pending:receipt marker down',
+        upsertReceipt,
+      });
+
+    await expectReceiptRecoveryAfterInitialFailure({
+      db,
+      event,
+      paymentState,
+    });
+
+    expect(upsertReceipt).toHaveBeenCalledTimes(2);
+    expect(updateWebhookEvent).toHaveBeenCalledWith({
+      data: {
+        processingError: 'receipt_enqueue_pending:receipt marker down',
+      },
+      where: { id: 'webhook_event_123' },
+    });
+  });
+
+  it('recovers receipts when persisting the receipt-pending marker first fails', async () => {
+    const updateWebhookEvent = mockWebhookUpdate();
+    updateWebhookEvent.mockRejectedValueOnce(new Error('webhook marker down'));
+    const upsertReceipt = mockReceiptUpsert();
+    const { db, event, paymentState } = createReceiptRecoveryScenario({
+      processingError: 'receipt_enqueue_pending:webhook marker down',
+      updateWebhookEvent,
+      upsertReceipt,
+    });
+
+    await expectReceiptRecoveryAfterInitialFailure({
+      db,
+      event,
+      paymentState,
+    });
+
+    expect(updateWebhookEvent).toHaveBeenCalledWith({
+      data: {
+        processingError: 'receipt_enqueue_pending:webhook marker down',
+      },
+      where: { id: 'webhook_event_123' },
+    });
+    expect(upsertReceipt).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries later-domain failures without duplicating event-payment receipts', async () => {
+    const {
+      db,
+      event,
+      paymentState,
+      updateManyWebhookEvent,
+      updateWebhookEvent,
+      upsertReceipt,
+    } = createReceiptRecoveryScenario({
+      processingError: 'receipt_enqueue_pending:membership handler down',
+    });
+    await expectHandlerFailureThenSuccess({
+      beforeSuccess: () => {
+        paymentState.status = PaymentStatus.paid;
+      },
+      db,
+      event,
+      successResult: {
+        ok: true,
+        receiptJob: { dateKey: '2026-05-01', paymentId: 'payment_123' },
+        stripeWebhookEventId: 'webhook_event_123',
+      },
+    });
+
+    expect(upsertReceipt).toHaveBeenCalledTimes(2);
+    expect(updateManyWebhookEvent).toHaveBeenCalled();
+    expect(updateWebhookEvent).toHaveBeenLastCalledWith({
+      data: { processingError: 'receipt_enqueue_pending' },
+      where: { id: 'webhook_event_123' },
+    });
   });
 });

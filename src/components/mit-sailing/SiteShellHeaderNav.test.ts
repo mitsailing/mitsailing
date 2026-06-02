@@ -6,11 +6,13 @@ import type * as FleetQueries from '@/libs/mit-sailing/fleetQueries';
 
 const {
   getTranslations,
+  getOnboardingTaskHrefForUser,
   listClassCategoriesForNav,
   listFleetBoatsForNav,
   loadCmsMenu,
 } = vi.hoisted(() => ({
   getTranslations: vi.fn(),
+  getOnboardingTaskHrefForUser: vi.fn(),
   listClassCategoriesForNav: vi.fn(),
   listFleetBoatsForNav: vi.fn(),
   loadCmsMenu: vi.fn(),
@@ -35,6 +37,7 @@ type SiteHeaderElementProps = {
     isExternal?: boolean;
     label: string;
   }[];
+  onboardingTaskHref: '/onboarding' | null;
 };
 
 vi.mock('server-only', () => ({}));
@@ -62,6 +65,10 @@ vi.mock('@/libs/mit-sailing/fleetQueries', async (importOriginal) => {
     listFleetBoatsForNav,
   };
 });
+
+vi.mock('@/libs/mit-sailing/onboardingTask', () => ({
+  getOnboardingTaskHrefForUser,
+}));
 
 vi.mock('./site/SiteHeader', () => ({
   SiteHeader: () => null,
@@ -178,6 +185,7 @@ function cmsMenusByLocation(unsafeHref: string) {
 function expectSiteHeaderNavProps(props: SiteHeaderElementProps) {
   expect(props.initialSignedIn).toBe(true);
   expect(props.initialShowAdminLink).toBe(true);
+  expect(props.onboardingTaskHref).toBe('/onboarding');
   expect(props.classesDropdownItems).toEqual([
     { href: '/classes#beginner', label: 'Beginner' },
   ]);
@@ -191,6 +199,7 @@ function expectSiteHeaderNavProps(props: SiteHeaderElementProps) {
 describe('SiteShellHeaderNav', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getOnboardingTaskHrefForUser.mockResolvedValue('/onboarding');
     getTranslations.mockResolvedValue((key: string) =>
       key === 'nav_pricing' ? 'Pricing' : key
     );
@@ -216,8 +225,12 @@ describe('SiteShellHeaderNav', () => {
     const element = (await SiteShellHeaderNav({
       initialShowAdminLink: true,
       initialSignedIn: true,
+      userId: 'user-1',
     })) as React.ReactElement<SiteHeaderElementProps>;
 
+    expect(getOnboardingTaskHrefForUser).toHaveBeenCalledWith({
+      userId: 'user-1',
+    });
     expect(loadCmsMenu).toHaveBeenCalledWith('header');
     expect(loadCmsMenu).toHaveBeenCalledWith('mobile_utility');
     expectSiteHeaderNavProps(element.props);

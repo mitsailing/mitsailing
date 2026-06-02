@@ -8,13 +8,15 @@
 
 **Tech Stack:** Next.js App Router, Server Actions, Prisma/ZenStack, Stripe Checkout/Billing, next-intl, Vitest, Playwright.
 
+**Stripe/package-first guard:** Do not build a subscription engine from scratch. Use the official `stripe` SDK plus Stripe Checkout, Billing, Prices, Subscriptions, invoices, automatic payment retry/dunning, and Customer Portal wherever they cover the lifecycle. MIT Sailing code should only hold local eligibility, consent snapshots, audit/payment records, admin issue state, and idempotent webhook side effects needed for this app. Before adding custom billing tables, schedulers, renewal logic, retry loops, or wrapper services, document why Stripe Billing/Checkout/Portal or an existing local helper cannot do it. Do not add a third-party Stripe subscription abstraction unless it is actively maintained, broadly adopted, and reduces code in this repo without hiding July 15 renewal, MIT eligibility, legacy payment, admin override, or audit requirements.
+
 ---
 
 ## Execution Reconciliation Notes
 
 - Start from latest `origin/main`. PR #143's runbook work is already merged and its branch may be deleted; do not depend on that branch. PR #145 (`feat: add sailing card payment onboarding foundation`) is also merged and changed the app implementation. Before coding, reconcile this plan against current `main` and skip work already landed in PR #145.
 - Current `main` already includes `SailingCardRequest.hasFitnessMembership` as the canonical MIT Recreation self-report and `SailingCardOnboardingInput.hasFitnessMembership` as `boolean | null`. Steps below that previously named `mitRecreationMembershipSelfReported` should use the existing `hasFitnessMembership` field instead of adding a duplicate column.
-- Current `main` already includes one `Payment` model for event and membership payments with `purpose`, `source`, Stripe IDs, legacy fields, and admin-override fields. Steps below that mention separate membership payment/refund tables must be reconciled through the structural simplicity gate before implementation; do not copy older schema snippets unchanged.
+- Current `main` already includes one `Payment` model for event and membership payments with `purpose`, `source`, Stripe IDs, legacy fields, and admin-override fields. Steps below that mention separate membership payment/refund tables must be reconciled through the structural simplicity gate before implementation; do not copy older schema snippets unchanged. Stripe subscription lifecycle state is different: PR 4A must add one focused `SailingCardSubscription` table because Stripe's subscription docs recommend storing subscription identity/status locally for access decisions.
 - Current `main` already includes paid-card-without-payment bypass evidence on `SailingCardRequest` plus an `admin_override` membership `Payment`. Preserve that narrow override shape; do not create a generic notes, waiver, or payment-exception framework.
 - Current admin card issuance is person-centered through `/admin/users` and `/admin/users/[id]`. Do not recreate a standalone `/admin/cards` route or card queue page.
 - Linear/GitHub mirrors already exist for this feature. Do not create a fresh batch of child issues from the issue plan unless the user approves new or missing tracker items after duplicate checks.
@@ -109,6 +111,7 @@ Hard constraints:
 - Do not recreate `/admin/cards` or a standalone card queue.
 - Keep admin card work person-centered through `/admin/users` and `/admin/users/[id]`.
 - Do not create parallel membership payment/refund tables unless current tests and Context7 Stripe docs prove the existing `Payment` model cannot represent the lifecycle.
+- Do create one focused `SailingCardSubscription` table in PR 4A for local subscription status, customer/subscription/product IDs, period dates, cancellation flags, subscription item ID, and stale-event tracking.
 - Avoid AI slop: no extra tables, pages, components, services, permissions, states, or workflows unless they directly simplify a real user/admin path or prove a lifecycle/permission/audit/retention/cardinality/transaction/operational/platform boundary.
 
 Final report for each PR:
@@ -134,11 +137,30 @@ Final report for each PR:
 
 **External patterns to adopt**
 - Stripe Checkout subscription mode uses pre-created recurring Prices, supports one-time setup fee Prices in subscription Checkout, and syncs subscription changes through webhooks.
+- Stripe subscription access state must be stored locally. The official build-subscriptions docs say webhook handlers should verify subscription status, check the subscribed product, and store `product.id`, `subscription.id`, `subscription.status`, and `customer.id` in the app database. For MIT Sailing, this means a focused `SailingCardSubscription` table is required in PR 4A; Stripe remains the billing source of truth, but app pages/admin/card issuance read local subscription state instead of querying Stripe at render time.
 - Stripe Customer Portal is the simplest payment-method and invoice self-service surface; MIT Sailing should use an in-app cancellation form first so cancellation reason and local status are recorded before redirecting users to Stripe for payment-method updates.
 - Next.js Server Actions should validate form input before mutation, call `revalidatePath` before `redirect`, and use Route Handlers for webhook raw-body processing.
 - Cal.com separates payment concerns into customer lookup, Checkout creation, billing portal redirect, subscription lookup, and local payment records. It also validates safe return URLs for billing portal redirects and keeps Stripe-specific lookups in narrow modules such as `customer`, `subscriptions`, and `BillingPortalService`. Mirror that shape in smaller MIT Sailing modules instead of one large billing service.
 - FTC-style negative-option best practices for subscriptions: clear material terms before payment, proof of consent, and cancellation that is at least as easy to find and complete as signup. Treat this as product trust guidance, not legal advice.
 - Robinhood-style referral waitlists work by exposing rank and referral movement, but MIT Sailing already has scarcity. Do not add referral boosts in these PRs; preserve fairness and avoid growing demand.
+
+### Stripe Subscription Checklist
+
+Verified against Stripe official docs: [build subscriptions](https://docs.stripe.com/billing/subscriptions/build-subscriptions), [Checkout subscriptions](https://docs.stripe.com/payments/checkout/build-subscriptions), [mixed one-time and recurring Checkout line items](https://docs.stripe.com/payments/checkout/migrating-prices), and [manage Prices](https://docs.stripe.com/products-prices/manage-prices).
+
+- [x] Use Stripe Billing and Checkout Sessions for recurring paid racing/team-racing memberships; do not build manual renewal loops with raw PaymentIntents.
+- [x] Use Stripe Products and Prices, not legacy Plans; local price rows map to immutable Stripe Price IDs and old Prices are archived with `active=false`.
+- [x] Keep PR 2A limited to the pricing catalog; do not add subscription state before Checkout creates subscriptions.
+- [ ] In PR 4A, add a focused `SailingCardSubscription` table that stores local subscription access state: app user, card type, Stripe customer ID, Stripe subscription ID, Stripe product ID, current renewal Price/local price IDs, subscription item ID, status, current period start/end, trial end, cancel-at-period-end/cancel/canceled/ended timestamps, canonical/duplicate state, and last processed subscription event timestamp/ID.
+- [ ] Keep payment/invoice/charge/refund/dispute facts in `Payment` rows with `purpose: membership`; do not create separate membership payment/refund/invoice tables unless a test proves `Payment` cannot represent the lifecycle cleanly.
+- [ ] Create Checkout in `mode: 'subscription'` with pre-created Price IDs. Spring checkout may include one recurring annual Price plus one one-time current-season Price only after Stripe test mode proves the initial invoice does not include the annual amount before July 15.
+- [ ] Store metadata on both the Checkout Session and `subscription_data.metadata` so webhooks can link invoices/subscriptions back to local user, payment, initial price, and renewal price records even when events arrive out of order.
+- [ ] Use webhook signature verification and existing `StripeWebhookEvent` idempotency for all membership billing events.
+- [ ] Handle `customer.subscription.created`, `customer.subscription.updated`, and `customer.subscription.deleted` by updating `SailingCardSubscription`; local access decisions must read this table.
+- [ ] Handle `invoice.paid` and `invoice.payment_failed` by updating/creating membership `Payment` rows and profile/admin issue state.
+- [ ] Before each July 15 renewal email is persisted or sent, move active auto-renew subscription items to the currently effective full annual Price, verify the applied renewal amount, then snapshot/email that applied amount. Use the stored Stripe subscription item ID and same-interval annual Price with `proration_behavior: 'none'` or an equivalent subscription schedule phase proven in Stripe test mode, so the next invoice uses the new amount without an immediate charge. If Stripe update or verification fails, block the reminder for that subscription and surface the issue to admins instead of emailing an amount that will not be charged.
+- [ ] Preserve free-normal eligibility before paid checkout: MIT students, verified MIT Recreation members, and pending free-normal verification users must not enter paid Checkout.
+- [ ] Use Stripe Customer Portal for payment-method and invoice recovery, but keep auto-renew cancellation in-app first so local cancellation state and optional feedback are recorded.
 
 ## Product Decisions Locked For Implementation
 
@@ -159,14 +181,14 @@ Final report for each PR:
 - **Legacy payment storage:** store legacy paid memberships in the same membership payment/access model as Stripe payments with a source/method discriminator such as `legacy`. Stripe-specific fields stay nullable and empty for legacy records.
 - **Legacy-to-Stripe transition:** a legacy payment covers the imported/current season only and must not create a Stripe subscription or charge the member again for that covered season. Legacy-paid members should see a non-blocking dashboard/status prompt to add payment information and set up Stripe auto-renew for the next July 15 renewal. This prompt is optional and must not block current-season card issuance when the legacy payment is a confident match.
 - **Pavilion card issuance:** Sailing Card numbers are assigned manually by staff at the pavilion after the user shows MIT ID or another legal ID. If the user is taking one of the three intro classes, staff assigns the card at the end of class at the pavilion. If onboarding is complete but the intro-class prerequisite is not complete, the request remains pending with copy telling the user to take the required class and that card issuance happens during/after class at the pavilion.
-- **Profile pending state:** after a user submits onboarding, their profile must show the current-year Sailing Card request as pending until staff issues the card number. Legacy `sailing.mit.edu` shows "Requested," "Not yet assigned," and "Pending"; the Next.js profile can use clearer copy, but must preserve the status visibility.
+- **Member profile card status:** After a user submits onboarding, the default member profile surface must show the current-year Sailing Card request inline, following the old `sailing-wp/old/public_html/account.php` pattern: status `Requested`, card assignment `Pending`, swim agreement state, and issued card details only after issuance. Do not hide this behind a separate card or membership sub-page. Do not show a pending "card number" to members, because the number is unknown until staff issue the card.
 - **Manual card numbers:** preserve the existing card-number rule. Auto-suggested/blank issuance starts at 60 so lower numbers are not auto-assigned, but admins with card assignment permission can manually enter any positive card number as long as it is not already assigned for that card year.
 - **Admin pending search:** staff start from the person, not a queue. Preserve `/admin/users` and `/admin/users/[id]` as the primary Pavilion-staff path for finding a sailor, reviewing blockers, and issuing cards. Keep one user search across name, email, MIT ID, and card number. Add the simplest pending/card-type filters on `/admin/users` so staff can view pending normal, racing, or team racing requests, then open the user profile to resolve blockers and issue cards. Keep filtering bounded to the users surface; do not add a standalone card queue route or generic search framework.
 - **Cancellation:** users can turn off auto-renew in one in-app flow without a required survey step. The server sets Stripe `cancel_at_period_end=true`; optional feedback can record a reason enum and note after or alongside the primary action.
 - **Subscription consent:** paid Racing and Team Racing selection, required Sailing Card details, emergency contact fields, and swim-agreement approval stay in the signup/onboarding flow. Only after those required fields are complete does onboarding show the amount due today, the July 15 renewal amount, annual auto-renew behavior, and where to turn off auto-renew before sending the user to Stripe Checkout. The submit button says that the user is starting paid racing membership, not just continuing. Profile membership pages are for managing an existing paid membership after signup.
-- **Admin pricing:** admins edit app pricing records with effective dates and change reasons. Stripe Prices are immutable, so each usable price row stores the Stripe Price ID created for that amount/interval. Checkout never uses a price row until Stripe sync succeeds.
+- **Admin pricing:** admins edit app pricing records with effective dates and change reasons. Stripe Prices are immutable, so each usable price row stores the Stripe Price ID created for that amount/interval. Checkout never uses a price row until Stripe sync succeeds. Price changes are not grandfathered for active auto-renew subscriptions: before the next July 15 renewal, the renewal job must move active subscription items to the currently effective full annual Stripe Price, verify the applied renewal amount, and only then persist/send the renewal email snapshot. Members should be charged the new annual amount on the renewal date, not an old subscription-item Price.
 - **Admin operations:** admins can search members by name/email/card/payment/subscription status and Stripe identifiers, filter failed/past-due/cancelled records, open Stripe Dashboard links, and mark a local issue handled with an internal note without erasing the original issue status.
-- **No racing/team reset surprise:** reminders go out before July 15 and explain the charge date, amount, renewal status, and cancellation link.
+- **No racing/team reset surprise:** reminders go out before July 15 and explain the charge date, amount, renewal status, cancellation link, and any price increase that will be charged on the July 15 renewal date.
 
 ## Membership Policy Matrix
 
@@ -206,7 +228,7 @@ Seed these amounts from the legacy racing-card rules. Admins can replace them la
 - Every PR starts with `Task 0: Confirm exact file list and budget`. Run `git diff --name-only origin/main...HEAD | wc -l` before implementation, after schema/generation handoff, after UI wiring, and before review. If the count reaches 70 or more, split before continuing; 80 changed files is the normal stop, and 100 changed files is the hard maximum.
 - Do not build a generic billing framework. No barrels, no class-based service layer, and no package-like abstractions. Each module exports narrow functions used by that PR.
 - Avoid agent slop: do not add tables, admin pages, components, services, permissions, states, or workflows when an existing surface plus a field, filter, or narrow helper fits the current slice. Split only when this PR proves a distinct lifecycle, permission, audit, retention, cardinality, transaction, operational, or external-platform boundary.
-- Current code already uses one `Payment` model with `purpose` and `source` for event, membership, Stripe, legacy, and admin-override records. Preserve that unified access/payment-record direction unless current Stripe docs via Context7 and local tests prove subscription state, invoice/payment state, or portal/cancellation lifecycle needs a separate local model.
+- Current code already uses one `Payment` model with `purpose` and `source` for event, membership, Stripe, legacy, and admin-override records. Preserve that unified payment-record direction for payments, invoices, refunds, disputes, legacy payments, and admin overrides. Stripe's subscription docs do justify a separate focused local subscription-state model, so PR 4A must introduce `SailingCardSubscription` for canonical subscription access state instead of overloading `Payment.stripeSubscriptionId`.
 
 ## PR Breakdown
 
@@ -649,6 +671,8 @@ Expected: PASS.
 Add focused tests for the existing sailing-card request admin or member profile surface:
 
 - Self-reported MIT Recreation membership appears as "MIT Recreation verification needed".
+- Onboarding completion and the default member profile surface show the current Sailing Card request inline, not only on a separate card or membership sub-page.
+- Pending member profile state says `Requested` and `Card assignment: Pending` and does not display a pending card number or suggested next number.
 - Onboarding completion and dashboard/profile status show "MIT Recreation verification needed", "No payment needed now", and "Staff will verify before issuing your card" for self-reported MIT Recreation members.
 - A verified MIT Recreation member no longer sees paid racing/team-racing purchase paths.
 
@@ -681,7 +705,9 @@ Expected: all commands pass.
 
 **Goal:** Add the local billing schema foundation, then let admins maintain effective-dated membership prices in the app and sync immutable Stripe Prices without starting paid subscriptions yet.
 
-**Readiness reconciliation:** The schema snippets below were written before the current unified `Payment` model landed. Treat the price catalog as the default PR 2 schema work; defer subscription, cancellation, notification, and checkout-specific `Payment` fields until the PR that first needs them. Do not add separate `SailingCardMembershipPayment` or `SailingCardMembershipRefund` tables unless the structural simplicity review, current Stripe docs via Context7, and failing tests prove that `Payment` plus `purpose`, `source`, `status`, Stripe IDs, and narrow extension fields cannot represent the current PR's payment/refund/invoice needs. If a split is justified, record the lifecycle boundary in `local/agent-runs/<branch-slug>/conductor.md` before editing schema.
+**Readiness reconciliation:** The schema snippets below were written before the current unified `Payment` model landed. Treat the price catalog as the default PR 2 schema work; defer subscription, cancellation, notification, and checkout-specific `Payment` fields until the PR that first needs them. Do not add separate `SailingCardMembershipPayment` or `SailingCardMembershipRefund` tables unless the structural simplicity review, current Stripe docs via Context7, and failing tests prove that `Payment` plus `purpose`, `source`, `status`, Stripe IDs, and narrow extension fields cannot represent the current PR's payment/refund/invoice needs. Do add one focused `SailingCardSubscription` table in PR 4A because Stripe's subscription lifecycle docs call for local subscription identity/status storage for app access decisions. If any additional split is justified, record the lifecycle boundary in `local/agent-runs/<branch-slug>/conductor.md` before editing schema.
+
+**Package/local-pattern decision:** Using existing pattern/package Stripe's official SDK for Product and Price calls because Stripe owns immutable Price behavior, lookup keys, and idempotency semantics. No package because the app-specific membership price catalog, July 15 date selection, and Stripe-readiness gate are narrow business rules over local Prisma rows rather than a reusable pricing engine or calendar engine.
 
 **Estimated changed files:** 30-45 total, implemented as two review units by default.
 
@@ -756,7 +782,7 @@ Add a focused schema test for the reconciled schema. If the structural simplicit
 ```ts
 expect(compactSchema).toContain('model SailingCardMembershipPrice');
 expect(compactSchema).toContain('enum SailingCardMembershipPriceKind');
-expect(compactSchema).toContain('enum SailingCardMembershipAgeBand');
+expect(compactSchema).toContain('enum SailingCardMembershipPriceCategory');
 expect(compactSchema).toContain('enum SailingCardMembershipBillingInterval');
 expect(compactSchema).toContain('model Payment');
 expect(compactSchema).toContain('purpose PaymentPurpose');
@@ -774,7 +800,8 @@ enum SailingCardMembershipPriceKind {
   full
 }
 
-enum SailingCardMembershipAgeBand {
+enum SailingCardMembershipPriceCategory {
+  student
   under_30
   thirty_or_over
 }
@@ -794,13 +821,12 @@ model SailingCardMembershipPrice {
   id String @id() @default(cuid())
   cardType SailingCardType @map("card_type")
   priceKind SailingCardMembershipPriceKind @map("price_kind")
-  ageBand SailingCardMembershipAgeBand @map("age_band")
+  priceCategory SailingCardMembershipPriceCategory @map("price_category")
   billingInterval SailingCardMembershipBillingInterval @map("billing_interval")
   amountCents Int @map("amount_cents")
   currency String @default("usd")
   active Boolean @default(true)
   effectiveAt DateTime @map("effective_at")
-  retiredAt DateTime? @map("retired_at")
   changeReason String @map("change_reason") @db.Text()
   stripePriceId String? @unique() @map("stripe_price_id")
   stripeSyncError String? @map("stripe_sync_error") @db.Text()
@@ -810,8 +836,7 @@ model SailingCardMembershipPrice {
   updatedAt DateTime @updatedAt() @map("updated_at")
   createdBy User? @relation("SailingCardMembershipPriceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
-  @@unique([cardType, priceKind, ageBand, billingInterval, effectiveAt])
-  @@index([cardType, priceKind, ageBand, billingInterval, active, effectiveAt])
+  @@unique([cardType, priceKind, priceCategory, billingInterval, effectiveAt])
   @@index([createdByUserId])
   @@map("sailing_card_membership_prices")
 }
@@ -891,12 +916,13 @@ Create `membershipPricing.test.ts` covering:
 - Before July 15, checkout pricing returns both the spring price due today and the full renewal price due on July 15.
 - Spring age band is calculated from the purchase date. Full-renewal age band is calculated from the July 15 billing anchor, including a date of birth that crosses age 30 between purchase and July 15, a birthday exactly on July 15 Eastern, and birthdays one day before and after the anchor.
 - Age band is computed from the relevant US Eastern calendar date; `thirty_or_over` starts on the 30th birthday. Include tests for birthdays on July 15 and July 16, plus UTC times that cross Eastern midnight.
+- Non-MIT student affiliations use the `student` price category and do not fall through to age pricing.
 - Inactive prices are ignored.
 - Future `effectiveAt` prices are ignored until their effective date.
-- Retired prices are ignored after `retiredAt`.
 - Future price changes keep the current checkout price active until `effectiveAt`.
-- Price changes create a new active row and set the previous matching row's `retiredAt` to the new row's `effectiveAt`, not to the write time.
-- Duplicate effective dates and overlapping active rows for the same card type, price kind, age band, and billing interval fail validation before checkout selection can become ambiguous.
+- Price changes create a new immutable row. Following Stripe Price practice, checkout keeps using the previous synced active row until the replacement row has `stripePriceId`, no `stripeSyncError`, and `stripeSyncedAt`; then the old row can be archived by setting `active=false`.
+- Duplicate effective dates for the same card type, price kind, price category, and billing interval fail validation before checkout selection can become ambiguous.
+- `spring + annual` price rows fail validation; only `spring + one_time`, `full + one_time`, and `full + annual` are valid catalog combinations.
 - Existing payments keep their initial and renewal price IDs, amount, and currency snapshot after later price changes.
 - Invalid amounts below Stripe minimum return field error.
 - Blank price-change reasons fail validation.
@@ -906,23 +932,27 @@ Create `membershipPricing.test.ts` covering:
 Create `membershipPricing.ts` with:
 
 ```ts
-export function membershipAgeBandForDateOfBirth(props: {
+export function membershipPriceCategoryForCardRequest(props: {
+  readonly affiliation: SailingAffiliation | '';
   readonly dateOfBirth: string;
   readonly now: Date;
-}): SailingCardMembershipAgeBand;
+}): SailingCardMembershipPriceCategory | null;
 
 export async function getActiveMembershipPrice(options: {
   readonly billingInterval: SailingCardMembershipBillingInterval;
   readonly cardType: SailingCardType;
-  readonly dateOfBirth: string;
   readonly now: Date;
+  readonly priceCategory: SailingCardMembershipPriceCategory;
   readonly priceKind: SailingCardMembershipPriceKind;
+  readonly requireStripeReady?: boolean;
 }): Promise<SailingCardMembershipPrice | null>;
 
 export async function getCheckoutMembershipPrices(options: {
+  readonly affiliation: SailingAffiliation | '';
   readonly cardType: SailingCardType;
   readonly dateOfBirth: string;
   readonly now: Date;
+  readonly requireStripeReady?: boolean;
 }): Promise<{
   readonly dueTodayPrice: SailingCardMembershipPrice;
   readonly renewalPrice: SailingCardMembershipPrice;
@@ -935,16 +965,16 @@ export async function replaceActiveMembershipPrice(options: {
   readonly changeReason: string;
   readonly createdByUserId: string;
   readonly priceKind: SailingCardMembershipPriceKind;
-  readonly ageBand: SailingCardMembershipAgeBand;
+  readonly priceCategory: SailingCardMembershipPriceCategory;
   readonly effectiveAt: Date;
 }): Promise<SailingCardMembershipPrice>;
 ```
 
-Use the existing sailing-card date-only parser before age-band math; do not construct age bands from arbitrary JavaScript `Date` values. Use a transaction for retiring the previous matching row at the new row's `effectiveAt` plus creating the new row. Do not call Stripe from this helper. Keep historical rows for audit and reminders; never mutate amount/currency on a row that may already be referenced by a payment or subscription.
+Use the existing sailing-card date-only parser before category math; do not construct age categories from arbitrary JavaScript `Date` values. Do not call Stripe from read helpers. Keep historical rows for audit and reminders; never mutate amount/currency on a row that may already be referenced by a payment or subscription.
 
 - [ ] **Step 3: Add admin pricing UI**
 
-Create a compact admin page that lists active prices by card type, price kind, and age band. The edit form uses native number inputs, preserves dollars-to-cents conversion server-side, and shows the Stripe Price sync state.
+Create a compact admin page that lists active prices by card type, price kind, and price category. The edit form uses native number inputs, preserves dollars-to-cents conversion server-side, and shows the Stripe Price sync state.
 
 The default admin page shows current active prices and sync state first. Retired/history rows and "subscriptions still using an older full-season Stripe Price" diagnostics live behind a history/details disclosure with a link to the filtered membership payments page. Pricing forms use dollar-prefix inputs, server-rendered cents preview, effective-date preview, a "will replace current price on {date}" summary, and disabled save until amount, effective date, and reason are valid. If a new row has not synced to Stripe, show that checkout will not use it until Stripe sync succeeds and that the previous synced price remains the checkout price.
 
@@ -956,10 +986,10 @@ Create `src/libs/mit-sailing/membershipBilling/membershipPricingActions.test.ts`
 - dollars are converted to integer cents server-side
 - `changeReason` is required
 - `effectiveAt` must be a valid future-or-current date in US Eastern
-- the previous matching row is retired inside the same transaction
-- duplicate effective dates and overlapping active rows for the same price key are rejected
+- the previous matching row is archived only after the replacement Stripe Price is ready
+- duplicate effective dates for the same price key are rejected
 - `createdByUserId` is stored
-- synced rows cannot have `stripePriceId`, amount, currency, billing interval, card type, price kind, or age band edited in place
+- synced rows cannot have amount, currency, billing interval, card type, price kind, price category, effective date, or change reason edited in place
 - manual Stripe Price ID entry is rejected
 
 Implement `membershipPricingActions.ts` as thin Server Actions that call the pricing helper after authorization and validation.
@@ -985,6 +1015,7 @@ In `membershipPricing.test.ts` or a separate `membershipStripePrices.test.ts`, m
 - Stripe sync failure keeps the row visible to admins with `stripeSyncError` and no `stripeSyncedAt`.
 - Checkout selection helpers only return rows with a non-null `stripePriceId` and no sync error.
 - Sync does not replace Stripe Prices on historical rows that already have `stripePriceId`.
+- When a locally active row with a synced `stripePriceId` is archived by setting `active=false`, the sync helper updates the matching Stripe Price to `active=false` instead of deleting or replacing it.
 
 - [ ] **Step 2: Implement sync helper**
 
@@ -996,7 +1027,7 @@ metadata: {
   appPriceId: price.id,
   cardType: price.cardType,
   priceKind: price.priceKind,
-  ageBand: price.ageBand,
+  priceCategory: price.priceCategory,
   billingInterval: price.billingInterval,
 }
 ```
@@ -1087,11 +1118,19 @@ Before editing, confirm the listed route, action, component, navigation, and tes
 
 - [ ] **Step 0: Add only checkout-needed subscription/payment schema**
 
-If PR 2 deferred subscription schema, start PR 4A with a focused schema test for the smallest local subscription-state model needed by Checkout/profile state and duplicate-subscription handling. Extend the existing `Payment` model for checkout/session/consent/price snapshot fields needed by PR 4A; do not create a parallel membership-payment table unless the structural simplicity review proves `Payment` cannot represent the lifecycle. Defer cancellation reason fields to PR 4B and renewal-notification rows to the reminder PR unless this PR's tests need them.
+Start PR 4A with a focused schema test for one local `SailingCardSubscription` model. This follows Stripe's build-subscriptions guidance to store subscription identity/status locally for access decisions and avoids overloading `Payment.stripeSubscriptionId`, which cannot represent one subscription producing many invoices/payments over time. Extend the existing `Payment` model only for checkout/session/consent/price snapshot fields and for linking membership payment rows to `SailingCardSubscription`; do not create parallel local tables for Stripe invoices, refunds, or events unless a test proves the app needs them. Defer cancellation reason fields to PR 4B and renewal-notification rows to the reminder PR unless this PR's tests need them.
+
+Minimum PR 4A subscription schema checklist:
+
+- [ ] `SailingCardSubscription` stores `userId`, `cardType`, Stripe customer ID, unique Stripe subscription ID, Stripe product ID, current renewal Stripe Price ID, local renewal price ID, Stripe subscription item ID, status, current period start/end, trial end, cancel-at-period-end, cancel/canceled/ended timestamps, canonical/duplicate state, created/updated timestamps, and last processed Stripe subscription event timestamp/ID.
+- [ ] `SailingCardSubscription` relates to `User` and to membership `Payment` rows; `Payment` rows may keep invoice/charge/payment intent facts but must not be the canonical subscription-status record.
+- [ ] `Payment.stripeSubscriptionId` uniqueness is removed or no longer used for multi-invoice membership payments once payments link to `SailingCardSubscription`; one Stripe subscription must be able to produce many local renewal payment rows.
+- [ ] The schema still has no `SailingCardMembershipPayment`, `SailingCardMembershipRefund`, or Stripe invoice/event mirror tables.
+- [ ] Local access/profile/admin state reads `SailingCardSubscription.status` plus current-season membership `Payment` status; it does not query Stripe during page render.
 
 - [ ] **Step 1: Write subscription-state tests**
 
-Create `src/libs/mit-sailing/membershipBilling/membershipSubscriptions.test.ts` covering active, trialing, incomplete, past-due, cancel-at-period-end, canceled, and duplicate-completion profile states. Include canonical active subscription selection, duplicate Stripe subscription completion recorded on the pending payment as `issueKind: duplicate_subscription` with `duplicateStripeSubscriptionId`, and the "paid renewal may be unnecessary" state when free-normal eligibility appears on a user with an active paid subscription.
+Create `src/libs/mit-sailing/membershipBilling/membershipSubscriptions.test.ts` covering active, trialing, incomplete, past-due, cancel-at-period-end, canceled, and duplicate-completion profile states. Include canonical active subscription selection, duplicate Stripe subscription completion recorded on the local subscription/payment issue state, and the "paid renewal may be unnecessary" state when free-normal eligibility appears on a user with an active paid subscription.
 
 - [ ] **Step 2: Implement subscription helpers**
 
@@ -1156,7 +1195,9 @@ export async function createMembershipCheckoutSession(options: {
 }): Promise<{ readonly url: string } | null>;
 ```
 
-Use the existing `getStripeClient`, `Env.NEXT_PUBLIC_APP_URL`, and event-payment idempotency style. Split Checkout tests into three bites: date/price selection, pending payment/session idempotency, and Stripe Checkout request construction. Create or reuse a pending local membership payment row in a transaction before calling Stripe. By default this is the existing `Payment` model with `purpose: membership`; use a separate membership-payment table only if the PR 4A structural simplicity decision proved that split. Store the accepted initial and renewal price IDs, amount due today, currency, card type, price kind, payment kind, `activeCheckoutKey`, `stripeCheckoutSessionUrl`, and `stripeCheckoutSessionExpiresAt` locally, then use the local payment ID as the Stripe idempotency-key source and metadata value. Store the metadata on both the Checkout Session and `subscription_data.metadata`. Store `stripeSubscriptionItemId` on webhook completion in PR 4B so future price changes can update active auto-renew subscriptions before renewal with `proration_behavior: 'none'`.
+Use the existing `getStripeClient`, `Env.NEXT_PUBLIC_APP_URL`, and event-payment idempotency style. Split Checkout tests into three bites: date/price selection, pending payment/session idempotency, and Stripe Checkout request construction. Create or reuse a pending local membership payment row plus pending local subscription record in one transaction before calling Stripe. Use the existing `Payment` model with `purpose: membership`; use a separate membership-payment table only if a new failing test proves `Payment` cannot represent invoice/payment/charge rows. Store the accepted initial and renewal price IDs, amount due today, currency, card type, price kind, payment kind, `activeCheckoutKey`, `stripeCheckoutSessionUrl`, and `stripeCheckoutSessionExpiresAt` locally, then use the local payment ID as the Stripe idempotency-key source and metadata value. Store metadata on both the Checkout Session and `subscription_data.metadata`. Store `stripeSubscriptionItemId` on `SailingCardSubscription` during webhook completion so future price changes can update active auto-renew subscriptions before renewal with `proration_behavior: 'none'`.
+
+Before calling `getCheckoutMembershipPrices`, Checkout must call the existing sailing-card membership eligibility helper and return no paid Checkout path for MIT students, verified MIT Recreation members, or pending free-normal verification users. Pricing helpers choose the paid price category only after free-normal eligibility has already been ruled out.
 
 The implementation must prove in Stripe test mode that spring Checkout does not create a prorated recurring charge before July 15. If Checkout Session parameters cannot express that safely, switch this task to a two-step flow: one-time Checkout for spring/full access plus a server-created subscription anchored to July 15 after successful payment. Do not ship a path where the initial invoice can include both spring and annual charges.
 
@@ -1522,15 +1563,15 @@ Cover reminder eligibility for 30, 14, and 3 days before July 15:
 
 - active auto-renew subscriptions get reminders
 - canceled-at-period-end subscriptions do not
-- reminders include amount, charge date, and cancel link
+- reminders include amount, charge date, cancel link, and price-change disclosure when the currently effective renewal Price is higher than the subscriber's previously stored renewal amount
 - reminder cancel links go directly to `/profile/membership?focus=auto-renew`, and the membership page reveals or focuses the turn-off-auto-renew form for that URL
-- reminders use the subscription's current full price snapshot or the accepted renewal price, not a newly edited price row that has not been applied to the subscription
+- before reminders are sent, active auto-renew subscriptions are moved to the currently effective `full + annual` Stripe Price when that Price is Stripe-ready; reminder snapshots then use the applied new amount, not the old accepted renewal price
 - active paid subscribers who now qualify for free normal membership do not receive generic renewal reminders; before renewal, the job sets `cancel_at_period_end=true` / `autoRenew=false` or otherwise blocks the paid renewal unless the member gives fresh explicit consent to paid racing renewal
 - special free-normal renewal copy explains that paid renewal was turned off or blocked because normal membership is now covered, with a link to restart paid racing only if they intentionally need it
 - duplicate reminders for the same subscription/window are skipped
-- active auto-renew subscriptions can be moved to the currently effective full Stripe Price before reminders with `proration_behavior: 'none'`
+- active auto-renew subscriptions are moved to the currently effective full annual Stripe Price before reminders with `proration_behavior: 'none'`, and a failed Stripe update blocks the reminder for that subscription instead of emailing an amount that will not be charged
 - renewal price updates select the currently effective `full + annual` price by the member's age on the upcoming July 15 Eastern date, including a subscriber who moves from `under_30` to `thirty_or_over`
-- renewal price updates only swap to a Price with the same product, annual interval, currency, and tax behavior; tests assert no invoice or proration is created and the July 15 anchor/current period end remains unchanged.
+- renewal price updates only swap to a Stripe-ready annual Price for the same card type, currency, and tax behavior; tests assert no invoice or proration is created, the July 15 anchor/current period end remains unchanged, and the next Stripe invoice preview or test-clock renewal uses the new annual amount instead of the old subscription-item Price.
 
 - [ ] **Step 2: Add or reuse the notification model**
 

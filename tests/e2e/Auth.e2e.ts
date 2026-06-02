@@ -365,12 +365,12 @@ test.describe('Auth', () => {
       await createVerifiedUser({ email, page, password: credential });
 
       await page.goto('/profile');
-      await expect(page).toHaveURL(/\/profile\/account/);
+      await expect(page).toHaveURL(/\/profile\/?$/);
       const profileNav = page.getByRole('navigation', {
         name: 'Profile settings',
       });
       await expect(
-        profileNav.getByRole('link', { name: 'Account', exact: true })
+        profileNav.getByRole('link', { name: 'Profile', exact: true })
       ).toBeVisible();
       await expect(
         profileNav.getByRole('button', { name: 'Sign out' })
@@ -414,7 +414,7 @@ test.describe('Auth', () => {
     try {
       await createVerifiedUser({ email, page, password });
 
-      await page.goto('/profile/account');
+      await page.goto('/profile');
       await page.getByLabel('New email').fill(newEmail);
       await page
         .getByRole('button', { name: 'Send confirmation code' })
@@ -436,7 +436,9 @@ test.describe('Auth', () => {
       await expect(
         page.getByText('Your email address has been updated.')
       ).toBeVisible();
-      await expect(page.getByText(newEmail, { exact: true })).toBeVisible();
+      await expect(
+        page.getByLabel('Change email').getByText(newEmail, { exact: true })
+      ).toBeVisible();
     } finally {
       await cleanupByEmail(email);
       await cleanupByEmail(newEmail);
@@ -604,9 +606,9 @@ test.describe('Auth', () => {
       });
       await expect.poll(() => new URL(resetPage.url()).pathname).toBe('/');
 
-      await page.goto('/profile/account');
+      await page.goto('/profile');
       await expect(page).toHaveURL(/\/login\/?\?/);
-      await otherPage.goto('/profile/account');
+      await otherPage.goto('/profile');
       await expect(otherPage).toHaveURL(/\/login\/?\?/);
     } finally {
       await resetContext.close();

@@ -10,6 +10,7 @@ type ProfileNavItem = {
   href: string;
   labelKey:
     | 'nav_account'
+    | 'nav_membership'
     | 'nav_ratings'
     | 'nav_payments'
     | 'nav_newsletter'
@@ -19,7 +20,8 @@ type ProfileNavItem = {
 };
 
 const PROFILE_NAV: ProfileNavItem[] = [
-  { href: '/profile/account', labelKey: 'nav_account' },
+  { href: '/profile', labelKey: 'nav_account' },
+  { href: '/profile/membership', labelKey: 'nav_membership' },
   { href: '/profile/ratings', labelKey: 'nav_ratings' },
   { href: '/profile/payments', labelKey: 'nav_payments' },
   { href: '/profile/newsletter', labelKey: 'nav_newsletter' },
@@ -31,6 +33,9 @@ const PROFILE_NAV: ProfileNavItem[] = [
 function isProfileNavActive(pathname: string, href: string): boolean {
   const p = normalizeNavPath(pathname);
   const h = normalizeNavPath(href);
+  if (h === '/profile') {
+    return p === h;
+  }
   return p === h || p.startsWith(`${h}/`);
 }
 

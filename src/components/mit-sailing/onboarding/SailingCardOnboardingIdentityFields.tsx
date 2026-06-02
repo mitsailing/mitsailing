@@ -102,12 +102,11 @@ export function AffiliationSelect(props: {
     required: 'error_required',
   });
   const handleAffiliationBlur = registration.onBlur;
-  const handleAffiliationChange = (
+  const handleAffiliationChange = async (
     event: React.ChangeEvent<HTMLSelectElement>
   ) => {
     const selectedAffiliation = event.currentTarget.value;
-    // eslint-disable-next-line no-void -- React Hook Form accepts async handlers; this change handler stays synchronous.
-    void registration.onChange(event);
+    await registration.onChange(event);
     const affiliation = getVisibleSailingAffiliation(selectedAffiliation);
     if (
       props.hasVerifiedMitRecreationMembership === true ||
@@ -404,12 +403,15 @@ function LegalNotice() {
 }
 
 export function IdentityFields(props: {
+  readonly canContinue: boolean;
   readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
-  readonly identityComplete: boolean;
+  readonly continueMode: 'continue' | 'skipMitId' | 'validateMitId';
+  readonly isValidationPending: boolean;
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
   readonly manualNameRequired: boolean;
   readonly mitIdRequired: boolean;
   readonly onContinue: () => void;
+  readonly onValidateMitId: () => void;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly showContinue: boolean;
   readonly showLockedIdentity: boolean;
@@ -418,6 +420,18 @@ export function IdentityFields(props: {
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
+  const continueLabel = {
+    continue: t('continue'),
+    skipMitId: t('skip_mit_id'),
+    validateMitId: t('validate_mit_id'),
+  } as const;
+  const handleContinue = () => {
+    if (props.continueMode === 'validateMitId') {
+      props.onValidateMitId();
+      return;
+    }
+    props.onContinue();
+  };
 
   return (
     <section className="flex flex-col gap-3 border-t border-border pt-5">
@@ -451,12 +465,12 @@ export function IdentityFields(props: {
       {props.showContinue ? (
         <Button
           className="w-full sm:w-fit"
-          disabled={!props.identityComplete}
-          onClick={props.onContinue}
+          disabled={!props.canContinue || props.isValidationPending}
+          onClick={handleContinue}
           type="button"
           variant="outline"
         >
-          {t('continue')}
+          {continueLabel[props.continueMode]}
         </Button>
       ) : null}
     </section>

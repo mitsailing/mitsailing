@@ -15,6 +15,7 @@ type RenderFormProps = {
   readonly callbackUrl?: string;
   readonly draftKey?: string;
   readonly hasVerifiedMitRecreationMembership?: boolean;
+  readonly initialMembershipCheckoutUrl?: string | null;
   readonly initialValues?: SailingCardOnboardingFormValues;
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
 };
@@ -52,6 +53,7 @@ const actionStateMock = vi.hoisted(() => ({
       swimAgreementAccepted: false,
     },
   } as SailingCardOnboardingFormState,
+  verifyIdentity: vi.fn(),
 }));
 
 vi.mock('react', async (importOriginal) => {
@@ -76,6 +78,7 @@ vi.mock('next-intl', async () => {
 
 vi.mock('@/libs/mit-sailing/sailingCardOnboardingActions', () => ({
   submitSailingCardOnboardingAction: vi.fn(),
+  verifySailingCardOnboardingMitIdentityAction: actionStateMock.verifyIdentity,
 }));
 
 export function resetOnboardingFormTestState() {
@@ -87,6 +90,15 @@ export function resetOnboardingFormTestState() {
     status: 'idle',
     values: emptyValues,
   };
+  actionStateMock.verifyIdentity.mockResolvedValue({
+    ok: true,
+    identity: {
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      mitClassYear: '2027',
+      mitId: '123456789',
+    },
+  });
 }
 
 export function setOnboardingFormActionState(
@@ -104,12 +116,29 @@ export function renderForm(props: RenderFormProps = {}) {
         hasVerifiedMitRecreationMembership={
           props.hasVerifiedMitRecreationMembership
         }
+        initialMembershipCheckoutUrl={props.initialMembershipCheckoutUrl}
         initialValues={props.initialValues}
         lockedIdentity={props.lockedIdentity}
       />
     </SailingCardOnboardingDraftProvider>
   );
 }
+
+export function setOnboardingMitIdentityResult(
+  result: Awaited<ReturnType<typeof actionStateMock.verifyIdentity>>
+) {
+  actionStateMock.verifyIdentity.mockResolvedValue(result);
+}
+
+export const expectMitIdentityVerificationCalledWith = (props: {
+  readonly affiliation: SailingAffiliation;
+  readonly mitId: string;
+}) => {
+  expect(actionStateMock.verifyIdentity).toHaveBeenCalledWith({
+    affiliation: props.affiliation,
+    mitId: props.mitId,
+  });
+};
 
 function PersistentDraftFormHarness(
   props: RenderFormProps & {
@@ -125,6 +154,7 @@ function PersistentDraftFormHarness(
           hasVerifiedMitRecreationMembership={
             props.hasVerifiedMitRecreationMembership
           }
+          initialMembershipCheckoutUrl={props.initialMembershipCheckoutUrl}
           initialValues={props.initialValues}
           lockedIdentity={props.lockedIdentity}
         />

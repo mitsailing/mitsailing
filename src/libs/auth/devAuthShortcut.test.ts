@@ -31,6 +31,10 @@ function stubRequiredDeployedEnv(): void {
     ],
     ['NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', 'pk_test_publishable_key'],
     ['REDIS_URL', 'redis://redis:6379'],
+    [
+      'STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID',
+      'bpc_test_membership',
+    ],
     ['STRIPE_SECRET_KEY', 'rk_test_restricted_key'],
     ['STRIPE_WEBHOOK_SECRET', 'whsec_test_webhook_secret'],
   ];
