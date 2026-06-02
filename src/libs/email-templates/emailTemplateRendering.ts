@@ -27,7 +27,7 @@ type RevisionLike = Readonly<{
   template: Readonly<{ key: EditableEmailTemplateKey }>;
 }>;
 
-type EmailTemplateRenderContext = Readonly<{
+export type EmailTemplateRenderContext = Readonly<{
   eventPaymentAdminDigest?: Readonly<{
     overduePayments: readonly {
       amount: string;

@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   createNewsletterBroadcastAction: vi.fn(),
   createNewsletterListAction: vi.fn(),
   createNewsletterTemplateAction: vi.fn(),
+  getAdminEmailTemplateDetail: vi.fn(),
+  getAdminEmailTemplateList: vi.fn(),
   getAdminNewsletterBroadcasts: vi.fn(),
   getAdminNewsletterLists: vi.fn(),
   getAdminNewsletterSubscribers: vi.fn(),
@@ -27,6 +29,13 @@ vi.mock('next/server', () => ({
 vi.mock('@/components/mit-sailing/admin/AdminPageHeader', () => ({
   AdminPageHeader: () => null,
 }));
+
+vi.mock(
+  '@/components/mit-sailing/admin/email-templates/AdminEmailTemplateEditor',
+  () => ({
+    AdminEmailTemplateEditor: () => null,
+  })
+);
 
 vi.mock('@/components/ui/button', () => ({
   Button: () => null,
@@ -63,6 +72,17 @@ vi.mock('@/libs/I18nNavigation', () => ({
 
 vi.mock('@/libs/auth/dal', () => ({
   requirePermission: mocks.requirePermission,
+}));
+
+vi.mock('@/libs/email-templates/emailTemplateAdminActions', () => ({
+  publishEmailTemplateRevisionAction: vi.fn(),
+  saveEmailTemplateDraftAction: vi.fn(),
+  sendEmailTemplateTestAction: vi.fn(),
+}));
+
+vi.mock('@/libs/email-templates/emailTemplateAdminQueries', () => ({
+  getAdminEmailTemplateDetail: mocks.getAdminEmailTemplateDetail,
+  getAdminEmailTemplateList: mocks.getAdminEmailTemplateList,
 }));
 
 vi.mock('@/libs/newsletter/newsletterAdminActions', () => ({
@@ -110,6 +130,8 @@ beforeEach(() => {
   mocks.getTranslations.mockResolvedValue((key: string) => key);
   mocks.requirePermission.mockRejectedValue(new Error('newsletter required'));
   mocks.getAdminNewsletterBroadcasts.mockResolvedValue([]);
+  mocks.getAdminEmailTemplateDetail.mockResolvedValue(null);
+  mocks.getAdminEmailTemplateList.mockResolvedValue([]);
   mocks.getAdminNewsletterLists.mockResolvedValue([]);
   mocks.getAdminNewsletterSubscribers.mockResolvedValue([]);
   mocks.getAdminNewsletterTemplates.mockResolvedValue([]);
@@ -120,6 +142,11 @@ describe('newsletter admin pages', () => {
     const pages = [
       { name: 'broadcasts', path: './newsletter-broadcasts/page' },
       { name: 'new broadcast', path: './newsletter-broadcasts/new/page' },
+      { name: 'email templates', path: './email-templates/page' },
+      {
+        name: 'email template detail',
+        path: './email-templates/[key]/page',
+      },
       { name: 'lists', path: './newsletter-lists/page' },
       { name: 'new list', path: './newsletter-lists/new/page' },
       { name: 'subscribers', path: './newsletter-subscribers/page' },
@@ -144,6 +171,11 @@ describe('newsletter admin pages', () => {
         mocks.getAdminNewsletterBroadcasts,
         page.name
       ).not.toHaveBeenCalled();
+      expect(
+        mocks.getAdminEmailTemplateDetail,
+        page.name
+      ).not.toHaveBeenCalled();
+      expect(mocks.getAdminEmailTemplateList, page.name).not.toHaveBeenCalled();
       expect(mocks.getAdminNewsletterLists, page.name).not.toHaveBeenCalled();
       expect(
         mocks.getAdminNewsletterSubscribers,

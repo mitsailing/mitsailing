@@ -58,6 +58,12 @@ export const ADMIN_SITE_NAV_ITEMS: AdminNavItem[] = [
     permissions: [Permission.NEWSLETTER_MANAGE],
   },
   {
+    href: '/admin/email-templates',
+    labelKey: 'nav_email_templates',
+    match: 'prefix',
+    permissions: [Permission.NEWSLETTER_MANAGE],
+  },
+  {
     href: '/admin/donation_funds',
     labelKey: 'nav_donation_funds',
     match: 'prefix',

@@ -1189,7 +1189,7 @@ git commit -m "feat: render transactional emails from published revisions"
 - Modify: `src/libs/admin/adminNavigation.ts`
 - Modify: `src/locales/en.json`
 
-- [ ] **Step 1: Write admin action tests**
+- [x] **Step 1: Write admin action tests**
 
 Create `src/libs/email-templates/emailTemplateAdminActions.test.ts` with tests that:
 
@@ -1200,7 +1200,7 @@ Create `src/libs/email-templates/emailTemplateAdminActions.test.ts` with tests t
 
 Use existing `newsletterAdminActions.test.ts` mocking style for `requirePermission`, `redirect`, and `revalidatePath`.
 
-- [ ] **Step 2: Write editor component tests**
+- [x] **Step 2: Write editor component tests**
 
 Create `src/components/mit-sailing/admin/email-templates/AdminEmailTemplateEditor.test.tsx` with Testing Library tests that:
 
@@ -1222,7 +1222,7 @@ vi.mock('@react-email/editor', () => ({
 }));
 ```
 
-- [ ] **Step 3: Implement admin actions**
+- [x] **Step 3: Implement admin actions**
 
 Create `src/libs/email-templates/emailTemplateAdminActions.ts`:
 
@@ -1237,7 +1237,7 @@ Each action must:
 - use `getI18nPath` for redirects;
 - call `revalidatePath` after writes.
 
-- [ ] **Step 4: Implement admin queries**
+- [x] **Step 4: Implement admin queries**
 
 Create `src/libs/email-templates/emailTemplateAdminQueries.ts`:
 
@@ -1247,7 +1247,7 @@ Create `src/libs/email-templates/emailTemplateAdminQueries.ts`:
 
 `ensureEditableEmailTemplateDefaults` creates missing template rows and one draft revision from `defaultEmailTemplateRevisions`. Do not create a published row automatically unless the migration/seed policy requires it.
 
-- [ ] **Step 5: Implement editor component**
+- [x] **Step 5: Implement editor component**
 
 Create `src/components/mit-sailing/admin/email-templates/AdminEmailTemplateEditor.tsx` as a client component. It must use:
 
@@ -1286,7 +1286,7 @@ export function AdminEmailTemplateEditor(props: {
 
 Then replace the sketch with the repo's actual `Input`, `Label`, `Button`, status messages, hidden fields, local draft preservation, and i18n strings.
 
-- [ ] **Step 6: Implement pages and navigation**
+- [x] **Step 6: Implement pages and navigation**
 
 Add `/admin/email-templates` and `/admin/email-templates/[key]` pages. Use:
 
@@ -1309,7 +1309,7 @@ Add nav item:
 
 Add `AdminSideNav.nav_email_templates` and `AdminEmailTemplates` strings in `src/locales/en.json`.
 
-- [ ] **Step 7: Run admin tests**
+- [x] **Step 7: Run admin tests**
 
 Run:
 
