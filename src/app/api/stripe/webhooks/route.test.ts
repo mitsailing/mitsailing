@@ -41,7 +41,7 @@ const mocks = vi.hoisted(() => ({
       upsert: vi.fn(),
     },
     stripeWebhookEvent: {
-      create: vi.fn(),
+      createMany: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn(),
@@ -105,10 +105,6 @@ function stripeEvent(type: string, object: Record<string, unknown>) {
   };
 }
 
-function duplicateStripeEventError() {
-  return Object.assign(new Error('duplicate'), { code: 'P2002' });
-}
-
 function mockStripeEvent(type: string, object: Record<string, unknown>) {
   mocks.constructEvent.mockReturnValueOnce(stripeEvent(type, object));
 }
@@ -143,9 +139,7 @@ function mockDuplicateStoredWebhookEvent(options: {
   processedAt: Date | null;
   processingError: string | null;
 }) {
-  mocks.tx.stripeWebhookEvent.create.mockRejectedValueOnce(
-    duplicateStripeEventError()
-  );
+  mocks.tx.stripeWebhookEvent.createMany.mockResolvedValueOnce({ count: 0 });
   mocks.tx.stripeWebhookEvent.findUnique.mockResolvedValueOnce({
     id: 'stored-event-1',
     processedAt: options.processedAt,
@@ -184,10 +178,12 @@ describe('stripe webhook route', () => {
     mocks.getStripeClient.mockReturnValue({
       webhooks: { constructEvent: mocks.constructEvent },
     });
-    mocks.tx.stripeWebhookEvent.create.mockResolvedValue({
+    mocks.tx.stripeWebhookEvent.createMany.mockResolvedValue({ count: 1 });
+    mocks.tx.stripeWebhookEvent.findUnique.mockResolvedValue({
       id: 'stored-event-1',
+      processedAt: null,
+      processingError: null,
     });
-    mocks.tx.stripeWebhookEvent.findUnique.mockResolvedValue(null);
     mocks.tx.stripeWebhookEvent.update.mockResolvedValue({});
     mocks.tx.stripeWebhookEvent.updateMany.mockResolvedValue({ count: 1 });
     mocks.prisma.stripeWebhookEvent.update.mockResolvedValue({});
@@ -220,7 +216,7 @@ describe('stripe webhook route', () => {
     expect(response.status).toBe(400);
     expect(mocks.constructEvent).not.toHaveBeenCalled();
     expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
-    expect(mocks.tx.stripeWebhookEvent.create).not.toHaveBeenCalled();
+    expect(mocks.tx.stripeWebhookEvent.createMany).not.toHaveBeenCalled();
   });
 
   it('rejects invalid signatures before mutating data', async () => {
@@ -310,13 +306,14 @@ describe('stripe webhook route', () => {
     const response = await POST(stripeRequest({}));
 
     await expect(response.json()).resolves.toEqual({ ok: true });
-    expect(mocks.tx.stripeWebhookEvent.create).toHaveBeenCalledWith({
+    expect(mocks.tx.stripeWebhookEvent.createMany).toHaveBeenCalledWith({
       data: {
         eventType: 'checkout.session.completed',
         processingError: expect.stringMatching(/^processing:/u),
         stripeCreatedAt: new Date('2026-05-01T12:00:00.000Z'),
         stripeEventId: 'evt_checkout_session_completed',
       },
+      skipDuplicates: true,
     });
     expect(mocks.tx.payment.updateMany).toHaveBeenCalledWith({
       data: expect.objectContaining({

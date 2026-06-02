@@ -22,10 +22,6 @@ type StoredWebhookEvent = NonNullable<
 
 const stripeEventCreated = 1_777_636_800;
 
-function duplicateStripeEventError() {
-  return Object.assign(new Error('duplicate'), { code: 'P2002' });
-}
-
 function eventPayment(
   options: { id?: string; status?: PaymentStatusType } = {}
 ): StripeWebhookPayment {
@@ -63,18 +59,20 @@ function mockReceiptUpsert() {
     .mockResolvedValue({});
 }
 
-function mockWebhookCreate() {
-  return vi.fn<StripeWebhookDb['stripeWebhookEvent']['create']>();
+function mockWebhookCreateMany(result?: { count: number }) {
+  return vi
+    .fn<StripeWebhookDb['stripeWebhookEvent']['createMany']>()
+    .mockResolvedValue(result ?? { count: 1 });
 }
 
-function mockDuplicateWebhookCreate() {
-  return mockWebhookCreate().mockRejectedValue(duplicateStripeEventError());
+function mockDuplicateWebhookCreateMany() {
+  return mockWebhookCreateMany({ count: 0 });
 }
 
-function mockWebhookCreateThenDuplicate(webhookEventId = 'webhook_event_123') {
-  return mockWebhookCreate()
-    .mockResolvedValueOnce({ id: webhookEventId })
-    .mockRejectedValueOnce(duplicateStripeEventError());
+function mockWebhookCreateManyThenDuplicate() {
+  return mockWebhookCreateMany()
+    .mockResolvedValueOnce({ count: 1 })
+    .mockResolvedValueOnce({ count: 0 });
 }
 
 function mockWebhookUpdate() {
@@ -91,7 +89,7 @@ function mockWebhookUpdateMany(result?: { count: number }) {
 
 function createWebhookDb(
   options: {
-    createWebhookEvent?: StripeWebhookDb['stripeWebhookEvent']['create'];
+    createWebhookEventMany?: StripeWebhookDb['stripeWebhookEvent']['createMany'];
     payment?: StripeWebhookPayment | null;
     storedWebhookEvent?: StoredWebhookEvent | null;
     updateManyWebhookEvent?: StripeWebhookDb['stripeWebhookEvent']['updateMany'];
@@ -121,12 +119,13 @@ function createWebhookDb(
       }),
     },
     stripeWebhookEvent: {
-      create:
-        options.createWebhookEvent ??
-        mockWebhookCreate().mockResolvedValue({ id: webhookEventId }),
+      createMany: options.createWebhookEventMany ?? mockWebhookCreateMany(),
       findUnique: vi
         .fn<StripeWebhookDb['stripeWebhookEvent']['findUnique']>()
-        .mockResolvedValue(options.storedWebhookEvent ?? null),
+        .mockResolvedValue(
+          options.storedWebhookEvent ??
+            storedWebhookEvent({ id: webhookEventId })
+        ),
       update: options.updateWebhookEvent ?? mockWebhookUpdate(),
       updateMany: options.updateManyWebhookEvent ?? mockWebhookUpdateMany(),
     },
@@ -196,7 +195,7 @@ function createReceiptRecoveryScenario(options: {
   const upsertReceipt = options.upsertReceipt ?? mockReceiptUpsert();
   const paymentState = eventPayment();
   const db = createWebhookDb({
-    createWebhookEvent: mockWebhookCreateThenDuplicate(),
+    createWebhookEventMany: mockWebhookCreateManyThenDuplicate(),
     payment: paymentState,
     storedWebhookEvent: storedWebhookEvent({
       processingError: options.processingError,
@@ -325,7 +324,7 @@ describe('processStripeWebhookEvent', () => {
     const updateManyWebhookEvent = mockWebhookUpdateMany();
     const updatePayment = mockPaymentUpdate();
     const db = createWebhookDb({
-      createWebhookEvent: mockDuplicateWebhookCreate(),
+      createWebhookEventMany: mockDuplicateWebhookCreateMany(),
       payment: eventPayment(),
       storedWebhookEvent: storedWebhookEvent({
         processingError: 'receipt_enqueue_pending',
@@ -371,7 +370,7 @@ describe('processStripeWebhookEvent', () => {
 
   it('fails unprocessed duplicate events when claim is unavailable', async () => {
     const db = createWebhookDb({
-      createWebhookEvent: mockDuplicateWebhookCreate(),
+      createWebhookEventMany: mockDuplicateWebhookCreateMany(),
       storedWebhookEvent: storedWebhookEvent(),
       updateManyWebhookEvent: mockWebhookUpdateMany({ count: 0 }),
     });
@@ -393,13 +392,14 @@ describe('processStripeWebhookEvent', () => {
       event: membershipSubscriptionEvent(),
     });
 
-    expect(db.stripeWebhookEvent.create).toHaveBeenCalledWith({
+    expect(db.stripeWebhookEvent.createMany).toHaveBeenCalledWith({
       data: {
         eventType: 'customer.subscription.updated',
         processingError: expect.stringMatching(/^processing:/u),
         stripeCreatedAt: new Date('2026-05-01T12:00:00.000Z'),
         stripeEventId: 'evt_customer_subscription_updated',
       },
+      skipDuplicates: true,
     });
   });
 
@@ -600,7 +600,7 @@ describe('processStripeWebhookEvent', () => {
     const updatePayment = mockPaymentUpdate();
     const upsertReceipt = mockReceiptUpsert();
     const db = createWebhookDb({
-      createWebhookEvent: mockWebhookCreateThenDuplicate('webhook_event_456'),
+      createWebhookEventMany: mockWebhookCreateManyThenDuplicate(),
       payment: eventPayment({ status: PaymentStatus.paid }),
       storedWebhookEvent: storedWebhookEvent({
         id: 'webhook_event_456',

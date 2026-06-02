@@ -124,7 +124,7 @@ function createDb(
       }),
     },
     stripeWebhookEvent: {
-      create: vi.fn(),
+      createMany: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn(),
