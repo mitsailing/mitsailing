@@ -52,6 +52,9 @@ describe('payment schema contract', () => {
     expect(migration).toContain(
       'payment classification fields are immutable after create'
     );
+    expect(zmodel).not.toContain(
+      'membershipPaymentKind != before().membershipPaymentKind'
+    );
   });
 
   it('stores legacy payment evidence without requiring an app user', () => {

@@ -44,12 +44,17 @@ function stubRequiredStripeEnv(): void {
   vi.stubEnv('STRIPE_SECRET_KEY', 'rk_test_restricted_key');
   vi.stubEnv('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', 'pk_test_publishable_key');
   vi.stubEnv('STRIPE_WEBHOOK_SECRET', 'whsec_test_webhook_secret');
+  vi.stubEnv(
+    'STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID',
+    'bpc_test_membership'
+  );
 }
 
 function stubBlankStripeEnv(): void {
   vi.stubEnv('STRIPE_SECRET_KEY', '');
   vi.stubEnv('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', '');
   vi.stubEnv('STRIPE_WEBHOOK_SECRET', '');
+  vi.stubEnv('STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID', '');
 }
 
 describe('Env legacy MySQL sync validation', () => {
@@ -231,5 +236,8 @@ describe('Env legacy MySQL sync validation', () => {
       'pk_test_publishable_key'
     );
     expect(Env.STRIPE_WEBHOOK_SECRET).toBe('whsec_test_webhook_secret');
+    expect(Env.STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID).toBe(
+      'bpc_test_membership'
+    );
   });
 });

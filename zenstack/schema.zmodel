@@ -1193,7 +1193,6 @@ model Payment {
     selectedFeeDescription != before().selectedFeeDescription ||
     cardYear != before().cardYear ||
     membershipSubscriptionId != before().membershipSubscriptionId ||
-    membershipPaymentKind != before().membershipPaymentKind ||
     membershipInitialPriceId != before().membershipInitialPriceId ||
     membershipRenewalPriceId != before().membershipRenewalPriceId ||
     membershipConsentSnapshot != before().membershipConsentSnapshot ||
