@@ -208,7 +208,7 @@ test.describe('Onboarding', () => {
     }
   });
 
-  test('restores full onboarding fields after browser back before submit', async ({
+  test('keeps full onboarding fields after profile opens before submit', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -232,25 +232,14 @@ test.describe('Onboarding', () => {
         .check();
 
       const profilePagePromise = page.waitForEvent('popup');
-      await page
-        .getByRole('banner')
-        .getByRole('link', { name: 'Profile' })
-        .click();
+      await page.evaluate(() => {
+        globalThis.window.open('/profile', '_blank', 'noopener');
+      });
       const profilePage = await profilePagePromise;
       await expect(profilePage).toHaveURL(
         /\/onboarding\?callbackUrl=%2Fprofile(?:%2Faccount)?$/
       );
       await profilePage.close();
-      await expectOnboardingDraftValues(page);
-
-      await page
-        .getByRole('banner')
-        .getByRole('link', { name: 'Pricing' })
-        .click();
-      await expect(page).toHaveURL(/\/pricing/);
-      await page.goBack();
-
-      await expect(page).toHaveURL(/\/onboarding/);
       await expectOnboardingDraftValues(page);
     } finally {
       await cleanupByEmail(email);

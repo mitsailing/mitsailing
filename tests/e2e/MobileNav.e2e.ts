@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 
 async function waitForSiteHeaderHydration(page: Page) {
   await expect(
-    page.locator('button[aria-controls="site-header-mobile-menu"]')
+    page.locator('button[aria-controls="site-header-mobile-menu"]').first()
   ).toBeEnabled();
 }
 

@@ -134,6 +134,7 @@ function PersistentDraftFormHarness(
           hasVerifiedMitRecreationMembership={
             props.hasVerifiedMitRecreationMembership
           }
+          initialMembershipCheckoutUrl={props.initialMembershipCheckoutUrl}
           initialValues={props.initialValues}
           lockedIdentity={props.lockedIdentity}
         />

@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 
 export type SailingCardPrintMode = 'print' | 'quick';
 
+type PrintLauncherStatus = 'failed' | 'loading' | 'ready';
+
 type PrintSailingCardFrameProps = {
   readonly frame: HTMLIFrameElement;
   readonly mode: SailingCardPrintMode;
@@ -104,7 +106,7 @@ function printLauncherStatusLabel(props: {
   readonly failureLabel: string;
   readonly loadingLabel: string;
   readonly readyLabel: string;
-  readonly status: 'failed' | 'loading' | 'ready';
+  readonly status: PrintLauncherStatus;
 }) {
   if (props.status === 'failed') {
     return props.failureLabel;
@@ -149,11 +151,9 @@ export function AdminSailingCardPrintLauncher(props: {
   readonly targetUserId: string;
 }) {
   const frameRef = useRef<HTMLIFrameElement>(null);
-  const statusRef = useRef<'failed' | 'loading' | 'ready'>('loading');
+  const statusRef = useRef<PrintLauncherStatus>('loading');
   const [frameSource, setFrameSource] = useState<string | null>(null);
-  const [status, setStatus] = useState<'failed' | 'loading' | 'ready'>(
-    'loading'
-  );
+  const [status, setStatus] = useState<PrintLauncherStatus>('loading');
 
   useEffect(() => {
     statusRef.current = status;
@@ -164,7 +164,7 @@ export function AdminSailingCardPrintLauncher(props: {
     setStatus('loading');
     let active = true;
     let loadedFrameSource: string | null = null;
-    const timeoutId = window.setTimeout(() => {
+    const timeoutId = globalThis.setTimeout(() => {
       if (statusRef.current !== 'loading') {
         return;
       }
@@ -206,7 +206,7 @@ export function AdminSailingCardPrintLauncher(props: {
 
     return () => {
       active = false;
-      window.clearTimeout(timeoutId);
+      globalThis.clearTimeout(timeoutId);
       if (loadedFrameSource !== null) {
         URL.revokeObjectURL(loadedFrameSource);
       }

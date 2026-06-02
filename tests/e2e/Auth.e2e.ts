@@ -436,7 +436,9 @@ test.describe('Auth', () => {
       await expect(
         page.getByText('Your email address has been updated.')
       ).toBeVisible();
-      await expect(page.getByText(newEmail, { exact: true })).toBeVisible();
+      await expect(
+        page.getByLabel('Change email').getByText(newEmail, { exact: true })
+      ).toBeVisible();
     } finally {
       await cleanupByEmail(email);
       await cleanupByEmail(newEmail);

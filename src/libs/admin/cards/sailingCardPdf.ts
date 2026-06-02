@@ -81,15 +81,37 @@ function ratingLevelSuffix(level: string | null) {
   return level;
 }
 
+function ratingNameWithoutTrailingSuffix(props: {
+  readonly name: string;
+  readonly suffix: 'advanced' | 'basic';
+}) {
+  const suffixStart = props.name.length - props.suffix.length;
+  if (
+    suffixStart <= 0 ||
+    !props.name.toLowerCase().endsWith(props.suffix) ||
+    !props.name.slice(0, suffixStart).endsWith(' ')
+  ) {
+    return null;
+  }
+
+  const prefix = props.name.slice(0, suffixStart).trimEnd();
+  const name = prefix.endsWith(':') ? prefix.slice(0, -1).trimEnd() : prefix;
+  return name.length > 0 ? name : null;
+}
+
 function normalizedBasicAdvancedRating(rating: SailingCardPdfRating) {
-  const advancedMatch = /^(.+?)(?::?\s+advanced)$/i.exec(rating.name);
-  const advancedName = advancedMatch?.[1];
+  const advancedName = ratingNameWithoutTrailingSuffix({
+    name: rating.name,
+    suffix: 'advanced',
+  });
   if (advancedName) {
     return { name: advancedName, suffix: 'Adv' };
   }
 
-  const basicMatch = /^(.+?)(?::?\s+basic)$/i.exec(rating.name);
-  const basicName = basicMatch?.[1];
+  const basicName = ratingNameWithoutTrailingSuffix({
+    name: rating.name,
+    suffix: 'basic',
+  });
   if (basicName) {
     return { name: basicName, suffix: 'Basic' };
   }
