@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import type { Stripe } from 'stripe';
+import { SailingCardSubscriptionStatus } from '@/generated/prisma/enums';
+import type { SailingCardSubscriptionStatus as SailingCardSubscriptionStatusType } from '@/generated/prisma/enums';
 import { getSession } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
@@ -30,6 +32,9 @@ type MembershipCancellationClient = {
         readonly autoRenew: true;
         readonly cancelAtPeriodEnd: false;
         readonly id: string;
+        readonly status: {
+          readonly in: SailingCardSubscriptionStatusType[];
+        };
         readonly userId: string;
       };
     }): Promise<{
@@ -105,6 +110,13 @@ export async function turnOffMembershipAutoRenew(options: {
       autoRenew: true,
       cancelAtPeriodEnd: false,
       id: options.subscriptionId,
+      status: {
+        in: [
+          SailingCardSubscriptionStatus.active,
+          SailingCardSubscriptionStatus.trialing,
+          SailingCardSubscriptionStatus.past_due,
+        ],
+      },
       userId: options.userId,
     },
   });

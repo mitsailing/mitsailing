@@ -234,11 +234,12 @@ test.describe('Onboarding', () => {
         )
         .check();
 
-      const profilePagePromise = page.waitForEvent('popup');
-      await page.evaluate(() => {
-        globalThis.window.open('/profile', '_blank', 'noopener');
+      const profilePagePromise = page.context().waitForEvent('page');
+      await page.getByRole('link', { name: 'Profile' }).click({
+        button: 'middle',
       });
       const profilePage = await profilePagePromise;
+      await profilePage.waitForLoadState('domcontentloaded');
       await expect(profilePage).toHaveURL(
         /\/onboarding\?callbackUrl=%2Fprofile$/
       );

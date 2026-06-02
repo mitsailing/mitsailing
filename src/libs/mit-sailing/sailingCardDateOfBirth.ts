@@ -136,9 +136,12 @@ export const parseSailingCardDateOfBirth = (props: {
 
 export const formatSailingCardDateOfBirthInput = (value: string) => {
   const trimmed = value.trim();
+  const shortSlashMatch = slashShortDateOfBirthPattern.exec(trimmed);
   if (
     isoDateOfBirthPattern.test(trimmed) ||
-    slashDateOfBirthPattern.test(trimmed)
+    slashDateOfBirthPattern.test(trimmed) ||
+    (shortSlashMatch !== null &&
+      (shortSlashMatch[1]?.length !== 2 || shortSlashMatch[2]?.length !== 2))
   ) {
     const parsedAutofillDate = parseSailingCardDateOfBirth({
       allowIsoDate: true,

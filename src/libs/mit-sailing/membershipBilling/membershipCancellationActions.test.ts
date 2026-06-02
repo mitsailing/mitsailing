@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SailingCardSubscriptionStatus } from '@/generated/prisma/enums';
 import { turnOffMembershipAutoRenew } from '@/libs/mit-sailing/membershipBilling/membershipCancellationActions';
 
 vi.mock('server-only', () => ({}));
@@ -43,6 +44,9 @@ describe('membershipCancellationActions', () => {
     });
 
     expect(result).toEqual({ ok: true });
+    const [localUpdateOrder] = updateLocal.mock.invocationCallOrder;
+    const [stripeUpdateOrder] = updateSubscription.mock.invocationCallOrder;
+    expect(localUpdateOrder).toBeGreaterThan(stripeUpdateOrder ?? 0);
     expect(updateSubscription).toHaveBeenCalledWith('sub_test', {
       cancel_at_period_end: true,
     });
@@ -54,6 +58,46 @@ describe('membershipCancellationActions', () => {
       }),
       where: { id: 'local_sub' },
     });
+  });
+
+  it('finds only cancellable subscription statuses', async () => {
+    const findFirst = vi.fn().mockResolvedValue(null);
+    const updateSubscription = vi.fn();
+
+    const result = await turnOffMembershipAutoRenew({
+      client: {
+        sailingCardSubscription: {
+          findFirst,
+          update: vi.fn(),
+        },
+      },
+      note: '',
+      now: new Date('2026-06-01T12:00:00.000Z'),
+      reason: 'other',
+      stripe: {
+        subscriptions: {
+          update: updateSubscription,
+        },
+      },
+      subscriptionId: 'local_sub',
+      userId: 'user_1',
+    });
+
+    expect(result).toEqual({ error: 'not_found', ok: false });
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: {
+            in: [
+              SailingCardSubscriptionStatus.active,
+              SailingCardSubscriptionStatus.trialing,
+              SailingCardSubscriptionStatus.past_due,
+            ],
+          },
+        }),
+      })
+    );
+    expect(updateSubscription).not.toHaveBeenCalled();
   });
 
   it('does not update local state when Stripe fails', async () => {

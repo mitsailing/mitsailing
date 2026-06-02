@@ -384,6 +384,8 @@ describe('submitSailingCardOnboardingAction', () => {
   });
 
   it('redirects users with an existing current-year request to success', async () => {
+    const formData = onboardingFormData();
+    formData.set('callbackUrl', '/events/regatta/register');
     mocks.prismaUserFindUnique.mockResolvedValue(
       currentUserFixture({
         sailingCardRequests: [
@@ -413,8 +415,10 @@ describe('submitSailingCardOnboardingAction', () => {
       await import('@/libs/mit-sailing/sailingCardOnboardingActions');
 
     await expect(
-      submitSailingCardOnboardingAction(idleState, onboardingFormData())
-    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+      submitSailingCardOnboardingAction(idleState, formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/onboarding/success?callbackUrl=%2Fevents%2Fregatta%2Fregister'
+    );
 
     expect(mocks.lookupMitDataWarehouseIdentity).not.toHaveBeenCalled();
     expect(mocks.prismaTransaction).not.toHaveBeenCalled();
@@ -773,6 +777,37 @@ describe('submitSailingCardOnboardingAction', () => {
       })
     );
     expect(mocks.redirect).not.toHaveBeenCalledWith('/onboarding/success');
+  });
+
+  it('preserves callback through paid racing checkout success', async () => {
+    const formData = paidRacingOnboardingFormData();
+    formData.set('callbackUrl', '/events/regatta/register');
+    const submitSailingCardOnboardingAction =
+      await loadSubmitSailingCardOnboardingAction();
+
+    await expect(
+      submitSailingCardOnboardingAction(idleState, formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:https://checkout.stripe.com/c/pay/cs_test'
+    );
+
+    const [checkoutOptions] =
+      mocks.createMembershipCheckoutUrlForOnboarding.mock.calls[0] ?? [];
+    if (checkoutOptions === undefined) {
+      throw new Error('expected checkout creation options');
+    }
+    const successUrlValue: unknown = checkoutOptions.successUrl;
+    if (typeof successUrlValue !== 'string') {
+      throw new TypeError('expected checkout success URL');
+    }
+    const successUrl = new URL(successUrlValue);
+    expect(successUrl.pathname).toBe('/onboarding/success');
+    expect(successUrl.searchParams.get('callbackUrl')).toBe(
+      '/events/regatta/register'
+    );
+    expect(successUrl.searchParams.get('session_id')).toBe(
+      '{CHECKOUT_SESSION_ID}'
+    );
   });
 
   it.each([

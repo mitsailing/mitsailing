@@ -148,6 +148,24 @@ function onboardingUser() {
   };
 }
 
+function mockPaidCompletedRequest() {
+  mocks.findUser.mockResolvedValue({
+    sailingCardRequests: [
+      completedRequest('user-1', SailingCardType.team_racing),
+    ],
+  });
+  mocks.findPayment.mockResolvedValue({
+    status: PaymentStatus.checkout_created,
+    stripeCheckoutSessionExpiresAt: new Date('2026-08-01T18:00:00.000Z'),
+    stripeCheckoutSessionId: 'cs_paid',
+    stripeCheckoutSessionUrl: 'https://checkout.stripe.com/c/pay/cs_paid',
+  });
+  mocks.stripeCheckoutSessionRetrieve.mockResolvedValue({
+    payment_status: 'paid',
+    status: 'complete',
+  });
+}
+
 beforeEach(() => {
   vi.resetModules();
   vi.setSystemTime(new Date('2026-08-01T12:00:00-04:00'));
@@ -420,27 +438,16 @@ describe('onboarding pages', () => {
   });
 
   it('renders paid success only when the returned Checkout session is paid', async () => {
-    mocks.findUser.mockResolvedValue({
-      sailingCardRequests: [
-        completedRequest('user-1', SailingCardType.team_racing),
-      ],
-    });
-    mocks.findPayment.mockResolvedValue({
-      status: PaymentStatus.checkout_created,
-      stripeCheckoutSessionExpiresAt: new Date('2026-08-01T18:00:00.000Z'),
-      stripeCheckoutSessionId: 'cs_paid',
-      stripeCheckoutSessionUrl: 'https://checkout.stripe.com/c/pay/cs_paid',
-    });
-    mocks.stripeCheckoutSessionRetrieve.mockResolvedValue({
-      payment_status: 'paid',
-      status: 'complete',
-    });
+    mockPaidCompletedRequest();
     const { default: OnboardingSuccessPage } = await import('./success/page');
 
     render(
       await OnboardingSuccessPage({
         params: Promise.resolve({ locale: 'en' }),
-        searchParams: Promise.resolve({ session_id: 'cs_paid' }),
+        searchParams: Promise.resolve({
+          callbackUrl: '/events/regatta/register',
+          session_id: 'cs_paid',
+        }),
       })
     );
 
@@ -448,6 +455,27 @@ describe('onboarding pages', () => {
     expect(
       screen.getByRole('heading', { name: 'paid_title' })
     ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'events_link' })).toHaveAttribute(
+      'href',
+      '/events/regatta/register'
+    );
+  });
+
+  it('falls back from unsafe paid success callbacks', async () => {
+    mockPaidCompletedRequest();
+    const { default: OnboardingSuccessPage } = await import('./success/page');
+
+    render(
+      await OnboardingSuccessPage({
+        params: Promise.resolve({ locale: 'en' }),
+        searchParams: Promise.resolve({
+          callbackUrl: 'https://evil.example/phish',
+          session_id: 'cs_paid',
+        }),
+      })
+    );
+
+    expect(mocks.stripeCheckoutSessionRetrieve).toHaveBeenCalledWith('cs_paid');
     expect(screen.getByRole('link', { name: 'events_link' })).toHaveAttribute(
       'href',
       '/events'

@@ -1299,7 +1299,7 @@ model Payment {
   @@deny('create,update', amountCents < 0)
   @@deny('create,update', refundedAmountCents != null && refundedAmountCents < 0)
   @@deny('create,update', refundedAmountCents != null && refundedAmountCents > amountCents)
-  @@deny('create,update', issueHandledAt != null && (issueHandledNote == null || issueHandledNote == '' || issueHandledByUserId == null))
+  @@deny('create,update', (issueHandledAt != null || issueHandledNote != null || issueHandledByUserId != null) && (issueHandledAt == null || issueHandledNote == null || issueHandledNote == '' || issueHandledByUserId == null || issueKind == null))
   @@allow('read', auth() != null && userId != null && userId == auth().id)
   @@allow('read,create,update,delete', purpose == event_payment && check(event, 'update'))
   @@allow('read,create,update', source == legacy && auth() != null && (
