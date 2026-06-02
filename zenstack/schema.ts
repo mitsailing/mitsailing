@@ -403,6 +403,20 @@ export class SchemaType implements SchemaDef {
                     attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("NewsletterEventActor") }] }] as readonly AttributeApplication[],
                     relation: { opposite: "actor", name: "NewsletterEventActor" }
                 },
+                emailTemplateRevisionsCreated: {
+                    name: "emailTemplateRevisionsCreated",
+                    type: "EmailTemplateRevision",
+                    array: true,
+                    attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("EmailTemplateRevisionCreatedBy") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "createdBy", name: "EmailTemplateRevisionCreatedBy" }
+                },
+                emailTemplateRevisionsPublished: {
+                    name: "emailTemplateRevisionsPublished",
+                    type: "EmailTemplateRevision",
+                    array: true,
+                    attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("EmailTemplateRevisionPublishedBy") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "publishedBy", name: "EmailTemplateRevisionPublishedBy" }
+                },
                 emailMessages: {
                     name: "emailMessages",
                     type: "EmailMessage",
@@ -1679,6 +1693,191 @@ export class SchemaType implements SchemaDef {
             uniqueFields: {
                 id: { type: "String" },
                 slug: { type: "String" }
+            }
+        },
+        EmailTemplate: {
+            name: "EmailTemplate",
+            fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    id: true,
+                    attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("cuid") as FieldDefault
+                },
+                key: {
+                    name: "key",
+                    type: "String",
+                    unique: true,
+                    attributes: [{ name: "@unique" }] as readonly AttributeApplication[]
+                },
+                family: {
+                    name: "family",
+                    type: "EmailTemplateFamily"
+                },
+                name: {
+                    name: "name",
+                    type: "String"
+                },
+                description: {
+                    name: "description",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@db.Text" }] as readonly AttributeApplication[]
+                },
+                createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.call("now") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_at") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("now") as FieldDefault
+                },
+                updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    updatedAt: true,
+                    attributes: [{ name: "@updatedAt" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("updated_at") }] }] as readonly AttributeApplication[]
+                },
+                revisions: {
+                    name: "revisions",
+                    type: "EmailTemplateRevision",
+                    array: true,
+                    relation: { opposite: "template" }
+                }
+            },
+            attributes: [
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin"))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("all") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin"))) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("EmailTemplateFamily", [ExpressionUtils.field("family"), ExpressionUtils.field("name")]) }] },
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("email_templates") }] }
+            ] as readonly AttributeApplication[],
+            idFields: ["id"],
+            uniqueFields: {
+                id: { type: "String" },
+                key: { type: "String" }
+            }
+        },
+        EmailTemplateRevision: {
+            name: "EmailTemplateRevision",
+            fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    id: true,
+                    attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("cuid") as FieldDefault
+                },
+                templateId: {
+                    name: "templateId",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("template_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "template"
+                    ] as readonly string[]
+                },
+                status: {
+                    name: "status",
+                    type: "EmailTemplateRevisionStatus",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("draft") }] }] as readonly AttributeApplication[],
+                    default: "draft" as FieldDefault
+                },
+                subject: {
+                    name: "subject",
+                    type: "String"
+                },
+                previewText: {
+                    name: "previewText",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("preview_text") }] }] as readonly AttributeApplication[]
+                },
+                editorJson: {
+                    name: "editorJson",
+                    type: "Json",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("editor_json") }] }] as readonly AttributeApplication[]
+                },
+                editorBodyHtml: {
+                    name: "editorBodyHtml",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("editor_body_html") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
+                },
+                renderedText: {
+                    name: "renderedText",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("rendered_text") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
+                },
+                renderHash: {
+                    name: "renderHash",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("render_hash") }] }] as readonly AttributeApplication[]
+                },
+                createdByUserId: {
+                    name: "createdByUserId",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_by_user_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "createdBy"
+                    ] as readonly string[]
+                },
+                publishedByUserId: {
+                    name: "publishedByUserId",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("published_by_user_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "publishedBy"
+                    ] as readonly string[]
+                },
+                publishedAt: {
+                    name: "publishedAt",
+                    type: "DateTime",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("published_at") }] }] as readonly AttributeApplication[]
+                },
+                createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.call("now") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_at") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("now") as FieldDefault
+                },
+                updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    updatedAt: true,
+                    attributes: [{ name: "@updatedAt" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("updated_at") }] }] as readonly AttributeApplication[]
+                },
+                template: {
+                    name: "template",
+                    type: "EmailTemplate",
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("templateId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "revisions", fields: ["templateId"], references: ["id"], onDelete: "Cascade" }
+                },
+                createdBy: {
+                    name: "createdBy",
+                    type: "User",
+                    optional: true,
+                    attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("EmailTemplateRevisionCreatedBy") }, { name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("createdByUserId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "emailTemplateRevisionsCreated", name: "EmailTemplateRevisionCreatedBy", fields: ["createdByUserId"], references: ["id"], onDelete: "SetNull" }
+                },
+                publishedBy: {
+                    name: "publishedBy",
+                    type: "User",
+                    optional: true,
+                    attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("EmailTemplateRevisionPublishedBy") }, { name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("publishedByUserId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "emailTemplateRevisionsPublished", name: "EmailTemplateRevisionPublishedBy", fields: ["publishedByUserId"], references: ["id"], onDelete: "SetNull" }
+                }
+            },
+            attributes: [
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin"))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("all") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin"))) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("templateId"), ExpressionUtils.field("status"), ExpressionUtils.field("publishedAt")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("createdByUserId")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("publishedByUserId")]) }] },
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("email_template_revisions") }] }
+            ] as readonly AttributeApplication[],
+            idFields: ["id"],
+            uniqueFields: {
+                id: { type: "String" }
             }
         },
         NewsletterBroadcast: {
@@ -6510,6 +6709,29 @@ export class SchemaType implements SchemaDef {
             },
             attributes: [
                 { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("newsletter_broadcast_status") }] }
+            ] as readonly AttributeApplication[]
+        },
+        EmailTemplateFamily: {
+            name: "EmailTemplateFamily",
+            values: {
+                newsletter: "newsletter",
+                pavilion_reservation: "pavilion_reservation",
+                event_payment: "event_payment",
+                membership_payment: "membership_payment"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("email_template_family") }] }
+            ] as readonly AttributeApplication[]
+        },
+        EmailTemplateRevisionStatus: {
+            name: "EmailTemplateRevisionStatus",
+            values: {
+                draft: "draft",
+                published: "published",
+                archived: "archived"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("email_template_revision_status") }] }
             ] as readonly AttributeApplication[]
         },
         NewsletterDeliveryStatus: {

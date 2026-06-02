@@ -19,6 +19,7 @@ Treat these June 2026 docs and registry checks as implementation inputs:
 - React Email 6 package split: https://react.email/docs/getting-started/updating-react-email
 - Local registry check: `npm view @react-email/editor version peerDependencies dependencies --json`
 - Local registry check: `npm view @react-email/ui version peerDependencies dependencies --json`
+- ZenStack schema generation: `npx zen check --schema zenstack/schema.zmodel` and `npx zen generate --schema zenstack/schema.zmodel`
 
 Use Context7 for any React Email, Next.js, TipTap, Prisma, or Sentry API question during implementation. If docs and installed types disagree, stop and adjust the plan before coding against guesses.
 
@@ -391,11 +392,21 @@ emailTemplateRevisionsPublished EmailTemplateRevision[] @relation("EmailTemplate
 Run:
 
 ```shell
-npm run db:generate
-npm run db:migrate:dev -- --name email_template_revisions
+npx zen check --schema zenstack/schema.zmodel
+npx zen generate --schema zenstack/schema.zmodel
+npx prisma generate
 ```
 
-Expected: generated Prisma files and a migration under `prisma/migrations/*_email_template_revisions/`.
+Expected: generated Prisma and ZenStack files are updated. Then create a migration under `prisma/migrations/*_email_template_revisions/`.
+
+If `prisma migrate dev` reports local database drift, do not reset the database. Generate the migration from schema diff instead:
+
+```shell
+git show origin/main:prisma/schema.prisma > /tmp/mitsailing-origin-main-schema.prisma
+npx prisma migrate diff --from-schema /tmp/mitsailing-origin-main-schema.prisma --to-schema prisma/schema.prisma --script
+```
+
+Create `prisma/migrations/20260602145500_email_template_revisions/migration.sql` from that SQL.
 
 - [ ] **Step 6: Run schema tests**
 
@@ -413,7 +424,7 @@ Expected: PASS.
 Run:
 
 ```shell
-git add zenstack/schema.zmodel prisma/schema.prisma prisma/migrations src/libs/email-templates/emailTemplateKeys.ts src/libs/email-templates/emailTemplatePublishing.ts src/libs/email-templates/emailTemplatePublishing.test.ts
+git add zenstack/schema.zmodel zenstack/schema.ts zenstack/models.ts zenstack/input.ts prisma/schema.prisma prisma/migrations src/libs/email-templates/emailTemplateKeys.ts src/libs/email-templates/emailTemplatePublishing.ts src/libs/email-templates/emailTemplatePublishing.test.ts
 git commit -m "feat: add email template revision schema"
 ```
 
