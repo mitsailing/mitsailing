@@ -21,6 +21,7 @@ import {
   hasCompletedCurrentYearSailingCardRequest,
 } from '@/libs/mit-sailing/sailingCardValidity';
 import { getStripeClient } from '@/libs/stripe/stripeClient';
+import { safeStripeHostedPaymentHref } from '@/libs/stripe/stripeHostedPaymentHref';
 import { getI18nPath } from '@/utils/Helpers';
 
 type OnboardingSuccessPageProps = Readonly<{
@@ -40,13 +41,15 @@ function SurfaceActionLink(props: SurfaceAction) {
 
   if (props.external === true) {
     return (
-      <a className={className} href={props.href}>
+      // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- sanitized action href.
+      <a className={className} href={props.href} rel="noopener noreferrer">
         {props.label}
       </a>
     );
   }
 
   return (
+    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- server-built app path.
     <Link className={className} href={props.href}>
       {props.label}
     </Link>
@@ -171,7 +174,7 @@ function activeCheckoutUrl(payment: MembershipPaymentForRequest, now: Date) {
   ) {
     return null;
   }
-  return payment.stripeCheckoutSessionUrl;
+  return safeStripeHostedPaymentHref(payment.stripeCheckoutSessionUrl);
 }
 
 export async function generateMetadata(

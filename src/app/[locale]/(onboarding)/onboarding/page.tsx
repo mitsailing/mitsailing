@@ -17,6 +17,7 @@ import {
   getCurrentSailingCardYear,
   hasCompletedCurrentYearSailingCardRequest,
 } from '@/libs/mit-sailing/sailingCardValidity';
+import { safeStripeHostedPaymentHref } from '@/libs/stripe/stripeHostedPaymentHref';
 import { getI18nPath } from '@/utils/Helpers';
 
 type OnboardingPageProps = Readonly<{
@@ -202,13 +203,13 @@ function activeMembershipCheckoutUrl(
     payment.stripeCheckoutSessionExpiresAt !== null &&
     payment.stripeCheckoutSessionExpiresAt > now
   ) {
-    return payment.stripeCheckoutSessionUrl;
+    return safeStripeHostedPaymentHref(payment.stripeCheckoutSessionUrl);
   }
   if (
     payment.status === PaymentStatus.pending &&
     payment.stripeCheckoutSessionExpiresAt === null
   ) {
-    return payment.stripeCheckoutSessionUrl;
+    return safeStripeHostedPaymentHref(payment.stripeCheckoutSessionUrl);
   }
   return null;
 }

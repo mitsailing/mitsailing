@@ -6,6 +6,7 @@ import { openMembershipBillingPortalAction } from '@/libs/mit-sailing/membership
 import { turnOffMembershipAutoRenewAction } from '@/libs/mit-sailing/membershipBilling/membershipCancellationActions';
 import type { MembershipProfileStateKind } from '@/libs/mit-sailing/membershipBilling/membershipSubscriptions';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
+import { safeStripeHostedPaymentHref } from '@/libs/stripe/stripeHostedPaymentHref';
 
 type ProfileMembershipTranslations = Awaited<
   ReturnType<typeof getTranslations<'UserProfilePage'>>
@@ -84,6 +85,7 @@ export function ProfileMembershipBillingView(
     null,
     props.locale
   );
+  const receiptHref = safeStripeHostedPaymentHref(props.receiptUrl);
 
   return (
     <section className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8 md:px-6">
@@ -191,13 +193,10 @@ export function ProfileMembershipBillingView(
             {props.t('membership_view_payments')}
           </Link>
         </Button>
-        {props.receiptUrl ? (
+        {receiptHref ? (
           <Button asChild variant="outline">
-            <a
-              href={props.receiptUrl}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
+            {/* nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- safeStripeHostedPaymentHref restricts receipt links to Stripe-hosted HTTPS payment URLs. */}
+            <a href={receiptHref} rel="noopener noreferrer" target="_blank">
               {props.t('payments_receipt_link')}
             </a>
           </Button>

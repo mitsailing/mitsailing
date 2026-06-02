@@ -1,6 +1,12 @@
 import { BadgeCheck, Mail, Phone, UserRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
+type ProfileSectionHref =
+  | '#change-email-section'
+  | '#contact-section'
+  | '#member-information-section'
+  | '#sailing-card-section';
+
 function ProfileFact(props: {
   readonly label: string;
   readonly value: string;
@@ -25,13 +31,14 @@ function ProfileFact(props: {
 }
 
 function ProfileSectionLink(props: {
-  readonly href: string;
+  readonly href: ProfileSectionHref;
   readonly icon: LucideIcon;
   readonly label: string;
   readonly summary: string;
 }) {
   const Icon = props.icon;
   return (
+    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- profile section hrefs are restricted to literal in-page fragment IDs.
     <a
       className="group flex min-h-14 items-center gap-3 rounded-lg border border-mit-line bg-background px-3 py-2 text-left no-underline transition-colors hover:border-mit-red/40 hover:bg-mit-red-highlight focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
       href={props.href}

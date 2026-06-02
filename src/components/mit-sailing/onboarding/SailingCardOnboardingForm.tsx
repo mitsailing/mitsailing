@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef } from 'react';
+import { safeStripeHostedPaymentHref } from '@/libs/stripe/stripeHostedPaymentHref';
 import { useSailingCardOnboardingFormModel } from './SailingCardOnboardingFormModel';
 import type { SailingCardOnboardingFormProps } from './SailingCardOnboardingFormModel';
 import { OnboardingFormFields } from './SailingCardOnboardingFormSections';
@@ -31,6 +32,11 @@ function HostedMembershipCheckoutPrompt(props: {
   readonly checkoutUrl: string;
 }) {
   const t = useTranslations('OnboardingPage');
+  const checkoutHref = safeStripeHostedPaymentHref(props.checkoutUrl);
+
+  if (checkoutHref === null) {
+    return null;
+  }
 
   return (
     <section className="mx-auto flex w-full max-w-xl flex-col items-center gap-4 text-center text-sm">
@@ -43,9 +49,10 @@ function HostedMembershipCheckoutPrompt(props: {
       <p className="max-w-md leading-6 text-muted-foreground">
         {t('membership_checkout_body')}
       </p>
+      {/* nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- safeStripeHostedPaymentHref restricts checkout links to Stripe-hosted HTTPS payment URLs. */}
       <a
         className="inline-flex min-h-11 items-center justify-center rounded-lg bg-mit-red px-5 py-2.5 font-semibold text-white no-underline shadow-xs transition hover:bg-mit-red/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red"
-        href={props.checkoutUrl}
+        href={checkoutHref}
       >
         {t('membership_checkout_continue')}
       </a>

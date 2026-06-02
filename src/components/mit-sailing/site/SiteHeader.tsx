@@ -153,17 +153,18 @@ function accountOnboardingTaskHref(props: {
 }
 
 function MobileOnboardingTaskLink(props: {
-  readonly href: '/onboarding' | null;
   readonly label: string;
+  readonly path: '/onboarding' | null;
   readonly onNavigate: () => void;
 }) {
-  if (props.href === null) {
+  if (props.path === null) {
     return null;
   }
   return (
+    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- onboarding task links are restricted to the literal app route /onboarding.
     <Link
       className={mobileOnboardingTaskClass}
-      href={props.href}
+      href={props.path}
       onClick={props.onNavigate}
     >
       {props.label}
@@ -172,14 +173,15 @@ function MobileOnboardingTaskLink(props: {
 }
 
 function DesktopOnboardingTaskLink(props: {
-  readonly href: '/onboarding' | null;
   readonly label: string;
+  readonly path: '/onboarding' | null;
 }) {
-  if (props.href === null) {
+  if (props.path === null) {
     return null;
   }
   return (
-    <Link className={desktopOnboardingTaskClass} href={props.href}>
+    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- onboarding task links are restricted to the literal app route /onboarding.
+    <Link className={desktopOnboardingTaskClass} href={props.path}>
       {props.label}
     </Link>
   );
@@ -334,8 +336,8 @@ function MobileAuthActions(
       {!props.showAuthPending && props.displayAuthenticated ? (
         <>
           <MobileOnboardingTaskLink
-            href={props.onboardingTaskHref}
             label={props.onboardingTaskLabel}
+            path={props.onboardingTaskHref}
             onNavigate={props.onNavigate}
           />
           {props.displayAdminLink ? (
@@ -666,8 +668,8 @@ export function SiteHeader(props: SiteHeaderProps) {
           {!showAuthPending && displayAuthenticated ? (
             <>
               <DesktopOnboardingTaskLink
-                href={onboardingTaskHref}
                 label={t('auth_finish_onboarding')}
+                path={onboardingTaskHref}
               />
               {displayAdminLink ? (
                 <Link className={desktopGuestLoginClass} href="/admin">
