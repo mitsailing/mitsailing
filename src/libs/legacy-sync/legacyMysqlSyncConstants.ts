@@ -4,7 +4,7 @@ import { CronExpressionParser } from 'cron-parser';
 export const LEGACY_MYSQL_SYNC_DEFAULT_CRON = '0 0 * * * *';
 
 const BULLMQ_UNSUPPORTED_HASHED_CRON_FIELD_RE =
-  /(?:^|,|\/|-)H(?:$|,|\/|-|\(|\)|\d)/iu;
+  /(?:^|,|\/|-)H(?:$|,|#|\/|-|\(|\)|\d)/iu;
 
 function containsBullMqUnsupportedHashedCronField(fields: string[]): boolean {
   // cron-parser v5 accepts Jenkins-style `H` fields, but BullMQ cron repeat
