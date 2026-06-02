@@ -14,6 +14,8 @@ type ProfileMembershipTranslations = Awaited<
 type ProfileMembershipBillingViewProps = Readonly<{
   accessThroughLabel: string | null;
   amountCents: number | null;
+  canOpenBillingPortal: boolean;
+  canTurnOffAutoRenew: boolean;
   cardType: SailingCardType | null;
   kind: MembershipProfileStateKind;
   locale: string;
@@ -74,15 +76,6 @@ function SummaryRow(props: { readonly label: string; readonly value: string }) {
 export function ProfileMembershipBillingView(
   props: ProfileMembershipBillingViewProps
 ) {
-  const canManagePayment =
-    props.kind === 'active_paid' ||
-    props.kind === 'free_normal_active_paid' ||
-    props.kind === 'past_due';
-  const canTurnOffAutoRenew =
-    (props.kind === 'active_paid' ||
-      props.kind === 'free_normal_active_paid' ||
-      props.kind === 'past_due') &&
-    props.subscriptionId !== null;
   const portalAction = openMembershipBillingPortalAction.bind(
     null,
     props.locale
@@ -135,7 +128,7 @@ export function ProfileMembershipBillingView(
               />
             </dl>
           </div>
-          {canManagePayment ? (
+          {props.canOpenBillingPortal ? (
             <form action={portalAction}>
               <Button type="submit" variant="mit">
                 {props.t('membership_update_payment_method')}
@@ -145,7 +138,7 @@ export function ProfileMembershipBillingView(
         </div>
       </section>
 
-      {canTurnOffAutoRenew ? (
+      {props.canTurnOffAutoRenew ? (
         <form
           action={cancelAction}
           className="flex flex-col gap-4 rounded-lg border border-mit-line bg-card p-5"

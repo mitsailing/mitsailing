@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { nyYmd } from '@/lib/mit-sailing/nyTime';
 
 const POINTS_PER_INCH = 72;
 const CARD_WIDTH_INCHES = 7.25;
@@ -29,6 +30,20 @@ export type SailingCardPdfData = {
   readonly userId: string;
 };
 
+export type SailingCardPdfLabels = {
+  readonly affiliation: string;
+  readonly cardNumber: string;
+  readonly class: string;
+  readonly date: string;
+  readonly email: string;
+  readonly expires: string;
+  readonly membership: string;
+  readonly notTransferable: string;
+  readonly pavilionName: string;
+  readonly phone: string;
+  readonly signature: string;
+};
+
 type SailingCardPdfText = {
   readonly size?: number;
   readonly text: string;
@@ -39,6 +54,7 @@ type SailingCardPdfText = {
 type SailingCardPdfOptions = {
   readonly assets: SailingCardPdfAssets;
   readonly data: SailingCardPdfData;
+  readonly labels: SailingCardPdfLabels;
 };
 
 export function sailingCardClassYearLabel(classYear: string | null) {
@@ -120,8 +136,8 @@ function yFromTop(y: number) {
   return points(CARD_HEIGHT_INCHES - y);
 }
 
-function dateLabel(date: Date) {
-  return date.toISOString().slice(0, 10);
+export function sailingCardDateLabel(date: Date) {
+  return nyYmd(date);
 }
 
 function drawText(
@@ -150,7 +166,7 @@ export async function generateSailingCardPdf(props: SailingCardPdfOptions) {
   const burgeeImage = await pdf.embedPng(props.assets.burgee);
   const mitImage = await pdf.embedPng(props.assets.mit);
   const yearLabel = sailingCardYearLabel(props.data.cardYear);
-  const expiresLabel = dateLabel(props.data.expiresOn);
+  const expiresLabel = sailingCardDateLabel(props.data.expiresOn);
   const classYear = sailingCardClassYearLabel(props.data.classYear);
   const ratingLabels = sailingCardRatingLabels(props.data.ratings);
 
@@ -182,13 +198,13 @@ export async function generateSailingCardPdf(props: SailingCardPdfOptions) {
   drawText(page, {
     font: boldFont,
     size: 9,
-    text: 'MIT Sailing Pavilion',
+    text: props.labels.pavilionName,
     x: 0.25,
     y: 0.25,
   });
   drawText(page, {
     font: regularFont,
-    text: `Card #${props.data.cardNumber}`,
+    text: props.labels.cardNumber,
     x: 0.25,
     y: 0.48,
   });
@@ -202,7 +218,7 @@ export async function generateSailingCardPdf(props: SailingCardPdfOptions) {
   });
   drawText(page, {
     font: regularFont,
-    text: `Expires: ${expiresLabel}`,
+    text: `${props.labels.expires}: ${expiresLabel}`,
     x: 0.25,
     y: 1.18,
   });
@@ -229,7 +245,7 @@ export async function generateSailingCardPdf(props: SailingCardPdfOptions) {
   drawText(page, {
     font: boldFont,
     size: 7,
-    text: 'NOT TRANSFERABLE',
+    text: props.labels.notTransferable,
     x: 1.1,
     y: 2.83,
   });
@@ -250,37 +266,37 @@ export async function generateSailingCardPdf(props: SailingCardPdfOptions) {
   });
   drawText(page, {
     font: regularFont,
-    text: `Expires: ${expiresLabel}`,
+    text: `${props.labels.expires}: ${expiresLabel}`,
     x: 3,
     y: 0.62,
   });
   drawText(page, {
     font: regularFont,
-    text: `Affiliation: ${props.data.affiliationLabel}`,
+    text: `${props.labels.affiliation}: ${props.data.affiliationLabel}`,
     x: 3,
     y: 0.82,
   });
   drawText(page, {
     font: regularFont,
-    text: `Membership: ${props.data.cardTypeLabel}`,
+    text: `${props.labels.membership}: ${props.data.cardTypeLabel}`,
     x: 3,
     y: 1.02,
   });
   drawText(page, {
     font: regularFont,
-    text: `Phone: ${props.data.phone ?? ''}`,
+    text: `${props.labels.phone}: ${props.data.phone ?? ''}`,
     x: 4.4,
     y: 0.62,
   });
   drawText(page, {
     font: regularFont,
-    text: `Email: ${props.data.email ?? ''}`,
+    text: `${props.labels.email}: ${props.data.email ?? ''}`,
     x: 4.4,
     y: 0.82,
   });
   drawText(page, {
     font: regularFont,
-    text: `Class: ${classYear}`,
+    text: `${props.labels.class}: ${classYear}`,
     x: 4.4,
     y: 1.02,
   });
@@ -292,11 +308,16 @@ export async function generateSailingCardPdf(props: SailingCardPdfOptions) {
   });
   drawText(page, {
     font: regularFont,
-    text: 'Signature',
+    text: props.labels.signature,
     x: 3,
     y: 1.65,
   });
-  drawText(page, { font: regularFont, text: 'Date', x: 5.6, y: 1.65 });
+  drawText(page, {
+    font: regularFont,
+    text: props.labels.date,
+    x: 5.6,
+    y: 1.65,
+  });
   page.drawLine({
     start: { x: points(3), y: yFromTop(1.54) },
     end: { x: points(5.2), y: yFromTop(1.54) },

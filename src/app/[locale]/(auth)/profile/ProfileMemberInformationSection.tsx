@@ -141,6 +141,7 @@ export function ProfileMemberInformationSection(props: {
     optional: mitIdOptional,
     required: mitIdRequired,
   });
+  const mitIdHelpId = helpKey ? 'mitId-help' : undefined;
 
   async function onUpdateIdentity(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -240,6 +241,8 @@ export function ProfileMemberInformationSection(props: {
                 {t('mit_id')}
               </Label>
               <Input
+                aria-describedby={mitIdHelpId}
+                aria-required={mitIdRequired}
                 autoComplete="off"
                 disabled={props.mitIdentityLocked}
                 id="mitId"
@@ -253,7 +256,10 @@ export function ProfileMemberInformationSection(props: {
                 value={props.mitId}
               />
               {helpKey ? (
-                <p className="text-xs leading-5 text-muted-foreground">
+                <p
+                  className="text-xs leading-5 text-muted-foreground"
+                  id={mitIdHelpId}
+                >
                   {t(helpKey)}
                 </p>
               ) : null}

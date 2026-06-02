@@ -200,3 +200,25 @@ CREATE INDEX "payments_issue_kind_status_idx"
 
 CREATE INDEX "payments_issue_handled_by_user_id_idx"
   ON "payments"("issue_handled_by_user_id");
+
+CREATE OR REPLACE FUNCTION payments_prevent_classification_change()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW."purpose" IS DISTINCT FROM OLD."purpose"
+    OR NEW."source" IS DISTINCT FROM OLD."source"
+    OR NEW."card_type" IS DISTINCT FROM OLD."card_type"
+    OR NEW."membership_payment_kind" IS DISTINCT FROM OLD."membership_payment_kind" THEN
+    RAISE EXCEPTION 'payment classification fields are immutable after create';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS payments_prevent_classification_change_trigger
+  ON "payments";
+
+CREATE TRIGGER payments_prevent_classification_change_trigger
+  BEFORE UPDATE OF "purpose", "source", "card_type", "membership_payment_kind"
+  ON "payments"
+  FOR EACH ROW
+  EXECUTE FUNCTION payments_prevent_classification_change();

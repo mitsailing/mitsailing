@@ -6,6 +6,11 @@ const migration = readFileSync(
   'prisma/migrations/20260529183000_membership_payment_admin_status/migration.sql',
   'utf8'
 );
+const subscriptionMigration = readFileSync(
+  'prisma/migrations/20260531223000_add_sailing_card_subscriptions/migration.sql',
+  'utf8'
+);
+const classificationMigration = `${migration}\n${subscriptionMigration}`;
 
 describe('payment schema contract', () => {
   it('broadens event payments with one purpose column for membership rows', () => {
@@ -48,6 +53,13 @@ describe('payment schema contract', () => {
     );
     expect(migration).toContain(
       'BEFORE UPDATE OF "purpose", "source", "card_type"'
+    );
+    expect(zmodel).toContain('membershipPaymentKind');
+    expect(classificationMigration).toContain(
+      'OR NEW."membership_payment_kind" IS DISTINCT FROM OLD."membership_payment_kind"'
+    );
+    expect(classificationMigration).toContain(
+      'BEFORE UPDATE OF "purpose", "source", "card_type", "membership_payment_kind"'
     );
     expect(migration).toContain(
       'payment classification fields are immutable after create'

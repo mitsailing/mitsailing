@@ -5,6 +5,7 @@ import { GET } from './route';
 const mocks = vi.hoisted(() => ({
   captureException: vi.fn(),
   generateSailingCardPdf: vi.fn(),
+  getTranslations: vi.fn(),
   getSailingCardPdfData: vi.fn(),
   loadSailingCardPdfAssets: vi.fn(),
   loggerError: vi.fn(),
@@ -32,8 +33,21 @@ vi.mock('@/libs/Logger', () => ({
   logger: { error: mocks.loggerError },
 }));
 
+vi.mock('next-intl/server', () => ({
+  getTranslations: mocks.getTranslations,
+}));
+
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.getTranslations.mockResolvedValue(
+    (key: string, values?: { readonly cardNumber?: number }) => {
+      if (values?.cardNumber !== undefined) {
+        return `AdminUsers.${key}.${values.cardNumber}`;
+      }
+
+      return `AdminUsers.${key}`;
+    }
+  );
   mocks.requirePermission.mockResolvedValue({
     user: { id: 'admin-1' },
   });
@@ -74,6 +88,34 @@ describe('sailing card PDF route', () => {
       'sailing-card-2026-61.pdf'
     );
     await expect(response.text()).resolves.toBe('%PDF-test');
+  });
+
+  it('passes translated labels into the PDF generator', async () => {
+    await GET(new Request('https://example.test/pdf'), {
+      params: Promise.resolve({ id: 'user-1' }),
+    });
+
+    expect(mocks.getTranslations).toHaveBeenCalledWith({
+      locale: 'en',
+      namespace: 'AdminUsers',
+    });
+    expect(mocks.generateSailingCardPdf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        labels: {
+          affiliation: 'AdminUsers.sailing_card_pdf_affiliation',
+          cardNumber: 'AdminUsers.sailing_card_pdf_card_number.61',
+          class: 'AdminUsers.sailing_card_pdf_class',
+          date: 'AdminUsers.sailing_card_pdf_date',
+          email: 'AdminUsers.sailing_card_pdf_email',
+          expires: 'AdminUsers.sailing_card_pdf_expires',
+          membership: 'AdminUsers.sailing_card_pdf_membership',
+          notTransferable: 'AdminUsers.sailing_card_pdf_not_transferable',
+          pavilionName: 'AdminUsers.sailing_card_pdf_pavilion_name',
+          phone: 'AdminUsers.sailing_card_pdf_phone',
+          signature: 'AdminUsers.sailing_card_pdf_signature',
+        },
+      })
+    );
   });
 
   it('reports PDF generation failures to Sentry', async () => {

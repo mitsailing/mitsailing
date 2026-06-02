@@ -105,6 +105,8 @@ export default async function ProfileMembershipPage(
     <ProfileMembershipBillingView
       accessThroughLabel={profileDateLabel(state.accessThrough, locale)}
       amountCents={state.amountCents}
+      canOpenBillingPortal={state.canOpenBillingPortal}
+      canTurnOffAutoRenew={state.canTurnOffAutoRenew}
       cardType={state.cardType}
       kind={state.kind}
       locale={locale}

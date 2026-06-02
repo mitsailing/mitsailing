@@ -58,9 +58,13 @@ async function readSailingCardPdfAssets() {
 
 export async function loadSailingCardPdfAssets() {
   cachedSailingCardPdfAssets ??= readSailingCardPdfAssets();
-  const assets = await cachedSailingCardPdfAssets;
 
-  return assets;
+  try {
+    return await cachedSailingCardPdfAssets;
+  } catch (error) {
+    cachedSailingCardPdfAssets = null;
+    throw error;
+  }
 }
 
 export async function getSailingCardPdfData(
