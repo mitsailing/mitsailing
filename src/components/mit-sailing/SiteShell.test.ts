@@ -7,6 +7,7 @@ const adminHeaderLinkVisibleFromSession = vi.fn();
 const env = vi.hoisted(() => ({
   STAGING_BANNER: 'no' as 'no' | 'yes',
 }));
+const getOnboardingTaskHrefForUser = vi.fn();
 
 vi.mock('@/libs/Env', () => ({
   Env: env,
@@ -18,6 +19,10 @@ vi.mock('@/libs/auth/dal', () => ({
 
 vi.mock('@/libs/auth/adminHeaderLink', () => ({
   adminHeaderLinkVisibleFromSession,
+}));
+
+vi.mock('@/libs/mit-sailing/onboardingTask', () => ({
+  getOnboardingTaskHrefForUser,
 }));
 
 vi.mock('next-intl/server', () => ({
@@ -61,10 +66,16 @@ vi.mock('@/components/mit-sailing/SiteShellAlertsTopBar', () => ({
 }));
 
 vi.mock('@/components/mit-sailing/SiteShellHeaderNav', () => ({
-  SiteShellHeaderNav: (props: { initialShowAdminLink?: boolean }) =>
+  SiteShellHeaderNav: (props: {
+    initialShowAdminLink?: boolean;
+    onboardingTaskHref?: string | null;
+  }) =>
     React.createElement(
       'div',
       { 'data-testid': 'header-nav' },
+      props.onboardingTaskHref
+        ? React.createElement('a', { href: props.onboardingTaskHref }, 'Task')
+        : null,
       props.initialShowAdminLink
         ? React.createElement('a', { href: '/admin' }, 'Admin')
         : null
@@ -77,10 +88,16 @@ vi.mock('@/components/mit-sailing/site/SiteFooter', () => ({
 }));
 
 vi.mock('@/components/mit-sailing/site/SiteHeader', () => ({
-  SiteHeader: (props: { initialShowAdminLink?: boolean }) =>
+  SiteHeader: (props: {
+    initialShowAdminLink?: boolean;
+    onboardingTaskHref?: string | null;
+  }) =>
     React.createElement(
       'header',
       { 'data-testid': 'site-header' },
+      props.onboardingTaskHref
+        ? React.createElement('a', { href: props.onboardingTaskHref }, 'Task')
+        : null,
       props.initialShowAdminLink
         ? React.createElement('a', { href: '/admin' }, 'Admin')
         : null
@@ -93,6 +110,7 @@ describe('SiteShell', () => {
     env.STAGING_BANNER = 'no';
     getSession.mockResolvedValue(null);
     adminHeaderLinkVisibleFromSession.mockReturnValue(false);
+    getOnboardingTaskHrefForUser.mockResolvedValue(null);
   });
 
   describe('when there is no session', () => {
@@ -188,6 +206,20 @@ describe('SiteShell', () => {
       adminHeaderLinkVisibleFromSession.mockReturnValue(false);
       const hiddenTree = await SiteShell({ children: null });
       expect(renderToStaticMarkup(hiddenTree)).not.toContain('Admin');
+    });
+
+    it('passes the onboarding task to the streamed header when current-year onboarding is incomplete', async () => {
+      const { SiteShell } = await import('./SiteShell');
+
+      getOnboardingTaskHrefForUser.mockResolvedValue('/onboarding');
+      const tree = await SiteShell({ children: null });
+      const html = renderToStaticMarkup(tree);
+
+      expect(getOnboardingTaskHrefForUser).toHaveBeenCalledWith({
+        userId: 'user-1',
+      });
+      expect(html).toContain('href="/onboarding"');
+      expect(html).toContain('Task');
     });
   });
 });

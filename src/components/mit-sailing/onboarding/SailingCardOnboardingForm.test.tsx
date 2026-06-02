@@ -36,6 +36,42 @@ describe('SailingCardOnboardingForm', () => {
     expectDetailsHidden();
   });
 
+  it('shows a Stripe resume link without hiding onboarding choices', () => {
+    renderForm({
+      initialMembershipCheckoutUrl: 'https://checkout.stripe.com/c/pay/cs_test',
+    });
+
+    expect(
+      screen.getByRole('heading', { name: 'Pay for your sailing card' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Continue to Stripe' })
+    ).toHaveAttribute('href', 'https://checkout.stripe.com/c/pay/cs_test');
+    expect(
+      screen.getByRole('combobox', { name: 'Affiliation' })
+    ).toBeInTheDocument();
+  });
+
+  it('shows a translated error when paid checkout cannot be started', () => {
+    setOnboardingFormActionState({
+      fieldErrors: {},
+      formError: 'membership_checkout_unavailable',
+      status: 'error',
+      values: {
+        ...emptyValues,
+        affiliation: SailingAffiliation.WELLESLEY,
+        firstName: 'Grace',
+        lastName: 'Hopper',
+      },
+    });
+
+    renderForm();
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'We could not start Stripe Checkout. Your sailing card request is not complete until payment is finished.'
+    );
+  });
+
   it('renders visible affiliation options in legacy order', () => {
     renderForm();
 

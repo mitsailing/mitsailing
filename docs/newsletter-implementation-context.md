@@ -86,7 +86,7 @@ Broadcast scheduling and delivery implementation:
   - Adds `Email status` list column.
 - `src/app/[locale]/(marketing)/(site)/admin/users/[id]/page.tsx`
   - Shows email status and warning block.
-- `src/app/[locale]/(auth)/profile/account/page.tsx`
+- `src/app/[locale]/(auth)/profile/page.tsx`
   - Loads deliverability state.
 - `src/app/[locale]/(auth)/profile/ProfileAccountClient.tsx`
   - Shows non-blocking user banner when email is bouncing/suppressed.
@@ -115,7 +115,7 @@ npm run test -- 'emails/email-templates.test.tsx' 'src/app/[locale]/(auth)/profi
 - `src/app/[locale]/(auth)/authRouteShells.test.tsx`
 - `src/app/[locale]/(auth)/profile/ProfileAccountClient.test.tsx`
 - `src/app/[locale]/(auth)/profile/ProfileAccountClient.tsx`
-- `src/app/[locale]/(auth)/profile/account/page.tsx`
+- `src/app/[locale]/(auth)/profile/page.tsx`
 - `src/app/[locale]/(marketing)/(site)/admin/newsletter-broadcasts/new/page.tsx`
 - `src/app/[locale]/(marketing)/(site)/admin/users/[id]/page.tsx`
 - `src/app/api/resend/webhooks/route.ts`

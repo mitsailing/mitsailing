@@ -15,6 +15,7 @@ type RenderFormProps = {
   readonly callbackUrl?: string;
   readonly draftKey?: string;
   readonly hasVerifiedMitRecreationMembership?: boolean;
+  readonly initialMembershipCheckoutUrl?: string | null;
   readonly initialValues?: SailingCardOnboardingFormValues;
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
 };
@@ -35,6 +36,7 @@ export const emptyValues = {
 
 const actionStateMock = vi.hoisted(() => ({
   formAction: vi.fn(),
+  routerPush: vi.fn(),
   state: {
     fieldErrors: {},
     status: 'idle',
@@ -74,6 +76,12 @@ vi.mock('next-intl', async () => {
   };
 });
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: actionStateMock.routerPush,
+  }),
+}));
+
 vi.mock('@/libs/mit-sailing/sailingCardOnboardingActions', () => ({
   submitSailingCardOnboardingAction: vi.fn(),
 }));
@@ -104,6 +112,7 @@ export function renderForm(props: RenderFormProps = {}) {
         hasVerifiedMitRecreationMembership={
           props.hasVerifiedMitRecreationMembership
         }
+        initialMembershipCheckoutUrl={props.initialMembershipCheckoutUrl}
         initialValues={props.initialValues}
         lockedIdentity={props.lockedIdentity}
       />

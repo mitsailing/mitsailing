@@ -33,6 +33,7 @@ export type SailingCardOnboardingFormProps = {
   readonly callbackUrl?: string;
   readonly draftKey?: string;
   readonly initialValues?: SailingCardOnboardingFormValues;
+  readonly initialMembershipCheckoutUrl?: string | null;
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
   readonly hasVerifiedMitRecreationMembership?: boolean;
 };

@@ -105,10 +105,10 @@ describe('sailing card request schema', () => {
     expect(compactSchema).toContain(
       "createdByUserId String? @deny('read', auth() == null || auth().appRole != 'admin')"
     );
-    expect(compactSchema).not.toContain(
+    expect(compactSchema).toContain(
       'createdBy User? @relation("SailingCardMembershipPriceCreatedBy"'
     );
-    expect(compactSchema).not.toContain(
+    expect(compactSchema).toContain(
       'sailingCardMembershipPricesCreated SailingCardMembershipPrice[]'
     );
     expect(membershipPriceMigration).toContain(

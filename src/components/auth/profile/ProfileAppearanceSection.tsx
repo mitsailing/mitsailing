@@ -71,6 +71,7 @@ export function ProfileAppearanceSection(props: ProfileAppearanceSectionProps) {
     <section
       aria-labelledby="appearance-heading"
       className="rounded-lg border border-border bg-card p-6 shadow-sm"
+      id="appearance-section"
     >
       <h2
         className="text-lg font-medium text-foreground"

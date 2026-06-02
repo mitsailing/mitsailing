@@ -3,6 +3,7 @@
  * list cell formatting (visibility badges, plain text, numbers).
  */
 
+import type { SailingAffiliation } from '@/generated/prisma/enums';
 import type { EmailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
 import type { AppAuthContext } from '@/libs/zenstack/authContext';
 import type messages from '@/locales/en.json';
@@ -110,7 +111,12 @@ export type AdminUserRow = {
   emailDeliverabilityStatus: AdminEmailDeliverabilityStatus;
   emailSuppressedAt: string | null;
   emailSuppressionReason: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  mitClassYear: string | null;
+  mitDataWarehouseVerifiedAt: string | null;
   mitId: string | null;
+  sailingAffiliation: SailingAffiliation | null;
   sailingCardNumber: number | null;
   sailingCardStatus: 'current' | 'expired' | 'none' | 'pending';
   name: string;

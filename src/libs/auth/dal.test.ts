@@ -466,13 +466,11 @@ describe('requireCurrentUser', () => {
     });
     const { requireCurrentUser } = await import('@/libs/auth/dal');
 
-    await expect(requireCurrentUser('en', '/profile/account')).rejects.toThrow(
-      'NEXT_REDIRECT:/onboarding?callbackUrl=%2Fprofile%2Faccount'
+    await expect(requireCurrentUser('en', '/profile')).rejects.toThrow(
+      'NEXT_REDIRECT:/onboarding?callbackUrl=%2Fprofile'
     );
 
-    expect(redirect).toHaveBeenCalledWith(
-      '/onboarding?callbackUrl=%2Fprofile%2Faccount'
-    );
+    expect(redirect).toHaveBeenCalledWith('/onboarding?callbackUrl=%2Fprofile');
   });
 
   it('redirects to sign-in when the session user was deleted', async () => {
@@ -487,13 +485,11 @@ describe('requireCurrentUser', () => {
     prismaUserFindUnique.mockResolvedValue(null);
     const { requireCurrentUser } = await import('@/libs/auth/dal');
 
-    await expect(requireCurrentUser('en', '/profile/account')).rejects.toThrow(
-      'NEXT_REDIRECT:/login?callbackUrl=%2Fprofile%2Faccount'
+    await expect(requireCurrentUser('en', '/profile')).rejects.toThrow(
+      'NEXT_REDIRECT:/login?callbackUrl=%2Fprofile'
     );
 
-    expect(redirect).toHaveBeenCalledWith(
-      '/login?callbackUrl=%2Fprofile%2Faccount'
-    );
+    expect(redirect).toHaveBeenCalledWith('/login?callbackUrl=%2Fprofile');
   });
 
   it('redirects current-card users to onboarding when contact fields are missing', async () => {
@@ -519,8 +515,8 @@ describe('requireCurrentUser', () => {
     });
     const { requireCurrentUser } = await import('@/libs/auth/dal');
 
-    await expect(requireCurrentUser('en', '/profile/account')).rejects.toThrow(
-      'NEXT_REDIRECT:/onboarding?callbackUrl=%2Fprofile%2Faccount'
+    await expect(requireCurrentUser('en', '/profile')).rejects.toThrow(
+      'NEXT_REDIRECT:/onboarding?callbackUrl=%2Fprofile'
     );
   });
 
@@ -550,15 +546,13 @@ describe('requireCurrentUser', () => {
     });
     const { requireCurrentUser } = await import('@/libs/auth/dal');
 
-    await expect(requireCurrentUser('en', '/profile/account')).resolves.toEqual(
-      {
-        email: 'sailor@example.com',
-        id: 'user-1',
-        name: null,
-        role: 'user',
-        unconfirmedEmail: null,
-      }
-    );
+    await expect(requireCurrentUser('en', '/profile')).resolves.toEqual({
+      email: 'sailor@example.com',
+      id: 'user-1',
+      name: null,
+      role: 'user',
+      unconfirmedEmail: null,
+    });
   });
 
   it('redirects stale prior-year pending requests after the annual cutoff', async () => {
@@ -589,8 +583,8 @@ describe('requireCurrentUser', () => {
     vi.setSystemTime(new Date('2026-07-15T00:01:00-04:00'));
     const { requireCurrentUser } = await import('@/libs/auth/dal');
 
-    await expect(requireCurrentUser('en', '/profile/account')).rejects.toThrow(
-      'NEXT_REDIRECT:/onboarding?callbackUrl=%2Fprofile%2Faccount'
+    await expect(requireCurrentUser('en', '/profile')).rejects.toThrow(
+      'NEXT_REDIRECT:/onboarding?callbackUrl=%2Fprofile'
     );
   });
 

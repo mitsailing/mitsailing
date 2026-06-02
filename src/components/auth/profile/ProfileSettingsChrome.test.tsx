@@ -49,7 +49,7 @@ describe('ProfileSettingsChrome', () => {
       await ProfileSettingsChrome({
         children: <p>Account form</p>,
         locale: 'en',
-        loginCallbackUrl: '/profile/account',
+        loginCallbackUrl: '/profile',
       })
     );
 

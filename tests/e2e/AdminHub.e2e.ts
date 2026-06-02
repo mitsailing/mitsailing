@@ -254,8 +254,8 @@ test.describe('Admin hub and users', () => {
 
       await page.context().clearCookies();
       await page.context().addCookies(signedInUserCookies);
-      await page.goto('/profile/account');
-      await expectSignInCallback(page, '/profile/account');
+      await page.goto('/profile');
+      await expectSignInCallback(page, '/profile');
 
       await page.context().clearCookies();
       await page.goto('/login');
@@ -364,7 +364,7 @@ test.describe('Admin hub and users', () => {
       }
       expect(impersonationBox.y).toBeLessThan(weatherBox.y);
 
-      await page.goto('/profile/account');
+      await page.goto('/profile');
       await expect(
         page.getByText('You are viewing the site as another user.')
       ).toBeVisible();
@@ -377,7 +377,7 @@ test.describe('Admin hub and users', () => {
       await page.goto('/admin');
       await expect.poll(() => new URL(page.url()).pathname).toBe('/');
 
-      await page.goto('/profile/account');
+      await page.goto('/profile');
       await page.getByRole('button', { name: 'Exit impersonation' }).click();
       await expect
         .poll(() => new URL(page.url()).pathname)

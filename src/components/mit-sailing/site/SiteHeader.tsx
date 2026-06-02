@@ -57,6 +57,9 @@ const desktopGuestSignupClass =
 
 const desktopSignOutClass = `${desktopGuestLoginClass} cursor-pointer border-none bg-transparent disabled:opacity-60`;
 
+const desktopOnboardingTaskClass =
+  'inline-flex min-h-10 items-center justify-center rounded-lg border border-mit-red/25 bg-mit-red-highlight px-3 py-2 text-sm font-semibold text-primary-ink no-underline transition-colors duration-200 hover:bg-mit-red/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
+
 const mobileGuestLoginClass =
   'inline-flex min-h-[44px] items-center justify-center rounded-lg py-3 text-sm font-medium text-primary-ink no-underline transition-colors duration-200 dark:!text-white dark:hover:!text-white/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
 
@@ -65,6 +68,9 @@ const mobileGuestSignupClass =
 
 const mobileSignOutClass =
   'inline-flex min-h-[44px] w-full cursor-pointer items-center justify-center rounded-lg border border-mit-red px-6 py-2.5 text-sm font-medium text-mit-red transition-colors duration-200 hover:bg-mit-red/10 dark:text-mit-red-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none disabled:opacity-60';
+
+const mobileOnboardingTaskClass =
+  'inline-flex min-h-[44px] w-full items-center justify-center rounded-lg border border-mit-red/25 bg-mit-red-highlight px-4 py-2.5 text-sm font-semibold text-primary-ink no-underline transition-colors duration-200 hover:bg-mit-red/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
 
 function sessionHasUser(data: unknown): data is { user: { id: string } } {
   if (!data || typeof data !== 'object') {
@@ -98,6 +104,8 @@ export type SiteHeaderProps = {
    * Admin link matches SSR during a pending client session fetch.
    */
   initialShowAdminLink?: boolean;
+  /** Signed-in account task route when the user still needs current-year onboarding. */
+  onboardingTaskHref?: '/onboarding' | null;
 };
 
 function withGeneratedDropdowns(props: {
@@ -131,6 +139,50 @@ function profileLinkTargetProps(pathname: string) {
     rel: 'noopener noreferrer',
     target: '_blank',
   } as const;
+}
+
+function accountOnboardingTaskHref(props: {
+  readonly displayAuthenticated: boolean;
+  readonly onboardingTaskHref?: '/onboarding' | null;
+  readonly pathname: string;
+}): '/onboarding' | null {
+  if (!props.displayAuthenticated || props.pathname.startsWith('/onboarding')) {
+    return null;
+  }
+  return props.onboardingTaskHref ?? null;
+}
+
+function MobileOnboardingTaskLink(props: {
+  readonly href: '/onboarding' | null;
+  readonly label: string;
+  readonly onNavigate: () => void;
+}) {
+  if (props.href === null) {
+    return null;
+  }
+  return (
+    <Link
+      className={mobileOnboardingTaskClass}
+      href={props.href}
+      onClick={props.onNavigate}
+    >
+      {props.label}
+    </Link>
+  );
+}
+
+function DesktopOnboardingTaskLink(props: {
+  readonly href: '/onboarding' | null;
+  readonly label: string;
+}) {
+  if (props.href === null) {
+    return null;
+  }
+  return (
+    <Link className={desktopOnboardingTaskClass} href={props.href}>
+      {props.label}
+    </Link>
+  );
 }
 
 function PrimaryNavBranch(props: {
@@ -240,6 +292,8 @@ function MobileAuthActions(
     locale: string;
     loginLabel: string;
     onNavigate: () => void;
+    onboardingTaskHref: '/onboarding' | null;
+    onboardingTaskLabel: string;
     profileLabel: string;
     profileLinkProps: ReturnType<typeof profileLinkTargetProps>;
     showAuthPending: boolean;
@@ -279,6 +333,11 @@ function MobileAuthActions(
       ) : null}
       {!props.showAuthPending && props.displayAuthenticated ? (
         <>
+          <MobileOnboardingTaskLink
+            href={props.onboardingTaskHref}
+            label={props.onboardingTaskLabel}
+            onNavigate={props.onNavigate}
+          />
           {props.displayAdminLink ? (
             <Link
               className={`${mobileGuestLoginClass} w-full`}
@@ -368,6 +427,11 @@ export function SiteHeader(props: SiteHeaderProps) {
   const loginHref = authHrefWithCallback('/login', authCallbackUrl);
   const signupHref = authHrefWithCallback('/signup', authCallbackUrl);
   const profileLinkProps = profileLinkTargetProps(pathname);
+  const onboardingTaskHref = accountOnboardingTaskHref({
+    displayAuthenticated,
+    onboardingTaskHref: props.onboardingTaskHref,
+    pathname,
+  });
 
   function closeMobile() {
     setMobileMenuOpen(false);
@@ -482,6 +546,8 @@ export function SiteHeader(props: SiteHeaderProps) {
           locale={locale}
           loginLabel={t('auth_log_in')}
           onNavigate={closeMobile}
+          onboardingTaskHref={onboardingTaskHref}
+          onboardingTaskLabel={t('auth_finish_onboarding')}
           profileLabel={tAccount('user_profile_link')}
           profileLinkProps={profileLinkProps}
           showAuthPending={showAuthPending}
@@ -599,6 +665,10 @@ export function SiteHeader(props: SiteHeaderProps) {
           ) : null}
           {!showAuthPending && displayAuthenticated ? (
             <>
+              <DesktopOnboardingTaskLink
+                href={onboardingTaskHref}
+                label={t('auth_finish_onboarding')}
+              />
               {displayAdminLink ? (
                 <Link className={desktopGuestLoginClass} href="/admin">
                   {tAccount('admin_link')}

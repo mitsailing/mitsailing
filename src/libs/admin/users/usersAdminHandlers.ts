@@ -63,7 +63,12 @@ function rowFromDb(user: {
   emailBouncedAt: Date | null;
   emailSuppressedAt: Date | null;
   emailSuppressionReason: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  mitClassYear: string | null;
+  mitDataWarehouseVerifiedAt: Date | null;
   mitId: string | null;
+  sailingAffiliation: AdminUserRow['sailingAffiliation'];
   sailingCardNumber: number | null;
   sailingCardRequests: readonly { status: string }[];
   sailingCardYear: number | null;
@@ -75,7 +80,13 @@ function rowFromDb(user: {
     emailDeliverabilityStatus: emailDeliverabilityStatus(user),
     emailSuppressedAt: user.emailSuppressedAt?.toISOString() ?? null,
     emailSuppressionReason: user.emailSuppressionReason,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    mitClassYear: user.mitClassYear,
+    mitDataWarehouseVerifiedAt:
+      user.mitDataWarehouseVerifiedAt?.toISOString() ?? null,
     mitId: user.mitId,
+    sailingAffiliation: user.sailingAffiliation,
     sailingCardNumber: user.sailingCardNumber,
     sailingCardStatus: sailingCardStatusFromUser(user),
     name: user.name,
@@ -261,7 +272,12 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         emailBouncedAt: true,
         emailSuppressedAt: true,
         emailSuppressionReason: true,
+        firstName: true,
+        lastName: true,
+        mitClassYear: true,
+        mitDataWarehouseVerifiedAt: true,
         mitId: true,
+        sailingAffiliation: true,
         sailingCardNumber: true,
         sailingCardRequests: {
           orderBy: { requestedAt: 'desc' },
@@ -287,7 +303,12 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         emailBouncedAt: true,
         emailSuppressedAt: true,
         emailSuppressionReason: true,
+        firstName: true,
+        lastName: true,
+        mitClassYear: true,
+        mitDataWarehouseVerifiedAt: true,
         mitId: true,
+        sailingAffiliation: true,
         sailingCardNumber: true,
         sailingCardRequests: {
           orderBy: { requestedAt: 'desc' },

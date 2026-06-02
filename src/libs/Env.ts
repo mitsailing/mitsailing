@@ -25,6 +25,7 @@ type FinalEnv = {
   REDIS_URL?: string;
   STAGING_BANNER: 'no' | 'yes';
   STRIPE_SECRET_KEY?: string;
+  STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID?: string;
   STRIPE_WEBHOOK_SECRET?: string;
   TEST_DATABASE_URL?: string;
   HOST_TRAFFIC_STATE_FILE?: string;
@@ -154,6 +155,13 @@ function validateDeploymentEnv(env: FinalEnv, ctx: z.RefinementCtx): void {
       'STRIPE_WEBHOOK_SECRET is required in staging and production.'
     );
   }
+  if (!env.STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID) {
+    addEnvIssue(
+      ctx,
+      'STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID',
+      'STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID is required in staging and production.'
+    );
+  }
 }
 
 function validateFinalEnv(env: FinalEnv, ctx: z.RefinementCtx): void {
@@ -260,6 +268,10 @@ export const Env = createEnv({
         message: 'STRIPE_SECRET_KEY must be a Stripe restricted or secret key.',
       })
       .optional(),
+    STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID: z
+      .string()
+      .startsWith('bpc_')
+      .optional(),
     STRIPE_WEBHOOK_SECRET: z.string().startsWith('whsec_').optional(),
 
     // Cloudflare Tunnel credential consumed by the cloudflared service in
@@ -325,6 +337,8 @@ export const Env = createEnv({
     NEWSLETTER_WORKER_CONCURRENCY: process.env.NEWSLETTER_WORKER_CONCURRENCY,
     RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID:
+      process.env.STRIPE_MEMBERSHIP_BILLING_PORTAL_CONFIGURATION_ID,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     CLOUDFLARE_TUNNEL_TOKEN: process.env.CLOUDFLARE_TUNNEL_TOKEN,
     DEPLOYMENT_VERSION: process.env.DEPLOYMENT_VERSION,

@@ -9,10 +9,7 @@ import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppThemeProvider } from '@/components/shell/AppThemeProvider';
-import {
-  SailingCardRequestStatus,
-  SailingCardType,
-} from '@/generated/prisma/enums';
+import { SailingAffiliation, SailingCardType } from '@/generated/prisma/enums';
 import { componentTestRouter } from '@/test/component';
 import { ProfileAccountClient } from './ProfileAccountClient';
 
@@ -28,6 +25,7 @@ const authClientMock = vi.hoisted(() => ({
 
 const updateThemePreferenceActionMock = vi.hoisted(() => vi.fn());
 const updateProfileContactActionMock = vi.hoisted(() => vi.fn());
+const updateProfileIdentityActionMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
@@ -41,12 +39,27 @@ vi.mock('@/libs/auth/profileContactActions', () => ({
   updateProfileContactAction: updateProfileContactActionMock,
 }));
 
+vi.mock('@/libs/auth/profileIdentityActions', () => ({
+  updateProfileIdentityAction: updateProfileIdentityActionMock,
+}));
+
 beforeEach(() => {
   vi.clearAllMocks();
   authClientMock.emailOtp.changeEmail.mockResolvedValue({});
   authClientMock.emailOtp.requestEmailChange.mockResolvedValue({});
-  authClientMock.updateUser.mockResolvedValue({});
   updateProfileContactActionMock.mockResolvedValue({ ok: true });
+  updateProfileIdentityActionMock.mockResolvedValue({
+    ok: true,
+    identity: {
+      affiliation: SailingAffiliation.OTHER_NON_STUDENT,
+      firstName: 'New',
+      lastName: 'Name',
+      lockedByMitId: false,
+      mitClassYear: null,
+      mitId: null,
+      name: 'New Name',
+    },
+  });
   updateThemePreferenceActionMock.mockResolvedValue({ ok: true });
   document.documentElement.className = '';
 });
@@ -65,9 +78,25 @@ function renderAccountClient(
         initialEmailDeliverabilityStatus="ok"
         initialEmergencyContactName=""
         initialEmergencyContactPhone=""
-        initialGymMembershipVerifiedAt={null}
+        initialFirstName="Old"
+        initialLastName="Name"
+        initialMitClassYear={null}
+        initialMitId={null}
+        initialMitIdentityLocked={false}
         initialName="Old Name"
         initialPhone=""
+        initialSailingAffiliation={SailingAffiliation.OTHER_NON_STUDENT}
+        initialSailingCardSummary={{
+          assignment: 'none',
+          cardNumber: null,
+          cardType: null,
+          cardYear: null,
+          expiresOnIso: null,
+          requestedAtIso: null,
+          status: 'not_requested',
+          swimAgreementInitialedAtIso: null,
+          swimAgreementInitials: null,
+        }}
         initialThemePreference="LIGHT"
         initialUnconfirmedEmail={null}
         locale={LOCALE}
@@ -131,62 +160,49 @@ async function expectContactUpdateError(options: {
 describe('ProfileAccountClient', () => {
   it('profile owner sees pending sailing card request status', () => {
     renderAccountClient({
-      initialSailingCardRequest: {
+      initialSailingCardSummary: {
+        assignment: 'pending',
+        cardNumber: null,
         cardType: SailingCardType.normal,
         cardYear: 2027,
-        hasFitnessMembership: false,
-        status: SailingCardRequestStatus.pending,
+        expiresOnIso: null,
+        requestedAtIso: '2026-05-21T16:00:00.000Z',
+        status: 'requested',
+        swimAgreementInitialedAtIso: '2026-05-21T16:00:00.000Z',
+        swimAgreementInitials: 'AK',
       },
     });
 
     expect(screen.getByRole('heading', { name: 'Sailing card' })).toBeVisible();
-    expect(screen.getByText('Pending')).toBeVisible();
-    expect(screen.getByText('2027 Normal sailing card')).toBeVisible();
+    expect(screen.getAllByText('Requested').length).toBeGreaterThan(0);
+    expect(screen.getByText('Card assignment')).toBeVisible();
+    expect(screen.getByText('Normal')).toBeVisible();
     expect(
       screen.getByText(
-        'Your request is pending. Come to the Pavilion with your MIT ID or another legal ID. Staff will issue your card number there after review.'
+        'Your card request is pending. Pavilion staff will assign a card number after review.'
       )
     ).toBeVisible();
+    expect(screen.queryByText('Card number')).not.toBeInTheDocument();
   });
 
-  it('profile owner sees mit recreation verification pending status', () => {
+  it('profile owner sees active sailing card details', () => {
     renderAccountClient({
-      initialSailingCardRequest: {
-        cardType: SailingCardType.normal,
+      initialSailingCardSummary: {
+        assignment: 'issued',
+        cardNumber: 61,
+        cardType: SailingCardType.racing,
         cardYear: 2027,
-        hasFitnessMembership: true,
-        status: SailingCardRequestStatus.pending,
+        expiresOnIso: '2027-07-15T04:00:00.000Z',
+        requestedAtIso: '2026-05-21T16:00:00.000Z',
+        status: 'active',
+        swimAgreementInitialedAtIso: '2026-05-21T16:00:00.000Z',
+        swimAgreementInitials: 'AK',
       },
     });
 
-    expect(
-      screen.getByText(
-        'Your request is pending. Staff will verify MIT Recreation membership before issuing your card number at the Pavilion.'
-      )
-    ).toBeVisible();
-  });
-
-  it('profile owner with verified mit recreation membership sees standard pending status', () => {
-    renderAccountClient({
-      initialGymMembershipVerifiedAt: '2026-05-01T12:00:00.000Z',
-      initialSailingCardRequest: {
-        cardType: SailingCardType.normal,
-        cardYear: 2027,
-        hasFitnessMembership: true,
-        status: SailingCardRequestStatus.pending,
-      },
-    });
-
-    expect(
-      screen.getByText(
-        'Your request is pending. Come to the Pavilion with your MIT ID or another legal ID. Staff will issue your card number there after review.'
-      )
-    ).toBeVisible();
-    expect(
-      screen.queryByText(
-        'Your request is pending. Staff will verify MIT Recreation membership before issuing your card number at the Pavilion.'
-      )
-    ).not.toBeInTheDocument();
+    expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
+    expect(screen.getByText('Card number')).toBeVisible();
+    expect(screen.getByText('61')).toBeVisible();
   });
 
   it('profile owner sees non-blocking email deliverability notice', () => {
@@ -218,89 +234,107 @@ describe('ProfileAccountClient', () => {
     ).toBeVisible();
   });
 
-  it('profile owner updates their display name', async () => {
+  it('profile owner updates member information', async () => {
     const user = userEvent.setup();
     renderAccountClient();
 
-    await user.clear(screen.getByLabelText('Name'));
-    await user.type(screen.getByLabelText('Name'), 'New Name');
-    await user.click(screen.getByRole('button', { name: 'Save name' }));
+    await user.clear(screen.getByLabelText('First name'));
+    await user.type(screen.getByLabelText('First name'), 'New');
+    await user.clear(screen.getByLabelText('Last name'));
+    await user.type(screen.getByLabelText('Last name'), 'Name');
+    await user.selectOptions(screen.getByLabelText('Affiliation'), [
+      SailingAffiliation.WELLESLEY,
+    ]);
+    await user.click(
+      screen.getByRole('button', { name: 'Save member information' })
+    );
 
-    expect(authClientMock.updateUser).toHaveBeenCalledWith({
-      name: 'New Name',
+    expect(updateProfileIdentityActionMock).toHaveBeenCalledWith('en', {
+      affiliation: SailingAffiliation.WELLESLEY,
+      firstName: 'New',
+      lastName: 'Name',
+      mitId: '',
     });
-    expect(await screen.findByText('Your name was updated.')).toBeVisible();
+    expect(await screen.findByText('Member information saved.')).toBeVisible();
     expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
   });
 
-  it('profile owner adds a display name when the profile has none', async () => {
+  it('profile owner adds member names when the profile has none', async () => {
     const user = userEvent.setup();
-    renderAccountClient({ initialName: null });
-
-    await user.type(screen.getByLabelText('Name'), 'New Name');
-    await user.click(screen.getByRole('button', { name: 'Save name' }));
-
-    expect(authClientMock.updateUser).toHaveBeenCalledWith({
-      name: 'New Name',
+    renderAccountClient({
+      initialFirstName: '',
+      initialLastName: '',
+      initialName: null,
     });
-    expect(await screen.findByText('Your name was updated.')).toBeVisible();
+
+    await user.type(screen.getByLabelText('First name'), 'New');
+    await user.type(screen.getByLabelText('Last name'), 'Name');
+    await user.click(
+      screen.getByRole('button', { name: 'Save member information' })
+    );
+
+    expect(updateProfileIdentityActionMock).toHaveBeenCalledWith('en', {
+      affiliation: SailingAffiliation.OTHER_NON_STUDENT,
+      firstName: 'New',
+      lastName: 'Name',
+      mitId: '',
+    });
+    expect(await screen.findByText('Member information saved.')).toBeVisible();
   });
 
-  it('profile owner sees a clear error when the name is unchanged', async () => {
+  it('profile owner sees locked member information for linked MIT identity', () => {
+    renderAccountClient({
+      initialFirstName: 'Ada',
+      initialLastName: 'Lovelace',
+      initialMitClassYear: '2027',
+      initialMitId: '123456789',
+      initialMitIdentityLocked: true,
+      initialSailingAffiliation: SailingAffiliation.MIT_STUDENT,
+    });
+
+    expect(screen.getByLabelText('Affiliation')).toBeDisabled();
+    expect(screen.getByLabelText('MIT ID')).toBeDisabled();
+    expect(screen.getByLabelText('First name')).toBeDisabled();
+    expect(screen.getByLabelText('Last name')).toBeDisabled();
+    expect(screen.getByLabelText('MIT class/year')).toHaveValue('2027');
+    expect(
+      screen.getByRole('button', { name: 'Save member information' })
+    ).toBeDisabled();
+    expect(
+      screen.getByText(
+        'Your name and MIT affiliation are verified from your linked MIT ID. Contact Pavilion staff if they need to be corrected.'
+      )
+    ).toBeVisible();
+  });
+
+  it('profile owner sees member information validation errors', async () => {
     const user = userEvent.setup();
+    updateProfileIdentityActionMock.mockResolvedValue({
+      ok: false,
+      error: 'first_name_required',
+    });
     renderAccountClient();
 
-    await user.click(screen.getByRole('button', { name: 'Save name' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Save member information' })
+    );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Enter a different name before saving.'
-    );
-    expect(authClientMock.updateUser).not.toHaveBeenCalled();
-  });
-
-  it('profile owner sees safe message when a name update fails', async () => {
-    const user = userEvent.setup();
-    authClientMock.updateUser.mockResolvedValue({
-      error: { message: 'Name contains unsupported characters.' },
-    });
-    renderAccountClient();
-
-    await user.clear(screen.getByLabelText('Name'));
-    await user.type(screen.getByLabelText('Name'), 'New Name');
-    await user.click(screen.getByRole('button', { name: 'Save name' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Could not update your name.'
+      'Enter your first name.'
     );
   });
 
-  it('profile owner sees request failed when a name update throws', async () => {
+  it('profile owner sees request failed when member information update throws', async () => {
     const user = userEvent.setup();
-    authClientMock.updateUser.mockRejectedValue(new Error('network'));
+    updateProfileIdentityActionMock.mockRejectedValue(new Error('network'));
     renderAccountClient();
 
-    await user.clear(screen.getByLabelText('Name'));
-    await user.type(screen.getByLabelText('Name'), 'New Name');
-    await user.click(screen.getByRole('button', { name: 'Save name' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Save member information' })
+    );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'We could not complete that request right now.'
-    );
-  });
-
-  it('profile owner sees fallback message when a name update fails without provider message', async () => {
-    const user = userEvent.setup();
-    authClientMock.updateUser.mockResolvedValue({
-      error: {},
-    });
-    renderAccountClient();
-
-    await user.clear(screen.getByLabelText('Name'));
-    await user.type(screen.getByLabelText('Name'), 'New Name');
-    await user.click(screen.getByRole('button', { name: 'Save name' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Could not update your name.'
     );
   });
 
@@ -476,7 +510,7 @@ describe('ProfileAccountClient', () => {
     expect(
       await screen.findByText('Your email address has been updated.')
     ).toBeVisible();
-    expect(screen.getByText('next@mit.edu')).toBeVisible();
+    expect(screen.getAllByText('next@mit.edu').length).toBeGreaterThan(0);
     expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
   });
 

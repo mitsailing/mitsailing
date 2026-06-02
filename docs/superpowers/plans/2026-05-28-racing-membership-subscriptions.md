@@ -8,6 +8,8 @@
 
 **Tech Stack:** Next.js App Router, Server Actions, Prisma/ZenStack, Stripe Checkout/Billing, next-intl, Vitest, Playwright.
 
+**Stripe/package-first guard:** Do not build a subscription engine from scratch. Use the official `stripe` SDK plus Stripe Checkout, Billing, Prices, Subscriptions, invoices, automatic payment retry/dunning, and Customer Portal wherever they cover the lifecycle. MIT Sailing code should only hold local eligibility, consent snapshots, audit/payment records, admin issue state, and idempotent webhook side effects needed for this app. Before adding custom billing tables, schedulers, renewal logic, retry loops, or wrapper services, document why Stripe Billing/Checkout/Portal or an existing local helper cannot do it. Do not add a third-party Stripe subscription abstraction unless it is actively maintained, broadly adopted, and reduces code in this repo without hiding July 15 renewal, MIT eligibility, legacy payment, admin override, or audit requirements.
+
 ---
 
 ## Execution Reconciliation Notes
@@ -179,7 +181,7 @@ Verified against Stripe official docs: [build subscriptions](https://docs.stripe
 - **Legacy payment storage:** store legacy paid memberships in the same membership payment/access model as Stripe payments with a source/method discriminator such as `legacy`. Stripe-specific fields stay nullable and empty for legacy records.
 - **Legacy-to-Stripe transition:** a legacy payment covers the imported/current season only and must not create a Stripe subscription or charge the member again for that covered season. Legacy-paid members should see a non-blocking dashboard/status prompt to add payment information and set up Stripe auto-renew for the next July 15 renewal. This prompt is optional and must not block current-season card issuance when the legacy payment is a confident match.
 - **Pavilion card issuance:** Sailing Card numbers are assigned manually by staff at the pavilion after the user shows MIT ID or another legal ID. If the user is taking one of the three intro classes, staff assigns the card at the end of class at the pavilion. If onboarding is complete but the intro-class prerequisite is not complete, the request remains pending with copy telling the user to take the required class and that card issuance happens during/after class at the pavilion.
-- **Profile pending state:** after a user submits onboarding, their profile must show the current-year Sailing Card request as pending until staff issues the card number. Legacy `sailing.mit.edu` shows "Requested," "Not yet assigned," and "Pending"; the Next.js profile can use clearer copy, but must preserve the status visibility.
+- **Member profile card status:** After a user submits onboarding, the default member profile surface must show the current-year Sailing Card request inline, following the old `sailing-wp/old/public_html/account.php` pattern: status `Requested`, card assignment `Pending`, swim agreement state, and issued card details only after issuance. Do not hide this behind a separate card or membership sub-page. Do not show a pending "card number" to members, because the number is unknown until staff issue the card.
 - **Manual card numbers:** preserve the existing card-number rule. Auto-suggested/blank issuance starts at 60 so lower numbers are not auto-assigned, but admins with card assignment permission can manually enter any positive card number as long as it is not already assigned for that card year.
 - **Admin pending search:** staff start from the person, not a queue. Preserve `/admin/users` and `/admin/users/[id]` as the primary Pavilion-staff path for finding a sailor, reviewing blockers, and issuing cards. Keep one user search across name, email, MIT ID, and card number. Add the simplest pending/card-type filters on `/admin/users` so staff can view pending normal, racing, or team racing requests, then open the user profile to resolve blockers and issue cards. Keep filtering bounded to the users surface; do not add a standalone card queue route or generic search framework.
 - **Cancellation:** users can turn off auto-renew in one in-app flow without a required survey step. The server sets Stripe `cancel_at_period_end=true`; optional feedback can record a reason enum and note after or alongside the primary action.
@@ -669,6 +671,8 @@ Expected: PASS.
 Add focused tests for the existing sailing-card request admin or member profile surface:
 
 - Self-reported MIT Recreation membership appears as "MIT Recreation verification needed".
+- Onboarding completion and the default member profile surface show the current Sailing Card request inline, not only on a separate card or membership sub-page.
+- Pending member profile state says `Requested` and `Card assignment: Pending` and does not display a pending card number or suggested next number.
 - Onboarding completion and dashboard/profile status show "MIT Recreation verification needed", "No payment needed now", and "Staff will verify before issuing your card" for self-reported MIT Recreation members.
 - A verified MIT Recreation member no longer sees paid racing/team-racing purchase paths.
 

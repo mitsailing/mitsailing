@@ -102,12 +102,11 @@ export function AffiliationSelect(props: {
     required: 'error_required',
   });
   const handleAffiliationBlur = registration.onBlur;
-  const handleAffiliationChange = (
+  const handleAffiliationChange = async (
     event: React.ChangeEvent<HTMLSelectElement>
   ) => {
     const selectedAffiliation = event.currentTarget.value;
-    // eslint-disable-next-line no-void -- React Hook Form accepts async handlers; this change handler stays synchronous.
-    void registration.onChange(event);
+    await registration.onChange(event);
     const affiliation = getVisibleSailingAffiliation(selectedAffiliation);
     if (
       props.hasVerifiedMitRecreationMembership === true ||
@@ -240,7 +239,6 @@ function ManualNameField(props: {
       <Input
         aria-describedby={showError ? fieldErrorId(props.field) : undefined}
         aria-invalid={showError ? true : undefined}
-        autoCapitalize="words"
         autoComplete={props.autoComplete}
         id={props.field}
         required={props.required}

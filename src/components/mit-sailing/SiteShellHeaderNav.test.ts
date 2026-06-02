@@ -216,6 +216,7 @@ describe('SiteShellHeaderNav', () => {
     const element = (await SiteShellHeaderNav({
       initialShowAdminLink: true,
       initialSignedIn: true,
+      onboardingTaskHref: null,
     })) as React.ReactElement<SiteHeaderElementProps>;
 
     expect(loadCmsMenu).toHaveBeenCalledWith('header');
