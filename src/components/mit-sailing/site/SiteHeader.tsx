@@ -161,10 +161,9 @@ function MobileOnboardingTaskLink(props: {
     return null;
   }
   return (
-    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- onboarding task links are restricted to the literal app route /onboarding.
     <Link
       className={mobileOnboardingTaskClass}
-      href={props.path}
+      href="/onboarding"
       onClick={props.onNavigate}
     >
       {props.label}
@@ -180,8 +179,7 @@ function DesktopOnboardingTaskLink(props: {
     return null;
   }
   return (
-    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- onboarding task links are restricted to the literal app route /onboarding.
-    <Link className={desktopOnboardingTaskClass} href={props.path}>
+    <Link className={desktopOnboardingTaskClass} href="/onboarding">
       {props.label}
     </Link>
   );

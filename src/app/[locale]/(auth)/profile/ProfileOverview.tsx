@@ -38,9 +38,9 @@ function ProfileSectionLink(props: {
 }) {
   const Icon = props.icon;
   return (
-    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- profile section hrefs are restricted to literal in-page fragment IDs.
     <a
       className="group flex min-h-14 items-center gap-3 rounded-lg border border-mit-line bg-background px-3 py-2 text-left no-underline transition-colors hover:border-mit-red/40 hover:bg-mit-red-highlight focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+      // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- literal in-page fragment union.
       href={props.href}
     >
       <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-mit-line bg-card text-primary-ink transition-colors group-hover:border-mit-red/40">
