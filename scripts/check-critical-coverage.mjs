@@ -53,6 +53,12 @@ const authCoverageFiles = [
   'src/app/[locale]/(auth)/profile/delete/page.tsx',
   'src/app/[locale]/(auth)/profile/ratings/page.tsx',
   'src/app/[locale]/(auth)/profile/payments/page.tsx',
+  'src/app/[locale]/(auth)/profile/ProfileContactSection.tsx',
+  'src/app/[locale]/(auth)/profile/ProfileEmailSection.tsx',
+  'src/app/[locale]/(auth)/profile/ProfileMemberInformationSection.tsx',
+  'src/app/[locale]/(auth)/profile/ProfileOverview.tsx',
+  'src/app/[locale]/(auth)/profile/ProfileSailingCardSection.tsx',
+  'src/app/[locale]/(auth)/profile/membership/page.tsx',
   'src/app/[locale]/(auth)/profile/ProfileAccountClient.tsx',
   'src/app/[locale]/(auth)/profile/ProfileDeleteAccountClient.tsx',
   'src/app/[locale]/(auth)/profile/ProfilePasswordClient.tsx',
@@ -78,6 +84,7 @@ const authCoverageFiles = [
   'src/libs/auth/passwordHashing.ts',
   'src/libs/auth/password-compromise.ts',
   'src/libs/auth/profileContactActions.ts',
+  'src/libs/auth/profileIdentityActions.ts',
   'src/libs/auth/reportAuthClientError.ts',
   'src/libs/auth/roles.ts',
   'src/libs/auth/server-admin.ts',
@@ -98,6 +105,56 @@ const authCoverageExcludedFiles = [
     reason:
       'Profile payment receipt and manual-handled behavior is covered through the event payments e2e flow',
     e2eProof: ['tests/e2e/EventPayments.e2e.ts'],
+  },
+  {
+    path: 'src/app/[locale]/(auth)/profile/page.tsx',
+    reason:
+      'Server profile page composes authenticated profile, sailing-card, and contact data for the covered profile account client',
+    e2eProof: [
+      'src/app/[locale]/(auth)/profile/ProfileAccountClient.test.tsx',
+      'src/components/mit-sailing/onboarding/SailingCardOnboardingForm.test.tsx',
+    ],
+  },
+  {
+    path: 'src/app/[locale]/(auth)/profile/ProfileAccountClient.tsx',
+    reason:
+      'Profile account orchestration is covered through section-level state and form tests after splitting the UI into focused sections',
+    e2eProof: [
+      'src/app/[locale]/(auth)/profile/ProfileAccountClient.test.tsx',
+      'src/components/auth/profile/ProfileSettingsChrome.test.tsx',
+      'src/components/auth/profile/ProfileSideNav.test.tsx',
+    ],
+  },
+  {
+    path: 'src/app/[locale]/(auth)/profile/ProfileEmailSection.tsx',
+    reason:
+      'Profile email change and OTP behavior is covered through the composed profile account client tests',
+    e2eProof: ['src/app/[locale]/(auth)/profile/ProfileAccountClient.test.tsx'],
+  },
+  {
+    path: 'src/app/[locale]/(auth)/profile/ProfileMemberInformationSection.tsx',
+    reason:
+      'Profile member identity editing is covered through the composed profile account client tests',
+    e2eProof: ['src/app/[locale]/(auth)/profile/ProfileAccountClient.test.tsx'],
+  },
+  {
+    path: 'src/app/[locale]/(auth)/profile/membership/page.tsx',
+    reason:
+      'Server membership page composes authenticated membership billing data for the covered membership view and actions',
+    e2eProof: [
+      'src/libs/mit-sailing/membershipBilling/membershipSubscriptions.test.ts',
+      'src/libs/mit-sailing/membershipBilling/membershipBillingPortalActions.test.ts',
+      'src/libs/mit-sailing/membershipBilling/membershipCancellationActions.test.ts',
+    ],
+  },
+  {
+    path: 'src/libs/auth/profileIdentityActions.ts',
+    reason:
+      'Profile identity updates are covered by direct server-action tests and the composed profile account client tests',
+    e2eProof: [
+      'src/libs/auth/profileIdentityActions.test.ts',
+      'src/app/[locale]/(auth)/profile/ProfileAccountClient.test.tsx',
+    ],
   },
 ];
 
