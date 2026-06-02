@@ -439,8 +439,6 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
                     labelClassName="not-sr-only text-amber-950"
                     name="emailCode"
                     onValueChange={setEmailCode}
-                    pasteButtonClassName="text-amber-900 hover:text-amber-950"
-                    pasteLabel={tCommon('paste_code')}
                     placeholder={t('pending_email_code_placeholder')}
                     value={emailCode}
                   />

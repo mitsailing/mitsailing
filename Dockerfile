@@ -73,6 +73,9 @@ ENV DEPLOYMENT_VERSION=${DEPLOYMENT_VERSION}
 # time by t3-env. The real secret is injected at runtime.
 ENV BETTER_AUTH_SECRET=build-time-placeholder-that-is-at-least-thirty-two-chars-long
 ENV DATABASE_URL=postgresql://build:build@localhost:5432/build?sslmode=disable
+# Turbopack + route type generation can exceed Node's default Docker heap on
+# local Docker Desktop builders. Builder stage only; not copied to prod runtime.
+ENV NODE_OPTIONS=--max-old-space-size=4096
 
 RUN npm run build:next
 RUN npm run build:worker
@@ -134,6 +137,18 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chmod=0555 /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
+# Production operations run `npm run db:seed` from this image after fresh DB
+# creation; ship the seed-only modules that Next standalone tracing omits.
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/tsconfig.json ./tsconfig.json
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/lib/mit-sailing/nyTime.ts ./src/lib/mit-sailing/nyTime.ts
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/data ./src/data
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/generated ./src/generated
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/DB.ts ./src/libs/DB.ts
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/Env.ts ./src/libs/Env.ts
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/auth/passwordHashing.ts ./src/libs/auth/passwordHashing.ts
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/auth/roles.ts ./src/libs/auth/roles.ts
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/legacy-sync/legacyMysqlSyncConstants.ts ./src/libs/legacy-sync/legacyMysqlSyncConstants.ts
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/mit-sailing/pavilionReservationPersonas.ts ./src/libs/mit-sailing/pavilionReservationPersonas.ts
 COPY --from=builder --chown=nextjs:nodejs /app/worker.mjs ./worker.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/worker-redis-healthcheck.cjs ./worker-redis-healthcheck.cjs
 

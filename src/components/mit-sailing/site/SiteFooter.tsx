@@ -57,7 +57,6 @@ export async function SiteFooter() {
   ]);
   const footerMenuWithRequiredLinks = footerMenuWithPricing({
     footerMenu,
-    groupLabel: t('footer_col_about'),
     pricingLabel: t('footer_link_membership'),
   });
   const year = calendarYearInEventsTimeZone(new Date());
