@@ -1,6 +1,6 @@
 import { EventPaymentEmailTemplate } from './event-payment-shared';
 
-export type MembershipPaymentReminderTemplateProps = {
+export type MembershipPaymentReminderTemplateProps = Readonly<{
   actionLabel: string;
   amount: string;
   body: string;
@@ -12,7 +12,7 @@ export type MembershipPaymentReminderTemplateProps = {
   onboardingUrl: string;
   previewText: string;
   title: string;
-};
+}>;
 
 export function MembershipPaymentReminderTemplate(
   props: MembershipPaymentReminderTemplateProps

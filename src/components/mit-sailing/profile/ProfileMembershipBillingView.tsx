@@ -11,7 +11,7 @@ type ProfileMembershipTranslations = Awaited<
   ReturnType<typeof getTranslations<'UserProfilePage'>>
 >;
 
-type ProfileMembershipBillingViewProps = {
+type ProfileMembershipBillingViewProps = Readonly<{
   accessThroughLabel: string | null;
   amountCents: number | null;
   cardType: SailingCardType | null;
@@ -20,7 +20,7 @@ type ProfileMembershipBillingViewProps = {
   receiptUrl: string | null;
   subscriptionId: string | null;
   t: ProfileMembershipTranslations;
-};
+}>;
 
 const statusKeys = {
   active_paid: 'membership_status_active_paid',

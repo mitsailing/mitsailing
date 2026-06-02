@@ -30,6 +30,18 @@ const emailDeliverabilityBodyKeys = {
   suppressed: 'email_deliverability_suppressed_body',
 } as const satisfies Record<ActiveEmailDeliverabilityStatus, string>;
 
+function strongText(chunks: React.ReactNode) {
+  return <strong>{chunks}</strong>;
+}
+
+function supportEmailLink(chunks: React.ReactNode) {
+  return (
+    <a className="underline" href="mailto:support@mitsailing.com">
+      {chunks}
+    </a>
+  );
+}
+
 function EmailDeliverabilityNotice(props: {
   readonly status: ActiveEmailDeliverabilityStatus | null;
 }) {
@@ -81,7 +93,7 @@ export function ProfileEmailSection(props: {
     resendIntervalRef.current = null;
     setResendLocked(true);
     setResendSecondsLeft(30);
-    resendIntervalRef.current = window.setInterval(() => {
+    resendIntervalRef.current = globalThis.window.setInterval(() => {
       setResendSecondsLeft((prev) => {
         if (prev <= 1) {
           clearInterval(resendIntervalRef.current ?? undefined);
@@ -91,7 +103,7 @@ export function ProfileEmailSection(props: {
         return prev - 1;
       });
     }, 1000);
-    resendTimerRef.current = window.setTimeout(() => {
+    resendTimerRef.current = globalThis.window.setTimeout(() => {
       setResendLocked(false);
       resendTimerRef.current = null;
       clearInterval(resendIntervalRef.current ?? undefined);
@@ -203,7 +215,7 @@ export function ProfileEmailSection(props: {
         kind: 'success',
         message: t.rich('pending_email_resent', {
           email: emailToConfirm,
-          strong: (chunks) => <strong>{chunks}</strong>,
+          strong: strongText,
         }),
       });
       lockEmailResend();
@@ -254,7 +266,7 @@ export function ProfileEmailSection(props: {
                 <p className="mt-1">
                   {t.rich('pending_email_body', {
                     email: props.pendingEmail,
-                    strong: (chunks) => <strong>{chunks}</strong>,
+                    strong: strongText,
                   })}
                 </p>
                 <form
@@ -310,14 +322,7 @@ export function ProfileEmailSection(props: {
                   </Button>
                   <span className="text-muted-foreground">
                     {t.rich('pending_email_support', {
-                      support: (chunks) => (
-                        <a
-                          className="underline"
-                          href="mailto:support@mitsailing.com"
-                        >
-                          {chunks}
-                        </a>
-                      ),
+                      support: supportEmailLink,
                     })}
                   </span>
                 </div>

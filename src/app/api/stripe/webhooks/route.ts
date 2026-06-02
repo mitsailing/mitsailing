@@ -88,6 +88,92 @@ function membershipPaymentReminderJobForEvent(event: Stripe.Event) {
   };
 }
 
+async function processedStripeWebhookEvent(event: Stripe.Event) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const processResult = await processStripeWebhookEvent({
+        db: tx,
+        event,
+        handlers: [handleMembershipStripeWebhookEvent],
+      });
+      return processResult;
+    });
+  } catch (error) {
+    logger.error('Failed to process Stripe webhook: {error}', { error });
+    return null;
+  }
+}
+
+async function markStripeWebhookEventProcessed(stripeWebhookEventId: string) {
+  await prisma.stripeWebhookEvent.update({
+    data: { processedAt: new Date(), processingError: null },
+    where: { id: stripeWebhookEventId },
+  });
+}
+
+async function persistReceiptJobEnqueueError(options: {
+  readonly error: unknown;
+  readonly stripeWebhookEventId: string;
+}) {
+  try {
+    await prisma.stripeWebhookEvent.update({
+      data: {
+        processingError: stripeWebhookReceiptEnqueuePendingError(options.error),
+      },
+      where: { id: options.stripeWebhookEventId },
+    });
+  } catch (updateError) {
+    logger.error(
+      'Failed to persist Stripe webhook receipt enqueue error: {error}',
+      { error: updateError }
+    );
+  }
+}
+
+async function enqueueReceiptJob(options: {
+  readonly dateKey: string;
+  readonly paymentId: string;
+  readonly stripeWebhookEventId: string;
+}) {
+  try {
+    await enqueueEventPaymentEmailJob(getDefaultQueue(), {
+      dateKey: options.dateKey,
+      kind: 'receipt',
+      paymentId: options.paymentId,
+    });
+    await markStripeWebhookEventProcessed(options.stripeWebhookEventId);
+    return true;
+  } catch (error) {
+    logger.error('Failed to enqueue Stripe webhook receipt job: {error}', {
+      error,
+    });
+    await persistReceiptJobEnqueueError({
+      error,
+      stripeWebhookEventId: options.stripeWebhookEventId,
+    });
+    return false;
+  }
+}
+
+async function enqueueMembershipReminderJob(event: Stripe.Event) {
+  const membershipReminderJob = membershipPaymentReminderJobForEvent(event);
+  if (!membershipReminderJob) {
+    return true;
+  }
+  try {
+    await enqueueMembershipPaymentReminderJob(
+      getDefaultQueue(),
+      membershipReminderJob
+    );
+    return true;
+  } catch (error) {
+    logger.error('Failed to enqueue membership payment reminder job: {error}', {
+      error,
+    });
+    return false;
+  }
+}
+
 /**
  * Stripe webhook endpoint for event payment state changes.
  *
@@ -120,19 +206,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
-  const result = await prisma
-    .$transaction(async (tx) => {
-      const processResult = await processStripeWebhookEvent({
-        db: tx,
-        event,
-        handlers: [handleMembershipStripeWebhookEvent],
-      });
-      return processResult;
-    })
-    .catch((error: unknown) => {
-      logger.error('Failed to process Stripe webhook: {error}', { error });
-      return null;
-    });
+  const result = await processedStripeWebhookEvent(event);
   if (!result) {
     return NextResponse.json({ ok: false }, { status: 500 });
   }
@@ -143,50 +217,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ duplicate: true, ok: true });
   }
   if (result.receiptJob) {
-    try {
-      await enqueueEventPaymentEmailJob(getDefaultQueue(), {
-        dateKey: result.receiptJob.dateKey,
-        kind: 'receipt',
-        paymentId: result.receiptJob.paymentId,
-      });
-      await prisma.stripeWebhookEvent.update({
-        data: { processedAt: new Date(), processingError: null },
-        where: { id: result.stripeWebhookEventId },
-      });
-    } catch (error) {
-      logger.error('Failed to enqueue Stripe webhook receipt job: {error}', {
-        error,
-      });
-      try {
-        await prisma.stripeWebhookEvent.update({
-          data: {
-            processingError: stripeWebhookReceiptEnqueuePendingError(error),
-          },
-          where: { id: result.stripeWebhookEventId },
-        });
-      } catch (updateError) {
-        logger.error(
-          'Failed to persist Stripe webhook receipt enqueue error: {error}',
-          { error: updateError }
-        );
-      }
+    const enqueued = await enqueueReceiptJob({
+      dateKey: result.receiptJob.dateKey,
+      paymentId: result.receiptJob.paymentId,
+      stripeWebhookEventId: result.stripeWebhookEventId,
+    });
+    if (!enqueued) {
       return NextResponse.json({ ok: false }, { status: 500 });
     }
   }
-  const membershipReminderJob = membershipPaymentReminderJobForEvent(event);
-  if (membershipReminderJob) {
-    try {
-      await enqueueMembershipPaymentReminderJob(
-        getDefaultQueue(),
-        membershipReminderJob
-      );
-    } catch (error) {
-      logger.error(
-        'Failed to enqueue membership payment reminder job: {error}',
-        { error }
-      );
-      return NextResponse.json({ ok: false }, { status: 500 });
-    }
+  const reminderEnqueued = await enqueueMembershipReminderJob(event);
+  if (!reminderEnqueued) {
+    return NextResponse.json({ ok: false }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
 }

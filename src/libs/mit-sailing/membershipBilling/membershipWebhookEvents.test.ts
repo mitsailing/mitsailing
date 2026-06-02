@@ -12,15 +12,16 @@ vi.mock('server-only', () => ({}));
 
 const stripeEventCreated = 1_777_636_800;
 
-type MembershipWebhookTestDb = StripeWebhookDb & {
+type MembershipWebhookTestDb = Omit<
+  StripeWebhookDb,
+  'payment' | 'sailingCardSubscription'
+> & {
   payment: StripeWebhookDb['payment'] & {
     create: ReturnType<typeof vi.fn>;
     findFirst: ReturnType<typeof vi.fn>;
     updateMany: ReturnType<typeof vi.fn>;
   };
-  sailingCardSubscription: NonNullable<
-    StripeWebhookDb['sailingCardSubscription']
-  > & {
+  sailingCardSubscription: {
     findFirst: ReturnType<typeof vi.fn>;
     upsert: ReturnType<typeof vi.fn>;
   };

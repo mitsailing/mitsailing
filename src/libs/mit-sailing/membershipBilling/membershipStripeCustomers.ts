@@ -35,7 +35,10 @@ export type MembershipStripeCustomerStripe = {
 const membershipStripeCustomerDomain = 'sailing_card_membership';
 
 function stripeSearchEmail(value: string) {
-  return value.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+  const backslash = String.fromCodePoint(92);
+  return value
+    .replaceAll(backslash, `${backslash}${backslash}`)
+    .replaceAll("'", `${backslash}'`);
 }
 
 export async function getOrCreateMembershipStripeCustomer(options: {

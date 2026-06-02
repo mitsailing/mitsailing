@@ -9,9 +9,9 @@ import { getI18nPath } from '@/utils/Helpers';
 import { ProfileAccountClient } from './ProfileAccountClient';
 import type { ProfileSailingCardSummary } from './ProfileSailingCardSection';
 
-type ProfilePageProps = {
+type ProfilePageProps = Readonly<{
   params: Promise<{ locale: string }>;
-};
+}>;
 
 type ProfileSailingCardRequest = {
   readonly cardType: ProfileSailingCardSummary['cardType'];

@@ -29,34 +29,25 @@ type IdentityErrorMessageKey =
   | 'identity_mit_id_required'
   | 'identity_update_error';
 
+const identityErrorMessageKeys = {
+  affiliation_mismatch: 'identity_affiliation_mismatch',
+  affiliation_required: 'identity_affiliation_required',
+  first_name_required: 'identity_first_name_required',
+  identity_locked: 'identity_locked_error',
+  last_name_required: 'identity_last_name_required',
+  mit_id_duplicate: 'identity_mit_id_duplicate',
+  mit_id_invalid: 'identity_mit_id_invalid',
+  mit_id_required: 'identity_mit_id_required',
+  unauthorized: 'identity_update_error',
+} as const satisfies Record<
+  Exclude<UpdateProfileIdentityResult, { ok: true }>['error'],
+  IdentityErrorMessageKey
+>;
+
 function identityErrorMessageKey(
   error: Exclude<UpdateProfileIdentityResult, { ok: true }>['error']
 ): IdentityErrorMessageKey {
-  if (error === 'affiliation_mismatch') {
-    return 'identity_affiliation_mismatch';
-  }
-  if (error === 'affiliation_required') {
-    return 'identity_affiliation_required';
-  }
-  if (error === 'first_name_required') {
-    return 'identity_first_name_required';
-  }
-  if (error === 'identity_locked') {
-    return 'identity_locked_error';
-  }
-  if (error === 'last_name_required') {
-    return 'identity_last_name_required';
-  }
-  if (error === 'mit_id_duplicate') {
-    return 'identity_mit_id_duplicate';
-  }
-  if (error === 'mit_id_invalid') {
-    return 'identity_mit_id_invalid';
-  }
-  if (error === 'mit_id_required') {
-    return 'identity_mit_id_required';
-  }
-  return 'identity_update_error';
+  return identityErrorMessageKeys[error];
 }
 
 export function affiliationLabelKey(affiliation: SailingAffiliation) {

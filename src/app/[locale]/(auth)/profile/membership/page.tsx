@@ -9,9 +9,9 @@ import { membershipProfileState } from '@/libs/mit-sailing/membershipBilling/mem
 import { membershipAccessForSailingCardUser } from '@/libs/mit-sailing/sailingCardMembershipEligibility';
 import { getI18nPath } from '@/utils/Helpers';
 
-type ProfileMembershipPageProps = {
+type ProfileMembershipPageProps = Readonly<{
   params: Promise<{ locale: string }>;
-};
+}>;
 
 function profileDateLabel(date: Date | null, locale: string) {
   if (!date) {
