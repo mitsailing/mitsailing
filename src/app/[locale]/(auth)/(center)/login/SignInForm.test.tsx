@@ -50,6 +50,62 @@ async function revealPasswordFor(
   await screen.findByLabelText('Password');
 }
 
+async function submitEmailStep(
+  user: ReturnType<typeof userEvent.setup>,
+  email: string
+) {
+  await user.type(screen.getByLabelText('Email'), email);
+  await user.click(screen.getByRole('button', { name: 'Continue' }));
+}
+
+async function submitPasswordStep(props: {
+  readonly email: string;
+  readonly password: string;
+  readonly user: ReturnType<typeof userEvent.setup>;
+}) {
+  await revealPasswordFor(props.user, props.email);
+  await props.user.type(screen.getByLabelText('Password'), props.password);
+  await props.user.click(screen.getByRole('button', { name: 'Sign in' }));
+}
+
+async function expectPasswordSignInAlert(props: {
+  readonly alertText: string;
+  readonly email?: string;
+  readonly password?: string;
+}) {
+  const user = userEvent.setup();
+  render(<SignInForm callbackUrl="/fleet" />);
+
+  await submitPasswordStep({
+    email: props.email ?? 'sailor@mit.edu',
+    password: props.password ?? 'wrong-password',
+    user,
+  });
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(props.alertText);
+}
+
+async function submitUnverifiedResend(props?: {
+  readonly email?: string;
+  readonly password?: string;
+}) {
+  const user = userEvent.setup();
+  authClientMock.signIn.email.mockResolvedValue({
+    error: { code: 'EMAIL_NOT_VERIFIED' },
+  });
+
+  render(<SignInForm callbackUrl="/fleet" />);
+
+  await submitPasswordStep({
+    email: props?.email ?? 'new-sailor@mit.edu',
+    password: props?.password ?? 'correct-password',
+    user,
+  });
+  await user.click(
+    await screen.findByRole('button', { name: 'Send verification code' })
+  );
+}
+
 describe('SignInForm', () => {
   it('starts with email only and reveals password for active users', async () => {
     const user = userEvent.setup();
@@ -58,8 +114,7 @@ describe('SignInForm', () => {
 
     expect(screen.queryByLabelText('Password')).toBeNull();
 
-    await user.type(screen.getByLabelText('Email'), ' Sailor@MIT.EDU ');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await submitEmailStep(user, ' Sailor@MIT.EDU ');
 
     expect(signInEmailActionMock.resolveSignInEmailAction).toHaveBeenCalledWith(
       {
@@ -78,8 +133,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'legacy@mit.edu');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await submitEmailStep(user, 'legacy@mit.edu');
 
     expect(componentTestRouter().push).toHaveBeenCalledWith(
       '/reset-password?email=legacy%40mit.edu&codeSent=1&mode=create-password&callbackUrl=%2Ffleet'
@@ -95,8 +149,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'legacy@mit.edu');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await submitEmailStep(user, 'legacy@mit.edu');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'We could not send a reset code.'
@@ -113,8 +166,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'new@mit.edu');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await submitEmailStep(user, 'new@mit.edu');
 
     expect(componentTestRouter().push).toHaveBeenCalledWith(
       '/signup?email=new%40mit.edu&callbackUrl=%2Ffleet'
@@ -129,8 +181,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await submitEmailStep(user, 'sailor@mit.edu');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Enter a valid email address with a domain'
@@ -146,8 +197,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await submitEmailStep(user, 'sailor@mit.edu');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'We could not complete that request right now.'
@@ -181,8 +231,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await submitEmailStep(user, 'sailor@mit.edu');
     await screen.findByLabelText('Password');
     const form = screen.getByLabelText('Email').closest('form');
     if (!form) {
@@ -201,9 +250,11 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await revealPasswordFor(user, ' Sailor@MIT.EDU ');
-    await user.type(screen.getByLabelText('Password'), 'correct-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await submitPasswordStep({
+      email: ' Sailor@MIT.EDU ',
+      password: 'correct-password',
+      user,
+    });
 
     expect(authClientMock.signIn.email).toHaveBeenCalledWith({
       callbackURL: '/login/continue?callbackUrl=%2Ffleet',
@@ -222,8 +273,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'sailor@mit');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await submitEmailStep(user, 'sailor@mit');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Enter a valid email address with a domain'
@@ -232,105 +282,65 @@ describe('SignInForm', () => {
   });
 
   it('Locked-out sailor sees the lockout recovery message', async () => {
-    const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'ACCOUNT_LOCKED' },
     });
 
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await revealPasswordFor(user, 'locked@mit.edu');
-    await user.type(screen.getByLabelText('Password'), 'wrong-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Your account is temporarily locked'
-    );
+    await expectPasswordSignInAlert({
+      alertText: 'Your account is temporarily locked',
+      email: 'locked@mit.edu',
+    });
   });
 
   it('Banned sailor sees the disabled-account message', async () => {
-    const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'BANNED_USER' },
     });
 
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await revealPasswordFor(user, 'banned@mit.edu');
-    await user.type(screen.getByLabelText('Password'), 'correct-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Your account has been disabled. Contact support.'
-    );
+    await expectPasswordSignInAlert({
+      alertText: 'Your account has been disabled. Contact support.',
+      email: 'banned@mit.edu',
+      password: 'correct-password',
+    });
   });
 
   it('Visitor sees credentials message after a failed sign-in', async () => {
-    const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'INVALID_EMAIL_OR_PASSWORD' },
     });
 
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await revealPasswordFor(user, 'sailor@mit.edu');
-    await user.type(screen.getByLabelText('Password'), 'wrong-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Invalid email or password.'
-    );
+    await expectPasswordSignInAlert({
+      alertText: 'Invalid email or password.',
+    });
   });
 
   it('Visitor sees rate-limit message after too many sign-in attempts', async () => {
-    const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'TOO_MANY_REQUESTS' },
     });
 
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await revealPasswordFor(user, 'sailor@mit.edu');
-    await user.type(screen.getByLabelText('Password'), 'wrong-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Too many attempts.'
-    );
+    await expectPasswordSignInAlert({ alertText: 'Too many attempts.' });
   });
 
   it('Visitor sees credentials message after an unexpected sign-in error', async () => {
-    const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { message: 'Account requires staff approval.' },
     });
 
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await revealPasswordFor(user, 'sailor@mit.edu');
-    await user.type(screen.getByLabelText('Password'), 'correct-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Invalid email or password.'
-    );
+    await expectPasswordSignInAlert({
+      alertText: 'Invalid email or password.',
+      password: 'correct-password',
+    });
   });
 
   it('Visitor sees credentials message when sign-in fails without details', async () => {
-    const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: {},
     });
 
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await revealPasswordFor(user, 'sailor@mit.edu');
-    await user.type(screen.getByLabelText('Password'), 'wrong-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Invalid email or password.'
-    );
+    await expectPasswordSignInAlert({
+      alertText: 'Invalid email or password.',
+    });
   });
 
   it('Visitor sees request-failed message when sign-in throws', async () => {
@@ -339,9 +349,11 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await revealPasswordFor(user, 'sailor@mit.edu');
-    await user.type(screen.getByLabelText('Password'), 'correct-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await submitPasswordStep({
+      email: 'sailor@mit.edu',
+      password: 'correct-password',
+      user,
+    });
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'We could not complete that request right now.'
@@ -357,9 +369,11 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await revealPasswordFor(user, ' Sailor@MIT.EDU ');
-    await user.type(screen.getByLabelText('Password'), 'correct-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await submitPasswordStep({
+      email: ' Sailor@MIT.EDU ',
+      password: 'correct-password',
+      user,
+    });
     await user.click(
       await screen.findByRole('button', { name: 'Send verification code' })
     );
@@ -374,19 +388,7 @@ describe('SignInForm', () => {
   });
 
   it('Unverified sailor requests a verification code from sign-in', async () => {
-    const user = userEvent.setup();
-    authClientMock.signIn.email.mockResolvedValue({
-      error: { code: 'EMAIL_NOT_VERIFIED' },
-    });
-
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await revealPasswordFor(user, 'new-sailor@mit.edu');
-    await user.type(screen.getByLabelText('Password'), 'correct-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    await user.click(
-      await screen.findByRole('button', { name: 'Send verification code' })
-    );
+    await submitUnverifiedResend();
 
     expect(authClientMock.emailOtp.sendVerificationOtp).toHaveBeenCalledWith({
       email: 'new-sailor@mit.edu',
@@ -398,22 +400,11 @@ describe('SignInForm', () => {
   });
 
   it('Unverified sailor sees delivery message when verification resend is blocked', async () => {
-    const user = userEvent.setup();
-    authClientMock.signIn.email.mockResolvedValue({
-      error: { code: 'EMAIL_NOT_VERIFIED' },
-    });
     authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({
       error: { code: 'TOO_MANY_REQUESTS' },
     });
 
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await revealPasswordFor(user, 'new-sailor@mit.edu');
-    await user.type(screen.getByLabelText('Password'), 'correct-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    await user.click(
-      await screen.findByRole('button', { name: 'Send verification code' })
-    );
+    await submitUnverifiedResend();
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Too many attempts.'
@@ -421,22 +412,11 @@ describe('SignInForm', () => {
   });
 
   it('Unverified sailor sees delivery message when verification resend fails', async () => {
-    const user = userEvent.setup();
-    authClientMock.signIn.email.mockResolvedValue({
-      error: { code: 'EMAIL_NOT_VERIFIED' },
-    });
     authClientMock.emailOtp.sendVerificationOtp.mockRejectedValue(
       new Error('network')
     );
 
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await revealPasswordFor(user, 'new-sailor@mit.edu');
-    await user.type(screen.getByLabelText('Password'), 'correct-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    await user.click(
-      await screen.findByRole('button', { name: 'Send verification code' })
-    );
+    await submitUnverifiedResend();
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'We could not complete that request right now.'
@@ -444,22 +424,11 @@ describe('SignInForm', () => {
   });
 
   it('Unverified sailor sees fallback message when verification resend has no details', async () => {
-    const user = userEvent.setup();
-    authClientMock.signIn.email.mockResolvedValue({
-      error: { code: 'EMAIL_NOT_VERIFIED' },
-    });
     authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({
       error: { code: 'EMAIL_NOT_VERIFIED' },
     });
 
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await revealPasswordFor(user, 'new-sailor@mit.edu');
-    await user.type(screen.getByLabelText('Password'), 'correct-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    await user.click(
-      await screen.findByRole('button', { name: 'Send verification code' })
-    );
+    await submitUnverifiedResend();
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Invalid email or password.'
@@ -467,10 +436,6 @@ describe('SignInForm', () => {
   });
 
   it('Unverified sailor does not see backend text when resend returns EMAIL_NOT_VERIFIED', async () => {
-    const user = userEvent.setup();
-    authClientMock.signIn.email.mockResolvedValue({
-      error: { code: 'EMAIL_NOT_VERIFIED' },
-    });
     authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({
       error: {
         code: 'EMAIL_NOT_VERIFIED',
@@ -478,14 +443,7 @@ describe('SignInForm', () => {
       },
     });
 
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await revealPasswordFor(user, 'new-sailor@mit.edu');
-    await user.type(screen.getByLabelText('Password'), 'correct-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    await user.click(
-      await screen.findByRole('button', { name: 'Send verification code' })
-    );
+    await submitUnverifiedResend();
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Invalid email or password.'
