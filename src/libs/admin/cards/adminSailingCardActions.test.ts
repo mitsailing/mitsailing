@@ -107,6 +107,12 @@ function formDataWithCardNumberAndPaymentBypassNote(
   return formData;
 }
 
+function formDataWithRecreationVerification(cardNumber: string) {
+  const formData = formDataWithCardNumber(cardNumber);
+  formData.set('gymMembershipVerified', 'true');
+  return formData;
+}
+
 function uniqueCardError(
   target: string | string[] = ['sailingCardYear', 'sailingCardNumber']
 ) {
@@ -529,6 +535,42 @@ describe('adminSailingCardActions', () => {
     await expectIssueCardFormError({ formError: 'mit_recreation_required' });
 
     expectNoCardIssueWrites();
+  });
+
+  it('verifies mit recreation while issuing a normal card when staff confirms it', async () => {
+    mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.normal,
+      hasFitnessMembership: true,
+      id: 'request-1',
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+      user: {
+        gymMembershipVerifiedAt: null,
+      },
+    });
+    const { issueSailingCardAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await issueSailingCardAction(
+      'en',
+      'user-1',
+      { fieldErrors: {}, status: 'idle' },
+      formDataWithRecreationVerification('61')
+    );
+
+    expect(mocks.txUserUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          gymMembershipVerifiedAt: new Date('2026-08-01T16:00:00.000Z'),
+          sailingCardNumber: 61,
+        }),
+      })
+    );
   });
 
   it('issuing a card sets yearly card fields without requiring initials', async () => {

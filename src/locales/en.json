@@ -1634,6 +1634,8 @@
     "fitness_membership_no_verify": "No, verify before issuing",
     "fitness_membership_not_required": "Not required",
     "fitness_membership_mit_student": "MIT student",
+    "fitness_membership_verify_label": "MIT Recreation verified",
+    "fitness_membership_verify_help": "Check after confirming this user has MIT Recreation membership.",
     "card_number_label": "Card number",
     "card_number_placeholder": "Auto {number}",
     "issue_form_label": "Issue sailing card",

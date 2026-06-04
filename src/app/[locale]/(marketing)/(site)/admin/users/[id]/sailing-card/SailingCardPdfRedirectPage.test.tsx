@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Permission } from '@/libs/auth/permissions';
-import AdminUserSailingCardQuickPrintPage from './page';
+import PrintPage from './print/page';
+import QuickPrintPage from './quick-print/page';
 
 const mocks = vi.hoisted(() => ({
   redirect: vi.fn((href: string) => {
@@ -22,20 +23,25 @@ vi.mock('@/libs/auth/dal', () => ({
   requirePermission: mocks.requirePermission,
 }));
 
-describe('AdminUserSailingCardQuickPrintPage', () => {
-  it('redirects quick print to the inline PDF route', async () => {
+const pages = [
+  { label: 'print', Page: PrintPage },
+  { label: 'quick print', Page: QuickPrintPage },
+];
+
+describe('SailingCardPdfRedirectPage', () => {
+  it.each(pages)('redirects $label to the inline PDF route', async (props) => {
     mocks.requirePermission.mockResolvedValue({ user: { id: 'admin-1' } });
 
     await expect(
-      AdminUserSailingCardQuickPrintPage({
+      props.Page({
         params: Promise.resolve({ id: 'user/1', locale: 'en' }),
       })
     ).rejects.toThrow(
       'NEXT_REDIRECT:/api/admin/users/user%2F1/sailing-card/pdf'
     );
 
-    expect(mocks.setRequestLocale).toHaveBeenCalledWith('en');
-    expect(mocks.requirePermission).toHaveBeenCalledWith(
+    expect(mocks.setRequestLocale).toHaveBeenLastCalledWith('en');
+    expect(mocks.requirePermission).toHaveBeenLastCalledWith(
       Permission.CARDS_PRINT,
       'en'
     );

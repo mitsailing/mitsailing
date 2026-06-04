@@ -184,6 +184,7 @@ export async function getAdminUserSailingCardSummary(userId: string) {
         sailingCardSwimAgreementInitialedAt: true,
         sailingCardSwimAgreementInitials: true,
         sailingCardYear: true,
+        gymMembershipVerifiedAt: true,
       },
     }),
     prisma.sailingCardRequest.findFirst({
