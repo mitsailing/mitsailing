@@ -63,11 +63,14 @@ function rowFromDb(user: {
   emailBouncedAt: Date | null;
   emailSuppressedAt: Date | null;
   emailSuppressionReason: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
   firstName: string | null;
   lastName: string | null;
   mitClassYear: string | null;
   mitDataWarehouseVerifiedAt: Date | null;
   mitId: string | null;
+  phone: string | null;
   sailingAffiliation: AdminUserRow['sailingAffiliation'];
   sailingCardNumber: number | null;
   sailingCardRequests: readonly { status: string }[];
@@ -80,12 +83,15 @@ function rowFromDb(user: {
     emailDeliverabilityStatus: emailDeliverabilityStatus(user),
     emailSuppressedAt: user.emailSuppressedAt?.toISOString() ?? null,
     emailSuppressionReason: user.emailSuppressionReason,
+    emergencyContactName: user.emergencyContactName,
+    emergencyContactPhone: user.emergencyContactPhone,
     firstName: user.firstName,
     lastName: user.lastName,
     mitClassYear: user.mitClassYear,
     mitDataWarehouseVerifiedAt:
       user.mitDataWarehouseVerifiedAt?.toISOString() ?? null,
     mitId: user.mitId,
+    phone: user.phone,
     sailingAffiliation: user.sailingAffiliation,
     sailingCardNumber: user.sailingCardNumber,
     sailingCardStatus: sailingCardStatusFromUser(user),
@@ -270,6 +276,8 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         emailVerified: true,
         banned: true,
         emailBouncedAt: true,
+        emergencyContactName: true,
+        emergencyContactPhone: true,
         emailSuppressedAt: true,
         emailSuppressionReason: true,
         firstName: true,
@@ -277,6 +285,7 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         mitClassYear: true,
         mitDataWarehouseVerifiedAt: true,
         mitId: true,
+        phone: true,
         sailingAffiliation: true,
         sailingCardNumber: true,
         sailingCardRequests: {
@@ -301,6 +310,8 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         emailVerified: true,
         banned: true,
         emailBouncedAt: true,
+        emergencyContactName: true,
+        emergencyContactPhone: true,
         emailSuppressedAt: true,
         emailSuppressionReason: true,
         firstName: true,
@@ -308,6 +319,7 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         mitClassYear: true,
         mitDataWarehouseVerifiedAt: true,
         mitId: true,
+        phone: true,
         sailingAffiliation: true,
         sailingCardNumber: true,
         sailingCardRequests: {

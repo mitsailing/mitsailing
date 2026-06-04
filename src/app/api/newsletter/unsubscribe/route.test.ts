@@ -3,11 +3,10 @@ import { GET, POST } from './route';
 
 const mocks = vi.hoisted(() => ({
   newsletterManageUrl: vi.fn(
-    (token: string, options?: { actionListId: string }) => {
+    (token: string, options?: { unsubscribedListId?: string }) => {
       const search = new URLSearchParams({ token });
-      if (options?.actionListId) {
-        search.set('action', 'unsubscribe');
-        search.set('list', options.actionListId);
+      if (options?.unsubscribedListId) {
+        search.set('unsubscribedList', options.unsubscribedListId);
       }
       return `https://mitsailing.test/newsletter/manage?${search.toString()}`;
     }
@@ -55,31 +54,19 @@ function unsubscribeRequest(options?: {
 }
 
 describe('newsletter one-click unsubscribe route', () => {
-  it('redirects list-scoped get requests to safe unsubscribe confirmation', () => {
-    const response = GET(unsubscribeRequest());
+  it('unsubscribes get requests before redirecting to manage preferences', async () => {
+    const response = await GET(unsubscribeRequest());
 
-    expect(mocks.unsubscribeNewsletterTokenFromList).not.toHaveBeenCalled();
+    expect(mocks.unsubscribeNewsletterTokenFromList).toHaveBeenCalledWith(
+      'token_123',
+      'list_123'
+    );
     expect(mocks.newsletterManageUrl).toHaveBeenCalledWith('token_123', {
-      actionListId: 'list_123',
+      unsubscribedListId: 'list_123',
     });
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe(
-      'https://mitsailing.test/newsletter/manage?token=token_123&action=unsubscribe&list=list_123'
-    );
-  });
-
-  it('redirects token-only get requests without unsubscribing', () => {
-    const response = GET(
-      unsubscribeRequest({
-        url: 'https://mitsailing.test/api/newsletter/unsubscribe?token=token_123',
-      })
-    );
-
-    expect(mocks.unsubscribeNewsletterTokenFromList).not.toHaveBeenCalled();
-    expect(mocks.newsletterManageUrl).toHaveBeenCalledWith('token_123');
-    expect(response.status).toBe(307);
-    expect(response.headers.get('location')).toBe(
-      'https://mitsailing.test/newsletter/manage?token=token_123'
+      'https://mitsailing.test/newsletter/manage?token=token_123&unsubscribedList=list_123'
     );
   });
 

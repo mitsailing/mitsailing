@@ -3,11 +3,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import type * as React from 'react';
-import {
-  PaymentPurpose,
-  PaymentStatus,
-  SailingCardType,
-} from '@/generated/prisma/enums';
+import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
 import {
   getAppRolePermissions,
   hasPermission,
@@ -17,6 +13,7 @@ import { safeAuthCallbackUrl } from '@/libs/auth/callbackUrl';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { Link } from '@/libs/I18nNavigation';
+import { sailingCardRequestNeedsMembershipPayment } from '@/libs/mit-sailing/sailingCardMembershipPaymentRequirement';
 import {
   getCurrentSailingCardYear,
   hasCompletedCurrentYearSailingCardRequest,
@@ -105,21 +102,10 @@ function SuccessSurface(props: {
   );
 }
 
-const paidCardTypes: ReadonlySet<SailingCardType> = new Set([
-  SailingCardType.racing,
-  SailingCardType.team_racing,
-]);
-
-function isPaidCardType(
-  cardType: SailingCardType | null | undefined
-): cardType is SailingCardType {
-  return (
-    cardType !== null && cardType !== undefined && paidCardTypes.has(cardType)
-  );
-}
-
 async function getMembershipPaymentForRequest(props: {
-  readonly cardType: SailingCardType;
+  readonly cardType: NonNullable<
+    Awaited<ReturnType<typeof getOnboardingSuccessUser>>
+  >['sailingCardRequests'][number]['cardType'];
   readonly cardYear: number;
   readonly userId: string;
 }) {
@@ -144,6 +130,46 @@ async function getMembershipPaymentForRequest(props: {
 type MembershipPaymentForRequest = Awaited<
   ReturnType<typeof getMembershipPaymentForRequest>
 >;
+
+async function getOnboardingSuccessUser(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      sailingCardRequests: {
+        orderBy: { requestedAt: 'desc' },
+        take: 1,
+        where: {
+          cardYear: getCurrentSailingCardYear(),
+        },
+        select: {
+          cardYear: true,
+          cardType: true,
+          hasFitnessMembership: true,
+          legalAgreementAcceptance: {
+            select: {
+              agreementHash: true,
+              agreementVersion: true,
+              source: true,
+              userId: true,
+            },
+          },
+          sailingAffiliation: true,
+          status: true,
+          userId: true,
+          user: {
+            select: {
+              emergencyContactName: true,
+              emergencyContactPhone: true,
+              gymMembershipVerifiedAt: true,
+              phone: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  return user;
+}
 
 async function stripeCheckoutSessionIsPaid(props: {
   readonly payment: MembershipPaymentForRequest;
@@ -208,39 +234,7 @@ export default async function OnboardingSuccessPage(
     getAppRolePermissions(user.role),
     Permission.ADMIN_VIEW
   );
-  const currentUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: {
-      sailingCardRequests: {
-        orderBy: { requestedAt: 'desc' },
-        take: 1,
-        where: {
-          cardYear: getCurrentSailingCardYear(),
-        },
-        select: {
-          cardYear: true,
-          cardType: true,
-          legalAgreementAcceptance: {
-            select: {
-              agreementHash: true,
-              agreementVersion: true,
-              source: true,
-              userId: true,
-            },
-          },
-          status: true,
-          userId: true,
-          user: {
-            select: {
-              emergencyContactName: true,
-              emergencyContactPhone: true,
-              phone: true,
-            },
-          },
-        },
-      },
-    },
-  });
+  const currentUser = await getOnboardingSuccessUser(user.id);
 
   if (
     currentUser === null ||
@@ -266,7 +260,10 @@ export default async function OnboardingSuccessPage(
     label: t('events_link'),
   };
 
-  if (latestRequest !== null && isPaidCardType(latestRequest.cardType)) {
+  if (
+    latestRequest !== null &&
+    sailingCardRequestNeedsMembershipPayment(latestRequest)
+  ) {
     const payment = await getMembershipPaymentForRequest({
       cardType: latestRequest.cardType,
       cardYear: latestRequest.cardYear,

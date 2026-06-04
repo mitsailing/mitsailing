@@ -65,6 +65,7 @@ vi.mock('next-intl', () => ({
       action_issue: 'Issue',
       action_issue_number: `Issue #${number}`,
       action_issue_pending: 'Issuing',
+      action_print_card: 'Print card',
       action_update_number: 'Update',
       action_save_correction: 'Save correction',
       card_number_label: 'Card number',

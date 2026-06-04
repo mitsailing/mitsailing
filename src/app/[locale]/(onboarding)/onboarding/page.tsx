@@ -4,15 +4,13 @@ import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import type * as React from 'react';
 import { SailingCardOnboardingForm } from '@/components/mit-sailing/onboarding/SailingCardOnboardingForm';
-import {
-  PaymentPurpose,
-  PaymentStatus,
-  SailingCardType,
-} from '@/generated/prisma/enums';
+import type { SailingCardType } from '@/generated/prisma/enums';
+import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
 import { safeAuthCallbackUrl } from '@/libs/auth/callbackUrl';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { Link } from '@/libs/I18nNavigation';
+import { sailingCardRequestNeedsMembershipPayment } from '@/libs/mit-sailing/sailingCardMembershipPaymentRequirement';
 import {
   getCurrentSailingCardYear,
   hasCompletedCurrentYearSailingCardRequest,
@@ -129,6 +127,7 @@ async function getOnboardingUser(userId: string) {
         select: {
           cardYear: true,
           cardType: true,
+          hasFitnessMembership: true,
           legalAgreementAcceptance: {
             select: {
               agreementHash: true,
@@ -137,12 +136,14 @@ async function getOnboardingUser(userId: string) {
               userId: true,
             },
           },
+          sailingAffiliation: true,
           status: true,
           userId: true,
           user: {
             select: {
               emergencyContactName: true,
               emergencyContactPhone: true,
+              gymMembershipVerifiedAt: true,
               phone: true,
             },
           },
@@ -182,11 +183,6 @@ type PendingMembershipCheckout = Awaited<
   ReturnType<typeof getPendingMembershipCheckout>
 >;
 
-const paidCardTypes: ReadonlySet<SailingCardType> = new Set([
-  SailingCardType.racing,
-  SailingCardType.team_racing,
-]);
-
 function activeMembershipCheckoutUrl(
   payment: PendingMembershipCheckout,
   now: Date
@@ -218,7 +214,7 @@ function currentYearRequestCanUseSuccess(props: {
   readonly payment: PendingMembershipCheckout;
   readonly request: NonNullable<OnboardingUser>['sailingCardRequests'][number];
 }) {
-  if (paidCardTypes.has(props.request.cardType)) {
+  if (sailingCardRequestNeedsMembershipPayment(props.request)) {
     return props.payment?.status === PaymentStatus.paid;
   }
   return true;

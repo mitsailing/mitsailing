@@ -435,7 +435,11 @@ describe('SailingCardOnboardingForm', () => {
 
     expect(dateOfBirth).toHaveValue('03/');
 
-    await user.type(dateOfBirth, '241988');
+    await user.type(dateOfBirth, '24');
+
+    expect(dateOfBirth).toHaveValue('03/24');
+
+    await user.type(dateOfBirth, '1988');
 
     expect(dateOfBirth).toHaveValue('03/24/1988');
 
@@ -448,6 +452,15 @@ describe('SailingCardOnboardingForm', () => {
     expect(
       screen.getByText('Enter a valid date of birth as MM/DD/YYYY.')
     ).toBeInTheDocument();
+
+    await user.clear(dateOfBirth);
+    await user.type(dateOfBirth, '03241988');
+
+    expect(dateOfBirth).toHaveValue('03/24/1988');
+    expect(dateOfBirth).not.toHaveAttribute('aria-invalid', 'true');
+    expect(
+      screen.queryByText('Enter a valid date of birth as MM/DD/YYYY.')
+    ).not.toBeInTheDocument();
   });
 
   it('normalizes short date of birth years when leaving the field', async () => {

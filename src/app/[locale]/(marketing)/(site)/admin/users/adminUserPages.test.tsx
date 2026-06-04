@@ -343,6 +343,8 @@ beforeEach(() => {
     emailDeliverabilityStatus: 'ok',
     emailSuppressionReason: null,
     emailVerified: true,
+    emergencyContactName: 'Emergency One',
+    emergencyContactPhone: '+15555550102',
     firstName: 'Sailor',
     id: 'user-1',
     lastName: 'One',
@@ -350,6 +352,7 @@ beforeEach(() => {
     mitDataWarehouseVerifiedAt: null,
     mitId: '123456789',
     name: 'Sailor One',
+    phone: '+15555550101',
     sailingAffiliation: 'OTHER_NON_STUDENT',
     sailingCardNumber: 61,
     appRole: 'user',
@@ -386,6 +389,8 @@ beforeEach(() => {
       emailSuppressedAt: null,
       emailSuppressionReason: null,
       emailVerified: true,
+      emergencyContactName: 'Emergency One',
+      emergencyContactPhone: '+15555550102',
       firstName: 'Sailor',
       id: 'user-1',
       lastName: 'One',
@@ -393,6 +398,7 @@ beforeEach(() => {
       mitDataWarehouseVerifiedAt: null,
       mitId: '123456789',
       name: 'Sailor One',
+      phone: '+15555550101',
       sailingAffiliation: 'OTHER_NON_STUDENT',
       sailingCardNumber: 61,
       sailingCardStatus: 'current',
@@ -609,6 +615,16 @@ describe('admin user pages', () => {
       screen.getByText('affiliation_other_non_student')
     ).toBeInTheDocument();
     expect(screen.getByText('identity_source_manual')).toBeInTheDocument();
+    expect(screen.getByText('identity_phone')).toBeInTheDocument();
+    expect(screen.getByText('+15555550101')).toBeInTheDocument();
+    expect(
+      screen.getByText('identity_emergency_contact_name')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Emergency One')).toBeInTheDocument();
+    expect(
+      screen.getByText('identity_emergency_contact_phone')
+    ).toBeInTheDocument();
+    expect(screen.getByText('+15555550102')).toBeInTheDocument();
     expect(screen.getByText('123456789')).toBeInTheDocument();
     expect(screen.getAllByText('61').length).toBeGreaterThan(0);
     expect(screen.getByText('2026')).toBeInTheDocument();
@@ -1132,7 +1148,7 @@ describe('admin user pages', () => {
     );
     expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
       'data-search-fields',
-      'email,name,mitId,sailingCardNumber,appRole'
+      'email,name,phone,emergencyContactName,emergencyContactPhone,mitId,sailingCardNumber,appRole'
     );
     expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
       'data-filter-fields',
