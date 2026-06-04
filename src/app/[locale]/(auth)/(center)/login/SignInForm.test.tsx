@@ -58,6 +58,25 @@ async function submitEmailStep(
   await user.click(screen.getByRole('button', { name: 'Continue' }));
 }
 
+async function expectEmailStepRedirect(props: {
+  readonly expectedPath: string;
+  readonly resolvedEmail: string;
+  readonly state: 'reset_required' | 'sign_up';
+  readonly submittedEmail?: string;
+}) {
+  const user = userEvent.setup();
+  signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
+    email: props.resolvedEmail,
+    state: props.state,
+  });
+
+  render(<SignInForm callbackUrl="/fleet" />);
+
+  await submitEmailStep(user, props.submittedEmail ?? props.resolvedEmail);
+
+  expect(componentTestRouter().push).toHaveBeenCalledWith(props.expectedPath);
+}
+
 async function submitPasswordStep(props: {
   readonly email: string;
   readonly password: string;
@@ -125,19 +144,12 @@ describe('SignInForm', () => {
   });
 
   it('sends reset-required users to create a password', async () => {
-    const user = userEvent.setup();
-    signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
-      email: 'legacy@mit.edu',
+    await expectEmailStepRedirect({
+      expectedPath:
+        '/reset-password?email=legacy%40mit.edu&codeSent=1&mode=create-password&callbackUrl=%2Ffleet',
+      resolvedEmail: 'legacy@mit.edu',
       state: 'reset_required',
     });
-
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await submitEmailStep(user, 'legacy@mit.edu');
-
-    expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/reset-password?email=legacy%40mit.edu&codeSent=1&mode=create-password&callbackUrl=%2Ffleet'
-    );
   });
 
   it('shows reset delivery failure when create-password email cannot be sent', async () => {
@@ -158,19 +170,11 @@ describe('SignInForm', () => {
   });
 
   it('sends unknown emails to sign up', async () => {
-    const user = userEvent.setup();
-    signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
-      email: 'new@mit.edu',
+    await expectEmailStepRedirect({
+      expectedPath: '/signup?email=new%40mit.edu&callbackUrl=%2Ffleet',
+      resolvedEmail: 'new@mit.edu',
       state: 'sign_up',
     });
-
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await submitEmailStep(user, 'new@mit.edu');
-
-    expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/signup?email=new%40mit.edu&callbackUrl=%2Ffleet'
-    );
   });
 
   it('shows invalid email message when server rejects submitted email', async () => {
