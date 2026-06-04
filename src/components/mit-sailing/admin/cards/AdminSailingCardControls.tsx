@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Printer, Zap } from 'lucide-react';
+import { CheckCircle2, Printer } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -232,22 +232,12 @@ export function AdminSailingCardPrintActions(props: {
     <div className="flex flex-wrap gap-2">
       <Button asChild className="gap-2" size="sm" variant="outline">
         <a
-          href={`/admin/users/${encodedUserId}/sailing-card/print`}
-          rel="noreferrer"
+          href={`/api/admin/users/${encodedUserId}/sailing-card/pdf`}
+          rel="noopener noreferrer"
           target="_blank"
         >
           <Printer aria-hidden className="size-4" />
           {t('action_print_card')}
-        </a>
-      </Button>
-      <Button asChild className="gap-2" size="sm" variant="outline">
-        <a
-          href={`/admin/users/${encodedUserId}/sailing-card/quick-print`}
-          rel="noreferrer"
-          target="_blank"
-        >
-          <Zap aria-hidden className="size-4" />
-          {t('action_quick_print')}
         </a>
       </Button>
     </div>

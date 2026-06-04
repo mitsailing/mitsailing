@@ -90,3 +90,9 @@ build-archive.log
 
 # Codacy CLI local state
 .codacy/
+
+# Local agent skills installed for development
+.agents/skills/
+.cursor/skills/
+.github/skills/
+.impeccable/
