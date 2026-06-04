@@ -12,6 +12,10 @@ const mocks = vi.hoisted(() => ({
   preferenceFormProps: null as null | {
     action: (formData: FormData) => Promise<unknown>;
   },
+  resubscribeFormProps: null as null | {
+    action: (formData: FormData) => Promise<unknown>;
+    listIds: string[];
+  },
   setRequestLocale: vi.fn(),
   updateTokenNewsletterPreferencesAction: vi.fn(),
 }));
@@ -26,6 +30,13 @@ vi.mock('next/server', () => ({
 }));
 
 vi.mock('@/components/mit-sailing/newsletter/NewsletterPreferenceForm', () => ({
+  NewsletterOneClickResubscribeForm: (props: {
+    action: (formData: FormData) => Promise<unknown>;
+    listIds: string[];
+  }): React.ReactNode => {
+    mocks.resubscribeFormProps = props;
+    return null;
+  },
   NewsletterPreferenceForm: (props: {
     action: (formData: FormData) => Promise<unknown>;
   }): React.ReactNode => {
@@ -65,10 +76,13 @@ vi.mock('@/libs/newsletter/newsletterSubscriptions', () => ({
     mocks.getSubscriberPreferenceStateByToken,
 }));
 
-function pageProps(token?: string | string[]) {
+function pageProps(options?: {
+  token?: string | string[];
+  unsubscribedList?: string | string[];
+}) {
   return {
     params: Promise.resolve({ locale: 'en' }),
-    searchParams: Promise.resolve({ token }),
+    searchParams: Promise.resolve(options ?? {}),
   };
 }
 
@@ -79,6 +93,7 @@ beforeEach(() => {
   mocks.getTranslations.mockResolvedValue((key: string) => key);
   mocks.newsletterPreferenceRows.mockReturnValue([]);
   mocks.preferenceFormProps = null;
+  mocks.resubscribeFormProps = null;
   mocks.updateTokenNewsletterPreferencesAction.mockResolvedValue({ ok: true });
 });
 
@@ -90,7 +105,9 @@ describe('NewsletterManagePage', () => {
       id: 'subscriber_123',
     });
 
-    renderToStaticMarkup(await pageModule.default(pageProps('token_123')));
+    renderToStaticMarkup(
+      await pageModule.default(pageProps({ token: 'token_123' }))
+    );
     const formData = new FormData();
     await mocks.preferenceFormProps?.action(formData);
 
@@ -108,7 +125,7 @@ describe('NewsletterManagePage', () => {
     const pageModule = await import('./page');
 
     renderToStaticMarkup(
-      await pageModule.default(pageProps(['token_123', 'token_456']))
+      await pageModule.default(pageProps({ token: ['token_123', 'token_456'] }))
     );
 
     expect(mocks.getSubscriberPreferenceStateByToken).not.toHaveBeenCalled();
@@ -134,12 +151,51 @@ describe('NewsletterManagePage', () => {
   it('skips public list lookup when token has no subscriber', async () => {
     const pageModule = await import('./page');
 
-    renderToStaticMarkup(await pageModule.default(pageProps('token_123')));
+    renderToStaticMarkup(
+      await pageModule.default(pageProps({ token: 'token_123' }))
+    );
 
     expect(mocks.getSubscriberPreferenceStateByToken).toHaveBeenCalledWith(
       'token_123'
     );
     expect(mocks.getPublicNewsletterLists).not.toHaveBeenCalled();
     expect(mocks.preferenceFormProps).toBeNull();
+  });
+
+  it('shows one-click resubscribe for the just-unsubscribed list', async () => {
+    const pageModule = await import('./page');
+    mocks.getSubscriberPreferenceStateByToken.mockResolvedValue({
+      email: 'sailor@example.com',
+      id: 'subscriber_123',
+    });
+    mocks.newsletterPreferenceRows.mockReturnValue([
+      {
+        description: null,
+        id: 'general',
+        name: 'General updates',
+        subscribed: true,
+      },
+      {
+        description: null,
+        id: 'racing',
+        name: 'Racing updates',
+        subscribed: false,
+      },
+    ]);
+
+    renderToStaticMarkup(
+      await pageModule.default(
+        pageProps({ token: 'token_123', unsubscribedList: 'racing' })
+      )
+    );
+    const formData = new FormData();
+    await mocks.resubscribeFormProps?.action(formData);
+
+    expect(mocks.resubscribeFormProps?.listIds).toEqual(['general', 'racing']);
+    expect(mocks.updateTokenNewsletterPreferencesAction).toHaveBeenCalledWith(
+      'token_123',
+      'en',
+      formData
+    );
   });
 });

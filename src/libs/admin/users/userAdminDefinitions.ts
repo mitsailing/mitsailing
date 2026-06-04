@@ -31,6 +31,11 @@ export const usersAdminDefinition = {
       headerKey: 'column_mit_id',
     },
     {
+      field: 'phone',
+      kind: 'string',
+      headerKey: 'column_phone',
+    },
+    {
       field: 'sailingCardNumber',
       kind: 'number',
       headerKey: 'column_sailing_card_number',

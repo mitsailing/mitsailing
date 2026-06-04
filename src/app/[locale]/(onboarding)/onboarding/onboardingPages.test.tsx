@@ -117,16 +117,19 @@ function completedRequest(
   return {
     cardYear: 2027,
     cardType,
+    hasFitnessMembership: null,
     legalAgreementAcceptance: {
       agreementHash: sailingCardAgreementHash(),
       agreementVersion: sailingCardAgreement.version,
       source: 'SAILING_CARD_ONBOARDING',
       userId,
     },
+    sailingAffiliation: SailingAffiliation.MIT_ALUM,
     status: 'pending',
     user: {
       emergencyContactName: 'Grace Hopper',
       emergencyContactPhone: '617-555-0100',
+      gymMembershipVerifiedAt: null,
       phone: '617-555-0199',
     },
     userId,
@@ -435,6 +438,55 @@ describe('onboarding pages', () => {
     expect(
       screen.queryByRole('link', { name: 'events_link' })
     ).not.toBeInTheDocument();
+  });
+
+  it('does not show payment required for completed normal card requests', async () => {
+    mocks.findUser.mockResolvedValue({
+      sailingCardRequests: [completedRequest()],
+    });
+    const { default: OnboardingSuccessPage } = await import('./success/page');
+
+    render(
+      await OnboardingSuccessPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    );
+
+    expect(
+      screen.queryByRole('heading', { name: 'payment_required_title' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'paid_title' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'title' })).toBeInTheDocument();
+    expect(mocks.findPayment).not.toHaveBeenCalled();
+  });
+
+  it('does not ask covered users to pay for stale paid card requests', async () => {
+    mocks.findUser.mockResolvedValue({
+      sailingCardRequests: [
+        {
+          ...completedRequest('user-1', SailingCardType.racing),
+          sailingAffiliation: SailingAffiliation.MIT_STUDENT,
+        },
+      ],
+    });
+    const { default: OnboardingSuccessPage } = await import('./success/page');
+
+    render(
+      await OnboardingSuccessPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    );
+
+    expect(
+      screen.queryByRole('heading', { name: 'payment_required_title' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'paid_title' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'title' })).toBeInTheDocument();
+    expect(mocks.findPayment).not.toHaveBeenCalled();
   });
 
   it('renders paid success only when the returned Checkout session is paid', async () => {

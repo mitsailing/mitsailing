@@ -3,8 +3,13 @@ import { GET, POST } from './route';
 
 const mocks = vi.hoisted(() => ({
   newsletterManageUrl: vi.fn(
-    (token: string) =>
-      `https://mitsailing.test/newsletter/manage?token=${token}`
+    (token: string, options?: { unsubscribedListId?: string }) => {
+      const search = new URLSearchParams({ token });
+      if (options?.unsubscribedListId) {
+        search.set('unsubscribedList', options.unsubscribedListId);
+      }
+      return `https://mitsailing.test/newsletter/manage?${search.toString()}`;
+    }
   ),
   logger: {
     error: vi.fn(),
@@ -49,14 +54,19 @@ function unsubscribeRequest(options?: {
 }
 
 describe('newsletter one-click unsubscribe route', () => {
-  it('redirects get requests without unsubscribing', () => {
-    const response = GET(unsubscribeRequest());
+  it('unsubscribes get requests before redirecting to manage preferences', async () => {
+    const response = await GET(unsubscribeRequest());
 
-    expect(mocks.unsubscribeNewsletterTokenFromList).not.toHaveBeenCalled();
-    expect(mocks.newsletterManageUrl).toHaveBeenCalledWith('token_123');
+    expect(mocks.unsubscribeNewsletterTokenFromList).toHaveBeenCalledWith(
+      'token_123',
+      'list_123'
+    );
+    expect(mocks.newsletterManageUrl).toHaveBeenCalledWith('token_123', {
+      unsubscribedListId: 'list_123',
+    });
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe(
-      'https://mitsailing.test/newsletter/manage?token=token_123'
+      'https://mitsailing.test/newsletter/manage?token=token_123&unsubscribedList=list_123'
     );
   });
 

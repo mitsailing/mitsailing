@@ -122,7 +122,16 @@ export default async function AdminUsersIndexPage(
         rows={rows}
         search={{
           emptyKey: 'filter_empty',
-          fields: ['email', 'name', 'mitId', 'sailingCardNumber', 'appRole'],
+          fields: [
+            'email',
+            'name',
+            'phone',
+            'emergencyContactName',
+            'emergencyContactPhone',
+            'mitId',
+            'sailingCardNumber',
+            'appRole',
+          ],
           labelKey: 'filter_search_label',
           placeholderKey: 'filter_search_placeholder',
         }}

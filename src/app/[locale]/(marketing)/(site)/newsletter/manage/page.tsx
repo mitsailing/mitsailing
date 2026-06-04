@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { connection } from 'next/server';
-import { NewsletterPreferenceForm } from '@/components/mit-sailing/newsletter/NewsletterPreferenceForm';
+import {
+  NewsletterOneClickResubscribeForm,
+  NewsletterPreferenceForm,
+} from '@/components/mit-sailing/newsletter/NewsletterPreferenceForm';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 import { logger } from '@/libs/Logger';
@@ -14,7 +17,10 @@ import {
 
 type NewsletterManagePageProps = Readonly<{
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ token?: string | string[] }>;
+  searchParams: Promise<{
+    token?: string | string[];
+    unsubscribedList?: string | string[];
+  }>;
 }>;
 
 function newsletterManageToken(value?: string | string[]): string | undefined {
@@ -30,6 +36,25 @@ function newsletterManageToken(value?: string | string[]): string | undefined {
     }
     const [token] = value;
     return token && token.length > 0 ? token : undefined;
+  }
+  return value && value.length > 0 ? value : undefined;
+}
+
+function newsletterUnsubscribedList(
+  value?: string | string[]
+): string | undefined {
+  if (Array.isArray(value)) {
+    if (value.length > 1) {
+      logger.warn(
+        'Rejected newsletter manage request with repeated unsubscribed list params',
+        {
+          listCount: value.length,
+        }
+      );
+      return undefined;
+    }
+    const [listId] = value;
+    return listId && listId.length > 0 ? listId : undefined;
   }
   return value && value.length > 0 ? value : undefined;
 }
@@ -55,6 +80,9 @@ export default async function NewsletterManagePage(
   const { locale } = await props.params;
   const searchParams = await props.searchParams;
   const token = newsletterManageToken(searchParams.token);
+  const unsubscribedListId = newsletterUnsubscribedList(
+    searchParams.unsubscribedList
+  );
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'NewsletterPage' });
   const routes = await getTranslations({
@@ -65,6 +93,19 @@ export default async function NewsletterManagePage(
     ? await getSubscriberPreferenceStateByToken(token)
     : null;
   const lists = token && subscriber ? await getPublicNewsletterLists() : [];
+  const preferenceRows =
+    token && subscriber ? newsletterPreferenceRows(lists, subscriber) : [];
+  const justUnsubscribedList = preferenceRows.find(
+    (list) => list.id === unsubscribedListId && !list.subscribed
+  );
+  const resubscribeListIds =
+    justUnsubscribedList === undefined
+      ? []
+      : preferenceRows
+          .filter(
+            (list) => list.subscribed || list.id === justUnsubscribedList.id
+          )
+          .map((list) => list.id);
 
   return (
     <SiteSectionShell
@@ -87,18 +128,53 @@ export default async function NewsletterManagePage(
             </p>
           </div>
           {token && subscriber ? (
-            <NewsletterPreferenceForm
-              action={updateTokenNewsletterPreferencesAction.bind(
-                null,
-                token,
-                locale
-              )}
-              errorLabel={t('preferences_error')}
-              legendLabel={t('lists_label')}
-              lists={newsletterPreferenceRows(lists, subscriber)}
-              successLabel={t('preferences_saved')}
-              submitLabel={t('preferences_submit')}
-            />
+            <>
+              {justUnsubscribedList ? (
+                <section
+                  aria-labelledby="newsletter-unsubscribed-heading"
+                  className="space-y-4 rounded-lg border border-mit-success/30 bg-mit-success/10 p-4"
+                >
+                  <div>
+                    <h2
+                      className="text-base font-semibold text-mit-text"
+                      id="newsletter-unsubscribed-heading"
+                    >
+                      {t('manage_unsubscribed_heading')}
+                    </h2>
+                    <p className="mt-1 text-sm leading-6 text-mit-text">
+                      {t('manage_unsubscribed_body', {
+                        listName: justUnsubscribedList.name,
+                      })}
+                    </p>
+                  </div>
+                  <NewsletterOneClickResubscribeForm
+                    action={updateTokenNewsletterPreferencesAction.bind(
+                      null,
+                      token,
+                      locale
+                    )}
+                    errorLabel={t('manage_resubscribe_error')}
+                    listIds={resubscribeListIds}
+                    submitLabel={t('manage_resubscribe_submit')}
+                    successLabel={t('manage_resubscribe_saved', {
+                      listName: justUnsubscribedList.name,
+                    })}
+                  />
+                </section>
+              ) : null}
+              <NewsletterPreferenceForm
+                action={updateTokenNewsletterPreferencesAction.bind(
+                  null,
+                  token,
+                  locale
+                )}
+                errorLabel={t('preferences_error')}
+                legendLabel={t('lists_label')}
+                lists={preferenceRows}
+                successLabel={t('preferences_saved')}
+                submitLabel={t('preferences_submit')}
+              />
+            </>
           ) : null}
         </div>
       </SiteSectionMain>

@@ -1,6 +1,6 @@
 'use client';
 
-import { Save } from 'lucide-react';
+import { RotateCcw, Save } from 'lucide-react';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,14 @@ type NewsletterPreferenceFormProps = Readonly<{
   submitLabel: string;
 }>;
 
+type NewsletterOneClickResubscribeFormProps = Readonly<{
+  action: (formData: FormData) => Promise<NewsletterPreferenceActionResult>;
+  errorLabel: string;
+  listIds: string[];
+  submitLabel: string;
+  successLabel: string;
+}>;
+
 const initialState: NewsletterPreferenceFormState = { ok: null };
 
 function SubmitButton(props: Readonly<{ label: string }>) {
@@ -38,6 +46,64 @@ function SubmitButton(props: Readonly<{ label: string }>) {
       <Save aria-hidden className="size-4" />
       {props.label}
     </Button>
+  );
+}
+
+function ResubscribeButton(props: Readonly<{ label: string }>) {
+  const status = useFormStatus();
+  return (
+    <Button
+      className="gap-2"
+      disabled={status.pending}
+      type="submit"
+      variant="mit"
+    >
+      <RotateCcw aria-hidden className="size-4" />
+      {props.label}
+    </Button>
+  );
+}
+
+/**
+ * One-click resubscribe form for the list that was just unsubscribed.
+ *
+ * @param props - Resubscribe action config
+ * @returns Server-action form
+ */
+export function NewsletterOneClickResubscribeForm(
+  props: NewsletterOneClickResubscribeFormProps
+) {
+  const [state, formAction] = useActionState(
+    async (
+      _previousState: NewsletterPreferenceFormState,
+      formData: FormData
+    ): Promise<NewsletterPreferenceFormState> => {
+      const result = await props.action(formData);
+      return result;
+    },
+    initialState
+  );
+
+  return (
+    <form action={formAction} className="flex flex-col gap-3 sm:flex-row">
+      {props.listIds.map((listId) => (
+        <input key={listId} name="listId" type="hidden" value={listId} />
+      ))}
+      <ResubscribeButton label={props.submitLabel} />
+      {state.ok === true ? (
+        <output className="rounded-lg border border-mit-success/30 bg-mit-success/10 px-4 py-3 text-sm font-medium text-mit-success-ink">
+          {props.successLabel}
+        </output>
+      ) : null}
+      {state.ok === false ? (
+        <p
+          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+          role="alert"
+        >
+          {props.errorLabel}
+        </p>
+      ) : null}
+    </form>
   );
 }
 

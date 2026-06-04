@@ -83,12 +83,25 @@ export async function POST(request: Request) {
  * Browser fallback for unsubscribe links.
  *
  * @param request - Incoming unsubscribe request
- * @returns Redirect to manage preferences without mutating subscriptions
+ * @returns Redirect to manage preferences after unsubscribing the selected list
  */
-export function GET(request: Request) {
+export async function GET(request: Request) {
   const params = unsubscribeParamsFromUrl(request);
-  if (params.token.length === 0) {
+  if (params.token.length === 0 || params.listId.length === 0) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
-  return NextResponse.redirect(newsletterManageUrl(params.token));
+  try {
+    await unsubscribeNewsletterTokenFromList(params.token, params.listId);
+  } catch (error) {
+    logger.error('Failed to unsubscribe newsletter token: {error}', {
+      error,
+      listId: params.listId,
+    });
+    return NextResponse.json({ ok: false, error: 'internal' }, { status: 500 });
+  }
+  return NextResponse.redirect(
+    newsletterManageUrl(params.token, {
+      unsubscribedListId: params.listId,
+    })
+  );
 }

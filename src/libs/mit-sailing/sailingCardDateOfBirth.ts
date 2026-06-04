@@ -161,7 +161,7 @@ export const formatSailingCardDateOfBirthInput = (value: string) => {
     return `${digits.slice(0, 2)}/${digits.slice(2)}`;
   }
   if (digits.length === 4) {
-    return `${digits.slice(0, 2)}/${digits.slice(2)}/`;
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
   }
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 };

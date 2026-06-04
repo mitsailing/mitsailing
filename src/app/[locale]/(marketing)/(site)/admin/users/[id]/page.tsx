@@ -66,6 +66,41 @@ type AdminUserShowPageProps = Readonly<{
   searchParams: Promise<{ error?: string }>;
 }>;
 
+type AdminUserIdentitySummaryInput = {
+  readonly emergencyContactName?: unknown;
+  readonly emergencyContactPhone?: unknown;
+  readonly firstName?: unknown;
+  readonly lastName?: unknown;
+  readonly name?: unknown;
+  readonly phone?: unknown;
+};
+
+function nonEmptyStringOr(value: unknown, fallback: string) {
+  return typeof value === 'string' && value.trim() !== '' ? value : fallback;
+}
+
+function adminUserIdentitySummary(
+  user: AdminUserIdentitySummaryInput,
+  emptyValue: string
+) {
+  const firstName = typeof user.firstName === 'string' ? user.firstName : '';
+  const lastName = typeof user.lastName === 'string' ? user.lastName : '';
+  const fullName = `${firstName} ${lastName}`.trim();
+
+  return {
+    emergencyContactName: nonEmptyStringOr(
+      user.emergencyContactName,
+      emptyValue
+    ),
+    emergencyContactPhone: nonEmptyStringOr(
+      user.emergencyContactPhone,
+      emptyValue
+    ),
+    phone: nonEmptyStringOr(user.phone, emptyValue),
+    profileName: fullName || nonEmptyStringOr(user.name, emptyValue),
+  };
+}
+
 function emailDeliverabilityStatus(value: unknown): EmailDeliverabilityStatus {
   return value === 'bounced' || value === 'suppressed' ? value : 'ok';
 }
@@ -1119,11 +1154,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
       ? user.emailSuppressionReason
       : emailStatus;
   const hasEmailDeliverabilityWarning = emailStatus !== 'ok';
-  const userFirstName =
-    typeof user.firstName === 'string' ? user.firstName : '';
-  const userLastName = typeof user.lastName === 'string' ? user.lastName : '';
-  const userProfileName =
-    `${userFirstName} ${userLastName}`.trim() || user.name;
+  const identitySummary = adminUserIdentitySummary(user, t('empty_value'));
   const userSailingAffiliation = isSailingAffiliation(user.sailingAffiliation)
     ? tOnboarding(userSailingAffiliationLabelKey(user.sailingAffiliation))
     : t('empty_value');
@@ -1158,7 +1189,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
         <dl className="m-0 grid gap-3 sm:grid-cols-3">
           <div>
             <dt className="font-semibold">{t('identity_name')}</dt>
-            <dd className="m-0">{userProfileName}</dd>
+            <dd className="m-0">{identitySummary.profileName}</dd>
           </div>
           <div>
             <dt className="font-semibold">{t('identity_affiliation')}</dt>
@@ -1167,6 +1198,22 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
           <div>
             <dt className="font-semibold">{t('identity_source')}</dt>
             <dd className="m-0">{userIdentitySource}</dd>
+          </div>
+          <div>
+            <dt className="font-semibold">{t('identity_phone')}</dt>
+            <dd className="m-0">{identitySummary.phone}</dd>
+          </div>
+          <div>
+            <dt className="font-semibold">
+              {t('identity_emergency_contact_name')}
+            </dt>
+            <dd className="m-0">{identitySummary.emergencyContactName}</dd>
+          </div>
+          <div>
+            <dt className="font-semibold">
+              {t('identity_emergency_contact_phone')}
+            </dt>
+            <dd className="m-0">{identitySummary.emergencyContactPhone}</dd>
           </div>
           <div>
             <dt className="font-semibold">{t('column_email')}</dt>
