@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
-import { buildLegacyMemberPaymentMap } from '@/libs/legacy-sync/legacyPaymentImport';
+import { loadLegacyUserIdentityMaps } from '@/libs/legacy-sync/legacyPaymentImport';
 import type { LegacyMemberRow } from '@/libs/legacy-sync/legacyPaymentImport';
 
 type LegacyEventTypeRow = {
@@ -291,57 +291,6 @@ function eventRegistrationStageSql(row: LegacyEventRegistrationStageRow) {
 
 function eventBoatMemberStageSql(row: LegacyEventBoatMemberStageRow) {
   return Prisma.sql`(${row.id}, ${row.legacySourceKey}, ${row.registrationId}, ${row.boatNumber}, ${row.position}, ${row.fullName}, ${row.email})`;
-}
-
-async function legacyUserIdentityMaps(props: {
-  readonly db: LegacyEventImportDb;
-  readonly members: readonly LegacyMemberRow[];
-}) {
-  const memberMap = buildLegacyMemberPaymentMap(props.members);
-  const userKeyByEmail = new Map<string, string>();
-  const emails = [
-    ...new Set(
-      memberMap.canonicalUsers.flatMap((user) => {
-        const legacyEmails = user.legacyMemberRows
-          .map((row) => stringValue(row.email).toLowerCase())
-          .filter((email) => email !== '');
-        for (const email of legacyEmails) {
-          userKeyByEmail.set(email, user.key);
-        }
-        return legacyEmails;
-      })
-    ),
-  ];
-  const users =
-    emails.length === 0
-      ? []
-      : await props.db.user.findMany({
-          select: { email: true, id: true },
-          where: { email: { in: emails } },
-        });
-  const appUserIdByKey = new Map<string, string>();
-  for (const user of users) {
-    const userKey = userKeyByEmail.get(user.email.toLowerCase());
-    if (userKey && !appUserIdByKey.has(userKey)) {
-      appUserIdByKey.set(userKey, user.id);
-    }
-  }
-
-  const legacyMemberIdToUserId = new Map<string, string>();
-  for (const [legacyMemberId, userKey] of memberMap.memberUserKeyByLegacyId) {
-    const userId = appUserIdByKey.get(userKey);
-    if (userId) {
-      legacyMemberIdToUserId.set(legacyMemberId, userId);
-    }
-  }
-  const usernameToUserId = new Map<string, string>();
-  for (const [username, userKey] of memberMap.memberUserKeyByUsername) {
-    const userId = appUserIdByKey.get(userKey);
-    if (userId) {
-      usernameToUserId.set(username, userId);
-    }
-  }
-  return { legacyMemberIdToUserId, usernameToUserId };
 }
 
 async function importEventCategories(props: {
@@ -987,7 +936,7 @@ export async function importLegacyEventRows(
       eventIdByLegacyEid: eventResult.eventIdByLegacyEid,
       fees: rows.fees,
     });
-    const legacyUserMaps = await legacyUserIdentityMaps({
+    const legacyUserMaps = await loadLegacyUserIdentityMaps({
       db,
       members: rows.members,
     });

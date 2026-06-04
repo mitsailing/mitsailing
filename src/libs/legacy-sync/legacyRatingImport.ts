@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
-import { buildLegacyMemberPaymentMap } from '@/libs/legacy-sync/legacyPaymentImport';
+import { loadLegacyUserIdentityMaps } from '@/libs/legacy-sync/legacyPaymentImport';
 import type { LegacyMemberRow } from '@/libs/legacy-sync/legacyPaymentImport';
 
 export type LegacyRatingTypeRow = {
@@ -64,49 +64,6 @@ function parseLegacyDate(value: string | null | undefined): Date {
   return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
 }
 
-async function legacyUserIdMap(props: {
-  readonly db: LegacyRatingImportDb;
-  readonly members: readonly LegacyMemberRow[];
-}) {
-  const memberMap = buildLegacyMemberPaymentMap(props.members);
-  const userKeyByEmail = new Map<string, string>();
-  const emails = [
-    ...new Set(
-      memberMap.canonicalUsers.flatMap((user) => {
-        const legacyEmails = user.legacyMemberRows
-          .map((row) => stringValue(row.email).toLowerCase())
-          .filter((email) => email !== '');
-        for (const email of legacyEmails) {
-          userKeyByEmail.set(email, user.key);
-        }
-        return legacyEmails;
-      })
-    ),
-  ];
-  const users =
-    emails.length === 0
-      ? []
-      : await props.db.user.findMany({
-          select: { email: true, id: true },
-          where: { email: { in: emails } },
-        });
-  const appUserIdByKey = new Map<string, string>();
-  for (const user of users) {
-    const userKey = userKeyByEmail.get(user.email.toLowerCase());
-    if (userKey && !appUserIdByKey.has(userKey)) {
-      appUserIdByKey.set(userKey, user.id);
-    }
-  }
-  return new Map(
-    [...memberMap.memberUserKeyByLegacyId].flatMap(
-      ([legacyMemberId, userKey]) => {
-        const userId = appUserIdByKey.get(userKey);
-        return userId ? [[legacyMemberId, userId] as const] : [];
-      }
-    )
-  );
-}
-
 async function importRatingTypes(props: {
   readonly db: LegacyRatingImportDb;
   readonly ratingTypes: readonly LegacyRatingTypeRow[];
@@ -157,7 +114,7 @@ async function importUserRatings(props: {
   readonly ratings: readonly LegacyRatingRow[];
   readonly sailingRatingIdByLegacyType: ReadonlyMap<string, string>;
 }) {
-  const legacyMemberIdToUserId = await legacyUserIdMap({
+  const { legacyMemberIdToUserId } = await loadLegacyUserIdentityMaps({
     db: props.db,
     members: props.members,
   });

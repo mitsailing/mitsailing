@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,8 +40,6 @@ export function SignInForm(props: SignInFormProps) {
   const [step, setStep] = useState<SignInStep>('email');
   const [error, setError] = useState<ErrorState>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [requestingReset, setRequestingReset] = useState(false);
-  const requestingResetRef = useRef(false);
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
 
@@ -199,49 +197,14 @@ export function SignInForm(props: SignInFormProps) {
     }
   }
 
-  async function onForgotPassword() {
-    if (requestingResetRef.current) {
-      return;
-    }
-
-    const normalizedEmail = normalizeEmailAddress(email);
-    if (!isValidEmailAddress(normalizedEmail)) {
-      setError({ kind: 'generic', message: t('error_invalid_email') });
-      return;
-    }
-
-    setError(null);
-    setResent(false);
-    setEmail(normalizedEmail);
-    requestingResetRef.current = true;
-    setRequestingReset(true);
-    try {
-      const res = await authClient.emailOtp.requestPasswordReset({
-        email: normalizedEmail,
-      });
-
-      if (res.error) {
-        setError({ kind: 'generic', message: t('error_reset_failed') });
-        return;
-      }
-
-      router.push(
-        authHrefWithCallback(
-          `/reset-password?email=${encodeURIComponent(
-            normalizedEmail
-          )}&codeSent=1`,
-          props.callbackUrl
-        )
-      );
-    } catch {
-      setError({ kind: 'generic', message: t('error_reset_failed') });
-    } finally {
-      requestingResetRef.current = false;
-      setRequestingReset(false);
-    }
-  }
-
   const normalizedForgotPasswordEmail = normalizeEmailAddress(email);
+  const forgotPasswordPath = isValidEmailAddress(normalizedForgotPasswordEmail)
+    ? `/forgot-password?email=${encodeURIComponent(normalizedForgotPasswordEmail)}`
+    : '/forgot-password';
+  const forgotPasswordHref = authHrefWithCallback(
+    forgotPasswordPath,
+    props.callbackUrl
+  );
 
   return (
     <>
@@ -347,26 +310,9 @@ export function SignInForm(props: SignInFormProps) {
       </form>
 
       <p className="text-center text-sm text-mit-text">
-        {normalizedForgotPasswordEmail.length === 0 ? (
-          <a
-            className={authInlineLinkClassName}
-            href={authHrefWithCallback('/forgot-password', props.callbackUrl)}
-          >
-            {t('forgot_password')}
-          </a>
-        ) : (
-          <button
-            className={`${authInlineLinkClassName} border-0 bg-transparent p-0 disabled:opacity-60`}
-            disabled={requestingReset}
-            onClick={() => {
-              // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the reset promise.
-              void onForgotPassword();
-            }}
-            type="button"
-          >
-            {t('forgot_password')}
-          </button>
-        )}
+        <a className={authInlineLinkClassName} href={forgotPasswordHref}>
+          {t('forgot_password')}
+        </a>
       </p>
     </>
   );

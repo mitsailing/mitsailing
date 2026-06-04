@@ -493,59 +493,17 @@ describe('SignInForm', () => {
     expect(screen.queryByText(/DO_NOT_SHOW_RAW_BACKEND_COPY/)).toBeNull();
   });
 
-  it('Visitor requests a password reset from the entered email', async () => {
+  it('Visitor follows forgot-password link with the entered email', async () => {
     const user = userEvent.setup();
 
     render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), ' Reset@MIT.EDU ');
-    const resetButton = screen.getByRole('button', {
-      name: 'Forgot password?',
-    });
-    await user.click(resetButton);
-
-    expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledWith({
-      email: 'reset@mit.edu',
-    });
-    expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
-    );
     expect(
-      screen.getByRole('button', { name: 'Forgot password?' })
-    ).not.toBeDisabled();
-  });
-
-  it('Visitor retries inline reset after successful navigation stays mounted', async () => {
-    const user = userEvent.setup();
-
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
-    await user.click(screen.getByRole('button', { name: 'Forgot password?' }));
-    await user.click(screen.getByRole('button', { name: 'Forgot password?' }));
-
-    expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledTimes(
-      2
-    );
-  });
-
-  it('Visitor cannot start two inline reset requests at once', async () => {
-    const user = userEvent.setup();
-    // eslint-disable-next-line promise/avoid-new -- pending promise keeps the first reset request in flight
-    const pendingReset = new Promise<never>(() => {});
-    authClientMock.emailOtp.requestPasswordReset.mockReturnValue(pendingReset);
-
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
-    const resetButton = screen.getByRole('button', {
-      name: 'Forgot password?',
-    });
-    fireEvent.click(resetButton);
-    fireEvent.click(resetButton);
-
-    expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledTimes(
-      1
+      screen.getByRole('link', { name: 'Forgot password?' })
+    ).toHaveAttribute(
+      'href',
+      '/forgot-password?email=reset%40mit.edu&callbackUrl=%2Ffleet'
     );
   });
 
@@ -559,54 +517,28 @@ describe('SignInForm', () => {
     expect(authClientMock.emailOtp.requestPasswordReset).not.toHaveBeenCalled();
   });
 
-  it('Visitor sees invalid email message when forgot password is clicked with malformed email', async () => {
+  it('Visitor follows forgot-password link without malformed email', async () => {
     const user = userEvent.setup();
 
     render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'sailor@mit');
-    await user.click(screen.getByRole('button', { name: 'Forgot password?' }));
+    expect(
+      screen.getByRole('link', { name: 'Forgot password?' })
+    ).toHaveAttribute('href', '/forgot-password?callbackUrl=%2Ffleet');
+  });
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Enter a valid email address with a domain'
-    );
+  it('Visitor does not request reset from the login page', async () => {
+    const user = userEvent.setup();
+
+    render(<SignInForm callbackUrl="/fleet" />);
+
+    await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
+    await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
+
     expect(authClientMock.emailOtp.requestPasswordReset).not.toHaveBeenCalled();
-    expect(componentTestRouter().push).not.toHaveBeenCalled();
-  });
-
-  it('Visitor sees reset message when inline reset returns an error', async () => {
-    const user = userEvent.setup();
-    authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({
-      error: { code: 'TOO_MANY_REQUESTS' },
-    });
-
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
-    await user.click(screen.getByRole('button', { name: 'Forgot password?' }));
-
-    expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledWith({
-      email: 'reset@mit.edu',
-    });
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We could not send a reset code.'
-    );
-    expect(componentTestRouter().push).not.toHaveBeenCalled();
-  });
-
-  it('Visitor sees reset message when inline reset delivery fails', async () => {
-    const user = userEvent.setup();
-    authClientMock.emailOtp.requestPasswordReset.mockRejectedValue(
-      new Error('network')
-    );
-
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
-    await user.click(screen.getByRole('button', { name: 'Forgot password?' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We could not send a reset code.'
+    expect(componentTestRouter().push).not.toHaveBeenCalledWith(
+      '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
     );
   });
 });

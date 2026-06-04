@@ -65,10 +65,16 @@ export type LegacyMemberPaymentMap = {
   readonly memberUserKeyByUsername: ReadonlyMap<string, string>;
 };
 
+export type LegacyUserIdentityMaps = {
+  readonly legacyMemberIdToUserId: ReadonlyMap<string, string>;
+  readonly usernameToUserId: ReadonlyMap<string, string>;
+};
+
 type LegacyPaymentImportDb = Pick<
   Prisma.TransactionClient,
   '$executeRaw' | '$queryRaw' | 'payment'
 >;
+type LegacyUserIdentityDb = Pick<Prisma.TransactionClient, 'user'>;
 
 type LegacySailingCardSnapshot = {
   readonly expiresOn: Date;
@@ -408,6 +414,57 @@ export function buildLegacyMemberPaymentMap(
     memberUserKeyByLegacyId: lookups.memberUserKeyByLegacyId,
     memberUserKeyByUsername: lookups.memberUserKeyByUsername,
   };
+}
+
+export async function loadLegacyUserIdentityMaps(props: {
+  readonly db: LegacyUserIdentityDb;
+  readonly members: readonly LegacyMemberRow[];
+}): Promise<LegacyUserIdentityMaps> {
+  const memberMap = buildLegacyMemberPaymentMap(props.members);
+  const userKeyByEmail = new Map<string, string>();
+  const emails = [
+    ...new Set(
+      memberMap.canonicalUsers.flatMap((user) => {
+        const legacyEmails = user.legacyMemberRows
+          .map((row) => normalizeLegacyEmail(row.email))
+          .filter((email) => email !== '');
+        for (const email of legacyEmails) {
+          userKeyByEmail.set(email, user.key);
+        }
+        return legacyEmails;
+      })
+    ),
+  ];
+  const users =
+    emails.length === 0
+      ? []
+      : await props.db.user.findMany({
+          select: { email: true, id: true },
+          where: { email: { in: emails } },
+        });
+  const appUserIdByKey = new Map<string, string>();
+  for (const user of users) {
+    const userKey = userKeyByEmail.get(user.email.toLowerCase());
+    if (userKey && !appUserIdByKey.has(userKey)) {
+      appUserIdByKey.set(userKey, user.id);
+    }
+  }
+
+  const legacyMemberIdToUserId = new Map<string, string>();
+  for (const [legacyMemberId, userKey] of memberMap.memberUserKeyByLegacyId) {
+    const userId = appUserIdByKey.get(userKey);
+    if (userId) {
+      legacyMemberIdToUserId.set(legacyMemberId, userId);
+    }
+  }
+  const usernameToUserId = new Map<string, string>();
+  for (const [username, userKey] of memberMap.memberUserKeyByUsername) {
+    const userId = appUserIdByKey.get(userKey);
+    if (userId) {
+      usernameToUserId.set(username, userId);
+    }
+  }
+  return { legacyMemberIdToUserId, usernameToUserId };
 }
 
 export function legacyPaymentAmountCents(amount: string | null): number {
