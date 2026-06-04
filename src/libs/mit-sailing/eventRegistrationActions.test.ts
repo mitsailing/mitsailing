@@ -151,6 +151,39 @@ function mockTeamRegistrationEvent(): void {
   });
 }
 
+function mockManagedLearnToSailEvent(kind: LearnToSailManagedClassKind): void {
+  mocks.eventFindFirst.mockResolvedValue({
+    allowRepeatTeamCaptain: false,
+    boatsPerTeam: 1,
+    entryFees: [],
+    id: 'event-1',
+    learnToSailManagedClassKind: kind,
+    personsPerBoat: 1,
+    registrationEnd: null,
+    registrationQuestions: [],
+    registrationStart: null,
+    requiresPhone: false,
+    usesTeamRegistration: false,
+  });
+  mocks.eventFindUnique.mockResolvedValue({
+    allowRepeatTeamCaptain: false,
+    boatsPerTeam: 1,
+    entryFees: [],
+    id: 'event-1',
+    isPublished: true,
+    learnToSailManagedClassKind: kind,
+    maxParticipants: 18,
+    paymentDeadlineAt: null,
+    paymentsEnabled: false,
+    personsPerBoat: 1,
+    registrationEnd: null,
+    registrationStart: null,
+    requiresApproval: true,
+    requiresPhone: false,
+    usesTeamRegistration: false,
+  });
+}
+
 beforeEach(() => {
   mocks.eventFindFirst.mockReset();
   mocks.eventFindUnique.mockReset();
@@ -494,38 +527,9 @@ describe('createPublicEventRegistrationAction', () => {
   });
 
   it('rejects waitlist-managed class requests before the user has an active annual waitlist entry', async () => {
-    mocks.eventFindFirst.mockResolvedValue({
-      allowRepeatTeamCaptain: false,
-      boatsPerTeam: 1,
-      entryFees: [],
-      id: 'event-1',
-      learnToSailManagedClassKind:
-        LearnToSailManagedClassKind.beginner_mid_week_123,
-      personsPerBoat: 1,
-      registrationEnd: null,
-      registrationQuestions: [],
-      registrationStart: null,
-      requiresPhone: false,
-      usesTeamRegistration: false,
-    });
-    mocks.eventFindUnique.mockResolvedValue({
-      allowRepeatTeamCaptain: false,
-      boatsPerTeam: 1,
-      entryFees: [],
-      id: 'event-1',
-      isPublished: true,
-      learnToSailManagedClassKind:
-        LearnToSailManagedClassKind.beginner_mid_week_123,
-      maxParticipants: 18,
-      paymentDeadlineAt: null,
-      paymentsEnabled: false,
-      personsPerBoat: 1,
-      registrationEnd: null,
-      registrationStart: null,
-      requiresApproval: true,
-      requiresPhone: false,
-      usesTeamRegistration: false,
-    });
+    mockManagedLearnToSailEvent(
+      LearnToSailManagedClassKind.beginner_mid_week_123
+    );
     mocks.eventRegistrationFindFirst.mockResolvedValue(null);
     mocks.learnToSailWaitlistEntryFindFirst.mockResolvedValue(null);
     const { createPublicEventRegistrationAction } =
@@ -561,38 +565,9 @@ describe('createPublicEventRegistrationAction', () => {
   });
 
   it('snapshots waitlist entry and waitlist number when creating a managed class request', async () => {
-    mocks.eventFindFirst.mockResolvedValue({
-      allowRepeatTeamCaptain: false,
-      boatsPerTeam: 1,
-      entryFees: [],
-      id: 'event-1',
-      learnToSailManagedClassKind:
-        LearnToSailManagedClassKind.beginner_sunday_all_in_one,
-      personsPerBoat: 1,
-      registrationEnd: null,
-      registrationQuestions: [],
-      registrationStart: null,
-      requiresPhone: false,
-      usesTeamRegistration: false,
-    });
-    mocks.eventFindUnique.mockResolvedValue({
-      allowRepeatTeamCaptain: false,
-      boatsPerTeam: 1,
-      entryFees: [],
-      id: 'event-1',
-      isPublished: true,
-      learnToSailManagedClassKind:
-        LearnToSailManagedClassKind.beginner_sunday_all_in_one,
-      maxParticipants: 18,
-      paymentDeadlineAt: null,
-      paymentsEnabled: false,
-      personsPerBoat: 1,
-      registrationEnd: null,
-      registrationStart: null,
-      requiresApproval: true,
-      requiresPhone: false,
-      usesTeamRegistration: false,
-    });
+    mockManagedLearnToSailEvent(
+      LearnToSailManagedClassKind.beginner_sunday_all_in_one
+    );
     mocks.eventRegistrationFindFirst.mockResolvedValue(null);
     mocks.eventRegistrationCreate.mockResolvedValue({
       id: 'registration-2',
@@ -630,38 +605,9 @@ describe('createPublicEventRegistrationAction', () => {
   });
 
   it('refreshes waitlist snapshot when updating a managed class request', async () => {
-    mocks.eventFindFirst.mockResolvedValue({
-      allowRepeatTeamCaptain: false,
-      boatsPerTeam: 1,
-      entryFees: [],
-      id: 'event-1',
-      learnToSailManagedClassKind:
-        LearnToSailManagedClassKind.beginner_mid_week_123,
-      personsPerBoat: 1,
-      registrationEnd: null,
-      registrationQuestions: [],
-      registrationStart: null,
-      requiresPhone: false,
-      usesTeamRegistration: false,
-    });
-    mocks.eventFindUnique.mockResolvedValue({
-      allowRepeatTeamCaptain: false,
-      boatsPerTeam: 1,
-      entryFees: [],
-      id: 'event-1',
-      isPublished: true,
-      learnToSailManagedClassKind:
-        LearnToSailManagedClassKind.beginner_mid_week_123,
-      maxParticipants: 18,
-      paymentDeadlineAt: null,
-      paymentsEnabled: false,
-      personsPerBoat: 1,
-      registrationEnd: null,
-      registrationStart: null,
-      requiresApproval: true,
-      requiresPhone: false,
-      usesTeamRegistration: false,
-    });
+    mockManagedLearnToSailEvent(
+      LearnToSailManagedClassKind.beginner_mid_week_123
+    );
     mocks.learnToSailWaitlistEntryFindFirst.mockResolvedValue({
       id: 'waitlist-entry-2',
       sequence: 42,
