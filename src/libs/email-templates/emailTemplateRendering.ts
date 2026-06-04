@@ -177,6 +177,11 @@ const templateBuilders = {
     NewsletterBroadcastTemplate({
       body: params.bodyHtml,
       listName: valueFor(params.values, 'listName', 'General'),
+      managePreferencesLabel: valueFor(
+        params.values,
+        'managePreferencesLabel',
+        'Manage all newsletter preferences'
+      ),
       manageUrl: valueFor(
         params.values,
         'manageUrl',

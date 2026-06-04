@@ -141,6 +141,23 @@ describe('ResetPasswordForm', () => {
     );
   });
 
+  it('shows rate-limit message when delivery trouble reports are throttled', async () => {
+    const user = userEvent.setup();
+    supportActionMock.reportPasswordResetIssueAction.mockResolvedValue({
+      error: 'rate_limited',
+      ok: false,
+    });
+    renderResetPasswordForm();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Not getting email?' })
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Too many requests. Wait a few minutes.'
+    );
+  });
+
   it('shows support failure when delivery trouble report throws', async () => {
     const user = userEvent.setup();
     supportActionMock.reportPasswordResetIssueAction.mockRejectedValue(

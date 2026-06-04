@@ -34,8 +34,15 @@ describe('importLegacyNewsRows', () => {
           news_date: '2026-06-01',
           updater: null,
         },
+        {
+          end_date: '2026-05-31',
+          id: '13',
+          news: 'Inverted dates',
+          news_date: '2026-06-01',
+          updater: 'admin',
+        },
       ])
-    ).resolves.toEqual({ imported: 1, skipped: 1 });
+    ).resolves.toEqual({ imported: 1, skipped: 2 });
 
     expect(mocks.siteAlertUpsert).toHaveBeenCalledWith(
       expect.objectContaining({

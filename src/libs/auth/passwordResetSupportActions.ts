@@ -1,16 +1,26 @@
 'use server';
 
+import { fixedWindow, request } from '@arcjet/next';
+import arcjet from '@/libs/Arcjet';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
+import { Env } from '@/libs/Env';
 import {
   isValidEmailAddress,
   normalizeEmailAddress,
 } from '@/utils/emailValidation';
 
 const RESET_SUPPORT_RECIPIENT_EMAIL = 'ak@callred.com';
+const passwordResetSupportRateLimit = arcjet.withRule(
+  fixedWindow({
+    max: 3,
+    mode: 'LIVE',
+    window: '10m',
+  })
+);
 
 export type PasswordResetIssueResult =
   | { ok: true }
-  | { error: 'invalid_email' | 'send_failed'; ok: false };
+  | { error: 'invalid_email' | 'rate_limited' | 'send_failed'; ok: false };
 
 function escapeHtmlText(value: string) {
   return value
@@ -27,6 +37,15 @@ export async function reportPasswordResetIssueAction(input: {
   const email = normalizeEmailAddress(input.email);
   if (!isValidEmailAddress(email)) {
     return { error: 'invalid_email', ok: false };
+  }
+
+  if (Env.ARCJET_KEY) {
+    const decision = await passwordResetSupportRateLimit.protect(
+      await request()
+    );
+    if (decision.isDenied()) {
+      return { error: 'rate_limited', ok: false };
+    }
   }
 
   try {

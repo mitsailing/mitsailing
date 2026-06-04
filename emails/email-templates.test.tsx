@@ -36,6 +36,7 @@ describe('email templates', () => {
     const html = await render(
       <MarketingEmailLayout
         listName="Regatta updates"
+        managePreferencesLabel="Manage every newsletter"
         manageUrl="https://mitsailing.example.com/newsletter/manage?token=abc"
         postalAddress="MIT Sailing Pavilion, Cambridge, MA"
         previewText="Marketing preview"
@@ -48,7 +49,7 @@ describe('email templates', () => {
     expect(html).toContain('Marketing preview');
     expect(html).toContain('Marketing body');
     expect(html).toContain('Unsubscribe from Regatta updates');
-    expect(html).toContain('Manage all newsletter preferences');
+    expect(html).toContain('Manage every newsletter');
     expect(html).toContain('MIT Sailing Pavilion, Cambridge, MA');
   });
 
@@ -57,6 +58,7 @@ describe('email templates', () => {
       <NewsletterBroadcastTemplate
         body={'First paragraph.\n\nSecond paragraph.'}
         listName="General news"
+        managePreferencesLabel="Manage all newsletter preferences"
         manageUrl="https://mitsailing.example.com/newsletter/manage?token=abc"
         postalAddress="MIT Sailing Pavilion, Cambridge, MA"
         previewText="A preview"

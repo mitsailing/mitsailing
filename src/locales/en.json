@@ -1969,6 +1969,7 @@
     "archive_empty": "No public broadcasts have been sent yet."
   },
   "NewsletterEmail": {
+    "manage_preferences_label": "Manage all newsletter preferences",
     "postal_address": "MIT Sailing Pavilion, 134 Memorial Drive, Cambridge, MA 02139"
   },
   "AdminNewsletters": {

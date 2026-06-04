@@ -76,6 +76,7 @@ describe('newsletter email', () => {
     const rendered = await renderNewsletterBroadcastEmail({
       body: 'The pavilion is open.\n\nRacing starts Friday.',
       listName: 'General',
+      managePreferencesLabel: 'Manage all newsletter preferences',
       manageUrl: 'https://example.test/manage',
       postalAddress: 'MIT Sailing Pavilion, Cambridge, MA',
       previewText: 'News from the pavilion',
@@ -100,6 +101,7 @@ describe('newsletter email', () => {
     const rendered = await renderNewsletterBroadcastEmail({
       body: '<p>Hello sailors</p><script>alert("bad")</script>',
       listName: 'General',
+      managePreferencesLabel: 'Manage all newsletter preferences',
       manageUrl: 'https://example.test/manage',
       postalAddress: 'MIT Sailing Pavilion, Cambridge, MA',
       previewText: 'News from the pavilion',

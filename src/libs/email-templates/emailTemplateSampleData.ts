@@ -50,6 +50,7 @@ export function sampleEmailTemplateValues(key: EditableEmailTemplateKey) {
       return {
         body: 'This week at MIT Sailing.',
         listName: 'General updates',
+        managePreferencesLabel: 'Manage all newsletter preferences',
         manageUrl: 'https://mitsailing.com/newsletter',
         postalAddress: 'MIT Sailing Pavilion, 134 Memorial Drive, Cambridge MA',
         subject: 'Weekly sailing update',

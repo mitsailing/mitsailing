@@ -29,6 +29,7 @@ type NewsletterEmailParams = {
 type NewsletterEmailRenderParams = {
   body: string;
   listName: string;
+  managePreferencesLabel: string;
   manageUrl: string;
   postalAddress: string;
   previewText: string;
@@ -44,17 +45,24 @@ type NewsletterTestEmailParams = {
   subject: string;
 };
 
-export async function getNewsletterPostalAddress(): Promise<string> {
+export async function getNewsletterFooterCopy(): Promise<{
+  managePreferencesLabel: string;
+  postalAddress: string;
+}> {
   const t = await getTranslations({
     locale: routing.defaultLocale,
     namespace: 'NewsletterEmail',
   });
-  return t('postal_address');
+  return {
+    managePreferencesLabel: t('manage_preferences_label'),
+    postalAddress: t('postal_address'),
+  };
 }
 
 function bodyToText(params: {
   body: string;
   listName: string;
+  managePreferencesLabel: string;
   manageUrl: string;
   postalAddress: string;
   subject: string;
@@ -70,7 +78,7 @@ function bodyToText(params: {
     body,
     '',
     `Unsubscribe from ${params.listName}: ${params.unsubscribeUrl}`,
-    `Manage all newsletter preferences: ${params.manageUrl}`,
+    `${params.managePreferencesLabel}: ${params.manageUrl}`,
     params.postalAddress,
   ].join('\n');
 }
@@ -115,6 +123,7 @@ export async function renderNewsletterBroadcastEmail(
     NewsletterBroadcastTemplate({
       body: params.body,
       listName: params.listName,
+      managePreferencesLabel: params.managePreferencesLabel,
       manageUrl: params.manageUrl,
       postalAddress: params.postalAddress,
       previewText: params.previewText,
@@ -144,11 +153,13 @@ export async function sendNewsletterBroadcastEmail(
     listId: params.listId,
     token,
   });
+  const footerCopy = await getNewsletterFooterCopy();
   const rendered = await renderNewsletterBroadcastEmail({
     body: params.body,
     listName: params.listName,
     manageUrl,
-    postalAddress: await getNewsletterPostalAddress(),
+    managePreferencesLabel: footerCopy.managePreferencesLabel,
+    postalAddress: footerCopy.postalAddress,
     subject: params.subject,
     unsubscribeUrl,
     previewText: params.previewText,
@@ -188,11 +199,13 @@ export async function sendNewsletterBroadcastTestEmail(
   params: NewsletterTestEmailParams
 ) {
   const newsletterUrl = `${getBaseUrl().replace(/\/$/, '')}/newsletter`;
+  const footerCopy = await getNewsletterFooterCopy();
   const rendered = await renderNewsletterBroadcastEmail({
     body: params.body,
     listName: params.listName,
     manageUrl: newsletterUrl,
-    postalAddress: await getNewsletterPostalAddress(),
+    managePreferencesLabel: footerCopy.managePreferencesLabel,
+    postalAddress: footerCopy.postalAddress,
     previewText: params.previewText,
     subject: params.subject,
     unsubscribeUrl: newsletterUrl,

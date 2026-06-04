@@ -8,7 +8,7 @@ import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import { requestNewsletterArchiveRevalidation } from '@/libs/newsletter/newsletterArchiveCache';
 import {
-  getNewsletterPostalAddress,
+  getNewsletterFooterCopy,
   renderNewsletterBroadcastEmail,
   sendNewsletterBroadcastEmail,
 } from '@/libs/newsletter/newsletterEmail';
@@ -252,11 +252,13 @@ export async function renderAdminNewsletterBroadcastPreviewHtml(broadcast: {
   subject: string;
 }) {
   const newsletterUrl = `${getBaseUrl().replace(/\/$/, '')}/newsletter`;
+  const footerCopy = await getNewsletterFooterCopy();
   const rendered = await renderNewsletterBroadcastEmail({
     body: broadcast.body,
     listName: broadcast.primaryList.name,
+    managePreferencesLabel: footerCopy.managePreferencesLabel,
     manageUrl: newsletterUrl,
-    postalAddress: await getNewsletterPostalAddress(),
+    postalAddress: footerCopy.postalAddress,
     previewText: broadcast.previewText,
     subject: broadcast.subject,
     unsubscribeUrl: newsletterUrl,

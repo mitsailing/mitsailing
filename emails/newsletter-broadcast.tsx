@@ -6,6 +6,7 @@ import { MarketingEmailLayout } from './email-layout';
 export type NewsletterBroadcastTemplateProps = Readonly<{
   body: string;
   listName: string;
+  managePreferencesLabel: string;
   manageUrl: string;
   postalAddress: string;
   previewText: string;
@@ -65,6 +66,7 @@ export function NewsletterBroadcastTemplate(
   return (
     <MarketingEmailLayout
       listName={props.listName}
+      managePreferencesLabel={props.managePreferencesLabel}
       manageUrl={props.manageUrl}
       postalAddress={props.postalAddress}
       previewText={props.previewText}

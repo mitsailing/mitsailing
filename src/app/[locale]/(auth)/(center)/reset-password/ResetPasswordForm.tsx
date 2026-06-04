@@ -283,6 +283,10 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
         email: normalizedEmail,
       });
       if (!result.ok) {
+        if (result.error === 'rate_limited') {
+          setError(t('error_rate_limited'));
+          return;
+        }
         setError(t('error_support_failed'));
         return;
       }

@@ -58,10 +58,13 @@ function legacyRatingSlug(row: LegacyRatingTypeRow): string {
   return `legacy-${digest}-${slugPart(stringValue(row.name))}`;
 }
 
-function parseLegacyDate(value: string | null | undefined): Date {
+function parseLegacyDate(value: string | null | undefined): Date | null {
   const normalized = stringValue(value);
+  if (normalized === '') {
+    return null;
+  }
   const parsed = new Date(`${normalized.slice(0, 10)}T12:00:00.000Z`);
-  return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 async function importRatingTypes(props: {
@@ -124,7 +127,8 @@ async function importUserRatings(props: {
     const sailingRatingId = props.sailingRatingIdByLegacyType.get(
       stringValue(row.rating_type)
     );
-    if (!userId || !issuedByUserId || !sailingRatingId) {
+    const issuedAt = parseLegacyDate(row.eval_date);
+    if (!userId || !issuedByUserId || !sailingRatingId || !issuedAt) {
       return [];
     }
     return [
@@ -133,7 +137,7 @@ async function importUserRatings(props: {
         userId,
         issuedByUserId,
         sailingRatingId,
-        issuedAt: parseLegacyDate(row.eval_date),
+        issuedAt,
       },
     ];
   });

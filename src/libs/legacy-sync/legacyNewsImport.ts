@@ -45,7 +45,13 @@ export async function importLegacyNewsRows(
     const body = decodeBasicEntities(stringValue(row.news));
     const startDate = parseLegacyDate(row.news_date);
     const lastDate = parseLegacyDate(row.end_date) ?? startDate;
-    if (!legacyNewsId || !body || !startDate || !lastDate) {
+    if (
+      !legacyNewsId ||
+      !body ||
+      !startDate ||
+      !lastDate ||
+      lastDate < startDate
+    ) {
       skipped += 1;
       continue;
     }

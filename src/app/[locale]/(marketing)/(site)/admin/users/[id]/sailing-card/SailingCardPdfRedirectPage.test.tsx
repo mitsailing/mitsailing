@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Permission } from '@/libs/auth/permissions';
 import PrintPage from './print/page';
 import QuickPrintPage from './quick-print/page';
@@ -29,6 +29,10 @@ const pages = [
 ];
 
 describe('SailingCardPdfRedirectPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it.each(pages)('redirects $label to the inline PDF route', async (props) => {
     mocks.requirePermission.mockResolvedValue({ user: { id: 'admin-1' } });
 

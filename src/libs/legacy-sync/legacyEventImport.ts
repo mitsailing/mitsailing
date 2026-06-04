@@ -1,5 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@/generated/prisma/client';
+import {
+  formatNyDateTimeLocalInput,
+  instantForNyWallClock,
+} from '@/lib/mit-sailing/nyTime';
 import { prisma } from '@/libs/DB';
 import { loadLegacyUserIdentityMaps } from '@/libs/legacy-sync/legacyPaymentImport';
 import type { LegacyMemberRow } from '@/libs/legacy-sync/legacyPaymentImport';
@@ -209,26 +213,88 @@ function legacyEventSlug(row: LegacyEventRow): string {
   return `legacy-${legacyHash(eid)}-${slugPart(stringValue(row.short_name) || stringValue(row.name))}`;
 }
 
-function parseLegacyDate(value: string | null | undefined): Date | null {
-  const normalized = stringValue(value);
-  if (normalized === '') {
+type LegacyDateParts = Readonly<{
+  dateKey: string;
+  day: number;
+  month: number;
+  year: number;
+}>;
+
+function parseLegacyDateParts(
+  value: string | null | undefined
+): LegacyDateParts | null {
+  const dateKey = stringValue(value).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(dateKey)) {
     return null;
   }
-  const date = new Date(`${normalized.slice(0, 10)}T12:00:00.000Z`);
-  return Number.isNaN(date.getTime()) ? null : date;
+  const [yearText, monthText, dayText] = dateKey.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
+    return null;
+  }
+  return { dateKey, day, month, year };
+}
+
+function parseLegacyTimeParts(value: string | null | undefined) {
+  const normalized = stringValue(value) || '00:00:00';
+  const match = /^(\d{1,2}):(\d{2})(?::\d{2})?$/u.exec(normalized);
+  if (!match) {
+    return null;
+  }
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+  return { hour, minute };
+}
+
+function parseLegacyDate(value: string | null | undefined): Date | null {
+  const date = parseLegacyDateParts(value);
+  if (!date) {
+    return null;
+  }
+  const instant = instantForNyWallClock(date.year, date.month, date.day, 12, 0);
+  return formatNyDateTimeLocalInput(instant) === `${date.dateKey}T12:00`
+    ? instant
+    : null;
 }
 
 function parseLegacyDateTime(
   dateValue: string | null | undefined,
   timeValue: string | null | undefined
 ): Date | null {
-  const date = stringValue(dateValue).slice(0, 10);
-  const time = stringValue(timeValue) || '00:00:00';
-  if (!/^\d{4}-\d{2}-\d{2}$/u.test(date)) {
+  const date = parseLegacyDateParts(dateValue);
+  const time = parseLegacyTimeParts(timeValue);
+  if (!date || !time) {
     return null;
   }
-  const parsed = new Date(`${date}T${time.slice(0, 8)}.000Z`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  const instant = instantForNyWallClock(
+    date.year,
+    date.month,
+    date.day,
+    time.hour,
+    time.minute
+  );
+  const hour = String(time.hour).padStart(2, '0');
+  const minute = String(time.minute).padStart(2, '0');
+  return formatNyDateTimeLocalInput(instant) ===
+    `${date.dateKey}T${hour}:${minute}`
+    ? instant
+    : null;
 }
 
 function registrationStart(value: string | null | undefined): Date | null {

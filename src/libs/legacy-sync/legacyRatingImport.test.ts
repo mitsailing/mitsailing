@@ -129,12 +129,19 @@ describe('importLegacyRatingRows', () => {
             id: 'sailor',
             rating_type: '2',
           },
+          {
+            basic: null,
+            eval_date: 'not-a-date',
+            eval_id: 'instructor',
+            id: 'sailor',
+            rating_type: '2',
+          },
         ],
       })
     ).resolves.toEqual({
       ratingTypesImported: 1,
       userRatingsImported: 1,
-      userRatingsSkipped: 0,
+      userRatingsSkipped: 1,
     });
 
     expect(mocks.sailingRatingUpsert).toHaveBeenCalledOnce();
