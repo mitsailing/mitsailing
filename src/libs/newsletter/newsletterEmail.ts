@@ -75,12 +75,29 @@ function bodyToText(params: {
   ].join('\n');
 }
 
+function newsletterListHeaderSegment(listId: string): string {
+  let segment = '';
+  let needsSeparator = false;
+
+  for (const char of listId.toLowerCase()) {
+    const isAsciiLetter = char >= 'a' && char <= 'z';
+    const isAsciiDigit = char >= '0' && char <= '9';
+    if (isAsciiLetter || isAsciiDigit) {
+      if (needsSeparator && segment.length > 0) {
+        segment += '-';
+      }
+      segment += char;
+      needsSeparator = false;
+    } else if (segment.length > 0) {
+      needsSeparator = true;
+    }
+  }
+
+  return segment || 'newsletter';
+}
+
 function newsletterListHeaderId(listId: string): string {
-  const listSegment =
-    listId
-      .toLowerCase()
-      .replaceAll(/[^a-z0-9-]+/gu, '-')
-      .replaceAll(/^-+|-+$/gu, '') || 'newsletter';
+  const listSegment = newsletterListHeaderSegment(listId);
   const host = new URL(getBaseUrl()).hostname;
   return `${listSegment}.newsletter.${host}`;
 }
