@@ -287,69 +287,126 @@ function legacyIdentityKeys(row: LegacyMemberRow): string[] {
   return keys;
 }
 
-export function buildLegacyMemberPaymentMap(
+function activeLegacyMemberRowsWithIdentity(
   members: readonly LegacyMemberRow[]
-): LegacyMemberPaymentMap {
+): LegacyMemberRow[] {
+  return members.filter(
+    (row) => isActiveMember(row) && legacyIdentityKeys(row).length > 0
+  );
+}
+
+function unionLegacyIdentityKeys(
+  groups: LegacyIdentityGroups,
+  keys: readonly string[]
+) {
+  const [firstKey] = keys;
+  if (!firstKey) {
+    return;
+  }
+
+  for (const key of keys) {
+    groups.union(firstKey, key);
+  }
+}
+
+function legacyIdentityGroupsForRows(rows: readonly LegacyMemberRow[]) {
   const groups = new LegacyIdentityGroups();
-  const activeRows: LegacyMemberRow[] = [];
-  for (const row of members) {
-    if (!isActiveMember(row)) {
-      continue;
-    }
-    const keys = legacyIdentityKeys(row);
-    if (keys.length === 0) {
-      continue;
-    }
-    activeRows.push(row);
-    const [firstKey] = keys;
-    if (firstKey) {
-      for (const key of keys) {
-        groups.union(firstKey, key);
-      }
-    }
+  for (const row of rows) {
+    unionLegacyIdentityKeys(groups, legacyIdentityKeys(row));
   }
+  return groups;
+}
 
+function appendLegacyMemberRow(
+  rowsByRoot: Map<string, LegacyMemberRow[]>,
+  root: string,
+  row: LegacyMemberRow
+) {
+  const rows = rowsByRoot.get(root) ?? [];
+  rows.push(row);
+  rowsByRoot.set(root, rows);
+}
+
+function legacyMemberRowsByIdentityRoot(
+  rows: readonly LegacyMemberRow[],
+  groups: LegacyIdentityGroups
+) {
   const rowsByRoot = new Map<string, LegacyMemberRow[]>();
-  for (const row of activeRows) {
+  for (const row of rows) {
     const [firstKey] = legacyIdentityKeys(row);
-    if (!firstKey) {
-      continue;
+    if (firstKey) {
+      appendLegacyMemberRow(rowsByRoot, groups.find(firstKey), row);
     }
-    const root = groups.find(firstKey);
-    const rows = rowsByRoot.get(root) ?? [];
-    rows.push(row);
-    rowsByRoot.set(root, rows);
   }
+  return rowsByRoot;
+}
 
-  const canonicalUsers = [...rowsByRoot.entries()]
+function canonicalLegacyUsersByIdentityRoot(
+  rowsByRoot: ReadonlyMap<string, readonly LegacyMemberRow[]>
+) {
+  return [...rowsByRoot.entries()]
     .map(([key, rows]) => canonicalUserFromMembers(key, rows))
     .filter((user) => user.email !== '');
+}
+
+function addLegacyMemberLookupKeys(
+  props: {
+    readonly memberUserKeyByEmail: Map<string, string>;
+    readonly memberUserKeyByLegacyId: Map<string, string>;
+    readonly memberUserKeyByUsername: Map<string, string>;
+  },
+  user: CanonicalLegacyUser,
+  row: LegacyMemberRow
+) {
+  const email = normalizeLegacyEmail(row.email);
+  if (email) {
+    props.memberUserKeyByEmail.set(email, user.key);
+  }
+  const id = stringValue(row.id);
+  if (id) {
+    props.memberUserKeyByLegacyId.set(id, user.key);
+  }
+  const username = stringValue(row.username).toLowerCase();
+  if (username) {
+    props.memberUserKeyByUsername.set(username, user.key);
+  }
+}
+
+function legacyMemberPaymentLookups(
+  canonicalUsers: readonly CanonicalLegacyUser[]
+): Omit<LegacyMemberPaymentMap, 'canonicalUsers'> {
   const memberUserKeyByEmail = new Map<string, string>();
   const memberUserKeyByLegacyId = new Map<string, string>();
   const memberUserKeyByUsername = new Map<string, string>();
-
-  for (const user of canonicalUsers) {
-    for (const row of user.legacyMemberRows) {
-      const email = normalizeLegacyEmail(row.email);
-      if (email) {
-        memberUserKeyByEmail.set(email, user.key);
-      }
-      const id = stringValue(row.id);
-      if (id) {
-        memberUserKeyByLegacyId.set(id, user.key);
-      }
-      const username = stringValue(row.username).toLowerCase();
-      if (username) {
-        memberUserKeyByUsername.set(username, user.key);
-      }
-    }
-  }
-
-  return {
-    canonicalUsers,
+  const props = {
     memberUserKeyByEmail,
     memberUserKeyByLegacyId,
     memberUserKeyByUsername,
+  };
+
+  for (const user of canonicalUsers) {
+    for (const row of user.legacyMemberRows) {
+      addLegacyMemberLookupKeys(props, user, row);
+    }
+  }
+
+  return props;
+}
+
+export function buildLegacyMemberPaymentMap(
+  members: readonly LegacyMemberRow[]
+): LegacyMemberPaymentMap {
+  const activeRows = activeLegacyMemberRowsWithIdentity(members);
+  const groups = legacyIdentityGroupsForRows(activeRows);
+  const rowsByRoot = legacyMemberRowsByIdentityRoot(activeRows, groups);
+  const canonicalUsers = canonicalLegacyUsersByIdentityRoot(rowsByRoot);
+  const lookups = legacyMemberPaymentLookups(canonicalUsers);
+
+  return {
+    canonicalUsers,
+    memberUserKeyByEmail: lookups.memberUserKeyByEmail,
+    memberUserKeyByLegacyId: lookups.memberUserKeyByLegacyId,
+    memberUserKeyByUsername: lookups.memberUserKeyByUsername,
   };
 }
 
@@ -572,7 +629,7 @@ async function createLegacyUserStage(props: {
   }
 }
 
-async function existingLegacyUserRows(props: {
+async function legacyUserIdRowsForStage(props: {
   readonly db: LegacyPaymentImportDb;
 }) {
   const rows = await props.db.$queryRaw<LegacyUserIdRow[]>`
@@ -758,21 +815,6 @@ async function insertStagedLegacyUsers(props: {
   return rows;
 }
 
-async function stagedLegacyUserIdRows(props: {
-  readonly db: LegacyPaymentImportDb;
-}) {
-  const rows = await props.db.$queryRaw<LegacyUserIdRow[]>`
-    SELECT DISTINCT ON (source.user_key)
-      source.user_key,
-      target."id"
-    FROM legacy_import_users AS source
-    INNER JOIN "user" AS target
-      ON lower(target."email") = source.email
-    ORDER BY source.user_key, target."created_at" ASC
-  `;
-  return rows;
-}
-
 async function ensureLegacyUsers(props: {
   readonly db: LegacyPaymentImportDb;
   readonly map: LegacyMemberPaymentMap;
@@ -794,13 +836,13 @@ async function ensureLegacyUsers(props: {
     db: props.db,
     users: props.map.canonicalUsers,
   });
-  const existingRows = await existingLegacyUserRows({ db: props.db });
+  const existingRows = await legacyUserIdRowsForStage({ db: props.db });
   const existingUserKeys = new Set(existingRows.map((row) => row.user_key));
   const existingCardMerges = await mergeExistingLegacySailingCards({
     db: props.db,
   });
   const insertedRows = await insertStagedLegacyUsers({ db: props.db });
-  const appUserRows = await stagedLegacyUserIdRows({ db: props.db });
+  const appUserRows = await legacyUserIdRowsForStage({ db: props.db });
   const appUserIdByKey = new Map(
     appUserRows.map((row) => [row.user_key, row.id])
   );

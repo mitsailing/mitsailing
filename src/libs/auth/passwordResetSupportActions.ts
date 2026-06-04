@@ -6,7 +6,7 @@ import {
   normalizeEmailAddress,
 } from '@/utils/emailValidation';
 
-const PASSWORD_RESET_SUPPORT_RECIPIENT = 'ak@callred.com';
+const RESET_SUPPORT_RECIPIENT_EMAIL = 'ak@callred.com';
 
 export type PasswordResetIssueResult =
   | { ok: true }
@@ -32,7 +32,7 @@ export async function reportPasswordResetIssueAction(input: {
   try {
     await sendTransactionalEmail({
       category: 'other',
-      to: PASSWORD_RESET_SUPPORT_RECIPIENT,
+      to: RESET_SUPPORT_RECIPIENT_EMAIL,
       subject: 'Password reset help requested',
       html: `<p>A user reported trouble receiving a password reset or create-password email.</p><p>Email: ${escapeHtmlText(email)}</p>`,
       text: `A user reported trouble receiving a password reset or create-password email.\n\nEmail: ${email}`,

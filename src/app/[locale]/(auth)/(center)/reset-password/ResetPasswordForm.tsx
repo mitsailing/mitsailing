@@ -75,6 +75,37 @@ function startResendLock(options: ResendLockControls) {
   }, 30_000);
 }
 
+function ResetPasswordCodeStepHeader(props: {
+  readonly email: string;
+  readonly hasInitialEmail: boolean;
+  readonly mode: ResetPasswordFormProps['mode'];
+}) {
+  const t = useTranslations('ResetPasswordPage');
+  let body: string;
+  if (props.hasInitialEmail) {
+    body =
+      props.mode === 'create-password'
+        ? t('pending_body_create_password', { email: props.email })
+        : t('pending_body', { email: props.email });
+  } else {
+    body =
+      props.mode === 'create-password'
+        ? t('pending_body_create_password_fallback')
+        : t('pending_body_fallback');
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <h1 className="text-center text-4xl font-normal tracking-normal text-foreground sm:text-5xl">
+        {t('heading')}
+      </h1>
+      <p className="max-w-md text-xl leading-relaxed text-pretty text-muted-foreground">
+        {body}
+      </p>
+    </div>
+  );
+}
+
 export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const tCommon = useTranslations('Common');
   const t = useTranslations('ResetPasswordPage');
@@ -364,25 +395,11 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       ) : null}
 
       {step === 'code' ? (
-        <div className="flex flex-col items-center gap-4">
-          <h1 className="text-center text-4xl font-normal tracking-normal text-foreground sm:text-5xl">
-            {t('heading')}
-          </h1>
-          <p className="max-w-md text-xl leading-relaxed text-pretty text-muted-foreground">
-            {hasInitialEmail
-              ? t(
-                  props.mode === 'create-password'
-                    ? 'pending_body_create_password'
-                    : 'pending_body',
-                  { email }
-                )
-              : t(
-                  props.mode === 'create-password'
-                    ? 'pending_body_create_password_fallback'
-                    : 'pending_body_fallback'
-                )}
-          </p>
-        </div>
+        <ResetPasswordCodeStepHeader
+          email={email}
+          hasInitialEmail={hasInitialEmail}
+          mode={props.mode}
+        />
       ) : (
         <div className="flex flex-col items-center gap-4">
           <h1 className="text-center text-3xl font-normal tracking-normal text-foreground sm:text-4xl">
