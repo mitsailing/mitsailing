@@ -45,4 +45,14 @@ describe('passwordResetSupportActions', () => {
 
     expect(sendTransactionalEmail).not.toHaveBeenCalled();
   });
+
+  it('returns send failed when support report delivery fails', async () => {
+    sendTransactionalEmail.mockRejectedValue(new Error('smtp down'));
+    const { reportPasswordResetIssueAction } =
+      await import('@/libs/auth/passwordResetSupportActions');
+
+    await expect(
+      reportPasswordResetIssueAction({ email: 'sailor@mit.edu' })
+    ).resolves.toEqual({ error: 'send_failed', ok: false });
+  });
 });

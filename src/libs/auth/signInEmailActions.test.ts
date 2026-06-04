@@ -121,4 +121,44 @@ describe('signInEmailActions', () => {
       }
     );
   });
+
+  it('log string reset delivery failure safely', async () => {
+    findUnique.mockResolvedValue({ accounts: [] });
+    requestPasswordResetEmailOTP.mockRejectedValue('smtp down');
+    const { resolveSignInEmailAction } =
+      await import('@/libs/auth/signInEmailActions');
+
+    await expect(
+      resolveSignInEmailAction({ email: 'legacy@mit.edu' })
+    ).resolves.toEqual({ email: 'legacy@mit.edu', state: 'reset_failed' });
+
+    expect(loggerWarn).toHaveBeenCalledWith(
+      'Failed to send password reset email OTP for user sign-in',
+      {
+        email: 'legacy@mit.edu',
+        errorMessage: 'smtp down',
+        errorName: 'string',
+      }
+    );
+  });
+
+  it('log unknown reset delivery failure safely', async () => {
+    findUnique.mockResolvedValue({ accounts: [] });
+    requestPasswordResetEmailOTP.mockRejectedValue({ code: 'SMTP_DOWN' });
+    const { resolveSignInEmailAction } =
+      await import('@/libs/auth/signInEmailActions');
+
+    await expect(
+      resolveSignInEmailAction({ email: 'legacy@mit.edu' })
+    ).resolves.toEqual({ email: 'legacy@mit.edu', state: 'reset_failed' });
+
+    expect(loggerWarn).toHaveBeenCalledWith(
+      'Failed to send password reset email OTP for user sign-in',
+      {
+        email: 'legacy@mit.edu',
+        errorMessage: 'Unknown password reset email request failure',
+        errorName: 'object',
+      }
+    );
+  });
 });

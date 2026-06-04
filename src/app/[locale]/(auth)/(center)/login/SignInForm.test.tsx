@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { componentTestRouter } from '@/test/component';
@@ -86,6 +86,24 @@ describe('SignInForm', () => {
     );
   });
 
+  it('shows reset delivery failure when create-password email cannot be sent', async () => {
+    const user = userEvent.setup();
+    signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
+      email: 'legacy@mit.edu',
+      state: 'reset_failed',
+    });
+
+    render(<SignInForm callbackUrl="/fleet" />);
+
+    await user.type(screen.getByLabelText('Email'), 'legacy@mit.edu');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not send a reset code.'
+    );
+    expect(componentTestRouter().push).not.toHaveBeenCalled();
+  });
+
   it('sends unknown emails to sign up', async () => {
     const user = userEvent.setup();
     signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
@@ -101,6 +119,81 @@ describe('SignInForm', () => {
     expect(componentTestRouter().push).toHaveBeenCalledWith(
       '/signup?email=new%40mit.edu&callbackUrl=%2Ffleet'
     );
+  });
+
+  it('shows invalid email message when server rejects submitted email', async () => {
+    const user = userEvent.setup();
+    signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
+      state: 'invalid_email',
+    });
+
+    render(<SignInForm callbackUrl="/fleet" />);
+
+    await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Enter a valid email address with a domain'
+    );
+    expect(screen.queryByLabelText('Password')).toBeNull();
+  });
+
+  it('shows request failure when email lookup fails', async () => {
+    const user = userEvent.setup();
+    signInEmailActionMock.resolveSignInEmailAction.mockRejectedValue(
+      new Error('network')
+    );
+
+    render(<SignInForm callbackUrl="/fleet" />);
+
+    await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not complete that request right now.'
+    );
+    expect(screen.queryByLabelText('Password')).toBeNull();
+  });
+
+  it('clears password and returns to email step when email changes', async () => {
+    const user = userEvent.setup();
+
+    render(<SignInForm callbackUrl="/fleet" />);
+
+    await revealPasswordFor(user, 'sailor@mit.edu');
+    await user.type(screen.getByLabelText('Password'), 'correct-password');
+    await user.clear(screen.getByLabelText('Email'));
+    await user.type(screen.getByLabelText('Email'), 'other@mit.edu');
+
+    expect(screen.queryByLabelText('Password')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Continue' })
+    ).toBeInTheDocument();
+    expect(authClientMock.signIn.email).not.toHaveBeenCalled();
+  });
+
+  it('does not sign in when password step has an invalid email', async () => {
+    const user = userEvent.setup();
+    signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
+      email: 'sailor@mit',
+      state: 'password',
+    });
+
+    render(<SignInForm callbackUrl="/fleet" />);
+
+    await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await screen.findByLabelText('Password');
+    const form = screen.getByLabelText('Email').closest('form');
+    if (!form) {
+      throw new Error('Expected sign-in form.');
+    }
+    fireEvent.submit(form);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Enter a valid email address with a domain'
+    );
+    expect(authClientMock.signIn.email).not.toHaveBeenCalled();
   });
 
   it('Visitor signs in and returns to the requested page', async () => {
@@ -445,9 +538,11 @@ describe('SignInForm', () => {
     render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
-    await user.dblClick(
-      screen.getByRole('button', { name: 'Forgot password?' })
-    );
+    const resetButton = screen.getByRole('button', {
+      name: 'Forgot password?',
+    });
+    fireEvent.click(resetButton);
+    fireEvent.click(resetButton);
 
     expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledTimes(
       1

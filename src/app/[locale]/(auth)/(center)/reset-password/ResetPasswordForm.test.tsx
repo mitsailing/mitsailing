@@ -107,10 +107,70 @@ describe('ResetPasswordForm', () => {
     );
   });
 
+  it('shows invalid email before reporting delivery trouble without email', async () => {
+    const user = userEvent.setup();
+    renderResetPasswordForm({ initialEmail: '' });
+
+    await user.type(screen.getByLabelText('Email'), 'reset@mit');
+    await user.click(
+      screen.getByRole('button', { name: 'Not getting email?' })
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Enter a valid email address with a domain'
+    );
+    expect(
+      supportActionMock.reportPasswordResetIssueAction
+    ).not.toHaveBeenCalled();
+  });
+
+  it('shows support failure when delivery trouble report is rejected', async () => {
+    const user = userEvent.setup();
+    supportActionMock.reportPasswordResetIssueAction.mockResolvedValue({
+      error: 'send_failed',
+      ok: false,
+    });
+    renderResetPasswordForm();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Not getting email?' })
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not send that message right now.'
+    );
+  });
+
+  it('shows support failure when delivery trouble report throws', async () => {
+    const user = userEvent.setup();
+    supportActionMock.reportPasswordResetIssueAction.mockRejectedValue(
+      new Error('network')
+    );
+    renderResetPasswordForm();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Not getting email?' })
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not send that message right now.'
+    );
+  });
+
   it('uses create-password copy for legacy users', () => {
     renderResetPasswordForm({ mode: 'create-password' });
 
     expect(screen.getByText(/create your MIT Sailing password/i)).toBeVisible();
+  });
+
+  it('uses create-password fallback copy without email', () => {
+    renderResetPasswordForm({ initialEmail: '', mode: 'create-password' });
+
+    expect(
+      screen.getByText(
+        'Enter the code we sent, then create your MIT Sailing password.'
+      )
+    ).toBeVisible();
   });
 
   describe('Code verification', () => {
@@ -287,7 +347,17 @@ describe('ResetPasswordForm', () => {
       ).not.toHaveBeenCalled();
 
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(30_000);
+        await vi.advanceTimersByTimeAsync(29_000);
+      });
+
+      expect(
+        screen.getByRole('button', {
+          name: 'You can request a new code in 1 second',
+        })
+      ).toBeDisabled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
       });
 
       expect(screen.getByRole('button', { name: 'Resend code' })).toBeEnabled();

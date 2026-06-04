@@ -144,6 +144,7 @@ describe.skipIf(!shouldRunSummaryDatabaseTest)(
       const summary = await getAdminUserSailingCardSummary(targetUserId);
 
       expect(summary).toEqual({
+        gymMembershipVerifiedAt: null,
         legalAgreementAcceptances: [
           {
             acceptedAt: latestAgreementAcceptedAt,

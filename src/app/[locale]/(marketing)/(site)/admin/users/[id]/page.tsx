@@ -503,8 +503,12 @@ function pendingRequestNeedsRecreationVerification(props: {
   readonly request: AdminUserSailingCardRequestSummary | undefined;
   readonly summary: AdminUserSailingCardSummary;
 }) {
+  if (!props.request) {
+    return false;
+  }
+
   return (
-    props.request?.cardType === SailingCardType.normal &&
+    props.request.cardType === SailingCardType.normal &&
     props.summary?.gymMembershipVerifiedAt === null &&
     needsFitnessMembershipQuestion(props.request.sailingAffiliation)
   );

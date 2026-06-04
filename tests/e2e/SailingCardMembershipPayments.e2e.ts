@@ -256,6 +256,26 @@ async function openAdminUserProfile(props: {
   await expect(props.page).toHaveURL(/\/admin\/users\/[^/]+$/);
 }
 
+const sailingCardPdfUrlPattern = /\/api\/admin\/users\/.+\/sailing-card\/pdf$/u;
+
+async function expectPrintCardPopup(page: Page) {
+  const context = page.context();
+  const [popup, response] = await Promise.all([
+    page.waitForEvent('popup'),
+    context.waitForEvent('response', {
+      predicate: (res) =>
+        res.request().method() === 'GET' &&
+        sailingCardPdfUrlPattern.test(res.url()),
+    }),
+    page.getByRole('link', { name: 'Print card' }).click(),
+  ]);
+
+  expect(response.url()).toMatch(sailingCardPdfUrlPattern);
+  expect(response.status()).toBe(200);
+  expect(response.headers()['content-type']).toContain('application/pdf');
+  await popup.close();
+}
+
 async function findUserIdByEmail(email: string) {
   const userResult = await pool.query<{ id: string }>(
     'SELECT "id" FROM "user" WHERE "email" = $1',
@@ -381,6 +401,25 @@ test('admin manually assigns card number 110', async ({ page }) => {
       return result.rows[0]?.sailing_card_number;
     })
     .toBe(110);
+});
+
+test('admin opens printed sailing card pdf from user page', async ({
+  page,
+}) => {
+  const userId = await createIssuedCardUser(111);
+  const userResult = await pool.query<{ email: string }>(
+    'SELECT "email" FROM "user" WHERE "id" = $1',
+    [userId]
+  );
+  const email = userResult.rows[0]?.email;
+  if (!email) {
+    throw new Error('Expected issued card user email.');
+  }
+
+  await signInAsAdmin(page);
+  await openAdminUserProfile({ page, query: email, userName: 'Issued Card' });
+
+  await expectPrintCardPopup(page);
 });
 
 test('duplicate card number for the same year fails', async ({ page }) => {
