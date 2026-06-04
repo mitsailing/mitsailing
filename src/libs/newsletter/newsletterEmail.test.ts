@@ -159,7 +159,7 @@ describe('newsletter email', () => {
     const payload = sentPayload();
     expect(payload.headers).toEqual(
       expect.objectContaining({
-        'List-ID': 'list-123.newsletter.mitsailing.test',
+        'List-ID': '<list-123.newsletter.mitsailing.test>',
         'List-Unsubscribe': expect.stringContaining(
           '/api/newsletter/unsubscribe?'
         ),

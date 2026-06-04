@@ -107,7 +107,7 @@ function newsletterListHeaderSegment(listId: string): string {
 function newsletterListHeaderId(listId: string): string {
   const listSegment = newsletterListHeaderSegment(listId);
   const host = new URL(getBaseUrl()).hostname;
-  return `${listSegment}.newsletter.${host}`;
+  return `<${listSegment}.newsletter.${host}>`;
 }
 
 /**

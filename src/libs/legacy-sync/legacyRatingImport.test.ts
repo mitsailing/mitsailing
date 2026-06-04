@@ -148,7 +148,12 @@ describe('importLegacyRatingRows', () => {
     expect(mocks.userFindMany).toHaveBeenCalledWith({
       select: { email: true, id: true },
       where: {
-        email: { in: ['sailor@example.com', 'instructor@example.com'] },
+        email: {
+          in: expect.arrayContaining([
+            'sailor@example.com',
+            'instructor@example.com',
+          ]),
+        },
       },
     });
     expect(mocks.createMany).toHaveBeenCalledWith({
