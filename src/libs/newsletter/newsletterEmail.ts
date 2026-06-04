@@ -70,9 +70,19 @@ function bodyToText(params: {
     body,
     '',
     `Unsubscribe from ${params.listName}: ${params.unsubscribeUrl}`,
-    `Manage email newsletters: ${params.manageUrl}`,
+    `Manage all newsletter preferences: ${params.manageUrl}`,
     params.postalAddress,
   ].join('\n');
+}
+
+function newsletterListHeaderId(listId: string): string {
+  const listSegment =
+    listId
+      .toLowerCase()
+      .replaceAll(/[^a-z0-9-]+/gu, '-')
+      .replaceAll(/^-+|-+$/gu, '') || 'newsletter';
+  const host = new URL(getBaseUrl()).hostname;
+  return `${listSegment}.newsletter.${host}`;
 }
 
 /**
@@ -130,6 +140,7 @@ export async function sendNewsletterBroadcastEmail(
   return sendTransactionalEmail({
     category: 'newsletter',
     headers: {
+      'List-ID': newsletterListHeaderId(params.listId),
       'List-Unsubscribe': `<${unsubscribeUrl}>`,
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     },

@@ -1,5 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { hash } from '@node-rs/argon2';
+import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@/generated/prisma/client';
 import {
   PaymentPurpose,
@@ -7,10 +6,8 @@ import {
   PaymentStatus,
   SailingCardType,
 } from '@/generated/prisma/enums';
-import { selectPasswordHashingOptions } from '@/libs/auth/passwordHashing';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
-import { Env } from '@/libs/Env';
 
 export type LegacyMemberRow = {
   readonly active: string | null;
@@ -464,11 +461,6 @@ type LegacyInsertedUserRow = LegacyUserIdRow &
     sailing_card_number: number | null;
   }>;
 
-type LegacyAccountStageRow = Readonly<{
-  accountRowId: string;
-  userId: string;
-}>;
-
 function stageRows<T>(rows: readonly T[]): T[][] {
   const maxParameters = 65_535;
   const columnCount = 17;
@@ -478,13 +470,6 @@ function stageRows<T>(rows: readonly T[]): T[][] {
     chunks.push(rows.slice(index, index + size));
   }
   return chunks;
-}
-
-function accountStageRows(userIds: readonly string[]): LegacyAccountStageRow[] {
-  return [...new Set(userIds)].map((userId) => ({
-    accountRowId: randomUUID(),
-    userId,
-  }));
 }
 
 function legacyUserStageRow(user: CanonicalLegacyUser): LegacyUserStageRow {
@@ -529,10 +514,6 @@ function legacyUserStageSql(row: LegacyUserStageRow) {
     ${row.appRole},
     ${row.role}
   )`;
-}
-
-function accountStageSql(row: LegacyAccountStageRow) {
-  return Prisma.sql`(${row.accountRowId}, ${row.userId})`;
 }
 
 async function createLegacyUserStage(props: {
@@ -788,67 +769,6 @@ async function stagedLegacyUserIdRows(props: {
   return rows;
 }
 
-async function createLegacyCredentialAccountStage(props: {
-  readonly db: LegacyPaymentImportDb;
-  readonly rows: readonly LegacyAccountStageRow[];
-}) {
-  await props.db.$executeRaw`
-    CREATE TEMP TABLE legacy_import_credential_accounts (
-      account_row_id text PRIMARY KEY,
-      user_id text NOT NULL UNIQUE
-    ) ON COMMIT DROP
-  `;
-  for (const chunk of stageRows(props.rows)) {
-    await props.db.$executeRaw`
-      INSERT INTO legacy_import_credential_accounts (
-        account_row_id,
-        user_id
-      )
-      VALUES ${Prisma.join(chunk.map(accountStageSql), ', ')}
-      ON CONFLICT (user_id) DO NOTHING
-    `;
-  }
-}
-
-async function createMissingLegacyCredentialAccounts(props: {
-  readonly db: LegacyPaymentImportDb;
-  readonly userIds: readonly string[];
-}) {
-  const accountRows = accountStageRows(props.userIds);
-  if (accountRows.length === 0) {
-    return;
-  }
-  const placeholderPassword = randomBytes(48).toString('base64url');
-  const passwordHash = await hash(
-    placeholderPassword,
-    selectPasswordHashingOptions({
-      isE2E: Env.IS_E2E === '1' || Env.NODE_ENV === 'test',
-    })
-  );
-  await createLegacyCredentialAccountStage({ db: props.db, rows: accountRows });
-  await props.db.$executeRaw`
-    INSERT INTO "account" (
-      "id",
-      "user_id",
-      "provider_id",
-      "account_id",
-      "password",
-      "created_at",
-      "updated_at"
-    )
-    SELECT
-      source.account_row_id,
-      source.user_id,
-      'credential',
-      source.user_id,
-      ${passwordHash},
-      NOW(),
-      NOW()
-    FROM legacy_import_credential_accounts AS source
-    ON CONFLICT ("provider_id", "account_id") DO NOTHING
-  `;
-}
-
 async function ensureLegacyUsers(props: {
   readonly db: LegacyPaymentImportDb;
   readonly map: LegacyMemberPaymentMap;
@@ -880,10 +800,6 @@ async function ensureLegacyUsers(props: {
   const appUserIdByKey = new Map(
     appUserRows.map((row) => [row.user_key, row.id])
   );
-  await createMissingLegacyCredentialAccounts({
-    db: props.db,
-    userIds: appUserRows.map((row) => row.id),
-  });
   return {
     appUserIdByKey,
     cardRecordsMerged:

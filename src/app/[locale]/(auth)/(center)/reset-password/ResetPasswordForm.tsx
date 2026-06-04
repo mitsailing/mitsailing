@@ -14,6 +14,7 @@ import {
   authHrefWithCallback,
   safeAuthCallbackUrl,
 } from '@/libs/auth/callbackUrl';
+import { reportPasswordResetIssueAction } from '@/libs/auth/passwordResetSupportActions';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 import {
@@ -25,6 +26,7 @@ type ResetPasswordFormProps = {
   callbackUrl: string;
   initialEmail: string;
   initialResendLocked?: boolean;
+  mode?: 'create-password' | 'reset-password';
   passwordHeading: string;
 };
 
@@ -90,6 +92,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [autoSignInFailed, setAutoSignInFailed] = useState(false);
   const [resending, setResending] = useState(false);
+  const [reportingIssue, setReportingIssue] = useState(false);
   const [resendLocked, setResendLocked] = useState(
     props.initialResendLocked ?? false
   );
@@ -233,6 +236,33 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     }
   }
 
+  async function onReportIssue() {
+    setError(null);
+    setStatus(null);
+    const normalizedEmail = normalizeEmailAddress(email);
+    setEmail(normalizedEmail);
+    if (!isValidEmailAddress(normalizedEmail)) {
+      setError(t('error_invalid_email'));
+      return;
+    }
+
+    setReportingIssue(true);
+    try {
+      const result = await reportPasswordResetIssueAction({
+        email: normalizedEmail,
+      });
+      if (!result.ok) {
+        setError(t('error_support_failed'));
+        return;
+      }
+      setStatus(t('support_sent'));
+    } catch {
+      setError(t('error_support_failed'));
+    } finally {
+      setReportingIssue(false);
+    }
+  }
+
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -340,8 +370,17 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
           </h1>
           <p className="max-w-md text-xl leading-relaxed text-pretty text-muted-foreground">
             {hasInitialEmail
-              ? t('pending_body', { email })
-              : t('pending_body_fallback')}
+              ? t(
+                  props.mode === 'create-password'
+                    ? 'pending_body_create_password'
+                    : 'pending_body',
+                  { email }
+                )
+              : t(
+                  props.mode === 'create-password'
+                    ? 'pending_body_create_password_fallback'
+                    : 'pending_body_fallback'
+                )}
           </p>
         </div>
       ) : (
@@ -421,6 +460,19 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
                       : `${resendSecondsLeft} seconds`,
                 })
               : t('resend_email')}
+          </Button>
+
+          <Button
+            className="h-auto min-h-0 px-0 py-0 text-sm font-normal text-muted-foreground underline shadow-none hover:bg-transparent hover:text-foreground hover:underline disabled:opacity-60"
+            disabled={reportingIssue}
+            onClick={() => {
+              // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the support-report promise.
+              void onReportIssue();
+            }}
+            type="button"
+            variant="link"
+          >
+            {t('support_button')}
           </Button>
         </>
       ) : (

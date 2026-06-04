@@ -61,12 +61,9 @@ function verificationCodeText(params: {
   purpose: 'verify-email' | 'reset-password' | 'change-email';
 }): string {
   if (params.purpose === 'reset-password') {
-    return [
-      replaceAuthEmailValues(params.copy.reset_password_text, {
-        code: params.code,
-      }),
-      otpPlainTextAutofillBlock(params.code),
-    ].join('\n\n');
+    return replaceAuthEmailValues(params.copy.reset_password_text, {
+      code: params.code,
+    });
   }
 
   if (params.purpose === 'change-email') {

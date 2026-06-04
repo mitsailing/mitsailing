@@ -23,6 +23,14 @@ async function unsubscribeParamsFromPost(request: Request): Promise<{
 }> {
   const urlParams = unsubscribeParamsFromUrl(request);
   const contentType = request.headers.get('content-type') ?? '';
+  if (contentType.includes('text/plain')) {
+    const rawBody = await request.text();
+    const body = rawBody.trim();
+    if (body !== 'List-Unsubscribe=One-Click') {
+      throw new TypeError('Unsupported newsletter unsubscribe semantics');
+    }
+    return urlParams;
+  }
   if (
     !contentType.includes('application/x-www-form-urlencoded') &&
     !contentType.includes('multipart/form-data')
@@ -89,6 +97,11 @@ export function GET(request: Request) {
   const params = unsubscribeParamsFromUrl(request);
   if (params.token.length === 0) {
     return NextResponse.json({ ok: false }, { status: 400 });
+  }
+  if (params.listId.length > 0) {
+    return NextResponse.redirect(
+      newsletterManageUrl(params.token, { actionListId: params.listId })
+    );
   }
   return NextResponse.redirect(newsletterManageUrl(params.token));
 }

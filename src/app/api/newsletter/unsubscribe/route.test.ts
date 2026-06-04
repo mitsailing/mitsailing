@@ -3,8 +3,14 @@ import { GET, POST } from './route';
 
 const mocks = vi.hoisted(() => ({
   newsletterManageUrl: vi.fn(
-    (token: string) =>
-      `https://mitsailing.test/newsletter/manage?token=${token}`
+    (token: string, options?: { actionListId: string }) => {
+      const search = new URLSearchParams({ token });
+      if (options?.actionListId) {
+        search.set('action', 'unsubscribe');
+        search.set('list', options.actionListId);
+      }
+      return `https://mitsailing.test/newsletter/manage?${search.toString()}`;
+    }
   ),
   logger: {
     error: vi.fn(),
@@ -49,8 +55,25 @@ function unsubscribeRequest(options?: {
 }
 
 describe('newsletter one-click unsubscribe route', () => {
-  it('redirects get requests without unsubscribing', () => {
+  it('redirects list-scoped get requests to safe unsubscribe confirmation', () => {
     const response = GET(unsubscribeRequest());
+
+    expect(mocks.unsubscribeNewsletterTokenFromList).not.toHaveBeenCalled();
+    expect(mocks.newsletterManageUrl).toHaveBeenCalledWith('token_123', {
+      actionListId: 'list_123',
+    });
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'https://mitsailing.test/newsletter/manage?token=token_123&action=unsubscribe&list=list_123'
+    );
+  });
+
+  it('redirects token-only get requests without unsubscribing', () => {
+    const response = GET(
+      unsubscribeRequest({
+        url: 'https://mitsailing.test/api/newsletter/unsubscribe?token=token_123',
+      })
+    );
 
     expect(mocks.unsubscribeNewsletterTokenFromList).not.toHaveBeenCalled();
     expect(mocks.newsletterManageUrl).toHaveBeenCalledWith('token_123');
@@ -170,7 +193,7 @@ describe('newsletter one-click unsubscribe route', () => {
     expect(mocks.unsubscribeNewsletterTokenFromList).not.toHaveBeenCalled();
   });
 
-  it('rejects unsupported content types with url identity', async () => {
+  it('accepts exact one-click text posts when identity is in the url', async () => {
     const response = await POST(
       new Request(
         'https://mitsailing.test/api/newsletter/unsubscribe?token=token_123&list=list_123',
@@ -182,9 +205,12 @@ describe('newsletter one-click unsubscribe route', () => {
       )
     );
 
-    await expect(response.json()).resolves.toEqual({ ok: false });
-    expect(response.status).toBe(400);
-    expect(mocks.unsubscribeNewsletterTokenFromList).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(response.status).toBe(200);
+    expect(mocks.unsubscribeNewsletterTokenFromList).toHaveBeenCalledWith(
+      'token_123',
+      'list_123'
+    );
   });
 
   it('returns internal errors for persistence failures', async () => {

@@ -104,7 +104,7 @@ describe('account email notices', () => {
     expect(payload?.to).toBe('reset@example.com');
     expect(payload?.subject).toMatch(/reset/i);
     expect(payload?.text).toContain('password reset code is 654321');
-    expect(payload?.text).toContain('\n\n654321\n\n@mitsailing.com #654321');
+    expect(payload?.text).not.toContain('@mitsailing.com #654321');
   });
 
   it('email-change persona receives a confirmation code at the new email', async () => {

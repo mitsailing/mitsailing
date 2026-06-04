@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   EventPaymentNotificationKind,
   PaymentStatus,
@@ -81,6 +81,8 @@ const paymentRow = {
 
 describe('event payment email job', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-01T12:00:00.000Z'));
     vi.clearAllMocks();
     mocks.eventPaymentFindUnique.mockResolvedValue(paymentRow);
     mocks.eventPaymentNotificationFindUnique.mockResolvedValue(null);
@@ -102,6 +104,10 @@ describe('event payment email job', () => {
     mocks.sendEventPaymentAdminDigestEmail.mockResolvedValue({
       providerMessageId: 'email_digest',
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('enqueues payment email jobs with stable dedupe ids', async () => {

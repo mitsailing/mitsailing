@@ -19,9 +19,17 @@ const authClientMock = vi.hoisted(() => ({
 const sentryMock = vi.hoisted(() => ({
   captureMessage: vi.fn(),
 }));
+const supportActionMock = vi.hoisted(() => ({
+  reportPasswordResetIssueAction: vi.fn(),
+}));
 
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
+}));
+
+vi.mock('@/libs/auth/passwordResetSupportActions', () => ({
+  reportPasswordResetIssueAction:
+    supportActionMock.reportPasswordResetIssueAction,
 }));
 
 vi.mock('@sentry/nextjs', () => sentryMock);
@@ -32,6 +40,9 @@ beforeEach(() => {
   authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({});
   authClientMock.emailOtp.resetPassword.mockResolvedValue({});
   authClientMock.signIn.email.mockResolvedValue({});
+  supportActionMock.reportPasswordResetIssueAction.mockResolvedValue({
+    ok: true,
+  });
 });
 
 afterEach(() => {
@@ -80,6 +91,28 @@ async function fillNewPassword(props: {
 }
 
 describe('ResetPasswordForm', () => {
+  it('report reset email delivery trouble for current email', async () => {
+    const user = userEvent.setup();
+    renderResetPasswordForm();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Not getting email?' })
+    );
+
+    expect(
+      supportActionMock.reportPasswordResetIssueAction
+    ).toHaveBeenCalledWith({ email: 'reset@mit.edu' });
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'We sent a message to support.'
+    );
+  });
+
+  it('uses create-password copy for legacy users', () => {
+    renderResetPasswordForm({ mode: 'create-password' });
+
+    expect(screen.getByText(/create your MIT Sailing password/i)).toBeVisible();
+  });
+
   describe('Code verification', () => {
     it('verify reset code before choosing new password', async () => {
       renderResetPasswordForm();

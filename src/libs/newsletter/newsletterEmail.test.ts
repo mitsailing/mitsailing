@@ -89,7 +89,7 @@ describe('newsletter email', () => {
       'Unsubscribe from General: https://example.test/unsubscribe'
     );
     expect(rendered.text).toContain(
-      'Manage email newsletters: https://example.test/manage'
+      'Manage all newsletter preferences: https://example.test/manage'
     );
   });
 
@@ -157,6 +157,7 @@ describe('newsletter email', () => {
     const payload = sentPayload();
     expect(payload.headers).toEqual(
       expect.objectContaining({
+        'List-ID': 'list-123.newsletter.mitsailing.test',
         'List-Unsubscribe': expect.stringContaining(
           '/api/newsletter/unsubscribe?'
         ),

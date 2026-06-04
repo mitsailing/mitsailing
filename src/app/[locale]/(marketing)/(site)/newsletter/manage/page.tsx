@@ -4,8 +4,13 @@ import { connection } from 'next/server';
 import { NewsletterPreferenceForm } from '@/components/mit-sailing/newsletter/NewsletterPreferenceForm';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
+import { Button } from '@/components/ui/button';
 import { logger } from '@/libs/Logger';
-import { updateTokenNewsletterPreferencesAction } from '@/libs/newsletter/newsletterActions';
+import {
+  resubscribeTokenNewsletterListAction,
+  unsubscribeTokenNewsletterListAction,
+  updateTokenNewsletterPreferencesAction,
+} from '@/libs/newsletter/newsletterActions';
 import { newsletterPreferenceRows } from '@/libs/newsletter/newsletterPreferenceRows';
 import {
   getPublicNewsletterLists,
@@ -14,7 +19,13 @@ import {
 
 type NewsletterManagePageProps = Readonly<{
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ token?: string | string[] }>;
+  searchParams: Promise<{
+    action?: string | string[];
+    list?: string | string[];
+    resubscribed?: string | string[];
+    token?: string | string[];
+    unsubscribed?: string | string[];
+  }>;
 }>;
 
 function newsletterManageToken(value?: string | string[]): string | undefined {
@@ -29,9 +40,17 @@ function newsletterManageToken(value?: string | string[]): string | undefined {
       return undefined;
     }
     const [token] = value;
-    return token && token.length > 0 ? token : undefined;
+    const trimmed = token?.trim();
+    return trimmed && trimmed.length > 0 ? trimmed : undefined;
   }
-  return value && value.length > 0 ? value : undefined;
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+function singleSearchParam(value?: string | string[]): string | undefined {
+  const rawValue = Array.isArray(value) ? value.at(0) : value;
+  const trimmed = rawValue?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }
 
 export async function generateMetadata(
@@ -65,6 +84,20 @@ export default async function NewsletterManagePage(
     ? await getSubscriberPreferenceStateByToken(token)
     : null;
   const lists = token && subscriber ? await getPublicNewsletterLists() : [];
+  const listId = singleSearchParam(searchParams.list);
+  const selectedList = lists.find((list) => list.id === listId);
+  const unsubscribeActionList =
+    singleSearchParam(searchParams.action) === 'unsubscribe'
+      ? selectedList
+      : undefined;
+  const unsubscribedList =
+    singleSearchParam(searchParams.unsubscribed) === '1'
+      ? selectedList
+      : undefined;
+  const resubscribedList =
+    singleSearchParam(searchParams.resubscribed) === '1'
+      ? selectedList
+      : undefined;
 
   return (
     <SiteSectionShell
@@ -87,18 +120,79 @@ export default async function NewsletterManagePage(
             </p>
           </div>
           {token && subscriber ? (
-            <NewsletterPreferenceForm
-              action={updateTokenNewsletterPreferencesAction.bind(
-                null,
-                token,
-                locale
-              )}
-              errorLabel={t('preferences_error')}
-              legendLabel={t('lists_label')}
-              lists={newsletterPreferenceRows(lists, subscriber)}
-              successLabel={t('preferences_saved')}
-              submitLabel={t('preferences_submit')}
-            />
+            <>
+              {unsubscribeActionList ? (
+                <div className="border-mit-gray/30 max-w-2xl space-y-4 rounded border bg-white p-6">
+                  <h2 className="text-xl font-semibold text-mit-text">
+                    {t('manage_unsubscribe_heading', {
+                      listName: unsubscribeActionList.name,
+                    })}
+                  </h2>
+                  <p className="text-sm leading-6 text-mit-text">
+                    {t('manage_unsubscribe_body')}
+                  </p>
+                  <form
+                    action={unsubscribeTokenNewsletterListAction.bind(
+                      null,
+                      token,
+                      locale,
+                      unsubscribeActionList.id
+                    )}
+                  >
+                    <Button type="submit" variant="mit">
+                      {t('manage_unsubscribe_submit')}
+                    </Button>
+                  </form>
+                </div>
+              ) : null}
+              {unsubscribedList ? (
+                <div className="border-mit-gray/30 max-w-2xl space-y-4 rounded border bg-white p-6">
+                  <h2 className="text-xl font-semibold text-mit-text">
+                    {t('manage_unsubscribed_heading', {
+                      listName: unsubscribedList.name,
+                    })}
+                  </h2>
+                  <p className="text-sm leading-6 text-mit-text">
+                    {t('manage_unsubscribed_body')}
+                  </p>
+                  <form
+                    action={resubscribeTokenNewsletterListAction.bind(
+                      null,
+                      token,
+                      locale,
+                      unsubscribedList.id
+                    )}
+                  >
+                    <Button type="submit" variant="mit">
+                      {t('manage_resubscribe_submit')}
+                    </Button>
+                  </form>
+                </div>
+              ) : null}
+              {!unsubscribeActionList && !unsubscribedList ? (
+                <>
+                  {resubscribedList ? (
+                    <p className="border-mit-gray/30 max-w-2xl rounded border bg-white p-4 text-sm text-mit-text">
+                      {t('manage_resubscribed', {
+                        listName: resubscribedList.name,
+                      })}
+                    </p>
+                  ) : null}
+                  <NewsletterPreferenceForm
+                    action={updateTokenNewsletterPreferencesAction.bind(
+                      null,
+                      token,
+                      locale
+                    )}
+                    errorLabel={t('preferences_error')}
+                    legendLabel={t('lists_label')}
+                    lists={newsletterPreferenceRows(lists, subscriber)}
+                    successLabel={t('preferences_saved')}
+                    submitLabel={t('preferences_submit')}
+                  />
+                </>
+              ) : null}
+            </>
           ) : null}
         </div>
       </SiteSectionMain>

@@ -13,9 +13,16 @@ const authClientMock = vi.hoisted(() => ({
     email: vi.fn(),
   },
 }));
+const signInEmailActionMock = vi.hoisted(() => ({
+  resolveSignInEmailAction: vi.fn(),
+}));
 
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
+}));
+
+vi.mock('@/libs/auth/signInEmailActions', () => ({
+  resolveSignInEmailAction: signInEmailActionMock.resolveSignInEmailAction,
 }));
 
 beforeEach(() => {
@@ -23,15 +30,85 @@ beforeEach(() => {
   authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({});
   authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({});
   authClientMock.signIn.email.mockResolvedValue({});
+  signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
+    email: 'sailor@mit.edu',
+    state: 'password',
+  });
 });
 
+async function revealPasswordFor(
+  user: ReturnType<typeof userEvent.setup>,
+  email: string
+) {
+  const normalizedEmail = email.trim().toLowerCase();
+  signInEmailActionMock.resolveSignInEmailAction.mockResolvedValueOnce({
+    email: normalizedEmail,
+    state: 'password',
+  });
+  await user.type(screen.getByLabelText('Email'), email);
+  await user.click(screen.getByRole('button', { name: 'Continue' }));
+  await screen.findByLabelText('Password');
+}
+
 describe('SignInForm', () => {
+  it('starts with email only and reveals password for active users', async () => {
+    const user = userEvent.setup();
+
+    render(<SignInForm callbackUrl="/fleet" />);
+
+    expect(screen.queryByLabelText('Password')).toBeNull();
+
+    await user.type(screen.getByLabelText('Email'), ' Sailor@MIT.EDU ');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(signInEmailActionMock.resolveSignInEmailAction).toHaveBeenCalledWith(
+      {
+        email: 'sailor@mit.edu',
+      }
+    );
+    expect(await screen.findByLabelText('Password')).toBeInTheDocument();
+  });
+
+  it('sends reset-required users to create a password', async () => {
+    const user = userEvent.setup();
+    signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
+      email: 'legacy@mit.edu',
+      state: 'reset_required',
+    });
+
+    render(<SignInForm callbackUrl="/fleet" />);
+
+    await user.type(screen.getByLabelText('Email'), 'legacy@mit.edu');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(componentTestRouter().push).toHaveBeenCalledWith(
+      '/reset-password?email=legacy%40mit.edu&codeSent=1&mode=create-password&callbackUrl=%2Ffleet'
+    );
+  });
+
+  it('sends unknown emails to sign up', async () => {
+    const user = userEvent.setup();
+    signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
+      email: 'new@mit.edu',
+      state: 'sign_up',
+    });
+
+    render(<SignInForm callbackUrl="/fleet" />);
+
+    await user.type(screen.getByLabelText('Email'), 'new@mit.edu');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(componentTestRouter().push).toHaveBeenCalledWith(
+      '/signup?email=new%40mit.edu&callbackUrl=%2Ffleet'
+    );
+  });
+
   it('Visitor signs in and returns to the requested page', async () => {
     const user = userEvent.setup();
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), ' Sailor@MIT.EDU ');
+    await revealPasswordFor(user, ' Sailor@MIT.EDU ');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
@@ -53,8 +130,7 @@ describe('SignInForm', () => {
     render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'sailor@mit');
-    await user.type(screen.getByLabelText('Password'), 'correct-password');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Enter a valid email address with a domain'
@@ -70,7 +146,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'locked@mit.edu');
+    await revealPasswordFor(user, 'locked@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'wrong-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
@@ -87,7 +163,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'banned@mit.edu');
+    await revealPasswordFor(user, 'banned@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
@@ -104,7 +180,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
+    await revealPasswordFor(user, 'sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'wrong-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
@@ -121,7 +197,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
+    await revealPasswordFor(user, 'sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'wrong-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
@@ -138,7 +214,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
+    await revealPasswordFor(user, 'sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
@@ -155,7 +231,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
+    await revealPasswordFor(user, 'sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'wrong-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
@@ -170,7 +246,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
+    await revealPasswordFor(user, 'sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
@@ -188,7 +264,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), ' Sailor@MIT.EDU ');
+    await revealPasswordFor(user, ' Sailor@MIT.EDU ');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
     await user.click(
@@ -212,7 +288,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'new-sailor@mit.edu');
+    await revealPasswordFor(user, 'new-sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
     await user.click(
@@ -239,7 +315,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'new-sailor@mit.edu');
+    await revealPasswordFor(user, 'new-sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
     await user.click(
@@ -262,7 +338,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'new-sailor@mit.edu');
+    await revealPasswordFor(user, 'new-sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
     await user.click(
@@ -285,7 +361,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'new-sailor@mit.edu');
+    await revealPasswordFor(user, 'new-sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
     await user.click(
@@ -311,7 +387,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await user.type(screen.getByLabelText('Email'), 'new-sailor@mit.edu');
+    await revealPasswordFor(user, 'new-sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
     await user.click(

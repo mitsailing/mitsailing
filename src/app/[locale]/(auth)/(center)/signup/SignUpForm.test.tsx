@@ -43,6 +43,14 @@ async function fillSignUpForm(props: {
 }
 
 describe('SignUpForm', () => {
+  it('prefills email from login handoff', () => {
+    render(
+      <SignUpForm callbackUrl="/onboarding" initialEmail=" New@MIT.EDU " />
+    );
+
+    expect(screen.getByLabelText('Email')).toHaveValue('new@mit.edu');
+  });
+
   it('create account and continue to email verification', async () => {
     render(<SignUpForm callbackUrl="/onboarding" />);
 

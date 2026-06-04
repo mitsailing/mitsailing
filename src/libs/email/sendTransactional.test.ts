@@ -315,6 +315,28 @@ describe('sendTransactionalEmail', () => {
     );
   });
 
+  it('rejects unsubscribe headers on transactional emails', async () => {
+    await expect(
+      sendWithEnv(
+        {
+          EMAIL_FROM: 'MIT Sailing <noreply@example.com>',
+          MAIL_TRANSPORT: 'resend',
+          RESEND_API_KEY: 're_test',
+        },
+        {
+          ...message,
+          category: 'other',
+          headers: { 'List-Unsubscribe': '<https://example.com/unsubscribe>' },
+        }
+      )
+    ).rejects.toThrow(
+      'List-Unsubscribe headers are only allowed for newsletter email.'
+    );
+
+    expect(mocks.resendSend).not.toHaveBeenCalled();
+    expect(mocks.recordSentEmailMessage).not.toHaveBeenCalled();
+  });
+
   it('reports resend provider errors before recording delivery', async () => {
     mocks.resendSend.mockResolvedValueOnce({
       error: { message: 'resend down' },

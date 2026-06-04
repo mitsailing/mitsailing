@@ -3,6 +3,7 @@
 import { fixedWindow, request } from '@arcjet/next';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import arcjet from '@/libs/Arcjet';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { Env } from '@/libs/Env';
@@ -12,8 +13,10 @@ import {
   getSubscriberPreferenceStateForUser,
   getSubscriberPreferenceStateByToken,
   subscribeEmailToNewsletterLists,
+  unsubscribeNewsletterTokenFromList,
   updateNewsletterPreferences,
 } from '@/libs/newsletter/newsletterSubscriptions';
+import { newsletterManagePath } from '@/libs/newsletter/newsletterUrls';
 import { validateNewsletterSignupFormData } from '@/libs/newsletter/newsletterValidation';
 import type {
   NewsletterSignupField,
@@ -78,6 +81,14 @@ function selectedListIds(formData: FormData): string[] {
     .filter((value): value is string => typeof value === 'string')
     .map((value) => value.trim())
     .filter((value) => value.length > 0);
+}
+
+function redirectToNewsletterManage(
+  locale: string,
+  token: string,
+  options?: Parameters<typeof newsletterManagePath>[1]
+): never {
+  redirect(getI18nPath(newsletterManagePath(token, options), locale));
 }
 
 /**
@@ -201,4 +212,78 @@ export async function updateTokenNewsletterPreferencesAction(
   }
   revalidatePath(getI18nPath('/newsletter/manage', locale));
   return { ok: true };
+}
+
+/**
+ * Unsubscribes one tokenized newsletter list from the browser confirmation page.
+ *
+ * @param token - Manage token from email
+ * @param locale - Active locale
+ * @param listId - Newsletter list id
+ * @param _formData - Submitted confirmation form
+ */
+export async function unsubscribeTokenNewsletterListAction(
+  token: string,
+  locale: string,
+  listId: string,
+  _formData: FormData
+): Promise<void> {
+  let didUnsubscribe = false;
+  try {
+    didUnsubscribe = Boolean(
+      await unsubscribeNewsletterTokenFromList(token, listId)
+    );
+  } catch (error) {
+    logger.error('Failed to unsubscribe token newsletter list: {error}', {
+      error,
+      listId,
+    });
+  }
+
+  if (!didUnsubscribe) {
+    redirectToNewsletterManage(locale, token);
+  }
+  redirectToNewsletterManage(locale, token, { unsubscribedListId: listId });
+}
+
+/**
+ * Resubscribes one tokenized newsletter list without changing other active lists.
+ *
+ * @param token - Manage token from email
+ * @param locale - Active locale
+ * @param listId - Newsletter list id
+ * @param _formData - Submitted confirmation form
+ */
+export async function resubscribeTokenNewsletterListAction(
+  token: string,
+  locale: string,
+  listId: string,
+  _formData: FormData
+): Promise<void> {
+  let didResubscribe = false;
+  try {
+    const subscriber = await getSubscriberPreferenceStateByToken(token);
+    if (subscriber) {
+      const activeListIds = subscriber.subscriptions
+        .filter((subscription) => subscription.status === 'subscribed')
+        .map((subscription) => subscription.listId);
+      const resubscribedListIds = new Set([...activeListIds, listId]);
+      await updateNewsletterPreferences({
+        listIds: [...resubscribedListIds],
+        source: NEWSLETTER_FORM_SOURCE.tokenManage,
+        subscriberId: subscriber.id,
+      });
+      didResubscribe = true;
+    }
+  } catch (error) {
+    logger.error('Failed to resubscribe token newsletter list: {error}', {
+      error,
+      listId,
+    });
+  }
+
+  if (!didResubscribe) {
+    redirectToNewsletterManage(locale, token);
+  }
+  redirectToNewsletterManage(locale, token, { resubscribedListId: listId });
 }

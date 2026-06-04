@@ -4,13 +4,13 @@ import { prisma } from '@/libs/DB';
 import { buildLegacyMemberPaymentMap } from '@/libs/legacy-sync/legacyPaymentImport';
 import type { LegacyMemberRow } from '@/libs/legacy-sync/legacyPaymentImport';
 
-export type LegacyEventTypeRow = {
+type LegacyEventTypeRow = {
   readonly name: string | null;
   readonly rank: string | null;
   readonly type: string | null;
 };
 
-export type LegacyEventRow = {
+type LegacyEventRow = {
   readonly ask_notes: string | null;
   readonly boat_size: string | null;
   readonly deposit: string | null;
@@ -47,14 +47,14 @@ export type LegacyEventRow = {
   readonly url: string | null;
 };
 
-export type LegacyEventDateRow = {
+type LegacyEventDateRow = {
   readonly date: string | null;
   readonly eid: string | null;
   readonly end: string | null;
   readonly start: string | null;
 };
 
-export type LegacyEventRegistrationRow = {
+type LegacyEventRegistrationRow = {
   readonly activereg: string | null;
   readonly confirm: string | null;
   readonly eid: string | null;
@@ -63,19 +63,19 @@ export type LegacyEventRegistrationRow = {
   readonly userid: string | null;
 };
 
-export type LegacyEventContactRow = {
+type LegacyEventContactRow = {
   readonly eid: string | null;
   readonly userid: string | null;
 };
 
-export type LegacyEventFeeRow = {
+type LegacyEventFeeRow = {
   readonly eid: string | null;
   readonly feeid: string | null;
   readonly name: string | null;
   readonly price: string | null;
 };
 
-export type LegacyEventBoatRow = {
+type LegacyEventBoatRow = {
   readonly boat_num: string | null;
   readonly boat_pos: string | null;
   readonly e_mail: string | null;

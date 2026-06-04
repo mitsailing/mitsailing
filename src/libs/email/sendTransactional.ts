@@ -48,6 +48,10 @@ export type SendEmailResult = {
 
 let cachedSmtpTransport: Transporter | null = null;
 let cachedResendClient: Resend | null = null;
+const NEWSLETTER_UNSUBSCRIBE_HEADERS = new Set([
+  'list-unsubscribe',
+  'list-unsubscribe-post',
+]);
 
 function htmlToPlainText(html: string): string {
   const withReadableLinks = html.replaceAll(
@@ -74,6 +78,25 @@ function withPlainTextFallback(params: Params): Params & { text: string } {
     ...params,
     text: params.text?.trim() ? params.text : htmlToPlainText(params.html),
   };
+}
+
+function hasNewsletterUnsubscribeHeader(
+  headers?: Record<string, string>
+): boolean {
+  return Object.keys(headers ?? {}).some((header) =>
+    NEWSLETTER_UNSUBSCRIBE_HEADERS.has(header.toLowerCase())
+  );
+}
+
+function assertNewsletterUnsubscribeHeaders(params: Params): void {
+  if (
+    hasNewsletterUnsubscribeHeader(params.headers) &&
+    params.category !== 'newsletter'
+  ) {
+    throw new Error(
+      'List-Unsubscribe headers are only allowed for newsletter email.'
+    );
+  }
 }
 
 function getSmtpTransport(): Transporter {
@@ -154,6 +177,7 @@ function logOnly(params: Params): SendEmailResult {
 export async function sendTransactionalEmail(
   params: Params
 ): Promise<SendEmailResult> {
+  assertNewsletterUnsubscribeHeaders(params);
   const message = withPlainTextFallback(params);
   let provider: 'log' | 'resend' | 'smtp';
   let result: SendEmailResult;

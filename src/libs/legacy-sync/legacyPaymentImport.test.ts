@@ -361,13 +361,10 @@ describe('legacyPaymentImport', () => {
     expectAnyRawSqlContaining(['CREATE TEMP TABLE legacy_import_users']);
     expectAnyRawSqlContaining(['INSERT INTO legacy_import_users']);
     expectAnyRawSqlContaining(['prepared.app_role::"AppRole"']);
-    expectAnyRawSqlContaining([
-      'CREATE TEMP TABLE legacy_import_credential_accounts',
-    ]);
-    expectAnyRawSqlContaining([
-      'INSERT INTO "account"',
-      'ON CONFLICT ("provider_id", "account_id") DO NOTHING',
-    ]);
+    expect(allRawSqlCalls().join('\n')).not.toContain(
+      'legacy_import_credential_accounts'
+    );
+    expect(allRawSqlCalls().join('\n')).not.toContain('INSERT INTO "account"');
     expect(allRawSqlCalls().join('\n')).not.toContain('username');
     expect(allRawSqlCalls().join('\n')).not.toContain('legacyUsername');
     expect(mocks.paymentCreateMany).toHaveBeenCalledWith(

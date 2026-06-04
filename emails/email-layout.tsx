@@ -138,7 +138,7 @@ export function MarketingEmailLayout(props: MarketingEmailLayoutProps) {
               </Link>
               {' · '}
               <Link href={props.manageUrl} style={link}>
-                Manage email newsletters
+                Manage all newsletter preferences
               </Link>
             </Text>
             <Text style={muted}>{props.postalAddress}</Text>

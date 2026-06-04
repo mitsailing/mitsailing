@@ -48,7 +48,7 @@ describe('email templates', () => {
     expect(html).toContain('Marketing preview');
     expect(html).toContain('Marketing body');
     expect(html).toContain('Unsubscribe from Regatta updates');
-    expect(html).toContain('Manage email newsletters');
+    expect(html).toContain('Manage all newsletter preferences');
     expect(html).toContain('MIT Sailing Pavilion, Cambridge, MA');
   });
 
@@ -69,7 +69,7 @@ describe('email templates', () => {
     expect(html).toContain('First paragraph.');
     expect(html).toContain('Second paragraph.');
     expect(html).toContain('Unsubscribe from General news');
-    expect(html).toContain('Manage email newsletters');
+    expect(html).toContain('Manage all newsletter preferences');
     expect(html).toContain('MIT Sailing Pavilion, Cambridge, MA');
   });
 
