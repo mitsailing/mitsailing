@@ -24,8 +24,7 @@ const authClientMock = vi.hoisted(() => ({
 }));
 
 const updateThemePreferenceActionMock = vi.hoisted(() => vi.fn());
-const updateProfileContactActionMock = vi.hoisted(() => vi.fn());
-const updateProfileIdentityActionMock = vi.hoisted(() => vi.fn());
+const updateProfileDetailsActionMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
@@ -35,20 +34,15 @@ vi.mock('@/libs/auth/themePreferenceActions', () => ({
   updateThemePreferenceAction: updateThemePreferenceActionMock,
 }));
 
-vi.mock('@/libs/auth/profileContactActions', () => ({
-  updateProfileContactAction: updateProfileContactActionMock,
-}));
-
 vi.mock('@/libs/auth/profileIdentityActions', () => ({
-  updateProfileIdentityAction: updateProfileIdentityActionMock,
+  updateProfileDetailsAction: updateProfileDetailsActionMock,
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
   authClientMock.emailOtp.changeEmail.mockResolvedValue({});
   authClientMock.emailOtp.requestEmailChange.mockResolvedValue({});
-  updateProfileContactActionMock.mockResolvedValue({ ok: true });
-  updateProfileIdentityActionMock.mockResolvedValue({
+  updateProfileDetailsActionMock.mockResolvedValue({
     ok: true,
     identity: {
       affiliation: SailingAffiliation.OTHER_NON_STUDENT,
@@ -133,7 +127,7 @@ async function expectContactUpdateError(options: {
   message: string;
 }) {
   const user = userEvent.setup();
-  updateProfileContactActionMock.mockResolvedValue({
+  updateProfileDetailsActionMock.mockResolvedValue({
     ok: false,
     error: options.error,
   });
@@ -152,12 +146,38 @@ async function expectContactUpdateError(options: {
       options.emergencyContactPhone
     );
   }
-  await user.click(screen.getByRole('button', { name: 'Save contact' }));
+  await user.click(
+    screen.getByRole('button', { name: 'Save profile details' })
+  );
 
   expect(await screen.findByRole('alert')).toHaveTextContent(options.message);
 }
 
 describe('ProfileAccountClient', () => {
+  it('puts the editable profile details form before the overview', () => {
+    renderAccountClient();
+
+    const detailsSection = screen
+      .getByRole('heading', { name: 'Profile details' })
+      .closest('section');
+    const overviewSection = screen
+      .getByRole('heading', { name: 'Old Name' })
+      .closest('section');
+
+    if (detailsSection === null || overviewSection === null) {
+      throw new Error('Expected profile details and overview sections.');
+    }
+    const parent = detailsSection.parentElement;
+    if (parent === null || parent !== overviewSection.parentElement) {
+      throw new Error('Expected profile sections to share a parent.');
+    }
+
+    const siblings = [...parent.children];
+    expect(siblings.indexOf(detailsSection)).toBeLessThan(
+      siblings.indexOf(overviewSection)
+    );
+  });
+
   it('profile owner sees pending sailing card request status', () => {
     renderAccountClient({
       initialSailingCardSummary: {
@@ -239,9 +259,13 @@ describe('ProfileAccountClient', () => {
     ).toBeVisible();
   });
 
-  it('profile owner updates member information', async () => {
+  it('profile owner saves profile details with name, phone, and emergency contact', async () => {
     const user = userEvent.setup();
-    renderAccountClient();
+    renderAccountClient({
+      initialEmergencyContactName: 'Jane Sailor',
+      initialEmergencyContactPhone: '+442079460958',
+      initialPhone: '+16175550100',
+    });
 
     await user.clear(screen.getByLabelText('First name'));
     await user.type(screen.getByLabelText('First name'), 'New');
@@ -250,17 +274,22 @@ describe('ProfileAccountClient', () => {
     await user.selectOptions(screen.getByLabelText('Affiliation'), [
       SailingAffiliation.WELLESLEY,
     ]);
+    await user.clear(screen.getByLabelText('Phone'));
+    await user.type(screen.getByLabelText('Phone'), '(617) 555-0111');
     await user.click(
-      screen.getByRole('button', { name: 'Save member information' })
+      screen.getByRole('button', { name: 'Save profile details' })
     );
 
-    expect(updateProfileIdentityActionMock).toHaveBeenCalledWith('en', {
+    expect(updateProfileDetailsActionMock).toHaveBeenCalledWith('en', {
       affiliation: SailingAffiliation.WELLESLEY,
+      emergencyContactName: 'Jane Sailor',
+      emergencyContactPhone: '+44 20 7946 0958',
       firstName: 'New',
       lastName: 'Name',
       mitId: '',
+      phone: '(617) 555-0111',
     });
-    expect(await screen.findByText('Member information saved.')).toBeVisible();
+    expect(await screen.findByText('Profile details saved.')).toBeVisible();
     expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
   });
 
@@ -270,24 +299,28 @@ describe('ProfileAccountClient', () => {
       initialFirstName: '',
       initialLastName: '',
       initialName: null,
+      initialPhone: '+16175550100',
     });
 
     await user.type(screen.getByLabelText('First name'), 'New');
     await user.type(screen.getByLabelText('Last name'), 'Name');
     await user.click(
-      screen.getByRole('button', { name: 'Save member information' })
+      screen.getByRole('button', { name: 'Save profile details' })
     );
 
-    expect(updateProfileIdentityActionMock).toHaveBeenCalledWith('en', {
+    expect(updateProfileDetailsActionMock).toHaveBeenCalledWith('en', {
       affiliation: SailingAffiliation.OTHER_NON_STUDENT,
+      emergencyContactName: '',
+      emergencyContactPhone: '',
       firstName: 'New',
       lastName: 'Name',
       mitId: '',
+      phone: '(617) 555-0100',
     });
-    expect(await screen.findByText('Member information saved.')).toBeVisible();
+    expect(await screen.findByText('Profile details saved.')).toBeVisible();
   });
 
-  it('profile owner sees locked member information for linked MIT identity', () => {
+  it('profile owner can update contact fields when MIT identity is locked', () => {
     renderAccountClient({
       initialFirstName: 'Ada',
       initialLastName: 'Lovelace',
@@ -303,25 +336,25 @@ describe('ProfileAccountClient', () => {
     expect(screen.getByLabelText('Last name')).toBeDisabled();
     expect(screen.getByLabelText('MIT class/year')).toHaveValue('2027');
     expect(
-      screen.getByRole('button', { name: 'Save member information' })
-    ).toBeDisabled();
+      screen.getByRole('button', { name: 'Save profile details' })
+    ).toBeEnabled();
     expect(
       screen.getByText(
-        'Your name and MIT affiliation are verified from your linked MIT ID. Contact Pavilion staff if they need to be corrected.'
+        'Your name and MIT affiliation are verified from your linked MIT ID. You can still update phone and emergency contact.'
       )
     ).toBeVisible();
   });
 
   it('profile owner sees member information validation errors', async () => {
     const user = userEvent.setup();
-    updateProfileIdentityActionMock.mockResolvedValue({
+    updateProfileDetailsActionMock.mockResolvedValue({
       ok: false,
       error: 'first_name_required',
     });
-    renderAccountClient();
+    renderAccountClient({ initialPhone: '+16175550100' });
 
     await user.click(
-      screen.getByRole('button', { name: 'Save member information' })
+      screen.getByRole('button', { name: 'Save profile details' })
     );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -331,11 +364,11 @@ describe('ProfileAccountClient', () => {
 
   it('profile owner sees request failed when member information update throws', async () => {
     const user = userEvent.setup();
-    updateProfileIdentityActionMock.mockRejectedValue(new Error('network'));
-    renderAccountClient();
+    updateProfileDetailsActionMock.mockRejectedValue(new Error('network'));
+    renderAccountClient({ initialPhone: '+16175550100' });
 
     await user.click(
-      screen.getByRole('button', { name: 'Save member information' })
+      screen.getByRole('button', { name: 'Save profile details' })
     );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -343,7 +376,7 @@ describe('ProfileAccountClient', () => {
     );
   });
 
-  it('profile owner updates contact phones', async () => {
+  it('profile owner updates contact phones in profile details', async () => {
     const user = userEvent.setup();
     renderAccountClient({
       initialEmergencyContactName: 'Jane Sailor',
@@ -358,26 +391,34 @@ describe('ProfileAccountClient', () => {
 
     await user.clear(screen.getByLabelText('Phone'));
     await user.type(screen.getByLabelText('Phone'), '(617) 555-0111');
-    await user.click(screen.getByRole('button', { name: 'Save contact' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Save profile details' })
+    );
 
-    expect(updateProfileContactActionMock).toHaveBeenCalledWith('en', {
+    expect(updateProfileDetailsActionMock).toHaveBeenCalledWith('en', {
+      affiliation: SailingAffiliation.OTHER_NON_STUDENT,
       emergencyContactName: 'Jane Sailor',
       emergencyContactPhone: '+44 20 7946 0958',
+      firstName: 'Old',
+      lastName: 'Name',
+      mitId: '',
       phone: '(617) 555-0111',
     });
-    expect(await screen.findByText('Contact information saved.')).toBeVisible();
+    expect(await screen.findByText('Profile details saved.')).toBeVisible();
   });
 
   it('profile owner sees phone validation errors', async () => {
     const user = userEvent.setup();
-    updateProfileContactActionMock.mockResolvedValue({
+    updateProfileDetailsActionMock.mockResolvedValue({
       ok: false,
       error: 'invalid_phone',
     });
     renderAccountClient();
 
     await user.type(screen.getByLabelText('Phone'), '+44 20 7946 0958');
-    await user.click(screen.getByRole('button', { name: 'Save contact' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Save profile details' })
+    );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Enter a valid US phone number.'
@@ -403,17 +444,19 @@ describe('ProfileAccountClient', () => {
   it('profile owner sees fallback when contact update is unauthorized', async () => {
     await expectContactUpdateError({
       error: 'unauthorized',
-      message: 'Could not update contact information.',
+      message: 'Could not update profile details.',
     });
   });
 
   it('profile owner sees fallback when contact update throws', async () => {
     const user = userEvent.setup();
-    updateProfileContactActionMock.mockRejectedValue(new Error('network'));
+    updateProfileDetailsActionMock.mockRejectedValue(new Error('network'));
     renderAccountClient();
 
     await user.type(screen.getByLabelText('Phone'), '(617) 555-0100');
-    await user.click(screen.getByRole('button', { name: 'Save contact' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Save profile details' })
+    );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'We could not complete that request right now.'
@@ -516,7 +559,7 @@ describe('ProfileAccountClient', () => {
       await screen.findByText('Your email address has been updated.')
     ).toBeVisible();
     expect(screen.getAllByText('next@mit.edu').length).toBeGreaterThan(0);
-    expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
+    expect(componentTestRouter().refresh).not.toHaveBeenCalled();
   });
 
   it('email-change persona sees invalid-code message when confirmation fails', async () => {

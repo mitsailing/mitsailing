@@ -81,9 +81,9 @@ const paymentRow = {
 
 describe('event payment email job', () => {
   beforeEach(() => {
+    vi.resetAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-06-01T12:00:00.000Z'));
-    vi.clearAllMocks();
     mocks.eventPaymentFindUnique.mockResolvedValue(paymentRow);
     mocks.eventPaymentNotificationFindUnique.mockResolvedValue(null);
     mocks.eventPaymentNotificationUpsert.mockResolvedValue({

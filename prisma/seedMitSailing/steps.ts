@@ -401,6 +401,10 @@ export async function seedStaff(p: PrismaClient): Promise<void> {
 export async function seedEvents(p: PrismaClient): Promise<void> {
   for (const e of EVENTS) {
     const detailKind = toDetailPageKind(e.detail_page_kind);
+    const registrationMode = e.registration_mode ?? 'standard';
+    const learnToSailManagedClassKind =
+      e.learn_to_sail_managed_class_kind ?? 'none';
+    const selectionNote = e.selection_note ?? null;
     await p.event.upsert({
       where: { id: e.id },
       create: {
@@ -418,6 +422,9 @@ export async function seedEvents(p: PrismaClient): Promise<void> {
         createdAt: new Date(e.created_at),
         detailPageKind: detailKind,
         externalDetailUrl: e.external_detail_url ?? null,
+        registrationMode,
+        learnToSailManagedClassKind,
+        selectionNote,
         isPublished: e.is_published,
       },
       update: {
@@ -433,6 +440,9 @@ export async function seedEvents(p: PrismaClient): Promise<void> {
         createdAt: new Date(e.created_at),
         detailPageKind: detailKind,
         externalDetailUrl: e.external_detail_url ?? null,
+        registrationMode,
+        learnToSailManagedClassKind,
+        selectionNote,
         isPublished: e.is_published,
       },
     });

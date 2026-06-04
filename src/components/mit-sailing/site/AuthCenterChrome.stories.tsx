@@ -16,7 +16,7 @@ type Story = StoryObj<typeof meta>;
 export const LoginColumn: Story = {
   render: () => (
     <div className="flex min-h-screen flex-col bg-background font-mit-sans text-foreground">
-      <div className="flex flex-1 flex-col items-center justify-center px-4 py-8">
+      <div className="flex flex-1 flex-col items-center justify-start px-4 pt-8 pb-8 sm:justify-center sm:py-8">
         <main className="w-full max-w-md space-y-6 px-4">
           <AuthCenterBrandMark />
           <p className="text-center text-sm text-mit-text">

@@ -133,7 +133,8 @@ export function SignUpForm(props: SignUpFormProps) {
     <>
       {submitted ? (
         <p
-          className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800"
+          aria-live="polite"
+          className="rounded-md border border-green-700/30 bg-green-50 px-3 py-2 text-sm font-medium text-green-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:bg-green-950/30 dark:text-green-100"
           role="status"
         >
           {t('registered_banner')}
@@ -141,7 +142,7 @@ export function SignUpForm(props: SignUpFormProps) {
       ) : null}
       {error ? (
         <p
-          className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm font-medium text-red-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:text-red-100"
           role="alert"
         >
           {error.message}
@@ -233,7 +234,7 @@ export function SignUpForm(props: SignUpFormProps) {
         </div>
 
         <SubmitButton
-          className="w-full"
+          className="min-h-11 w-full"
           pending={submitting}
           pendingLabel={tCommon('pending_submitting')}
           variant="mit"

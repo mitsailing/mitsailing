@@ -17,8 +17,8 @@ export function ProfileInlineBanner(props: { banner: ProfileBannerState }) {
   }
   const cls =
     props.banner.kind === 'success'
-      ? 'mt-2 rounded-md bg-green-50 px-3 py-2 text-sm text-green-800'
-      : 'mt-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800';
+      ? 'mt-2 rounded-md border border-green-700/30 bg-green-50 px-3 py-2 text-sm font-medium text-green-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:bg-green-950/30 dark:text-green-100'
+      : 'mt-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm font-medium text-red-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:text-red-100';
   return (
     <p
       className={cls}

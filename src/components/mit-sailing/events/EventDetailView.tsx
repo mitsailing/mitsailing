@@ -4,6 +4,7 @@ import type * as React from 'react';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
 import { PublicCatalogDetailTopNav } from '@/components/mit-sailing/admin/PublicCatalogDetailTopNav';
 import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
+import { Button } from '@/components/ui/button';
 import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
@@ -16,6 +17,7 @@ import type {
 import { cancelPublicEventRegistrationAction } from '@/libs/mit-sailing/eventRegistrationActions';
 import { publicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
 import type { PublicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
+import { eventUsesLearnToSailWaitlist } from '@/libs/mit-sailing/learnToSailEvents';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 import { getI18nPath } from '@/utils/Helpers';
 import { EventDetailFacts } from './EventDetailFacts';
@@ -58,14 +60,45 @@ function SectionHeading(props: { children: React.ReactNode; id: string }) {
 
 function MetaRow(props: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 py-3">
+    <div className="grid gap-1 py-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-baseline sm:gap-4">
       <dt className="text-[0.6875rem] font-semibold tracking-wide text-muted-foreground uppercase">
         {props.label}
       </dt>
-      <dd className="m-0 text-right text-sm font-medium text-mit-text">
+      <dd className="m-0 min-w-0 text-left text-sm font-medium [overflow-wrap:anywhere] text-mit-text sm:text-right">
         {props.children}
       </dd>
     </div>
+  );
+}
+
+function ExperiencedSailorPathCard(props: {
+  locale: string;
+  t: Awaited<ReturnType<typeof getTranslations<'MitSailingEvents'>>>;
+}) {
+  return (
+    <section className="rounded-xl border border-mit-line bg-muted/30 p-4">
+      <h2 className="font-mit-serif text-base font-semibold tracking-tight text-mit-text">
+        {props.t('learn_to_sail_experienced_path_title')}
+      </h2>
+      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+        {props.t('learn_to_sail_experienced_path_body')}
+      </p>
+      <Button
+        asChild
+        className="mt-3 min-h-11 w-full"
+        size="sm"
+        variant="outline"
+      >
+        <Link
+          href={getI18nPath(
+            '/classes/intro-for-experienced-sailors',
+            props.locale
+          )}
+        >
+          {props.t('learn_to_sail_experienced_path_link')}
+        </Link>
+      </Button>
+    </section>
   );
 }
 
@@ -112,6 +145,18 @@ function registrationMetaLabels(props: {
       tense: dateTense(props.event.registrationEnd, props.now),
     }),
   };
+}
+
+function learnToSailClassRequestsLabel(props: {
+  count: number;
+  t: Awaited<ReturnType<typeof getTranslations<'MitSailingEvents'>>>;
+}): string {
+  return props.t(
+    props.count === 1
+      ? 'learn_to_sail_class_request_one'
+      : 'learn_to_sail_class_requests_many',
+    { count: props.count }
+  );
 }
 
 function showRegistrationOpens(event: PublicEventDetail, now: Date): boolean {
@@ -173,6 +218,10 @@ export async function EventDetailView(props: EventDetailViewProps) {
           approved: props.event.approvedRegistrationCount,
           capacity: props.event.maxParticipants,
         });
+  const usesLearnToSailWaitlist = eventUsesLearnToSailWaitlist(props.event);
+  const classRequestCount =
+    props.event.pendingRegistrationCount +
+    props.event.approvedRegistrationCount;
   const now = new Date();
   const registrationMeta = registrationMetaLabels({
     event: props.event,
@@ -207,17 +256,15 @@ export async function EventDetailView(props: EventDetailViewProps) {
   if (externalRegistrationUrl) {
     registrationActionContent = (
       <div className="flex flex-col items-start gap-3">
-        <a
-          className={cn(
-            'inline-flex min-h-10 items-center justify-center rounded-md bg-mit-red px-4 py-2 text-sm font-medium text-white no-underline hover:bg-mit-red-hover dark:hover:ring-1 dark:hover:ring-inset dark:hover:ring-white/30',
-            textFocusRingClassName
-          )}
-          href={externalRegistrationUrl}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          {t('external_cta')}
-        </a>
+        <Button asChild size="lg" variant="mit">
+          <a
+            href={externalRegistrationUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {t('external_cta')}
+          </a>
+        </Button>
         {externalEntriesUrl ? (
           <a
             className={cn(
@@ -291,20 +338,22 @@ export async function EventDetailView(props: EventDetailViewProps) {
                 {t('badge_special')}
               </span>
             ) : null}
+            {usesLearnToSailWaitlist ? (
+              <span className="rounded-sm bg-mit-red-highlight px-2 py-1 text-xs font-bold tracking-wide text-mit-red uppercase dark:text-white">
+                {t('learn_to_sail_waitlist_badge')}
+              </span>
+            ) : null}
           </div>
           <h1 className="scroll-m-20 font-mit-serif text-[clamp(1.875rem,5vw,3rem)] leading-tight font-semibold tracking-tight text-balance text-mit-text">
             {props.event.name}
           </h1>
           <EventDetailFacts event={props.event} t={t} />
-          <p className="mt-5 max-w-3xl text-base leading-relaxed whitespace-pre-wrap text-mit-text">
-            {props.event.description}
-          </p>
         </header>
 
         <aside className="flex flex-col gap-6 lg:col-start-2 lg:row-start-1 lg:self-start">
           <section
             aria-labelledby="event-registration-panel-heading"
-            className="overflow-hidden rounded-lg border border-mit-line bg-card shadow-sm shadow-foreground/5 lg:sticky lg:top-24"
+            className="overflow-hidden rounded-xl border border-mit-line bg-card lg:sticky lg:top-24"
           >
             <div className="border-b border-mit-line p-5">
               <p className="mb-1 text-xs font-bold tracking-widest text-mit-red uppercase dark:text-white">
@@ -330,16 +379,43 @@ export async function EventDetailView(props: EventDetailViewProps) {
                 </MetaRow>
               ) : null}
               <MetaRow label={t('capacity_label')}>{capacityLabel}</MetaRow>
-              <MetaRow label={t('approval_label')}>
-                {props.event.requiresApproval
-                  ? t('approval_required')
-                  : t('approval_auto')}
-              </MetaRow>
+              {usesLearnToSailWaitlist ? (
+                <>
+                  <MetaRow label={t('waitlist_label')}>
+                    {t('learn_to_sail_waitlist_priority')}
+                  </MetaRow>
+                  {classRequestCount > 0 ? (
+                    <MetaRow label={t('class_requests_label')}>
+                      {learnToSailClassRequestsLabel({
+                        count: classRequestCount,
+                        t,
+                      })}
+                    </MetaRow>
+                  ) : null}
+                </>
+              ) : (
+                <MetaRow label={t('approval_label')}>
+                  {props.event.requiresApproval
+                    ? t('approval_required')
+                    : t('approval_auto')}
+                </MetaRow>
+              )}
+              {props.event.selectionNote ? (
+                <MetaRow label={t('selection_note_label')}>
+                  {props.event.selectionNote}
+                </MetaRow>
+              ) : null}
             </dl>
           </section>
+          {usesLearnToSailWaitlist ? (
+            <ExperiencedSailorPathCard locale={props.locale} t={t} />
+          ) : null}
         </aside>
 
         <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+          <p className="mb-10 max-w-3xl text-base leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap text-mit-text">
+            {props.event.description}
+          </p>
           {props.event.entryFees.length > 0 ? (
             <section className="mb-10" aria-labelledby="event-fees-heading">
               <SectionHeading id="event-fees-heading">

@@ -34,6 +34,7 @@ import {
   EventDetailPageKind,
   EventRegistrationMode,
   EventSailingCardRequirement,
+  LearnToSailManagedClassKind,
 } from '@/generated/prisma/enums';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
@@ -143,6 +144,10 @@ function registrationOptionalOpen(props: {
   return (
     props.registrationMode !== EventRegistrationMode.standard ||
     props.event.sailingCardRequirement !== EventSailingCardRequirement.NONE ||
+    (props.event.learnToSailManagedClassKind !== null &&
+      props.event.learnToSailManagedClassKind !==
+        LearnToSailManagedClassKind.none) ||
+    optionalTextPresent(props.event.selectionNote) ||
     props.event.registrationStart !== null ||
     props.event.registrationEnd !== null ||
     props.event.maxParticipants !== null ||
@@ -150,6 +155,19 @@ function registrationOptionalOpen(props: {
     optionalTextPresent(props.event.externalRegistrationUrl) ||
     optionalTextPresent(props.event.externalEntriesUrl)
   );
+}
+
+function learnToSailManagedClassKindLabel(props: {
+  kind: LearnToSailManagedClassKind | null;
+  t: AdminEventFormTranslations;
+}): string {
+  if (props.kind === LearnToSailManagedClassKind.beginner_mid_week_123) {
+    return props.t('learn_to_sail_managed_mid_week_123');
+  }
+  if (props.kind === LearnToSailManagedClassKind.beginner_sunday_all_in_one) {
+    return props.t('learn_to_sail_managed_sunday_all_in_one');
+  }
+  return props.t('learn_to_sail_managed_none');
 }
 
 function teamsOptionalOpen(event: AdminEventEditorDto): boolean {
@@ -476,6 +494,57 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
                   name="requiresApproval"
                 />
                 <AdminEventField
+                  htmlFor="event-learn-to-sail-managed-class-kind"
+                  hint={props.t('field_learn_to_sail_managed_class_kind_hint')}
+                  label={props.t('field_learn_to_sail_managed_class_kind')}
+                >
+                  {(controlProps) => (
+                    <select
+                      className={adminNativeSelectClassName}
+                      defaultValue={
+                        props.event.learnToSailManagedClassKind ??
+                        LearnToSailManagedClassKind.none
+                      }
+                      id="event-learn-to-sail-managed-class-kind"
+                      name="learnToSailManagedClassKind"
+                      {...controlProps}
+                    >
+                      <option value={LearnToSailManagedClassKind.none}>
+                        {props.t('learn_to_sail_managed_none')}
+                      </option>
+                      <option
+                        value={
+                          LearnToSailManagedClassKind.beginner_mid_week_123
+                        }
+                      >
+                        {props.t('learn_to_sail_managed_mid_week_123')}
+                      </option>
+                      <option
+                        value={
+                          LearnToSailManagedClassKind.beginner_sunday_all_in_one
+                        }
+                      >
+                        {props.t('learn_to_sail_managed_sunday_all_in_one')}
+                      </option>
+                    </select>
+                  )}
+                </AdminEventField>
+                <AdminEventField
+                  htmlFor="event-selection-note"
+                  hint={props.t('field_selection_note_hint')}
+                  label={props.t('field_selection_note')}
+                >
+                  {(controlProps) => (
+                    <Input
+                      defaultValue={props.event.selectionNote ?? ''}
+                      id="event-selection-note"
+                      maxLength={160}
+                      name="selectionNote"
+                      {...controlProps}
+                    />
+                  )}
+                </AdminEventField>
+                <AdminEventField
                   htmlFor="event-sailing-card-requirement"
                   hint={props.t('field_sailing_card_requirement_hint')}
                   label={props.t('field_sailing_card_requirement')}
@@ -675,6 +744,20 @@ function ReadOnlyBasicsSection(props: AdminEventFormViewProps) {
           </ReadOnlyValue>
           <ReadOnlyValue label={props.t('field_max_participants')}>
             {props.event.maxParticipants ?? props.t('empty_value')}
+          </ReadOnlyValue>
+          <ReadOnlyValue
+            label={props.t('field_learn_to_sail_managed_class_kind')}
+          >
+            {learnToSailManagedClassKindLabel({
+              kind: props.event.learnToSailManagedClassKind,
+              t: props.t,
+            })}
+          </ReadOnlyValue>
+          <ReadOnlyValue label={props.t('field_selection_note')}>
+            {readOnlyTextValue(
+              props.event.selectionNote,
+              props.t('empty_value')
+            )}
           </ReadOnlyValue>
         </dl>
       </AdminEventFormSection>

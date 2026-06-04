@@ -1,3 +1,4 @@
+import type { LearnToSailManagedClassKind } from '@/generated/prisma/enums';
 import {
   EVENTS_TIME_ZONE,
   listNyDayKeysInMonth,
@@ -37,6 +38,7 @@ export type EventCalendarEvent = {
   name: string;
   slug: string;
   eventCategoryId: string;
+  learnToSailManagedClassKind: LearnToSailManagedClassKind | null;
   category: {
     id: string;
     name: string;

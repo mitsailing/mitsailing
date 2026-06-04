@@ -182,6 +182,13 @@ enum EventRegistrationMode {
     external
 }
 
+enum LearnToSailManagedClassKind {
+    none
+    beginner_mid_week_123
+    beginner_sunday_all_in_one
+    @@map("learn_to_sail_managed_class_kind")
+}
+
 enum EventAddressPreset {
     pavilion
     bluewater
@@ -966,6 +973,8 @@ model Event {
     registrationMode EventRegistrationMode @default(standard) @map("registration_mode")
     externalRegistrationUrl String? @map("external_registration_url")
     externalEntriesUrl String? @map("external_entries_url")
+    learnToSailManagedClassKind LearnToSailManagedClassKind @default(none) @map("learn_to_sail_managed_class_kind")
+    selectionNote String? @map("selection_note") @db.VarChar(160)
     faqVisible Boolean @default(false) @map("faq_visible")
     faqContent String @default("") @map("faq_content") @db.Text()
     noticeOfRaceVisible Boolean @default(false) @map("notice_of_race_visible")

@@ -23,6 +23,11 @@ export type AnswerType = 'text' | 'select' | 'checkbox';
 
 /** How the public detail experience is served (legacy “custom vs standard web page”). */
 export type EventDetailPageKind = 'standard' | 'external';
+export type EventRegistrationMode = 'none' | 'standard' | 'external';
+export type LearnToSailManagedClassKind =
+  | 'none'
+  | 'beginner_mid_week_123'
+  | 'beginner_sunday_all_in_one';
 
 export type Event = {
   id: string;
@@ -44,6 +49,9 @@ export type Event = {
   detail_page_kind?: EventDetailPageKind;
   /** When `detail_page_kind` is `external`, destination URL (https…). */
   external_detail_url?: string | null;
+  registration_mode?: EventRegistrationMode;
+  learn_to_sail_managed_class_kind?: LearnToSailManagedClassKind;
+  selection_note?: string | null;
   /**
    * When false, the event is hidden from the public calendar and registration
    * is disabled; the `/events/:slug` URL still works for anyone with the link.
@@ -416,10 +424,12 @@ export const EVENTS: Event[] = [
       'Three consecutive afternoon sessions (Tue/Wed/Thu) on Tech Dinghies; life jackets provided. Counts toward a provisional rating.',
     slug: 'learn-to-sail-weekday-apr-14',
     is_special: false,
-    max_participants: 12,
-    requires_approval: false,
-    registration_start: '2026-03-22T04:00:00.000Z',
-    registration_end: '2026-04-13T03:59:59.000Z',
+    max_participants: 18,
+    requires_approval: true,
+    registration_start: '2026-06-01T04:00:00.000Z',
+    registration_end: '2030-06-30T03:59:59.000Z',
+    learn_to_sail_managed_class_kind: 'beginner_mid_week_123',
+    selection_note: 'Decisions Monday afternoon',
     created_at: '2026-01-06T15:05:00.000Z',
     is_published: true,
   },

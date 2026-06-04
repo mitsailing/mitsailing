@@ -22,6 +22,7 @@ import {
   parseEventRegistrationMutationCode,
 } from '@/libs/mit-sailing/eventRegistrationErrors';
 import { publicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
+import { eventUsesLearnToSailWaitlist } from '@/libs/mit-sailing/learnToSailEvents';
 import { getI18nPath } from '@/utils/Helpers';
 
 type RegisterPageProps = {
@@ -33,21 +34,36 @@ function EventScheduleSummary(props: {
   event: PublicEventDetail;
   t: Awaited<ReturnType<typeof getTranslations<'MitSailingEvents'>>>;
 }) {
-  const dateSummary =
-    props.event.dates.length > 0
-      ? props.event.dates
-          .map((date) =>
-            formatEasternEventRange(date.startDateTime, date.endDateTime)
-          )
-          .join(', ')
-      : props.t('date_to_be_announced');
+  if (props.event.dates.length === 0) {
+    return (
+      <p className="mb-5 text-sm leading-snug text-muted-foreground">
+        <span className="sr-only">{props.t('field_schedule')}: </span>
+        {props.t('date_to_be_announced')}
+      </p>
+    );
+  }
 
   return (
-    <p className="mb-5 text-sm leading-snug text-muted-foreground">
+    <div className="mb-5 text-sm leading-snug text-muted-foreground">
       <span className="sr-only">{props.t('field_schedule')}: </span>
-      {dateSummary}
-    </p>
+      <ul className="m-0 list-none space-y-1 p-0">
+        {props.event.dates.map((date) => (
+          <li key={date.id}>
+            {formatEasternEventRange(date.startDateTime, date.endDateTime)}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
+}
+
+function registrationPageActionLabel(props: {
+  event: PublicEventDetail;
+  t: Awaited<ReturnType<typeof getTranslations<'MitSailingEvents'>>>;
+}): string {
+  return eventUsesLearnToSailWaitlist(props.event)
+    ? props.t('registration_request_class_eyebrow')
+    : props.t('registration_dialog_eyebrow');
 }
 
 export async function generateMetadata(
@@ -62,7 +78,8 @@ export async function generateMetadata(
   if (!event) {
     return { title: t('meta_title_not_found') };
   }
-  return { title: `${t('registration_dialog_eyebrow')} - ${event.name}` };
+  const actionLabel = registrationPageActionLabel({ event, t });
+  return { title: `${actionLabel} - ${event.name}` };
 }
 
 export default async function EventRegisterPage(props: RegisterPageProps) {
@@ -102,6 +119,7 @@ export default async function EventRegisterPage(props: RegisterPageProps) {
     redirect(getI18nPath(`/events/${encodeURIComponent(slug)}`, locale));
   }
   const errorMessage = eventRegistrationErrorMessage(errorCode, t);
+  const actionLabel = registrationPageActionLabel({ event, t });
 
   return (
     <SiteSectionShell
@@ -109,13 +127,13 @@ export default async function EventRegisterPage(props: RegisterPageProps) {
       segments={[
         { label: tRoutes('section_events'), href: '/events/' },
         { label: event.name, href: `/events/${event.slug}` },
-        { label: t('registration_dialog_eyebrow') },
+        { label: actionLabel },
       ]}
     >
       <SiteSectionMain variant="compactDetail">
         <div className="mx-auto max-w-3xl">
           <p className="mb-2 text-xs font-bold tracking-widest text-mit-red uppercase dark:text-mit-red-ink">
-            {t('registration_dialog_eyebrow')}
+            {actionLabel}
           </p>
           <h1 className="mb-6 font-mit-serif text-[clamp(1.875rem,5vw,2.75rem)] leading-tight font-semibold tracking-tight text-mit-text">
             {event.name}
@@ -123,7 +141,7 @@ export default async function EventRegisterPage(props: RegisterPageProps) {
           <EventScheduleSummary event={event} t={t} />
           {errorMessage ? (
             <p
-              className="mb-5 rounded-lg border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              className="mb-5 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-red-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:text-red-100"
               role="alert"
             >
               {errorMessage}

@@ -2837,6 +2837,18 @@ export class SchemaType implements SchemaDef {
                     optional: true,
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("external_entries_url") }] }] as readonly AttributeApplication[]
                 },
+                learnToSailManagedClassKind: {
+                    name: "learnToSailManagedClassKind",
+                    type: "LearnToSailManagedClassKind",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("none") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("learn_to_sail_managed_class_kind") }] }] as readonly AttributeApplication[],
+                    default: "none" as FieldDefault
+                },
+                selectionNote: {
+                    name: "selectionNote",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@trim" }, { name: "@length", args: [{ name: "max", value: ExpressionUtils.literal(160) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("selection_note") }] }, { name: "@db.VarChar", args: [{ name: "x", value: ExpressionUtils.literal(160) }] }] as readonly AttributeApplication[]
+                },
                 faqVisible: {
                     name: "faqVisible",
                     type: "Boolean",
@@ -3015,6 +3027,8 @@ export class SchemaType implements SchemaDef {
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventCategoryId")]) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.field("isPublished") }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("boatsPerTeam"), "<", ExpressionUtils.literal(1)), "||", ExpressionUtils.binary(ExpressionUtils.field("personsPerBoat"), "<", ExpressionUtils.literal(1))) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("learnToSailManagedClassKind"), "!=", ExpressionUtils.literal("none")), "&&", ExpressionUtils.binary(ExpressionUtils.field("registrationMode"), "!=", ExpressionUtils.literal("standard"))) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("learnToSailManagedClassKind"), "!=", ExpressionUtils.literal("none")), "&&", ExpressionUtils.unary("!", ExpressionUtils.field("requiresApproval"))) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read,update,delete") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin")), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_staff"))), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_master"))), "||", ExpressionUtils.binary(ExpressionUtils.field("admins"), "?", ExpressionUtils.binary(ExpressionUtils.field("adminUserId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))))) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("create") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin")), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_staff"))), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_master")))) }] },
                 { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("events") }] }
@@ -6844,6 +6858,17 @@ export class SchemaType implements SchemaDef {
                 standard: "standard",
                 external: "external"
             }
+        },
+        LearnToSailManagedClassKind: {
+            name: "LearnToSailManagedClassKind",
+            values: {
+                none: "none",
+                beginner_mid_week_123: "beginner_mid_week_123",
+                beginner_sunday_all_in_one: "beginner_sunday_all_in_one"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("learn_to_sail_managed_class_kind") }] }
+            ] as readonly AttributeApplication[]
         },
         EventAddressPreset: {
             name: "EventAddressPreset",

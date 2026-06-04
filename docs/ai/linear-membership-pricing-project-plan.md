@@ -1,5 +1,11 @@
 # Linear Project Seed: Membership Pricing V1
 
+> **Learn-to-Sail waitlist note:** The Learn-to-Sail waitlist rows in this
+> bootstrap plan are historical. Current product behavior, SMS scope, event-page
+> URL behavior, UX states, and blockers are defined in
+> `docs/superpowers/specs/2026-06-03-learn-to-sail-waitlist-feature-start.md`.
+> Use this file only for the broad project map.
+
 Use this as the initial Linear project plan after creating the Linear trial or
 workspace. Until Linear is connected, this file is the seed document agents use
 to keep pricing, membership, onboarding, and persona work aligned.

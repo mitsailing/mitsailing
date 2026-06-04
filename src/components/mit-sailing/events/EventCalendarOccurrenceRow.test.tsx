@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { LearnToSailManagedClassKind } from '@/generated/prisma/enums';
 import { EventCalendarOccurrenceRow } from './EventCalendarOccurrenceRow';
 
 vi.mock('@/libs/I18nNavigation', () => ({
@@ -25,6 +26,7 @@ const row = {
     },
     eventCategoryId: 'cat-1',
     id: 'event-1',
+    learnToSailManagedClassKind: LearnToSailManagedClassKind.none,
     name: 'A very long event name that must remain visible in the calendar cell',
     slug: 'long-event',
   },
@@ -38,6 +40,7 @@ const row = {
       },
       eventCategoryId: 'cat-1',
       id: 'event-1',
+      learnToSailManagedClassKind: LearnToSailManagedClassKind.none,
       name: 'A very long event name that must remain visible in the calendar cell',
       slug: 'long-event',
     },
@@ -48,6 +51,12 @@ const row = {
   rowKey: 'date-1-2026-04-07-single',
   start: new Date('2026-04-07T14:00:00.000Z'),
 };
+
+function expectElementBefore(first: HTMLElement, second: HTMLElement) {
+  const elements = [...first.ownerDocument.body.querySelectorAll('*')];
+
+  expect(elements.indexOf(first)).toBeLessThan(elements.indexOf(second));
+}
 
 describe('EventCalendarOccurrenceRow', () => {
   it('does not depend on native title hover for full event names', () => {
@@ -65,5 +74,38 @@ describe('EventCalendarOccurrenceRow', () => {
     render(<EventCalendarOccurrenceRow row={row} showBottomBorder wrapTitle />);
 
     expect(screen.getByText('Clinic')).toBeVisible();
+  });
+
+  it('shows the event time before the event title for quick scanning', () => {
+    render(<EventCalendarOccurrenceRow row={row} showBottomBorder wrapTitle />);
+
+    const time = screen.getByText(/10:00 AM.*4:00 PM/u);
+    const title = screen.getByRole('link', {
+      name: 'A very long event name that must remain visible in the calendar cell',
+    });
+    const category = screen.getByText('Clinic');
+
+    expectElementBefore(time, title);
+    expectElementBefore(title, category);
+  });
+
+  it('shows a translated waitlist-number cue for managed classes', () => {
+    render(
+      <EventCalendarOccurrenceRow
+        learnToSailWaitlistLabel="Waitlist number decides"
+        row={{
+          ...row,
+          event: {
+            ...row.event,
+            learnToSailManagedClassKind:
+              LearnToSailManagedClassKind.beginner_mid_week_123,
+          },
+        }}
+        showBottomBorder
+        wrapTitle
+      />
+    );
+
+    expect(screen.getByText('Waitlist number decides')).toBeVisible();
   });
 });

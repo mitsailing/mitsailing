@@ -7,7 +7,7 @@ import type {
   UseFormRegister,
   UseFormSetValue,
 } from 'react-hook-form';
-import { Button } from '@/components/ui/button';
+import { SubmitButton as FormSubmitButton } from '@/components/ui/submit-button';
 import type { SailingAffiliation } from '@/generated/prisma/enums';
 import type {
   SailingCardOnboardingFormState,
@@ -24,17 +24,18 @@ import {
 
 function SubmitButton(props: { readonly isPending: boolean }) {
   const t = useTranslations('OnboardingPage');
+  const tCommon = useTranslations('Common');
 
   return (
-    <Button
-      className="w-full gap-2 sm:w-fit"
-      disabled={props.isPending}
-      type="submit"
+    <FormSubmitButton
+      className="min-h-11 w-full gap-2 sm:w-fit"
+      pending={props.isPending}
+      pendingLabel={tCommon('pending_submitting')}
       variant="mit"
     >
       <Sailboat aria-hidden className="size-4" />
       {t('submit')}
-    </Button>
+    </FormSubmitButton>
   );
 }
 

@@ -11,14 +11,17 @@ import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import type { SailingAffiliation } from '@/generated/prisma/enums';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
-import { updateProfileIdentityAction } from '@/libs/auth/profileIdentityActions';
-import type { UpdateProfileIdentityResult } from '@/libs/auth/profileIdentityActions';
+import { updateProfileDetailsAction } from '@/libs/auth/profileIdentityActions';
+import type { UpdateProfileDetailsResult } from '@/libs/auth/profileIdentityActions';
 import {
   getSailingAffiliationOptions,
   getSailingAffiliationRule,
 } from '@/libs/mit-sailing/sailingAffiliations';
 
-type IdentityErrorMessageKey =
+type ProfileDetailsErrorMessageKey =
+  | 'contact_emergency_incomplete'
+  | 'contact_emergency_phone_invalid'
+  | 'contact_phone_invalid'
   | 'identity_affiliation_mismatch'
   | 'identity_affiliation_required'
   | 'identity_first_name_required'
@@ -27,27 +30,30 @@ type IdentityErrorMessageKey =
   | 'identity_mit_id_duplicate'
   | 'identity_mit_id_invalid'
   | 'identity_mit_id_required'
-  | 'identity_update_error';
+  | 'profile_details_update_error';
 
-const identityErrorMessageKeys = {
+const profileDetailsErrorMessageKeys = {
   affiliation_mismatch: 'identity_affiliation_mismatch',
   affiliation_required: 'identity_affiliation_required',
   first_name_required: 'identity_first_name_required',
+  incomplete_emergency_contact: 'contact_emergency_incomplete',
   identity_locked: 'identity_locked_error',
+  invalid_emergency_phone: 'contact_emergency_phone_invalid',
+  invalid_phone: 'contact_phone_invalid',
   last_name_required: 'identity_last_name_required',
   mit_id_duplicate: 'identity_mit_id_duplicate',
   mit_id_invalid: 'identity_mit_id_invalid',
   mit_id_required: 'identity_mit_id_required',
-  unauthorized: 'identity_update_error',
+  unauthorized: 'profile_details_update_error',
 } as const satisfies Record<
-  Exclude<UpdateProfileIdentityResult, { ok: true }>['error'],
-  IdentityErrorMessageKey
+  Exclude<UpdateProfileDetailsResult, { ok: true }>['error'],
+  ProfileDetailsErrorMessageKey
 >;
 
-function identityErrorMessageKey(
-  error: Exclude<UpdateProfileIdentityResult, { ok: true }>['error']
-): IdentityErrorMessageKey {
-  return identityErrorMessageKeys[error];
+function profileDetailsErrorMessageKey(
+  error: Exclude<UpdateProfileDetailsResult, { ok: true }>['error']
+): ProfileDetailsErrorMessageKey {
+  return profileDetailsErrorMessageKeys[error];
 }
 
 export function affiliationLabelKey(affiliation: SailingAffiliation) {
@@ -103,18 +109,24 @@ function mitIdHelpKey(props: {
 }
 
 export function ProfileMemberInformationSection(props: {
+  readonly emergencyContactName: string;
+  readonly emergencyContactPhone: string;
   readonly firstName: string;
   readonly lastName: string;
   readonly locale: string;
   readonly mitClassYear: string | null;
   readonly mitId: string;
   readonly mitIdentityLocked: boolean;
+  readonly onEmergencyContactNameChange: (value: string) => void;
+  readonly onEmergencyContactPhoneChange: (value: string) => void;
   readonly onFirstNameChange: (value: string) => void;
   readonly onLastNameChange: (value: string) => void;
   readonly onMitClassYearChange: (value: string | null) => void;
   readonly onMitIdChange: (value: string) => void;
   readonly onMitIdentityLockedChange: (value: boolean) => void;
+  readonly onPhoneChange: (value: string) => void;
   readonly onSailingAffiliationChange: (value: SailingAffiliation | '') => void;
+  readonly phone: string;
   readonly sailingAffiliation: SailingAffiliation | '';
 }) {
   const tCommon = useTranslations('Common');
@@ -143,21 +155,26 @@ export function ProfileMemberInformationSection(props: {
   });
   const mitIdHelpId = helpKey ? 'mitId-help' : undefined;
 
-  async function onUpdateIdentity(event: React.SubmitEvent<HTMLFormElement>) {
+  async function onUpdateProfileDetails(
+    event: React.SubmitEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
     setBanner(null);
     setPending(true);
     try {
-      const result = await updateProfileIdentityAction(props.locale, {
+      const result = await updateProfileDetailsAction(props.locale, {
         affiliation: props.sailingAffiliation,
+        emergencyContactName: props.emergencyContactName,
+        emergencyContactPhone: props.emergencyContactPhone,
         firstName: props.firstName,
         lastName: props.lastName,
         mitId: props.mitId,
+        phone: props.phone,
       });
       if (!result.ok) {
         setBanner({
           kind: 'error',
-          message: t(identityErrorMessageKey(result.error)),
+          message: t(profileDetailsErrorMessageKey(result.error)),
         });
         return;
       }
@@ -167,7 +184,7 @@ export function ProfileMemberInformationSection(props: {
       props.onMitIdChange(result.identity.mitId ?? '');
       props.onMitClassYearChange(result.identity.mitClassYear);
       props.onMitIdentityLockedChange(result.identity.lockedByMitId);
-      setBanner({ kind: 'success', message: t('identity_updated') });
+      setBanner({ kind: 'success', message: t('profile_details_updated') });
       router.refresh();
     } catch {
       setBanner({
@@ -181,24 +198,24 @@ export function ProfileMemberInformationSection(props: {
 
   return (
     <section
-      aria-labelledby="member-information-heading"
+      aria-labelledby="profile-details-heading"
       className="rounded-lg border border-mit-line bg-card p-6 shadow-sm"
-      id="member-information-section"
+      id="profile-details-section"
     >
-      <h2 className="text-lg font-medium" id="member-information-heading">
-        {t('identity_heading')}
+      <h2 className="text-lg font-medium" id="profile-details-heading">
+        {t('profile_details_heading')}
       </h2>
       <p className="mt-2 text-sm text-mit-text">
         {props.mitIdentityLocked
-          ? t('identity_locked_help')
-          : t('identity_description')}
+          ? t('profile_details_locked_help')
+          : t('profile_details_description')}
       </p>
       <ProfileInlineBanner banner={banner} />
       <form
         className="mt-4 flex flex-col gap-4"
         onSubmit={(event) => {
           // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the form promise.
-          void onUpdateIdentity(event);
+          void onUpdateProfileDetails(event);
         }}
       >
         <div className="grid gap-4 md:grid-cols-2">
@@ -344,15 +361,64 @@ export function ProfileMemberInformationSection(props: {
               />
             </div>
           ) : null}
+
+          <div className="flex flex-col gap-1.5 md:col-span-2">
+            <Label className="text-foreground" htmlFor="phone">
+              {t('phone')}
+            </Label>
+            <Input
+              autoComplete="tel"
+              id="phone"
+              inputMode="tel"
+              name="phone"
+              onChange={(event) => {
+                props.onPhoneChange(event.currentTarget.value);
+              }}
+              required
+              type="tel"
+              value={props.phone}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-foreground" htmlFor="emergencyContactName">
+              {t('emergency_contact_name')}
+            </Label>
+            <Input
+              autoComplete="name"
+              id="emergencyContactName"
+              name="emergencyContactName"
+              onChange={(event) => {
+                props.onEmergencyContactNameChange(event.currentTarget.value);
+              }}
+              type="text"
+              value={props.emergencyContactName}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-foreground" htmlFor="emergencyContactPhone">
+              {t('emergency_contact_phone')}
+            </Label>
+            <Input
+              autoComplete="tel"
+              id="emergencyContactPhone"
+              inputMode="tel"
+              name="emergencyContactPhone"
+              onChange={(event) => {
+                props.onEmergencyContactPhoneChange(event.currentTarget.value);
+              }}
+              type="tel"
+              value={props.emergencyContactPhone}
+            />
+          </div>
         </div>
         <SubmitButton
-          className="mt-2 w-fit"
-          disabled={props.mitIdentityLocked}
+          className="mt-2 min-h-11 w-full sm:w-fit"
           pending={pending}
           pendingLabel={tCommon('pending_saving')}
           variant="mit"
         >
-          {t('identity_save')}
+          {t('profile_details_save')}
         </SubmitButton>
       </form>
     </section>

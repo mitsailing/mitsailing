@@ -125,7 +125,7 @@ test.describe('Event payments', () => {
     await signInAsAdmin(page);
 
     await submitRegistration({
-      buttonName: 'Submit registration request',
+      buttonName: 'Request a spot',
       eventName: event.name,
       page,
       slug: event.slug,

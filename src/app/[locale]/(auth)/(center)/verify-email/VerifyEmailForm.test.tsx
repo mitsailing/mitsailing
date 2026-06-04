@@ -84,8 +84,12 @@ describe('VerifyEmailForm', () => {
       await user.type(screen.getByLabelText('Verification code'), '111111');
       await user.click(screen.getByRole('button', { name: 'Continue' }));
 
-      expect(await screen.findByRole('alert')).toHaveTextContent(
-        'That code is invalid.'
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('That code is invalid.');
+      expect(alert).toHaveClass(
+        'border-destructive/40',
+        'text-red-900',
+        'motion-reduce:animate-none'
       );
     });
 
@@ -292,9 +296,13 @@ describe('VerifyEmailForm', () => {
         email: 'sailor@mit.edu',
         type: 'email-verification',
       });
-      expect(
-        await screen.findByText('We sent a new verification code.')
-      ).toBeVisible();
+      const status = await screen.findByRole('status');
+      expect(status).toHaveTextContent('We sent a new verification code.');
+      expect(status).toHaveClass(
+        'border-green-700/30',
+        'text-green-900',
+        'motion-reduce:animate-none'
+      );
     });
 
     it('show rate-limit message when resend is blocked', async () => {
@@ -454,6 +462,20 @@ describe('VerifyEmailForm', () => {
       );
 
       expect(screen.getByRole('button', { name: 'Resend code' })).toBeEnabled();
+    });
+
+    it('keeps verification actions touch safe on mobile', () => {
+      render(
+        <VerifyEmailForm callbackUrl="/fleet" initialEmail="sailor@mit.edu" />
+      );
+
+      expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass(
+        'min-h-11',
+        'w-full'
+      );
+      expect(screen.getByRole('button', { name: 'Resend code' })).toHaveClass(
+        'min-h-11'
+      );
     });
   });
 });

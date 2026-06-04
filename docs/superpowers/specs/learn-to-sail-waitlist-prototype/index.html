@@ -1,0 +1,1472 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MIT Sailing Event Registration Module Prototype</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --mit-red: #750014;
+        --mit-red-dark: #590010;
+        --mit-red-quiet: #fff1f3;
+        --mit-red-line: #e8a8b4;
+        --ink: #09090b;
+        --ink-soft: #3f3f46;
+        --muted: #62626a;
+        --paper: #ffffff;
+        --page: #f7f7f5;
+        --panel: #f1f1ef;
+        --line: #d7d3cc;
+        --line-soft: #e7e3dc;
+        --success: #166534;
+        --success-bg: #e8f7ed;
+        --warning: #8a4b0f;
+        --warning-bg: #fff3d8;
+        --danger: #991b1b;
+        --danger-bg: #fee2e2;
+        --info: #244b7a;
+        --info-bg: #e6eef8;
+        --radius: 8px;
+        --page-max: 1160px;
+        font-family:
+          'Neue Haas Grotesk Text', 'Helvetica Neue', Helvetica, Arial,
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body * {
+        line-height: 1.5;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background: linear-gradient(180deg, #fff 0, var(--page) 360px);
+        color: var(--ink);
+        font-size: 16px;
+        line-height: 1.5;
+      }
+
+      a {
+        color: var(--mit-red);
+        font-weight: 700;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 0.18em;
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        min-height: 44px;
+        border: 1px solid transparent;
+        border-radius: var(--radius);
+        padding: 0.65rem 0.95rem;
+        background: var(--mit-red);
+        color: #fff;
+        font-weight: 800;
+        cursor: pointer;
+        transition:
+          background-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+          border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+          box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+          transform 120ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      button:hover {
+        background: var(--mit-red-dark);
+        box-shadow: 0 8px 18px rgb(117 0 20 / 0.14);
+        transform: translateY(-1px);
+      }
+
+      button:active {
+        box-shadow: none;
+        transform: translateY(0);
+      }
+
+      button.secondary {
+        border-color: var(--line);
+        background: var(--paper);
+        color: var(--ink);
+      }
+
+      button.secondary:hover {
+        background: var(--panel);
+        box-shadow: 0 8px 18px rgb(9 9 11 / 0.08);
+      }
+
+      button.disabled,
+      button:disabled {
+        border-color: var(--line);
+        background: #ebe9e4;
+        color: var(--muted);
+        cursor: not-allowed;
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible,
+      a:focus-visible {
+        outline: 3px solid rgb(117 0 20 / 0.26);
+        outline-offset: 3px;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: #fff;
+        color: var(--ink);
+      }
+
+      input {
+        min-height: 44px;
+        padding: 0.62rem 0.72rem;
+      }
+
+      textarea {
+        min-height: 98px;
+        resize: vertical;
+        padding: 0.72rem;
+      }
+
+      .site-header {
+        background: rgb(255 255 255 / 0.96);
+        border-bottom: 1px solid var(--line-soft);
+        backdrop-filter: blur(16px);
+      }
+
+      .site-header-inner {
+        max-width: var(--page-max);
+        margin: 0 auto;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .wordmark {
+        color: var(--mit-red);
+        font-size: 1.18rem;
+        font-weight: 900;
+        line-height: 1.5;
+      }
+
+      .site-nav {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        font-size: 0.94rem;
+      }
+
+      .site-nav a {
+        color: var(--ink-soft);
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .page {
+        max-width: var(--page-max);
+        margin: 0 auto;
+        padding: 1.25rem 1rem 4rem;
+      }
+
+      .breadcrumb {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin: 0 0 1rem;
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      .event-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 2rem;
+        align-items: start;
+      }
+
+      .event-header {
+        min-width: 0;
+      }
+
+      .category-line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.55rem;
+        margin-bottom: 0.9rem;
+      }
+
+      .category {
+        border-radius: 999px;
+        background: var(--mit-red);
+        color: #fff;
+        padding: 0.3rem 0.58rem;
+        font-size: 0.84rem;
+        font-weight: 900;
+      }
+
+      .plain-chip,
+      .state-chip {
+        display: inline-flex;
+        min-height: 30px;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.3rem 0.62rem;
+        background: #ebe9e4;
+        color: var(--ink-soft);
+        font-size: 0.86rem;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .state-chip.red {
+        background: var(--mit-red-quiet);
+        color: var(--mit-red);
+      }
+
+      .state-chip.success {
+        background: var(--success-bg);
+        color: var(--success);
+      }
+
+      .state-chip.warning {
+        background: var(--warning-bg);
+        color: var(--warning);
+      }
+
+      .state-chip.info {
+        background: var(--info-bg);
+        color: var(--info);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 780px;
+        margin-bottom: 0.85rem;
+        font-family: 'Ivar Display', 'Canela', Georgia, serif;
+        font-size: 3.25rem;
+        font-weight: 700;
+        line-height: 1.5;
+        letter-spacing: 0;
+      }
+
+      .event-lede {
+        max-width: 720px;
+        margin-bottom: 1.25rem;
+        color: var(--ink-soft);
+        font-size: 1.16rem;
+        line-height: 28px;
+      }
+
+      .event-facts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin-bottom: 1.25rem;
+      }
+
+      .fact-pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgb(255 255 255 / 0.78);
+        padding: 0.44rem 0.68rem;
+        color: var(--ink-soft);
+        font-weight: 700;
+      }
+
+      .registration-rail {
+        position: sticky;
+        top: 1rem;
+        display: grid;
+        gap: 0.9rem;
+      }
+
+      .registration-panel {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--paper);
+        overflow: hidden;
+        box-shadow: 0 18px 42px rgb(9 9 11 / 0.06);
+        transition: box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .registration-panel:hover {
+        box-shadow: 0 22px 52px rgb(9 9 11 / 0.09);
+      }
+
+      .panel-top {
+        padding: 1.15rem;
+        background:
+          linear-gradient(135deg, rgb(117 0 20 / 0.1), transparent 42%),
+          var(--paper);
+      }
+
+      .panel-kicker {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        margin-bottom: 0.8rem;
+      }
+
+      .panel-kicker span:first-child {
+        color: var(--mit-red);
+        font-size: 0.85rem;
+        font-weight: 900;
+      }
+
+      .panel-title {
+        margin: 0 0 0.55rem;
+        font-family: 'Ivar Display', 'Canela', Georgia, serif;
+        font-size: 1.55rem;
+        font-weight: 700;
+        line-height: 1.5;
+        letter-spacing: 0;
+      }
+
+      .panel-copy {
+        margin: 0;
+        color: var(--ink-soft);
+      }
+
+      .waitlist-number {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 0.85rem;
+        align-items: center;
+        border-top: 1px solid var(--line-soft);
+        border-bottom: 1px solid var(--line-soft);
+        padding: 1rem 1.15rem;
+        background: #fbfaf8;
+      }
+
+      .number-lockup {
+        min-width: 82px;
+        border-radius: var(--radius);
+        background: var(--mit-red);
+        color: #fff;
+        padding: 0.78rem 0.7rem;
+        text-align: center;
+      }
+
+      .number-lockup strong {
+        display: block;
+        font-size: 1.7rem;
+        line-height: 1.5;
+      }
+
+      .number-lockup span {
+        display: block;
+        margin-top: 0.18rem;
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+
+      .waitlist-number p {
+        margin: 0;
+        color: var(--ink-soft);
+      }
+
+      .panel-actions {
+        display: grid;
+        gap: 0.65rem;
+        padding: 1.15rem;
+      }
+
+      .panel-actions button {
+        width: 100%;
+      }
+
+      .micro-note {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .panel-meta {
+        display: grid;
+        border-top: 1px solid var(--line-soft);
+      }
+
+      .meta-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1rem;
+        align-items: baseline;
+        padding: 0.85rem 1.15rem;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      .meta-row:last-child {
+        border-bottom: 0;
+      }
+
+      .meta-row dt {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.86rem;
+        font-weight: 800;
+      }
+
+      .meta-row dd {
+        margin: 0;
+        color: var(--ink);
+        font-weight: 800;
+        text-align: right;
+      }
+
+      .sms-card {
+        border: 1px solid var(--mit-red-line);
+        border-radius: var(--radius);
+        background: var(--mit-red-quiet);
+        padding: 0.9rem;
+      }
+
+      .sms-card strong {
+        display: block;
+        color: var(--mit-red);
+      }
+
+      .sms-card p {
+        margin: 0.25rem 0 0;
+        color: var(--ink-soft);
+        font-size: 0.92rem;
+      }
+
+      .event-section {
+        max-width: 760px;
+        margin-top: 2rem;
+      }
+
+      .section-title {
+        margin-bottom: 0.8rem;
+        font-family: 'Ivar Display', 'Canela', Georgia, serif;
+        font-size: 1.55rem;
+        font-weight: 700;
+        line-height: 1.5;
+        letter-spacing: 0;
+      }
+
+      .schedule-ledger {
+        display: grid;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--paper);
+        overflow: hidden;
+      }
+
+      .schedule-row {
+        display: grid;
+        grid-template-columns: 13rem minmax(0, 1fr);
+        gap: 1rem;
+        align-items: start;
+        padding: 1rem;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      .schedule-row:last-child {
+        border-bottom: 0;
+      }
+
+      .schedule-row strong {
+        display: block;
+      }
+
+      .schedule-row span {
+        color: var(--ink-soft);
+      }
+
+      .schedule-when time {
+        display: block;
+        margin-top: 0.15rem;
+        color: var(--ink-soft);
+      }
+
+      .body-copy {
+        color: var(--ink-soft);
+        font-size: 1.04rem;
+      }
+
+      .content-band {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .agenda-flow {
+        display: grid;
+        gap: 0;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--paper);
+        overflow: hidden;
+      }
+
+      .agenda-step {
+        display: grid;
+        grid-template-columns: 5.5rem minmax(0, 1fr);
+        gap: 1rem;
+        padding: 1rem;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      .agenda-step:last-child {
+        border-bottom: 0;
+      }
+
+      .agenda-step strong {
+        color: var(--mit-red);
+      }
+
+      .agenda-step h3 {
+        margin: 0 0 0.25rem;
+        font-size: 1.05rem;
+      }
+
+      .agenda-step p {
+        margin: 0;
+        color: var(--ink-soft);
+      }
+
+      .prep-list {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .prep-list li {
+        border-radius: var(--radius);
+        background: var(--panel);
+        padding: 0.9rem;
+      }
+
+      .prep-list strong {
+        display: block;
+        margin-bottom: 0.25rem;
+      }
+
+      .prep-list span {
+        color: var(--ink-soft);
+      }
+
+      .experienced-note {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        border-radius: var(--radius);
+        background: var(--ink);
+        color: #fff;
+        padding: 1rem;
+      }
+
+      .experienced-note p {
+        margin: 0;
+      }
+
+      .experienced-note a {
+        color: #fff;
+      }
+
+      .experienced-note button {
+        flex: 0 0 auto;
+        border-color: rgb(255 255 255 / 0.24);
+        background: #fff;
+        color: var(--ink);
+      }
+
+      .coverage {
+        margin-top: 3rem;
+      }
+
+      .coverage-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 2rem;
+        align-items: end;
+        margin-bottom: 1rem;
+      }
+
+      .coverage-header h2 {
+        margin-bottom: 0.35rem;
+        font-family: 'Ivar Display', 'Canela', Georgia, serif;
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1.5;
+        letter-spacing: 0;
+      }
+
+      .coverage-header p {
+        margin: 0;
+        color: var(--ink-soft);
+      }
+
+      .state-strip {
+        display: grid;
+        gap: 0.85rem;
+      }
+
+      .variant-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+      }
+
+      .variant-card {
+        display: grid;
+        gap: 0.85rem;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: rgb(255 255 255 / 0.86);
+        padding: 1rem;
+      }
+
+      .variant-card header {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 0.8rem;
+      }
+
+      .variant-card h3 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .variant-card p {
+        margin: 0;
+        color: var(--ink-soft);
+      }
+
+      .variant-action {
+        display: grid;
+        gap: 0.45rem;
+      }
+
+      .state-panel {
+        display: grid;
+        grid-template-columns: 210px minmax(0, 1fr) auto;
+        gap: 1rem;
+        align-items: start;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: rgb(255 255 255 / 0.84);
+        padding: 1rem;
+      }
+
+      .state-panel h3 {
+        margin: 0.1rem 0 0.35rem;
+        font-size: 1.06rem;
+      }
+
+      .state-panel p {
+        margin: 0;
+        color: var(--ink-soft);
+      }
+
+      .state-actions {
+        display: grid;
+        gap: 0.5rem;
+        justify-items: end;
+        min-width: 10rem;
+      }
+
+      .form-preview {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 1.25rem;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--paper);
+        padding: 1rem;
+      }
+
+      .form-fields {
+        display: grid;
+        gap: 0.9rem;
+      }
+
+      .field-row {
+        display: grid;
+        gap: 0.35rem;
+        color: var(--ink);
+        font-size: 0.94rem;
+        font-weight: 800;
+      }
+
+      .check-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 0.65rem;
+        align-items: start;
+      }
+
+      .check-row input {
+        width: 1.1rem;
+        min-height: 1.1rem;
+        margin-top: 0.18rem;
+      }
+
+      .check-row strong {
+        display: block;
+      }
+
+      .check-row span {
+        display: block;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .message-stack {
+        display: grid;
+        gap: 0.8rem;
+      }
+
+      .message-card {
+        border-radius: var(--radius);
+        background: var(--panel);
+        padding: 0.9rem;
+      }
+
+      .message-card strong {
+        display: block;
+      }
+
+      .message-card p {
+        margin: 0.24rem 0 0;
+        color: var(--ink-soft);
+      }
+
+      .alert {
+        border-radius: var(--radius);
+        padding: 0.8rem;
+      }
+
+      .alert.success {
+        background: var(--success-bg);
+        color: var(--success);
+      }
+
+      .alert.danger {
+        background: var(--danger-bg);
+        color: var(--danger);
+      }
+
+      .alert.warning {
+        background: var(--warning-bg);
+        color: var(--warning);
+      }
+
+      .alert strong {
+        display: block;
+      }
+
+      @media (max-width: 920px) {
+        .site-nav {
+          display: none;
+        }
+
+        .event-shell,
+        .coverage-header,
+        .form-preview,
+        .variant-grid,
+        .prep-list {
+          grid-template-columns: 1fr;
+        }
+
+        .registration-rail {
+          position: static;
+        }
+
+        h1 {
+          font-size: 2.35rem;
+        }
+
+        .state-panel {
+          grid-template-columns: 1fr;
+        }
+
+        .state-actions {
+          justify-items: stretch;
+          min-width: 0;
+        }
+
+        .schedule-row {
+          grid-template-columns: 1fr;
+          gap: 0.25rem;
+        }
+
+        .agenda-step {
+          grid-template-columns: 1fr;
+        }
+
+        .experienced-note {
+          align-items: stretch;
+          flex-direction: column;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .site-header-inner,
+        .page {
+          padding-left: 0.85rem;
+          padding-right: 0.85rem;
+        }
+
+        h1 {
+          font-size: 2rem;
+        }
+
+        .waitlist-number,
+        .meta-row {
+          grid-template-columns: 1fr;
+        }
+
+        .meta-row dd {
+          text-align: left;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header-inner">
+        <div class="wordmark" aria-label="MIT Sailing">MIT Sailing</div>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="#">Learn</a>
+          <a href="#">Calendar</a>
+          <a href="#">Fleet</a>
+          <a href="#">Account</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page">
+      <p class="breadcrumb">Events / Learn to Sail / Mid-Week 1-2-3</p>
+
+      <section class="event-shell" id="event" aria-labelledby="event-title">
+        <header class="event-header">
+          <div class="category-line">
+            <span class="category">Beginner class</span>
+            <span class="state-chip red">Shared beginner waitlist</span>
+            <span class="state-chip warning">Not first-come</span>
+          </div>
+          <h1 id="event-title">Mid-Week 1-2-3</h1>
+          <p class="event-lede">
+            Three evening sessions for new sailors. One beginner waitlist covers
+            Mid-Week and Sunday. Join it once, then request the class date that
+            works for you.
+          </p>
+          <div class="event-facts" aria-label="Event facts">
+            <span class="fact-pill">Tue Jun 9 to Thu Jun 11</span>
+            <span class="fact-pill">5:30 PM to 7:30 PM</span>
+            <span class="fact-pill">MITNA regular members</span>
+            <span class="fact-pill">Walter C. Wood Sailing Pavilion</span>
+          </div>
+        </header>
+
+        <aside class="registration-rail" aria-label="Registration">
+          <section
+            class="registration-panel"
+            aria-labelledby="registration-title"
+          >
+            <div class="panel-top">
+              <div class="panel-kicker">
+                <span>Class request</span>
+                <span class="state-chip warning">Opens Mon Jun 8</span>
+              </div>
+              <h2 class="panel-title" id="registration-title">
+                Request this class when the window opens.
+              </h2>
+              <p class="panel-copy">
+                This is not first-come at midnight. If requests exceed spots,
+                acceptance follows waitlist number. Request anytime while the
+                window is open.
+              </p>
+            </div>
+
+            <div class="waitlist-number">
+              <div class="number-lockup" aria-label="Waitlist number 184">
+                <strong>#184</strong>
+                <span>waitlist</span>
+              </div>
+              <p>
+                Your order is already set. Request this class when it opens;
+                submitting right after midnight does not move you up.
+              </p>
+            </div>
+
+            <div class="panel-actions">
+              <button class="disabled" type="button" disabled>
+                Request opens Jun 8
+              </button>
+              <p class="micro-note">
+                SMS enabled. At midnight, we will text this event page link.
+              </p>
+            </div>
+
+            <dl class="panel-meta">
+              <div class="meta-row">
+                <dt>Request window</dt>
+                <dd>Jun 8 to Jun 9</dd>
+              </div>
+              <div class="meta-row">
+                <dt>Selections</dt>
+                <dd>Monday afternoon</dd>
+              </div>
+              <div class="meta-row">
+                <dt>Spots</dt>
+                <dd>Limited, may change</dd>
+              </div>
+              <div class="meta-row">
+                <dt>Selection order</dt>
+                <dd>Waitlist order</dd>
+              </div>
+            </dl>
+          </section>
+
+          <div class="sms-card">
+            <strong>Texts are optional</strong>
+            <p>
+              Add or edit your number in your profile. Message and data rates
+              may apply, including late-night registration texts.
+            </p>
+          </div>
+        </aside>
+
+        <section class="event-section" aria-labelledby="schedule-title">
+          <h2 class="section-title" id="schedule-title">Schedule</h2>
+          <div class="schedule-ledger">
+            <div class="schedule-row">
+              <div class="schedule-when">
+                <strong>Tue Jun 9</strong>
+                <time>5:30-7:30 PM</time>
+              </div>
+              <span>Pavilion orientation, safety, rigging, and dock demo</span>
+            </div>
+            <div class="schedule-row">
+              <div class="schedule-when">
+                <strong>Wed Jun 10</strong>
+                <time>5:30-7:30 PM</time>
+              </div>
+              <span>On-the-water sailing, steering, tacks, and gybes</span>
+            </div>
+            <div class="schedule-row">
+              <div class="schedule-when">
+                <strong>Thu Jun 11</strong>
+                <time>5:30-7:30 PM</time>
+              </div>
+              <span>Practice, capsize recovery, and next steps</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="event-section" aria-labelledby="details-title">
+          <h2 class="section-title" id="details-title">Class details</h2>
+          <p class="body-copy">
+            Mid-Week 1-2-3 is for MITNA members with little or no sailing
+            experience. Pick a week when you can attend all three evenings; the
+            course is built as one sequence.
+          </p>
+        </section>
+
+        <section
+          class="event-section content-band"
+          aria-labelledby="agenda-title"
+        >
+          <h2 class="section-title" id="agenda-title">
+            What happens each night
+          </h2>
+          <div class="agenda-flow">
+            <article class="agenda-step">
+              <strong>Class 1</strong>
+              <div>
+                <h3>Pavilion, rigging, and dock demo</h3>
+                <p>
+                  Tour the Pavilion, learn the Tech Dinghy setup, practice key
+                  knots, and see launching, landing, tacking, and gybing before
+                  the next on-water sessions.
+                </p>
+              </div>
+            </article>
+            <article class="agenda-step">
+              <strong>Class 2</strong>
+              <div>
+                <h3>First sailing session</h3>
+                <p>
+                  Rig your boat, review the course, launch from the dock, sail
+                  to a mark, tack, return, and land with dock and motorboat
+                  coaching.
+                </p>
+              </div>
+            </article>
+            <article class="agenda-step">
+              <strong>Class 3</strong>
+              <div>
+                <h3>Practice and next skills</h3>
+                <p>
+                  Keep sailing with coaching. The focus may shift with wind and
+                  class size, but safety and usable sailing skills come first.
+                </p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section
+          class="event-section content-band"
+          aria-labelledby="prep-title"
+        >
+          <h2 class="section-title" id="prep-title">Before you request</h2>
+          <ul class="prep-list">
+            <li>
+              <strong>Attend all three</strong>
+              <span
+                >Choose a Tuesday-Wednesday-Thursday week you can finish.</span
+              >
+            </li>
+            <li>
+              <strong>Beginner boat</strong>
+              <span>This class uses the Tech Dinghy.</span>
+            </li>
+            <li>
+              <strong>Waitlist order</strong>
+              <span
+                >If requests exceed spots, waitlist order ranks
+                requesters.</span
+              >
+            </li>
+          </ul>
+        </section>
+
+        <section class="event-section" aria-label="Experienced sailor path">
+          <div class="experienced-note">
+            <p>
+              Already know how to sail?
+              <a href="#">Take Intro for Experienced Sailors.</a>
+              No need to join the beginner waitlist.
+            </p>
+            <button type="button">View experienced intro</button>
+          </div>
+        </section>
+      </section>
+
+      <section class="coverage" id="states" aria-labelledby="states-title">
+        <div class="coverage-header">
+          <div>
+            <h2 id="states-title">Registration panel states</h2>
+            <p>
+              The same event-page registration area has to handle these states
+              without making the beginner waitlist look class-specific.
+            </p>
+          </div>
+          <span class="plain-chip">Existing event shell stays</span>
+        </div>
+
+        <div class="state-strip">
+          <article class="state-panel">
+            <div>
+              <span class="state-chip warning">Before Apr 1</span>
+              <h3>Sign up for the Apr 1 alert</h3>
+            </div>
+            <p>
+              Create your account now. We will email you when the beginner
+              waitlist is live. SMS is optional. Join the waitlist as soon as it
+              opens to get the best number.
+            </p>
+            <div class="state-actions">
+              <button type="button">Sign up for Apr 1 alert</button>
+            </div>
+          </article>
+
+          <article class="state-panel">
+            <div>
+              <span class="state-chip red">Not on waitlist</span>
+              <h3>Join the beginner waitlist first</h3>
+            </div>
+            <p>
+              Join the annual beginner waitlist before requesting Mid-Week or
+              Sunday. Class requests use your waitlist number, not the time you
+              request a class.
+            </p>
+            <div class="state-actions">
+              <button type="button">Join beginner waitlist</button>
+              <button class="secondary" type="button">Sign in</button>
+            </div>
+          </article>
+
+          <article class="state-panel">
+            <div>
+              <span class="state-chip warning">Visible, not open</span>
+              <h3>Show waitlist number and opening time</h3>
+            </div>
+            <p>
+              The user sees their waitlist number and the request opening time.
+              Their number is already set; requesting right at midnight does not
+              move them up.
+            </p>
+            <div class="state-actions">
+              <button class="disabled" disabled type="button">
+                Request opens Jun 8
+              </button>
+            </div>
+          </article>
+
+          <article class="state-panel">
+            <div>
+              <span class="state-chip red">Waitlist #184</span>
+              <h3>No upcoming beginner classes</h3>
+            </div>
+            <p>
+              The event area should confirm the user is on the annual beginner
+              waitlist and show Mid-Week and Sunday as class formats, not as
+              separate waitlists.
+            </p>
+            <div class="state-actions">
+              <button class="secondary" type="button">
+                Text me when classes open
+              </button>
+            </div>
+          </article>
+
+          <article class="state-panel">
+            <div>
+              <span class="state-chip success">Open now</span>
+              <h3>Fast class request from the event page</h3>
+            </div>
+            <p>
+              When the request window opens, the primary action changes to
+              "Request this class" and leads to the normal event form.
+            </p>
+            <div class="state-actions">
+              <button type="button">Request this class</button>
+            </div>
+          </article>
+
+          <article class="state-panel">
+            <div>
+              <span class="state-chip warning">SMS off</span>
+              <h3>No mobile number saved</h3>
+            </div>
+            <p>
+              Keep email active and offer one profile link for adding or editing
+              a phone number. Do not create a separate phone-maintenance flow in
+              the class request.
+            </p>
+            <div class="state-actions">
+              <button class="secondary" type="button">Edit profile</button>
+            </div>
+          </article>
+
+          <article class="state-panel">
+            <div>
+              <span class="state-chip success">Accepted</span>
+              <h3>Accepted for this class</h3>
+            </div>
+            <p>
+              Acceptance is class-specific. Completing a class can remove the
+              user from the beginner waitlist, but "accepted" is not the same as
+              the old fake waitlist event's confirmed status.
+            </p>
+            <div class="state-actions">
+              <button class="secondary" type="button">Add to calendar</button>
+            </div>
+          </article>
+
+          <article class="state-panel">
+            <div>
+              <span class="state-chip success">No waitlist</span>
+              <h3>Experienced and intermediate classes</h3>
+            </div>
+            <p>
+              Intro for Experienced Sailors and Intermediate Sailing use the
+              regular event registration path. They should say "No beginner
+              waitlist" near the action.
+            </p>
+            <div class="state-actions">
+              <button class="secondary" type="button">
+                Register from event
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section
+        class="coverage"
+        id="event-variants"
+        aria-labelledby="variants-title"
+      >
+        <div class="coverage-header">
+          <div>
+            <h2 id="variants-title">
+              Same event page, different registration rules
+            </h2>
+            <p>
+              The page structure stays consistent. The registration area changes
+              based on the event's registration mode, approval setting, window,
+              capacity, payment, and current user state.
+            </p>
+          </div>
+          <span class="plain-chip">General event system</span>
+        </div>
+
+        <div class="variant-grid">
+          <article class="variant-card">
+            <header>
+              <h3>First-come event</h3>
+              <span class="state-chip success">Open now</span>
+            </header>
+            <p>
+              Use for Intermediate Sailing and other events where registering
+              confirms the user's spot while space remains.
+            </p>
+            <div class="variant-action">
+              <button type="button">Register for this event</button>
+              <span class="micro-note">Registration confirms your spot.</span>
+            </div>
+          </article>
+
+          <article class="variant-card">
+            <header>
+              <h3>Approval-required event</h3>
+              <span class="state-chip warning">Request review</span>
+            </header>
+            <p>
+              Use when the event accepts requests first and confirms people
+              later. This is the generic version of a pending request.
+            </p>
+            <div class="variant-action">
+              <button type="button">Request a spot</button>
+              <span class="micro-note"
+                >We will email you when your request is reviewed.</span
+              >
+            </div>
+          </article>
+
+          <article class="variant-card">
+            <header>
+              <h3>Learn-to-Sail beginner class</h3>
+              <span class="state-chip red">Waitlist order</span>
+            </header>
+            <p>
+              Use for Mid-Week and Sunday beginner classes. One annual beginner
+              waitlist ranks requesters only when requests exceed available
+              spots.
+            </p>
+            <div class="variant-action">
+              <button class="disabled" disabled type="button">
+                Request opens Jun 8
+              </button>
+              <span class="micro-note"
+                >Not first-come once the window opens.</span
+              >
+            </div>
+          </article>
+
+          <article class="variant-card">
+            <header>
+              <h3>External registration</h3>
+              <span class="state-chip info">External</span>
+            </header>
+            <p>
+              Use when details live on MIT Sailing but registration happens on
+              another trusted page.
+            </p>
+            <div class="variant-action">
+              <button type="button">Register on external site</button>
+              <span class="micro-note">Opens in a new tab.</span>
+            </div>
+          </article>
+
+          <article class="variant-card">
+            <header>
+              <h3>No registration</h3>
+              <span class="state-chip info">Info only</span>
+            </header>
+            <p>
+              Use for calendar items where the event page is informational and
+              there is no signup action.
+            </p>
+            <div class="variant-action">
+              <button class="secondary" type="button">Add to calendar</button>
+              <span class="micro-note">No registration is needed.</span>
+            </div>
+          </article>
+
+          <article class="variant-card">
+            <header>
+              <h3>Closed or full</h3>
+              <span class="state-chip warning">Unavailable</span>
+            </header>
+            <p>
+              Use when the request window has ended or available spots are gone.
+              The next useful action is finding another event.
+            </p>
+            <div class="variant-action">
+              <button class="secondary" type="button">See other events</button>
+              <span class="micro-note"
+                >Keep the old event details visible.</span
+              >
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="coverage" id="request-form" aria-labelledby="form-title">
+        <div class="coverage-header">
+          <div>
+            <h2 id="form-title">Class request form</h2>
+            <p>
+              Keep the form short. It should confirm the schedule, contact path,
+              and request state without re-explaining the whole waitlist.
+            </p>
+          </div>
+          <span class="plain-chip">Form state</span>
+        </div>
+
+        <div class="form-preview">
+          <div class="form-fields">
+            <div class="alert success" role="status">
+              <strong>Ready to request</strong>
+              You are waitlist #184. If requests exceed spots, acceptance
+              follows waitlist order. Request time does not change your order.
+            </div>
+
+            <label class="check-row">
+              <input type="checkbox" checked />
+              <span>
+                <strong>I can attend all three sessions</strong>
+                <span
+                  >Tue Jun 9, Wed Jun 10, and Thu Jun 11, 5:30-7:30 PM.</span
+                >
+              </span>
+            </label>
+
+            <label class="field-row">
+              Mobile phone
+              <input value="617-555-0142" inputmode="tel" />
+            </label>
+
+            <label class="check-row">
+              <input type="checkbox" checked />
+              <span>
+                <strong>Text me class updates</strong>
+                <span
+                  >Includes midnight registration texts and acceptance updates.
+                  Message and data rates may apply.</span
+                >
+              </span>
+            </label>
+
+            <label class="field-row">
+              Anything instructors should know?
+              <textarea placeholder="Optional"></textarea>
+            </label>
+
+            <button type="button">Submit request</button>
+          </div>
+
+          <aside class="message-stack" aria-label="Form feedback examples">
+            <div class="alert danger" role="alert">
+              <strong>Phone number required for texts</strong>
+              Add a mobile number or turn off SMS updates.
+            </div>
+            <div class="alert success" role="status">
+              <strong>Request saved</strong>
+              We will email you when selections are announced.
+            </div>
+            <div class="alert warning" role="status">
+              <strong>Selection pending</strong>
+              Your request is in. Selections go out Monday afternoon.
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="coverage" id="messages" aria-labelledby="messages-title">
+        <div class="coverage-header">
+          <div>
+            <h2 id="messages-title">Messages connected to the event page</h2>
+            <p>
+              Notifications should point back to the normal calendar event page.
+              The event page is the link.
+            </p>
+          </div>
+          <span class="plain-chip">Email + SMS</span>
+        </div>
+
+        <div class="message-stack">
+          <article class="message-card">
+            <strong>Welcome email after setup</strong>
+            <p>
+              You are set for Apr 1. We will email you when the beginner
+              waitlist is live. If you opted into SMS, we will text you too.
+            </p>
+          </article>
+          <article class="message-card">
+            <strong>Apr 1 SMS</strong>
+            <p>
+              The beginner waitlist is live. Join now to get your waitlist
+              number. The sooner you join, the better.
+            </p>
+          </article>
+          <article class="message-card">
+            <strong>24-hour SMS</strong>
+            <p>
+              Class requests for Mid-Week 1-2-3 open tonight at midnight. We
+              will text this event page when requests are live.
+            </p>
+          </article>
+          <article class="message-card">
+            <strong>Midnight SMS</strong>
+            <p>
+              Mid-Week 1-2-3 requests are open:
+              sailing.mit.edu/events/mid-week-1-2-3
+            </p>
+          </article>
+          <article class="message-card">
+            <strong>Accepted email and SMS</strong>
+            <p>
+              You are accepted for Mid-Week 1-2-3. Your first session is Tue Jun
+              9 at 5:30 PM at the Pavilion.
+            </p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

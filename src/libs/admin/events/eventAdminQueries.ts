@@ -9,6 +9,7 @@ import type {
   PaymentStatus as PaymentStatusValue,
   EventRegistrationStatus as EventRegistrationStatusValue,
   EventSailingCardRequirement,
+  LearnToSailManagedClassKind,
 } from '@/generated/prisma/enums';
 import { ASSIGNABLE_EVENT_ADMIN_ROLES } from '@/libs/admin/events/eventAdminSchemas';
 import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
@@ -41,6 +42,7 @@ export type AdminEventRegistrationCounts = {
 };
 
 export type AdminEventRegistrationMode = 'none' | 'standard' | 'external';
+export type AdminLearnToSailManagedClassKind = LearnToSailManagedClassKind;
 
 export type AdminEventDateDto = {
   id: string;
@@ -111,6 +113,8 @@ export type AdminEventEditorDto = {
   registrationMode?: AdminEventRegistrationMode | null;
   externalRegistrationUrl?: string | null;
   externalEntriesUrl?: string | null;
+  learnToSailManagedClassKind: AdminLearnToSailManagedClassKind | null;
+  selectionNote: string | null;
   sailingCardRequirement: EventSailingCardRequirement;
   faqVisible?: boolean;
   faqContent?: string;
@@ -227,6 +231,7 @@ export type AdminEventShowDto = Pick<
   | 'id'
   | 'isPublished'
   | 'isSpecial'
+  | 'learnToSailManagedClassKind'
   | 'maxParticipants'
   | 'name'
   | 'registrationEnd'
@@ -234,6 +239,7 @@ export type AdminEventShowDto = Pick<
   | 'registrationStart'
   | 'requiresApproval'
   | 'requiresPhone'
+  | 'selectionNote'
   | 'usesTeamRegistration'
   | 'boatsPerTeam'
   | 'personsPerBoat'
@@ -700,6 +706,8 @@ export async function getAdminEventEditorDataBySlug(options: {
             registrationMode: true,
             externalRegistrationUrl: true,
             externalEntriesUrl: true,
+            learnToSailManagedClassKind: true,
+            selectionNote: true,
             sailingCardRequirement: true,
             faqVisible: true,
             faqContent: true,
@@ -975,6 +983,8 @@ export async function getAdminEventShowBySlug(options: {
         registrationMode: true,
         externalRegistrationUrl: true,
         externalEntriesUrl: true,
+        learnToSailManagedClassKind: true,
+        selectionNote: true,
         faqVisible: true,
         faqContent: true,
         noticeOfRaceVisible: true,
@@ -1014,6 +1024,8 @@ export async function getAdminEventShowBySlug(options: {
     externalDetailUrl: event.externalDetailUrl,
     externalEntriesUrl: event.externalEntriesUrl,
     externalRegistrationUrl: event.externalRegistrationUrl,
+    learnToSailManagedClassKind: event.learnToSailManagedClassKind,
+    selectionNote: event.selectionNote,
     entryFees: registrationReview.entryFees,
     id: event.id,
     isPublished: event.isPublished,

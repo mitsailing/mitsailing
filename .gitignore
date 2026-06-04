@@ -96,3 +96,10 @@ build-archive.log
 
 # Codacy CLI local state
 .codacy/
+
+# Local agent skill installs copied for interactive workflows; source skills live
+# outside the repo and should not be linted or vendored here.
+.agents/skills/impeccable/
+.cursor/skills/impeccable/
+.github/skills/
+.impeccable/

@@ -247,7 +247,7 @@ test.describe('MIT Sailing catalog', () => {
         })
       ).toBeVisible();
       await expect(
-        page.getByRole('link', { name: 'Log in to register' })
+        page.getByRole('link', { name: 'Log in to request a spot' })
       ).toBeVisible();
     } finally {
       await restoreEventRegistrationWindow(slug, registrationWindow);
@@ -272,7 +272,7 @@ test.describe('MIT Sailing catalog', () => {
         })
       ).toBeVisible();
       await expect(
-        page.getByRole('link', { name: 'Request to register' })
+        page.getByRole('link', { name: 'Request a spot' })
       ).toBeVisible();
     } finally {
       await restoreEventRegistrationWindow(slug, registrationWindow);
@@ -297,7 +297,7 @@ test.describe('MIT Sailing catalog', () => {
           name: 'Intercollegiate Overnight Series',
         })
       ).toBeVisible();
-      await page.getByRole('link', { name: 'Request to register' }).click();
+      await page.getByRole('link', { name: 'Request a spot' }).click();
       await expect(page).toHaveURL(new RegExp(`/events/${slug}/register/?$`));
       await expect(
         page.getByRole('heading', {
@@ -312,14 +312,12 @@ test.describe('MIT Sailing catalog', () => {
           name: /Swim Agreement and Liability Release/,
         })
         .check();
-      await page
-        .getByRole('button', { name: 'Submit registration request' })
-        .click();
+      await page.getByRole('button', { name: 'Request a spot' }).click();
 
       await expect(
-        page.getByRole('heading', { name: 'Your reservation' })
+        page.getByRole('heading', { name: 'Your registration' })
       ).toBeVisible();
-      await expect(page.getByText('Pending acceptance')).toBeVisible();
+      await expect(page.getByText('Waiting for confirmation')).toBeVisible();
     } finally {
       await restoreEventRegistrationWindow(slug, registrationWindow);
       await resetAdminEventRegistration(slug);

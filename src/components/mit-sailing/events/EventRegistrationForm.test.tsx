@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { EventRegistrationForm } from '@/components/mit-sailing/events/EventRegistrationForm';
 import type { EventRegistrationFormLabels } from '@/components/mit-sailing/events/EventRegistrationForm';
+import { LearnToSailManagedClassKind } from '@/generated/prisma/enums';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
 import type { PublicEventRegistrationFormState } from '@/libs/mit-sailing/eventRegistrationActions';
 
@@ -20,15 +21,18 @@ const labels: EventRegistrationFormLabels = {
     unknown: 'Something went wrong with registration.',
   },
   feesHeading: 'Entry fees',
-  phoneHelp: 'Used by event admins if they need to reach you.',
+  learnToSailRankingHeading: 'Waitlist-ranked request',
+  learnToSailRankingRule:
+    'Request this class. If requests exceed spots, waitlist number decides. Request time does not change your order.',
+  learnToSailRequestNote: 'We will email you when your request is reviewed.',
+  phoneHelp: 'Used only if we need to reach you about this event.',
   phoneLabel: 'Phone',
   nextStepHeading: 'What happens next',
   questionsHeading: 'Registration questions',
   required: 'Required',
-  requiresApprovalNote:
-    'An event admin will review and confirm your registration.',
+  requiresApprovalNote: 'We will email you when your request is reviewed.',
   selectPlaceholder: 'Select an option',
-  submitRequestButton: 'Submit registration request',
+  submitRequestButton: 'Request a spot',
   swimAgreementHeading: 'Swim agreement',
   swimAgreementLabel: 'I agree to the Swim Agreement and Liability Release.',
   teamBoatEmailLabel: 'Email',
@@ -56,6 +60,7 @@ const event: PublicEventDetail = {
   externalDetailUrl: null,
   id: 'event-1',
   isSpecial: false,
+  learnToSailManagedClassKind: LearnToSailManagedClassKind.none,
   maxParticipants: null,
   name: 'Learn to Sail',
   pendingRegistrationCount: 0,
@@ -81,6 +86,7 @@ const event: PublicEventDetail = {
   registrationStart: null,
   requiresApproval: false,
   requiresPhone: false,
+  selectionNote: null,
   shortName: 'LTS',
   slug: 'learn-to-sail',
   teamRegistration: {
@@ -273,7 +279,7 @@ describe('EventRegistrationForm', () => {
     expect(phoneInput).toBeRequired();
     expect(phoneInput).toHaveAttribute('name', 'phone');
     expect(
-      screen.getByText('Used by event admins if they need to reach you.')
+      screen.getByText('Used only if we need to reach you about this event.')
     ).toBeVisible();
 
     await user.type(phoneInput, '   ');
@@ -374,6 +380,10 @@ describe('EventRegistrationForm', () => {
   it('renders inline swim error and keeps selected answers', async () => {
     const user = userEvent.setup();
     const scrollIntoView = vi.fn();
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true }),
+    });
     window.HTMLElement.prototype.scrollIntoView = scrollIntoView;
     const action = invalidFormAction({
       code: 'swim_agreement_required',
@@ -407,7 +417,10 @@ describe('EventRegistrationForm', () => {
       })
     ).toHaveAttribute('aria-invalid', 'true');
     await waitFor(() => {
-      expect(scrollIntoView).toHaveBeenCalled();
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        behavior: 'auto',
+        block: 'center',
+      });
     });
   });
 
@@ -497,14 +510,37 @@ describe('EventRegistrationForm', () => {
       name: 'What happens next',
     });
     const submitButton = screen.getByRole('button', {
-      name: 'Submit registration request',
+      name: 'Request a spot',
     });
 
     expectElementBefore(feeGroup, phoneInput);
     expectElementBefore(phoneInput, swimAgreement);
     expectElementBefore(nextStep, submitButton);
     expect(nextStep).toHaveTextContent(
-      'An event admin will review and confirm your registration.'
+      'We will email you when your request is reviewed.'
+    );
+  });
+
+  it('uses waitlist-priority copy for managed Learn-to-Sail requests', () => {
+    renderRegistrationForm({
+      eventOverrides: {
+        learnToSailManagedClassKind:
+          LearnToSailManagedClassKind.beginner_mid_week_123,
+        requiresApproval: true,
+      },
+    });
+
+    const nextStep = screen.getByRole('region', {
+      name: 'What happens next',
+    });
+
+    expect(nextStep).toHaveTextContent(
+      'We will email you when your request is reviewed.'
+    );
+    expect(
+      screen.getByRole('region', { name: 'Waitlist-ranked request' })
+    ).toHaveTextContent(
+      'Request this class. If requests exceed spots, waitlist number decides. Request time does not change your order.'
     );
   });
 

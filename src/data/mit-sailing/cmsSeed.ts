@@ -719,16 +719,6 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         isVisible: true,
         displayOrder: 20,
       },
-      {
-        kind: 'url_link',
-        id: 'cms-menu-footer-event-admin',
-        parentId: 'cms-menu-footer-about',
-        label: 'Event admin',
-        url: '/admin/events',
-        isExternal: false,
-        isVisible: true,
-        displayOrder: 30,
-      },
     ],
   },
   {

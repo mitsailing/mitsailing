@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { EventRegistrationStatus } from '@/generated/prisma/enums';
+import {
+  EventRegistrationStatus,
+  LearnToSailManagedClassKind,
+} from '@/generated/prisma/enums';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
 import { publicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
 
@@ -24,6 +27,8 @@ function makeEvent(
     externalDetailUrl: null,
     externalEntriesUrl: null,
     externalRegistrationUrl: null,
+    learnToSailManagedClassKind: LearnToSailManagedClassKind.none,
+    selectionNote: null,
     registrationMode: 'standard',
     teamRegistration: {
       allowRepeatTeamCaptain: false,

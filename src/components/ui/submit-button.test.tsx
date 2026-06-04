@@ -19,7 +19,7 @@ describe('SubmitButton', () => {
       </SubmitButton>
     );
 
-    const button = screen.getByRole('button', { name: 'Save' });
+    const button = screen.getByRole('button', { name: 'Saving...' });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute('aria-busy', 'true');
     expect(button).toHaveAttribute('title', 'Saving...');

@@ -6,6 +6,7 @@ import {
   EventRegistrationMode,
   EventRegistrationStatus,
   EventSailingCardRequirement,
+  LearnToSailManagedClassKind,
 } from '@/generated/prisma/enums';
 import {
   formatNyDateTimeLocalInput,
@@ -219,6 +220,18 @@ const eventRegistrationModeSchema = z
   .default('')
   .transform((value) => value || EventRegistrationMode.standard);
 
+const learnToSailManagedClassKindSchema = z
+  .union([
+    z.enum([
+      LearnToSailManagedClassKind.none,
+      LearnToSailManagedClassKind.beginner_mid_week_123,
+      LearnToSailManagedClassKind.beginner_sunday_all_in_one,
+    ]),
+    z.literal(''),
+  ])
+  .default('')
+  .transform((value) => value || LearnToSailManagedClassKind.none);
+
 const eventSailingCardRequirementSchema = z
   .union([
     z.enum([
@@ -247,6 +260,12 @@ const eventAdminPublicContentSchema = z
   .string()
   .default('')
   .transform((value) => sanitizeCmsRichTextHtml(value));
+const eventAdminOptionalPublicNoteSchema = z
+  .string()
+  .trim()
+  .max(160)
+  .default('')
+  .transform((value) => (value === '' ? null : value));
 
 export const ASSIGNABLE_EVENT_ADMIN_ROLES = [
   Role.VOLUNTEER_INSTRUCTOR,
@@ -276,6 +295,8 @@ export const eventAdminBasicsFormSchema = z
     registrationMode: eventRegistrationModeSchema,
     externalRegistrationUrl: z.string().trim().default(''),
     externalEntriesUrl: z.string().trim().default(''),
+    learnToSailManagedClassKind: learnToSailManagedClassKindSchema,
+    selectionNote: eventAdminOptionalPublicNoteSchema,
     sailingCardRequirement: eventSailingCardRequirementSchema,
     faqVisible: z.boolean().default(false),
     faqContent: eventAdminPublicContentSchema,
@@ -347,6 +368,18 @@ export const eventAdminBasicsFormSchema = z
       value.boatsPerTeam > 1 ||
       value.personsPerBoat > 1,
     { path: ['usesTeamRegistration'] }
+  )
+  .refine(
+    (value) =>
+      value.learnToSailManagedClassKind === LearnToSailManagedClassKind.none ||
+      value.registrationMode === EventRegistrationMode.standard,
+    { path: ['learnToSailManagedClassKind'] }
+  )
+  .refine(
+    (value) =>
+      value.learnToSailManagedClassKind === LearnToSailManagedClassKind.none ||
+      value.requiresApproval,
+    { path: ['requiresApproval'] }
   );
 
 export const eventDateFormSchema = z
@@ -541,6 +574,11 @@ export function rawEventBasicsFromFormData(formData: FormData): unknown {
     registrationMode: formString(formData, 'registrationMode'),
     externalRegistrationUrl: formString(formData, 'externalRegistrationUrl'),
     externalEntriesUrl: formString(formData, 'externalEntriesUrl'),
+    learnToSailManagedClassKind: formString(
+      formData,
+      'learnToSailManagedClassKind'
+    ),
+    selectionNote: formString(formData, 'selectionNote'),
     sailingCardRequirement: formString(formData, 'sailingCardRequirement'),
     faqVisible: formCheckbox(formData, 'faqVisible'),
     faqContent: formString(formData, 'faqContent'),

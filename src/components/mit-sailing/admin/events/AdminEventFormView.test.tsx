@@ -9,6 +9,7 @@ import {
   EventDetailPageKind,
   EventRegistrationMode,
   EventSailingCardRequirement,
+  LearnToSailManagedClassKind,
 } from '@/generated/prisma/enums';
 import messages from '@/locales/en.json';
 import { AdminEventFormView } from './AdminEventFormView';
@@ -101,6 +102,7 @@ function createEventFixture(
     id: 'event-1',
     isPublished: true,
     isSpecial: false,
+    learnToSailManagedClassKind: LearnToSailManagedClassKind.none,
     maxParticipants: null,
     name: 'Intro Sail',
     noticeOfRaceContent: '',
@@ -122,6 +124,7 @@ function createEventFixture(
     resultsContent: '',
     resultsVisible: false,
     sailingCardRequirement: EventSailingCardRequirement.NONE,
+    selectionNote: null,
     sailingInstructionsContent: '',
     sailingInstructionsVisible: false,
     shortName: '',

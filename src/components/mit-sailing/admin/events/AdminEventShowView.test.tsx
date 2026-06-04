@@ -2,7 +2,10 @@ import { render, screen } from '@testing-library/react';
 import { createTranslator } from 'next-intl';
 import type * as React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { EventRegistrationStatus } from '@/generated/prisma/enums';
+import {
+  EventRegistrationStatus,
+  LearnToSailManagedClassKind,
+} from '@/generated/prisma/enums';
 import messages from '@/locales/en.json';
 import { AdminEventShowView } from './AdminEventShowView';
 
@@ -66,6 +69,7 @@ function eventFixture(
     id: 'event-1',
     isPublished: true,
     isSpecial: false,
+    learnToSailManagedClassKind: LearnToSailManagedClassKind.none,
     maxParticipants: 12,
     name: 'Intro Sail',
     publicContentSections: [
@@ -119,6 +123,7 @@ function eventFixture(
     ],
     requiresApproval: true,
     requiresPhone: false,
+    selectionNote: null,
     usesTeamRegistration: false,
     boatsPerTeam: 1,
     personsPerBoat: 1,

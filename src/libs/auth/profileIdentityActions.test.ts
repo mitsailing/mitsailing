@@ -110,6 +110,89 @@ beforeEach(() => {
 });
 
 describe('updateProfileIdentityAction', () => {
+  it('stores profile details and pending sailing-card snapshots together', async () => {
+    const { updateProfileDetailsAction } =
+      await import('@/libs/auth/profileIdentityActions');
+
+    await expect(
+      updateProfileDetailsAction('en', {
+        affiliation: SailingAffiliation.WELLESLEY,
+        emergencyContactName: '  Jane Sailor  ',
+        emergencyContactPhone: '+44 20 7946 0958',
+        firstName: ' Grace ',
+        lastName: ' Hopper ',
+        mitId: '',
+        phone: '(617) 555-0100',
+      })
+    ).resolves.toEqual({
+      ok: true,
+      identity: {
+        affiliation: SailingAffiliation.WELLESLEY,
+        firstName: 'Grace',
+        lastName: 'Hopper',
+        lockedByMitId: false,
+        mitClassYear: null,
+        mitId: null,
+        name: 'Grace Hopper',
+      },
+    });
+
+    expect(userUpdate).toHaveBeenCalledWith({
+      data: {
+        emergencyContactName: 'Jane Sailor',
+        emergencyContactPhone: '+442079460958',
+        firstName: 'Grace',
+        lastName: 'Hopper',
+        mitClassYear: null,
+        mitDataWarehouseVerifiedAt: null,
+        mitId: null,
+        name: 'Grace Hopper',
+        phone: '+16175550100',
+        sailingAffiliation: SailingAffiliation.WELLESLEY,
+      },
+      where: { id: 'user-1' },
+    });
+    expect(sailingCardRequestUpdateMany).toHaveBeenCalledWith({
+      data: {
+        firstName: 'Grace',
+        lastName: 'Hopper',
+        mitClassYear: null,
+        mitId: null,
+        sailingAffiliation: SailingAffiliation.WELLESLEY,
+      },
+      where: {
+        cardYear: 2026,
+        status: SailingCardRequestStatus.pending,
+        userId: 'user-1',
+      },
+    });
+    expect(revalidatePath).toHaveBeenCalledWith('/profile');
+  });
+
+  it('rejects invalid profile detail contact fields before persistence', async () => {
+    const { updateProfileDetailsAction } =
+      await import('@/libs/auth/profileIdentityActions');
+
+    await expect(
+      updateProfileDetailsAction('en', {
+        affiliation: SailingAffiliation.WELLESLEY,
+        emergencyContactName: 'Jane Sailor',
+        emergencyContactPhone: '555',
+        firstName: 'Grace',
+        lastName: 'Hopper',
+        mitId: '',
+        phone: '(617) 555-0100',
+      })
+    ).resolves.toEqual({
+      ok: false,
+      error: 'invalid_emergency_phone',
+    });
+
+    expect(userUpdate).not.toHaveBeenCalled();
+    expect(sailingCardRequestUpdateMany).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it('stores manual member information and pending sailing-card snapshots', async () => {
     const { updateProfileIdentityAction } =
       await import('@/libs/auth/profileIdentityActions');

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { LearnToSailManagedClassKind } from '@/generated/prisma/enums';
 import {
   buildEventCalendarOccurrenceRows,
   buildEventCalendarWeeks,
@@ -15,6 +16,7 @@ const event = {
   name: 'Spring regatta',
   slug: 'spring-regatta',
   eventCategoryId: 'cat-racing',
+  learnToSailManagedClassKind: LearnToSailManagedClassKind.none,
   category: {
     id: 'cat-racing',
     name: 'Racing',

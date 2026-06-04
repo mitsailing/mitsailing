@@ -5,6 +5,7 @@ import { EVENTS_TIME_ZONE, nyYmd } from '@/lib/mit-sailing/nyTime';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
+import { eventUsesLearnToSailWaitlist } from '@/libs/mit-sailing/learnToSailEvents';
 
 const compactDateFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: EVENTS_TIME_ZONE,
@@ -217,9 +218,12 @@ function EventAttendees(props: {
   event: PublicEventDetail;
   t: Awaited<ReturnType<typeof getTranslations<'MitSailingEvents'>>>;
 }) {
+  const pendingAttendees = eventUsesLearnToSailWaitlist(props.event)
+    ? []
+    : props.event.attendees.pending;
   if (
     props.event.attendees.approved.length === 0 &&
-    props.event.attendees.pending.length === 0
+    pendingAttendees.length === 0
   ) {
     return null;
   }
@@ -234,7 +238,7 @@ function EventAttendees(props: {
           label={props.t('attendees_going')}
         />
         <AttendeeRow
-          attendees={props.event.attendees.pending}
+          attendees={pendingAttendees}
           label={props.t('attendees_pending')}
           muted
         />

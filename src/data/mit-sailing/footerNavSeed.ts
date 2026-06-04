@@ -17,8 +17,7 @@ export type FooterLinkKey =
   | 'footer_link_sailing_team'
   | 'footer_link_pavilion_rental'
   | 'footer_link_about_us'
-  | 'footer_link_contact'
-  | 'footer_link_event_admin';
+  | 'footer_link_contact';
 
 type FooterNavLink =
   | { readonly labelKey: FooterLinkKey; readonly href: string }
@@ -60,7 +59,6 @@ export const footerNavColumns: readonly FooterNavColumn[] = [
       { labelKey: 'footer_link_pavilion_rental', to: '/reserve' },
       { labelKey: 'footer_link_about_us', href: '#' },
       { labelKey: 'footer_link_contact', to: '/contact' },
-      { labelKey: 'footer_link_event_admin', to: '/admin/events' },
     ],
   },
 ] as const;

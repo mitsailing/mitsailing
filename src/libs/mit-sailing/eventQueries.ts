@@ -3,6 +3,7 @@ import { cache } from 'react';
 import type { Prisma } from '@/generated/prisma/client';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type {
+  LearnToSailManagedClassKind,
   PaymentStatus as PaymentStatusValue,
   EventRegistrationStatus as EventRegistrationStatusValue,
 } from '@/generated/prisma/enums';
@@ -48,6 +49,8 @@ export type PublicEventDetail = {
   registrationMode?: 'none' | 'standard' | 'external' | null;
   externalRegistrationUrl?: string | null;
   externalEntriesUrl?: string | null;
+  learnToSailManagedClassKind: LearnToSailManagedClassKind | null;
+  selectionNote: string | null;
   teamRegistration: {
     usesTeamRegistration: boolean;
     boatsPerTeam: number;
@@ -284,6 +287,8 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
         registrationMode: true,
         externalRegistrationUrl: true,
         externalEntriesUrl: true,
+        learnToSailManagedClassKind: true,
+        selectionNote: true,
         usesTeamRegistration: true,
         boatsPerTeam: true,
         personsPerBoat: true,
@@ -416,6 +421,8 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
       registrationMode: event.registrationMode,
       externalRegistrationUrl: event.externalRegistrationUrl,
       externalEntriesUrl: event.externalEntriesUrl,
+      learnToSailManagedClassKind: event.learnToSailManagedClassKind,
+      selectionNote: event.selectionNote,
       category: event.category,
       dates: event.dates,
       admins: event.admins,
@@ -671,6 +678,7 @@ export async function listPublishedEventDatesForCalendarMonth(params: {
             name: true,
             slug: true,
             eventCategoryId: true,
+            learnToSailManagedClassKind: true,
             category: {
               select: { id: true, name: true, accentClassName: true },
             },

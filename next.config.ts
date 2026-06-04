@@ -12,6 +12,7 @@ const baseConfig: NextConfig = {
     position: 'bottom-right',
   },
   poweredByHeader: false,
+  skipProxyUrlNormalize: true,
   reactStrictMode: true,
   reactCompiler: process.env.NODE_ENV === 'production', // Keep the development environment fast
   // `standalone` produces `.next/standalone/` — a minimal node_modules +

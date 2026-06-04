@@ -6,7 +6,6 @@ import { ProfileAppearanceSection } from '@/components/auth/profile/ProfileAppea
 import type { SailingAffiliation } from '@/generated/prisma/enums';
 import type { ThemePreferenceValue } from '@/lib/mit-sailing/themePreference';
 import { formatPhoneForDisplay } from '@/utils/phoneValidation';
-import { ProfileContactSection } from './ProfileContactSection';
 import { ProfileEmailSection } from './ProfileEmailSection';
 import {
   affiliationLabelKey,
@@ -126,10 +125,6 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     pendingLabel: t('profile_email_pending'),
   });
   const hasEmergencyContact = emergencyContactName.trim() !== '';
-  const hasCompleteContact =
-    phone.trim() !== '' &&
-    emergencyContactName.trim() !== '' &&
-    emergencyContactPhone.trim() !== '';
   const currentAffiliationLabel =
     sailingAffiliation === ''
       ? t('profile_not_set')
@@ -140,14 +135,30 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8 md:px-6">
+      <ProfileMemberInformationSection
+        emergencyContactName={emergencyContactName}
+        emergencyContactPhone={emergencyContactPhone}
+        firstName={firstName}
+        lastName={lastName}
+        locale={props.locale}
+        mitClassYear={mitClassYear}
+        mitId={mitId}
+        mitIdentityLocked={mitIdentityLocked}
+        onEmergencyContactNameChange={setEmergencyContactName}
+        onEmergencyContactPhoneChange={setEmergencyContactPhone}
+        onFirstNameChange={setFirstName}
+        onLastNameChange={setLastName}
+        onMitClassYearChange={setMitClassYear}
+        onMitIdChange={setMitId}
+        onMitIdentityLockedChange={setMitIdentityLocked}
+        onPhoneChange={setPhone}
+        onSailingAffiliationChange={setSailingAffiliation}
+        phone={phone}
+        sailingAffiliation={sailingAffiliation}
+      />
+
       <ProfileOverview
         affiliationSummary={currentAffiliationLabel}
-        contactLabel={t('profile_section_contact')}
-        contactSummary={
-          hasCompleteContact
-            ? t('profile_contact_ready')
-            : t('profile_contact_needs_attention')
-        }
         currentEmail={currentEmail}
         emailLabel={t('profile_fact_email')}
         emailStatus={emailStatus}
@@ -169,32 +180,6 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
       <ProfileSailingCardSection
         locale={props.locale}
         summary={props.initialSailingCardSummary}
-      />
-
-      <ProfileMemberInformationSection
-        firstName={firstName}
-        lastName={lastName}
-        locale={props.locale}
-        mitClassYear={mitClassYear}
-        mitId={mitId}
-        mitIdentityLocked={mitIdentityLocked}
-        onFirstNameChange={setFirstName}
-        onLastNameChange={setLastName}
-        onMitClassYearChange={setMitClassYear}
-        onMitIdChange={setMitId}
-        onMitIdentityLockedChange={setMitIdentityLocked}
-        onSailingAffiliationChange={setSailingAffiliation}
-        sailingAffiliation={sailingAffiliation}
-      />
-
-      <ProfileContactSection
-        emergencyContactName={emergencyContactName}
-        emergencyContactPhone={emergencyContactPhone}
-        locale={props.locale}
-        onEmergencyContactNameChange={setEmergencyContactName}
-        onEmergencyContactPhoneChange={setEmergencyContactPhone}
-        onPhoneChange={setPhone}
-        phone={phone}
       />
 
       <ProfileEmailSection

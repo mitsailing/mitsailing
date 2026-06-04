@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { EventCalendarOccurrenceRow } from '@/components/mit-sailing/events/EventCalendarOccurrenceRow';
+import { Button } from '@/components/ui/button';
 import {
   EVENTS_TIME_ZONE,
   nyMonthFirstYmd,
@@ -127,36 +128,36 @@ export async function EventsListView(props: EventsListViewProps) {
         aria-label={t('category_filter_label')}
         className="mb-8 flex flex-wrap gap-2"
       >
-        <Link
-          aria-current={props.selectedCategoryId ? undefined : 'true'}
-          className={cn(
-            'rounded-lg border border-mit-line px-3.5 py-2 text-xs font-semibold text-mit-text no-underline',
-            textFocusRingClassName,
-            props.selectedCategoryId
-              ? 'bg-background hover:bg-mit-surface'
-              : 'bg-mit-red-highlight text-mit-red dark:border-white/40 dark:bg-white/10 dark:text-white'
-          )}
-          href={eventsCalendarHref(props.visibleMonth)}
+        <Button
+          asChild
+          className="min-h-11 px-3.5"
+          size="sm"
+          variant={props.selectedCategoryId ? 'outline' : 'mit'}
         >
-          {t('category_all')}
-        </Link>
+          <Link
+            aria-current={props.selectedCategoryId ? undefined : 'true'}
+            href={eventsCalendarHref(props.visibleMonth)}
+          >
+            {t('category_all')}
+          </Link>
+        </Button>
         {props.categories.map((category) => {
           const isActive = props.selectedCategoryId === category.id;
           return (
-            <Link
-              aria-current={isActive ? 'true' : undefined}
-              className={cn(
-                'rounded-lg border border-mit-line px-3.5 py-2 text-xs font-semibold text-mit-text no-underline',
-                textFocusRingClassName,
-                isActive
-                  ? 'bg-mit-red-highlight text-mit-red dark:border-white/40 dark:bg-white/10 dark:text-white'
-                  : 'bg-background hover:bg-mit-surface'
-              )}
-              href={eventsCalendarHref(props.visibleMonth, category.id)}
+            <Button
+              asChild
+              className="min-h-11 px-3.5"
               key={category.id}
+              size="sm"
+              variant={isActive ? 'mit' : 'outline'}
             >
-              {category.name}
-            </Link>
+              <Link
+                aria-current={isActive ? 'true' : undefined}
+                href={eventsCalendarHref(props.visibleMonth, category.id)}
+              >
+                {category.name}
+              </Link>
+            </Button>
           );
         })}
       </nav>
@@ -167,46 +168,59 @@ export async function EventsListView(props: EventsListViewProps) {
       >
         <div className="flex items-center gap-1.5 justify-self-start">
           {canGoPrevious ? (
-            <Link
+            <Button
+              asChild
               aria-label={t('previous_month')}
-              className={cn(
-                'inline-flex h-10 w-10 items-center justify-center rounded-lg border border-mit-line bg-background text-mit-text no-underline hover:bg-mit-surface',
-                textFocusRingClassName
-              )}
-              href={eventsCalendarHref(previousMonth, props.selectedCategoryId)}
+              className="size-11"
+              size="icon-lg"
+              variant="outline"
             >
-              <ChevronLeft aria-hidden size={20} />
-            </Link>
+              <Link
+                href={eventsCalendarHref(
+                  previousMonth,
+                  props.selectedCategoryId
+                )}
+              >
+                <ChevronLeft aria-hidden size={20} />
+              </Link>
+            </Button>
           ) : (
-            <button
+            <Button
               aria-label={t('previous_month')}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-mit-line bg-background text-mit-text opacity-40"
+              className="size-11"
               disabled
+              size="icon-lg"
               type="button"
+              variant="outline"
             >
               <ChevronLeft aria-hidden size={20} />
-            </button>
+            </Button>
           )}
           {canGoNext ? (
-            <Link
+            <Button
+              asChild
               aria-label={t('next_month')}
-              className={cn(
-                'inline-flex h-10 w-10 items-center justify-center rounded-lg border border-mit-line bg-background text-mit-text no-underline hover:bg-mit-surface',
-                textFocusRingClassName
-              )}
-              href={eventsCalendarHref(nextMonth, props.selectedCategoryId)}
+              className="size-11"
+              size="icon-lg"
+              variant="outline"
             >
-              <ChevronRight aria-hidden size={20} />
-            </Link>
+              <Link
+                href={eventsCalendarHref(nextMonth, props.selectedCategoryId)}
+              >
+                <ChevronRight aria-hidden size={20} />
+              </Link>
+            </Button>
           ) : (
-            <button
+            <Button
               aria-label={t('next_month')}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-mit-line bg-background text-mit-text opacity-40"
+              className="size-11"
               disabled
+              size="icon-lg"
               type="button"
+              variant="outline"
             >
               <ChevronRight aria-hidden size={20} />
-            </button>
+            </Button>
           )}
         </div>
 
@@ -237,7 +251,7 @@ export async function EventsListView(props: EventsListViewProps) {
 
       <section
         aria-label={t('calendar_grid_label', { month: monthTitle })}
-        className="hidden w-full min-w-0 rounded-xl border border-mit-line shadow-sm lg:block"
+        className="hidden w-full min-w-0 rounded-xl border border-mit-line lg:block"
       >
         <div className="grid w-full min-w-0 grid-cols-7 divide-x divide-mit-line bg-mit-surface">
           {weekdayLabels(props.locale).map((weekday) => (
@@ -279,6 +293,9 @@ export async function EventsListView(props: EventsListViewProps) {
                           {dayRows.map((row, rowIndex) => (
                             <EventCalendarOccurrenceRow
                               key={row.rowKey}
+                              learnToSailWaitlistLabel={t(
+                                'learn_to_sail_waitlist_priority'
+                              )}
                               row={row}
                               showBottomBorder={rowIndex < dayRows.length - 1}
                               wrapTitle
@@ -295,7 +312,7 @@ export async function EventsListView(props: EventsListViewProps) {
         </div>
       </section>
 
-      <div className="rounded-xl border border-mit-line p-6 shadow-sm lg:hidden">
+      <div className="rounded-xl border border-mit-line p-5 lg:hidden">
         <h2 className="mb-5 font-mit-serif text-xl font-semibold text-mit-text">
           {monthTitle}
         </h2>
@@ -330,6 +347,9 @@ export async function EventsListView(props: EventsListViewProps) {
                     return (
                       <EventCalendarOccurrenceRow
                         key={row.rowKey}
+                        learnToSailWaitlistLabel={t(
+                          'learn_to_sail_waitlist_priority'
+                        )}
                         row={row}
                         showBottomBorder={!isLast}
                         wrapTitle
