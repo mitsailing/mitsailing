@@ -27,6 +27,7 @@ export type EventRegistrationFormLabels = {
   feesHeading: string;
   learnToSailRankingHeading: string;
   learnToSailRankingRule: string;
+  learnToSailWaitlistNumber: string;
   learnToSailRequestNote: string;
   nextStepHeading: string;
   phoneHelp: string;
@@ -55,6 +56,7 @@ type EventRegistrationFormProps = {
   event: PublicEventDetail;
   formPermalink: string;
   initialPhone?: string | null;
+  learnToSailWaitlistPosition?: number | null;
   labels: EventRegistrationFormLabels;
   locale: string;
 };
@@ -766,6 +768,7 @@ function registrationNextStepMessage(props: {
 function LearnToSailRankingContext(props: {
   event: PublicEventDetail;
   labels: EventRegistrationFormLabels;
+  waitlistPosition: number | null;
 }) {
   if (!eventUsesLearnToSailWaitlist(props.event)) {
     return null;
@@ -775,9 +778,19 @@ function LearnToSailRankingContext(props: {
       aria-label={props.labels.learnToSailRankingHeading}
       className="rounded-lg border border-mit-red/20 bg-mit-red-highlight/60 px-4 py-3 motion-safe:animate-in motion-safe:duration-200 motion-safe:fade-in-0 motion-reduce:animate-none"
     >
-      <h3 className="font-mit-serif text-base font-semibold tracking-tight text-mit-text">
-        {props.labels.learnToSailRankingHeading}
-      </h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-mit-serif text-base font-semibold tracking-tight text-mit-text">
+          {props.labels.learnToSailRankingHeading}
+        </h3>
+        {props.waitlistPosition === null ? null : (
+          <span className="rounded-full bg-mit-red px-2.5 py-1 text-xs font-semibold text-white">
+            {props.labels.learnToSailWaitlistNumber.replace(
+              '{number}',
+              String(props.waitlistPosition)
+            )}
+          </span>
+        )}
+      </div>
       <p className="mt-1 text-sm leading-relaxed font-medium text-mit-text">
         {props.labels.learnToSailRankingRule}
       </p>
@@ -856,7 +869,11 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
           {formError}
         </p>
       ) : null}
-      <LearnToSailRankingContext event={props.event} labels={props.labels} />
+      <LearnToSailRankingContext
+        event={props.event}
+        labels={props.labels}
+        waitlistPosition={props.learnToSailWaitlistPosition ?? null}
+      />
       <RegistrationFeeSummary
         event={props.event}
         labels={props.labels}

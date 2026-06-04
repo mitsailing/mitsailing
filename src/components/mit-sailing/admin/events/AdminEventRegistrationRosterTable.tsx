@@ -319,6 +319,11 @@ function RegistrationRosterRow(props: {
           <RosterField label={props.t('column_status')}>
             {statusLabel(props.registration.status, props.t)}
           </RosterField>
+          {props.registration.learnToSailWaitlistNumber === null ? null : (
+            <RosterField label={props.t('column_waitlist_number')}>
+              #{props.registration.learnToSailWaitlistNumber}
+            </RosterField>
+          )}
           <RosterField label={props.t('registration_created_at')}>
             {formatEasternDateTime(props.registration.createdAt)}
           </RosterField>

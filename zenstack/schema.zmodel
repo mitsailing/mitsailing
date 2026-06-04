@@ -156,6 +156,7 @@ model User {
   sailingCardsIssued     User[]             @relation("SailingCardIssuer")
 
   eventRegistrations                  EventRegistration[]
+  learnToSailWaitlistEntries          LearnToSailWaitlistEntry[]
   legalAgreementAcceptances           LegalAgreementAcceptance[]
   sailingCardRequests                 SailingCardRequest[]
   approvedSailingCardRequests         SailingCardRequest[]           @relation("SailingCardRequestApprover")
@@ -824,6 +825,16 @@ enum LearnToSailManagedClassKind {
   @@map("learn_to_sail_managed_class_kind")
 }
 
+enum LearnToSailWaitlistEntryStatus {
+  active
+  left
+  closed_by_tech_rating
+  closed_by_account_deletion
+  expired
+
+  @@map("learn_to_sail_waitlist_entry_status")
+}
+
 enum EventAddressPreset {
   pavilion
   bluewater
@@ -945,6 +956,37 @@ model EventAdmin {
   @@map("event_admins")
 }
 
+model LearnToSailWaitlistEntry {
+  id              String                         @id @default(cuid())
+  seasonYear      Int                            @map("season_year")
+  userId          String                         @map("user_id")
+  activeEntryKey  String?                        @unique @map("active_entry_key")
+  sequence        Int
+  status          LearnToSailWaitlistEntryStatus @default(active)
+  joinedAt        DateTime                       @default(now()) @map("joined_at")
+  closedAt        DateTime?                      @map("closed_at")
+  closureReason   String?                        @trim @map("closure_reason") @db.Text
+  user            User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventRegistrations EventRegistration[]
+
+  @@unique([seasonYear, sequence])
+  @@index([seasonYear, status, sequence])
+  @@index([userId, seasonYear])
+  @@allow('read', auth() != null && userId == auth().id)
+  @@allow('read', auth() != null && (
+    auth().appRole == 'admin' ||
+    auth().appRole == 'dock_staff' ||
+    auth().appRole == 'dock_master'
+  ))
+  @@allow('create,update', auth() != null && userId == auth().id)
+  @@allow('read,create,update,delete', auth() != null && (
+    auth().appRole == 'admin' ||
+    auth().appRole == 'dock_staff' ||
+    auth().appRole == 'dock_master'
+  ))
+  @@map("learn_to_sail_waitlist_entries")
+}
+
 enum EventRegistrationStatus {
   pending
   approved
@@ -959,10 +1001,13 @@ model EventRegistration {
   status                  EventRegistrationStatus
   phone                   String                    @trim() @map("phone")
   eventEntryFeeId         String?                   @map("event_entry_fee_id")
+  learnToSailWaitlistEntryId String?                @map("learn_to_sail_waitlist_entry_id")
+  learnToSailAuditPositionAtRequest Int?            @map("learn_to_sail_audit_position_at_request")
   createdAt               DateTime                  @map("created_at")
   swimAgreementAcceptedAt DateTime                  @map("swim_agreement_accepted_at")
   event                   Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   eventEntryFee           EventEntryFee?            @relation(fields: [eventEntryFeeId], references: [id], onDelete: SetNull)
+  learnToSailWaitlistEntry LearnToSailWaitlistEntry? @relation(fields: [learnToSailWaitlistEntryId], references: [id], onDelete: SetNull)
   user                    User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   registrationAnswers     EventRegistrationAnswer[]
   registrationTeam        EventRegistrationTeam?
@@ -971,6 +1016,7 @@ model EventRegistration {
 
   @@index([eventId])
   @@index([eventEntryFeeId])
+  @@index([learnToSailWaitlistEntryId])
   @@index([userId])
   @@unique([id, eventId, userId])
   @@deny('create', event.registrationMode != 'standard')

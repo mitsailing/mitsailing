@@ -31,7 +31,8 @@ function firstElement<T>(elements: T[]): T {
 }
 
 function renderView(
-  accessMode: AdminEventRegistrationsViewProps['accessMode']
+  accessMode: AdminEventRegistrationsViewProps['accessMode'],
+  options: { learnToSailWaitlistNumber?: number | null } = {}
 ) {
   return render(
     <AdminEventRegistrationsView
@@ -93,6 +94,8 @@ function renderView(
               isDeposit: false,
             },
             id: 'registration-1',
+            learnToSailWaitlistNumber:
+              options.learnToSailWaitlistNumber ?? null,
             payment: null,
             phone: '617-555-0100',
             registrationTeam: {
@@ -203,6 +206,15 @@ describe('AdminEventRegistrationsView', () => {
     const phoneLink = screen.getByRole('link', { name: '617-555-0100' });
 
     expect(phoneLink).toHaveAttribute('href', 'tel:617-555-0100');
+  });
+
+  it('shows Learn-to-Sail waitlist numbers in the roster', () => {
+    renderView('editable', { learnToSailWaitlistNumber: 184 });
+
+    const roster = screen.getByRole('list', { name: 'Registration roster' });
+
+    expect(within(roster).getByText('Waitlist number')).toBeVisible();
+    expect(within(roster).getByText('#184')).toBeVisible();
   });
 
   it('asks for confirmation before approving a registration', async () => {

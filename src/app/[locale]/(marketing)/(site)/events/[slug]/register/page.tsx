@@ -8,6 +8,8 @@ import {
 } from '@/components/mit-sailing/events/EventRegistrationForm';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
+import { SubmitButton } from '@/components/ui/submit-button';
+import { LearnToSailWaitlistEntryStatus } from '@/generated/prisma/enums';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { formatEasternEventRange } from '@/libs/mit-sailing/easternTimeFormat';
@@ -23,11 +25,16 @@ import {
 } from '@/libs/mit-sailing/eventRegistrationErrors';
 import { publicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
 import { eventUsesLearnToSailWaitlist } from '@/libs/mit-sailing/learnToSailEvents';
+import {
+  getLearnToSailSeasonYear,
+  isLearnToSailWaitlistOpen,
+} from '@/libs/mit-sailing/learnToSailWaitlist';
+import { joinLearnToSailWaitlistAction } from '@/libs/mit-sailing/learnToSailWaitlistActions';
 import { getI18nPath } from '@/utils/Helpers';
 
 type RegisterPageProps = {
   params: Promise<{ locale: string; slug: string }>;
-  searchParams?: Promise<{ registration?: string }>;
+  searchParams?: Promise<{ registration?: string; waitlist?: string }>;
 };
 
 function EventScheduleSummary(props: {
@@ -64,6 +71,48 @@ function registrationPageActionLabel(props: {
   return eventUsesLearnToSailWaitlist(props.event)
     ? props.t('registration_request_class_eyebrow')
     : props.t('registration_dialog_eyebrow');
+}
+
+function LearnToSailWaitlistJoinPanel(props: {
+  action: () => Promise<void>;
+  canJoin: boolean;
+  t: Awaited<ReturnType<typeof getTranslations<'MitSailingEvents'>>>;
+}) {
+  return (
+    <section
+      aria-labelledby="learn-to-sail-waitlist-join-heading"
+      className="rounded-xl border border-mit-red/30 bg-mit-red-highlight/60 p-5 text-mit-text"
+    >
+      <p className="mb-2 text-xs font-bold tracking-widest text-mit-red uppercase dark:text-mit-red-ink">
+        {props.t('learn_to_sail_waitlist_badge')}
+      </p>
+      <h2
+        className="font-mit-serif text-2xl leading-tight font-semibold tracking-tight"
+        id="learn-to-sail-waitlist-join-heading"
+      >
+        {props.t('learn_to_sail_join_waitlist_heading')}
+      </h2>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed font-medium">
+        {props.t('learn_to_sail_join_waitlist_body')}
+      </p>
+      {props.canJoin ? (
+        <form action={props.action} className="mt-4">
+          <SubmitButton
+            className="min-h-11 w-full sm:w-auto"
+            pendingLabel={props.t('learn_to_sail_join_waitlist_pending')}
+            type="submit"
+            variant="mit"
+          >
+            {props.t('learn_to_sail_join_waitlist_button')}
+          </SubmitButton>
+        </form>
+      ) : (
+        <p className="mt-4 rounded-lg border border-mit-line bg-background px-3 py-2 text-sm font-semibold text-mit-readable-ink">
+          {props.t('learn_to_sail_waitlist_not_open')}
+        </p>
+      )}
+    </section>
+  );
 }
 
 export async function generateMetadata(
@@ -103,23 +152,46 @@ export default async function EventRegisterPage(props: RegisterPageProps) {
     eventId: event.id,
     userId: currentUser.id,
   });
-  const profileContact = await prisma.user.findUnique({
-    select: { phone: true },
-    where: { id: currentUser.id },
-  });
+  const now = new Date();
+  const usesLearnToSailWaitlist = eventUsesLearnToSailWaitlist(event);
+  const [profileContact, learnToSailWaitlistEntry] = await Promise.all([
+    prisma.user.findUnique({
+      select: { phone: true },
+      where: { id: currentUser.id },
+    }),
+    usesLearnToSailWaitlist
+      ? prisma.learnToSailWaitlistEntry.findFirst({
+          orderBy: { sequence: 'asc' },
+          select: { sequence: true },
+          where: {
+            seasonYear: getLearnToSailSeasonYear(now),
+            status: LearnToSailWaitlistEntryStatus.active,
+            userId: currentUser.id,
+          },
+        })
+      : null,
+  ]);
   const errorCode = parseEventRegistrationMutationCode(
     searchParams?.registration
   );
   const reservationState = publicEventReservationState({
     currentRegistration,
     event,
-    now: new Date(),
+    now,
   });
   if (reservationState !== 'available' && !errorCode) {
     redirect(getI18nPath(`/events/${encodeURIComponent(slug)}`, locale));
   }
   const errorMessage = eventRegistrationErrorMessage(errorCode, t);
+  const waitlistMessage =
+    searchParams?.waitlist === 'not_open'
+      ? t('learn_to_sail_waitlist_not_open')
+      : null;
   const actionLabel = registrationPageActionLabel({ event, t });
+  const registerPath = getI18nPath(
+    `/events/${encodeURIComponent(event.slug)}/register`,
+    locale
+  );
 
   return (
     <SiteSectionShell
@@ -147,21 +219,41 @@ export default async function EventRegisterPage(props: RegisterPageProps) {
               {errorMessage}
             </p>
           ) : null}
-          <EventRegistrationForm
-            createRegistrationAction={createPublicEventRegistrationAction.bind(
-              null,
-              locale,
-              event.slug
-            )}
-            event={event}
-            formPermalink={getI18nPath(
-              `/events/${encodeURIComponent(event.slug)}/register`,
-              locale
-            )}
-            initialPhone={profileContact?.phone ?? null}
-            labels={eventRegistrationFormLabels(t)}
-            locale={locale}
-          />
+          {waitlistMessage ? (
+            <p
+              className="mb-5 rounded-lg border border-mit-line bg-muted/30 px-3 py-2 text-sm font-semibold text-mit-readable-ink"
+              role="status"
+            >
+              {waitlistMessage}
+            </p>
+          ) : null}
+          {usesLearnToSailWaitlist && !learnToSailWaitlistEntry ? (
+            <LearnToSailWaitlistJoinPanel
+              action={joinLearnToSailWaitlistAction.bind(
+                null,
+                locale,
+                registerPath
+              )}
+              canJoin={isLearnToSailWaitlistOpen(now)}
+              t={t}
+            />
+          ) : (
+            <EventRegistrationForm
+              createRegistrationAction={createPublicEventRegistrationAction.bind(
+                null,
+                locale,
+                event.slug
+              )}
+              event={event}
+              formPermalink={registerPath}
+              initialPhone={profileContact?.phone ?? null}
+              labels={eventRegistrationFormLabels(t)}
+              learnToSailWaitlistPosition={
+                learnToSailWaitlistEntry?.sequence ?? null
+              }
+              locale={locale}
+            />
+          )}
         </div>
       </SiteSectionMain>
     </SiteSectionShell>

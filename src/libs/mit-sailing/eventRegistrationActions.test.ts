@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  LearnToSailManagedClassKind,
   PaymentStatus,
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   eventRegistrationTeamDeleteMany: vi.fn(),
   eventRegistrationUpdate: vi.fn(),
   eventRegistrationUpdateMany: vi.fn(),
+  learnToSailWaitlistEntryFindFirst: vi.fn(),
   eventPaymentUpsert: vi.fn(),
   eventPaymentUpdateMany: vi.fn(),
   queryRaw: vi.fn(),
@@ -162,6 +164,7 @@ beforeEach(() => {
   mocks.eventRegistrationTeamDeleteMany.mockReset();
   mocks.eventRegistrationUpdate.mockReset();
   mocks.eventRegistrationUpdateMany.mockReset();
+  mocks.learnToSailWaitlistEntryFindFirst.mockReset();
   mocks.eventPaymentUpsert.mockReset();
   mocks.eventPaymentUpdateMany.mockReset();
   mocks.queryRaw.mockReset();
@@ -211,6 +214,7 @@ beforeEach(() => {
     boatsPerTeam: 1,
     personsPerBoat: 1,
     allowRepeatTeamCaptain: false,
+    learnToSailManagedClassKind: LearnToSailManagedClassKind.none,
   });
   mocks.eventFindUnique.mockResolvedValue({
     entryFees: [],
@@ -227,6 +231,7 @@ beforeEach(() => {
     boatsPerTeam: 1,
     personsPerBoat: 1,
     allowRepeatTeamCaptain: false,
+    learnToSailManagedClassKind: LearnToSailManagedClassKind.none,
   });
   mocks.eventRegistrationFindFirst.mockResolvedValue({
     id: 'registration-1',
@@ -258,6 +263,9 @@ beforeEach(() => {
           findFirst: typeof mocks.eventRegistrationFindFirst;
           update: typeof mocks.eventRegistrationUpdate;
           updateMany: typeof mocks.eventRegistrationUpdateMany;
+        };
+        learnToSailWaitlistEntry: {
+          findFirst: typeof mocks.learnToSailWaitlistEntryFindFirst;
         };
         eventRegistrationAnswer: {
           createMany: typeof mocks.eventRegistrationAnswerCreateMany;
@@ -291,6 +299,9 @@ beforeEach(() => {
           findFirst: mocks.eventRegistrationFindFirst,
           update: mocks.eventRegistrationUpdate,
           updateMany: mocks.eventRegistrationUpdateMany,
+        },
+        learnToSailWaitlistEntry: {
+          findFirst: mocks.learnToSailWaitlistEntryFindFirst,
         },
         eventRegistrationAnswer: {
           createMany: mocks.eventRegistrationAnswerCreateMany,
@@ -479,6 +490,205 @@ describe('createPublicEventRegistrationAction', () => {
         status: EventRegistrationStatus.pending,
         userId: 'user-1',
       }),
+    });
+  });
+
+  it('rejects waitlist-managed class requests before the user has an active annual waitlist entry', async () => {
+    mocks.eventFindFirst.mockResolvedValue({
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: 1,
+      entryFees: [],
+      id: 'event-1',
+      learnToSailManagedClassKind:
+        LearnToSailManagedClassKind.beginner_mid_week_123,
+      personsPerBoat: 1,
+      registrationEnd: null,
+      registrationQuestions: [],
+      registrationStart: null,
+      requiresPhone: false,
+      usesTeamRegistration: false,
+    });
+    mocks.eventFindUnique.mockResolvedValue({
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: 1,
+      entryFees: [],
+      id: 'event-1',
+      isPublished: true,
+      learnToSailManagedClassKind:
+        LearnToSailManagedClassKind.beginner_mid_week_123,
+      maxParticipants: 18,
+      paymentDeadlineAt: null,
+      paymentsEnabled: false,
+      personsPerBoat: 1,
+      registrationEnd: null,
+      registrationStart: null,
+      requiresApproval: true,
+      requiresPhone: false,
+      usesTeamRegistration: false,
+    });
+    mocks.eventRegistrationFindFirst.mockResolvedValue(null);
+    mocks.learnToSailWaitlistEntryFindFirst.mockResolvedValue(null);
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'mid-week-123',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        registrationFormData()
+      )
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/events/mid-week-123/register?registration=waitlist_required'
+    );
+
+    expect(mocks.learnToSailWaitlistEntryFindFirst).toHaveBeenCalledWith({
+      orderBy: { sequence: 'asc' },
+      select: { id: true, sequence: true },
+      where: {
+        seasonYear: 2026,
+        status: 'active',
+        userId: 'user-1',
+      },
+    });
+    expect(mocks.eventRegistrationCreate).not.toHaveBeenCalled();
+    expect(mocks.eventRegistrationUpdate).not.toHaveBeenCalled();
+  });
+
+  it('snapshots waitlist entry and waitlist number when creating a managed class request', async () => {
+    mocks.eventFindFirst.mockResolvedValue({
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: 1,
+      entryFees: [],
+      id: 'event-1',
+      learnToSailManagedClassKind:
+        LearnToSailManagedClassKind.beginner_sunday_all_in_one,
+      personsPerBoat: 1,
+      registrationEnd: null,
+      registrationQuestions: [],
+      registrationStart: null,
+      requiresPhone: false,
+      usesTeamRegistration: false,
+    });
+    mocks.eventFindUnique.mockResolvedValue({
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: 1,
+      entryFees: [],
+      id: 'event-1',
+      isPublished: true,
+      learnToSailManagedClassKind:
+        LearnToSailManagedClassKind.beginner_sunday_all_in_one,
+      maxParticipants: 18,
+      paymentDeadlineAt: null,
+      paymentsEnabled: false,
+      personsPerBoat: 1,
+      registrationEnd: null,
+      registrationStart: null,
+      requiresApproval: true,
+      requiresPhone: false,
+      usesTeamRegistration: false,
+    });
+    mocks.eventRegistrationFindFirst.mockResolvedValue(null);
+    mocks.eventRegistrationCreate.mockResolvedValue({
+      id: 'registration-2',
+    });
+    mocks.learnToSailWaitlistEntryFindFirst.mockResolvedValue({
+      id: 'waitlist-entry-1',
+      sequence: 184,
+    });
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'sunday-all-in-one',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        registrationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/sunday-all-in-one');
+
+    expect(mocks.eventRegistrationCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        eventId: 'event-1',
+        learnToSailAuditPositionAtRequest: 184,
+        learnToSailWaitlistEntryId: 'waitlist-entry-1',
+        status: EventRegistrationStatus.pending,
+        userId: 'user-1',
+      }),
+    });
+  });
+
+  it('refreshes waitlist snapshot when updating a managed class request', async () => {
+    mocks.eventFindFirst.mockResolvedValue({
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: 1,
+      entryFees: [],
+      id: 'event-1',
+      learnToSailManagedClassKind:
+        LearnToSailManagedClassKind.beginner_mid_week_123,
+      personsPerBoat: 1,
+      registrationEnd: null,
+      registrationQuestions: [],
+      registrationStart: null,
+      requiresPhone: false,
+      usesTeamRegistration: false,
+    });
+    mocks.eventFindUnique.mockResolvedValue({
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: 1,
+      entryFees: [],
+      id: 'event-1',
+      isPublished: true,
+      learnToSailManagedClassKind:
+        LearnToSailManagedClassKind.beginner_mid_week_123,
+      maxParticipants: 18,
+      paymentDeadlineAt: null,
+      paymentsEnabled: false,
+      personsPerBoat: 1,
+      registrationEnd: null,
+      registrationStart: null,
+      requiresApproval: true,
+      requiresPhone: false,
+      usesTeamRegistration: false,
+    });
+    mocks.learnToSailWaitlistEntryFindFirst.mockResolvedValue({
+      id: 'waitlist-entry-2',
+      sequence: 42,
+    });
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'mid-week-123',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        registrationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/mid-week-123');
+
+    expect(mocks.eventRegistrationUpdate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        learnToSailAuditPositionAtRequest: 42,
+        learnToSailWaitlistEntryId: 'waitlist-entry-2',
+      }),
+      where: { id: 'registration-1' },
     });
   });
 

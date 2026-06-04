@@ -189,6 +189,7 @@ export type AdminEventRegistrationDto = {
   id: string;
   status: EventRegistrationStatusValue;
   phone: string | null;
+  learnToSailWaitlistNumber: number | null;
   entryFee?: AdminEventFeeDto | null;
   createdAt: Date;
   swimAgreementAcceptedAt: Date;
@@ -364,6 +365,15 @@ function compareRegistrations(
   if (byStatus !== 0) {
     return byStatus;
   }
+  if (
+    a.learnToSailWaitlistNumber !== null ||
+    b.learnToSailWaitlistNumber !== null
+  ) {
+    return (
+      (a.learnToSailWaitlistNumber ?? Number.POSITIVE_INFINITY) -
+      (b.learnToSailWaitlistNumber ?? Number.POSITIVE_INFINITY)
+    );
+  }
   return b.createdAt.getTime() - a.createdAt.getTime();
 }
 
@@ -402,6 +412,10 @@ function registrationDtosFromRows(
     id: string;
     status: EventRegistrationStatusValue;
     phone: string | null;
+    learnToSailAuditPositionAtRequest?: number | null;
+    learnToSailWaitlistEntry?: {
+      sequence: number;
+    } | null;
     eventEntryFee: {
       id: string;
       description: string;
@@ -449,6 +463,10 @@ function registrationDtosFromRows(
       id: registration.id,
       status: registration.status,
       phone: registration.phone,
+      learnToSailWaitlistNumber:
+        registration.learnToSailAuditPositionAtRequest ??
+        registration.learnToSailWaitlistEntry?.sequence ??
+        null,
       entryFee: registration.eventEntryFee,
       createdAt: registration.createdAt,
       swimAgreementAcceptedAt: registration.swimAgreementAcceptedAt,
@@ -867,6 +885,12 @@ export async function getAdminEventRegistrationsBySlug(options: {
           id: true,
           status: true,
           phone: true,
+          learnToSailAuditPositionAtRequest: true,
+          learnToSailWaitlistEntry: {
+            select: {
+              sequence: true,
+            },
+          },
           eventEntryFee: {
             select: {
               id: true,

@@ -624,6 +624,70 @@ describe('event admin queries', () => {
     });
   });
 
+  it('sorts pending Learn-to-Sail requests by waitlist number', async () => {
+    const older = new Date('2026-05-01T12:00:00Z');
+    const newer = new Date('2026-05-02T12:00:00Z');
+    mocks.protectedEventFindFirst.mockResolvedValue({ id: 'event-1' });
+    mocks.eventFindUnique.mockResolvedValue({
+      id: 'event-1',
+      name: 'Mid-Week 1-2-3',
+      requiresPhone: true,
+      usesTeamRegistration: false,
+      slug: 'mid-week-123',
+      registrationQuestions: [],
+      entryFees: [],
+      registrations: [
+        {
+          id: 'waitlist-184',
+          phone: '+16175550184',
+          status: EventRegistrationStatus.pending,
+          learnToSailAuditPositionAtRequest: 184,
+          learnToSailWaitlistEntry: {
+            sequence: 184,
+            status: 'active',
+          },
+          createdAt: newer,
+          swimAgreementAcceptedAt: newer,
+          user: { id: 'user-184', name: 'Later Sailor', email: '184@mit.edu' },
+          registrationTeam: null,
+          boatMembers: [],
+          payment: null,
+          registrationAnswers: [],
+        },
+        {
+          id: 'waitlist-42',
+          phone: '+16175550042',
+          status: EventRegistrationStatus.pending,
+          learnToSailAuditPositionAtRequest: 42,
+          learnToSailWaitlistEntry: {
+            sequence: 42,
+            status: 'active',
+          },
+          createdAt: older,
+          swimAgreementAcceptedAt: older,
+          user: { id: 'user-42', name: 'Earlier Sailor', email: '42@mit.edu' },
+          registrationTeam: null,
+          boatMembers: [],
+          payment: null,
+          registrationAnswers: [],
+        },
+      ],
+    });
+    const { getAdminEventRegistrationsBySlug } =
+      await import('@/libs/admin/events/eventAdminQueries');
+
+    const result = await getAdminEventRegistrationsBySlug({
+      db,
+      slug: 'mid-week-123',
+    });
+
+    expect(
+      result?.registrations.map((registration) => registration.id)
+    ).toEqual(['waitlist-42', 'waitlist-184']);
+    expect(result?.registrations[0]?.learnToSailWaitlistNumber).toBe(42);
+    expect(result?.registrations[1]?.learnToSailWaitlistNumber).toBe(184);
+  });
+
   it('selects and maps registration team and boat data', async () => {
     const createdAt = new Date('2026-05-02T12:00:00Z');
     mocks.protectedEventFindFirst.mockResolvedValue({ id: 'event-1' });

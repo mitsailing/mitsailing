@@ -291,6 +291,12 @@ export class SchemaType implements SchemaDef {
                     array: true,
                     relation: { opposite: "user" }
                 },
+                learnToSailWaitlistEntries: {
+                    name: "learnToSailWaitlistEntries",
+                    type: "LearnToSailWaitlistEntry",
+                    array: true,
+                    relation: { opposite: "user" }
+                },
                 legalAgreementAcceptances: {
                     name: "legalAgreementAcceptances",
                     type: "LegalAgreementAcceptance",
@@ -3137,6 +3143,94 @@ export class SchemaType implements SchemaDef {
                 eventId_adminUserId: { eventId: { type: "String" }, adminUserId: { type: "String" } }
             }
         },
+        LearnToSailWaitlistEntry: {
+            name: "LearnToSailWaitlistEntry",
+            fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    id: true,
+                    attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("cuid") as FieldDefault
+                },
+                seasonYear: {
+                    name: "seasonYear",
+                    type: "Int",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("season_year") }] }] as readonly AttributeApplication[]
+                },
+                userId: {
+                    name: "userId",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("user_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "user"
+                    ] as readonly string[]
+                },
+                activeEntryKey: {
+                    name: "activeEntryKey",
+                    type: "String",
+                    unique: true,
+                    optional: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("active_entry_key") }] }] as readonly AttributeApplication[]
+                },
+                sequence: {
+                    name: "sequence",
+                    type: "Int"
+                },
+                status: {
+                    name: "status",
+                    type: "LearnToSailWaitlistEntryStatus",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("active") }] }] as readonly AttributeApplication[],
+                    default: "active" as FieldDefault
+                },
+                joinedAt: {
+                    name: "joinedAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.call("now") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("joined_at") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("now") as FieldDefault
+                },
+                closedAt: {
+                    name: "closedAt",
+                    type: "DateTime",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("closed_at") }] }] as readonly AttributeApplication[]
+                },
+                closureReason: {
+                    name: "closureReason",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@trim" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("closure_reason") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
+                },
+                user: {
+                    name: "user",
+                    type: "User",
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "learnToSailWaitlistEntries", fields: ["userId"], references: ["id"], onDelete: "Cascade" }
+                },
+                eventRegistrations: {
+                    name: "eventRegistrations",
+                    type: "EventRegistration",
+                    array: true,
+                    relation: { opposite: "learnToSailWaitlistEntry" }
+                }
+            },
+            attributes: [
+                { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("Int", [ExpressionUtils.field("seasonYear"), ExpressionUtils.field("sequence")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("Int", [ExpressionUtils.field("seasonYear"), ExpressionUtils.field("status"), ExpressionUtils.field("sequence")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId"), ExpressionUtils.field("seasonYear")]) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin")), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_staff"))), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_master")))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read,create,update,delete") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin")), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_staff"))), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_master")))) }] },
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("learn_to_sail_waitlist_entries") }] }
+            ] as readonly AttributeApplication[],
+            idFields: ["id"],
+            uniqueFields: {
+                id: { type: "String" },
+                activeEntryKey: { type: "String" },
+                seasonYear_sequence: { seasonYear: { type: "Int" }, sequence: { type: "Int" } }
+            }
+        },
         EventRegistration: {
             name: "EventRegistration",
             fields: {
@@ -3187,6 +3281,21 @@ export class SchemaType implements SchemaDef {
                         "eventEntryFee"
                     ] as readonly string[]
                 },
+                learnToSailWaitlistEntryId: {
+                    name: "learnToSailWaitlistEntryId",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("learn_to_sail_waitlist_entry_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "learnToSailWaitlistEntry"
+                    ] as readonly string[]
+                },
+                learnToSailAuditPositionAtRequest: {
+                    name: "learnToSailAuditPositionAtRequest",
+                    type: "Int",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("learn_to_sail_audit_position_at_request") }] }] as readonly AttributeApplication[]
+                },
                 createdAt: {
                     name: "createdAt",
                     type: "DateTime",
@@ -3209,6 +3318,13 @@ export class SchemaType implements SchemaDef {
                     optional: true,
                     attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventEntryFeeId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
                     relation: { opposite: "registrations", fields: ["eventEntryFeeId"], references: ["id"], onDelete: "SetNull" }
+                },
+                learnToSailWaitlistEntry: {
+                    name: "learnToSailWaitlistEntry",
+                    type: "LearnToSailWaitlistEntry",
+                    optional: true,
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("learnToSailWaitlistEntryId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "eventRegistrations", fields: ["learnToSailWaitlistEntryId"], references: ["id"], onDelete: "SetNull" }
                 },
                 user: {
                     name: "user",
@@ -3244,6 +3360,7 @@ export class SchemaType implements SchemaDef {
             attributes: [
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventId")]) }] },
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventEntryFeeId")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("learnToSailWaitlistEntryId")]) }] },
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }] },
                 { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("id"), ExpressionUtils.field("eventId"), ExpressionUtils.field("userId")]) }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.field("event"), ["registrationMode"]), "!=", ExpressionUtils.literal("standard")) }] },
@@ -6868,6 +6985,19 @@ export class SchemaType implements SchemaDef {
             },
             attributes: [
                 { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("learn_to_sail_managed_class_kind") }] }
+            ] as readonly AttributeApplication[]
+        },
+        LearnToSailWaitlistEntryStatus: {
+            name: "LearnToSailWaitlistEntryStatus",
+            values: {
+                active: "active",
+                left: "left",
+                closed_by_tech_rating: "closed_by_tech_rating",
+                closed_by_account_deletion: "closed_by_account_deletion",
+                expired: "expired"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("learn_to_sail_waitlist_entry_status") }] }
             ] as readonly AttributeApplication[]
         },
         EventAddressPreset: {

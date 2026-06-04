@@ -108,6 +108,7 @@ function eventFixture(
           isDeposit: false,
         },
         id: 'registration-1',
+        learnToSailWaitlistNumber: null,
         payment: null,
         phone: null,
         registrationTeam: null,

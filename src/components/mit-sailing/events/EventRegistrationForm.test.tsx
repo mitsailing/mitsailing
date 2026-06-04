@@ -18,12 +18,15 @@ const labels: EventRegistrationFormLabels = {
     not_found: 'That event is no longer available.',
     questions_required: 'Answer the required registration questions.',
     swim_agreement_required: 'Accept the swim agreement before registering.',
+    waitlist_required:
+      'Join the annual Learn-to-Sail waitlist before requesting this class.',
     unknown: 'Something went wrong with registration.',
   },
   feesHeading: 'Entry fees',
   learnToSailRankingHeading: 'Waitlist-ranked request',
   learnToSailRankingRule:
     'Request this class. If requests exceed spots, waitlist number decides. Request time does not change your order.',
+  learnToSailWaitlistNumber: 'Waitlist #{number}',
   learnToSailRequestNote: 'We will email you when your request is reviewed.',
   phoneHelp: 'Used only if we need to reach you about this event.',
   phoneLabel: 'Phone',
@@ -112,6 +115,7 @@ function renderRegistrationForm(options: {
     typeof EventRegistrationForm
   >[0]['createRegistrationAction'];
   eventOverrides?: Partial<PublicEventDetail>;
+  learnToSailWaitlistPosition?: number | null;
 }) {
   render(
     <EventRegistrationForm
@@ -119,6 +123,7 @@ function renderRegistrationForm(options: {
       event={{ ...event, ...options.eventOverrides }}
       formPermalink="/events/learn-to-sail/register"
       labels={labels}
+      learnToSailWaitlistPosition={options.learnToSailWaitlistPosition}
       locale="en"
     />
   );
@@ -521,13 +526,14 @@ describe('EventRegistrationForm', () => {
     );
   });
 
-  it('uses waitlist-priority copy for managed Learn-to-Sail requests', () => {
+  it('uses waitlist-number copy for managed Learn-to-Sail requests', () => {
     renderRegistrationForm({
       eventOverrides: {
         learnToSailManagedClassKind:
           LearnToSailManagedClassKind.beginner_mid_week_123,
         requiresApproval: true,
       },
+      learnToSailWaitlistPosition: 184,
     });
 
     const nextStep = screen.getByRole('region', {
@@ -542,6 +548,7 @@ describe('EventRegistrationForm', () => {
     ).toHaveTextContent(
       'Request this class. If requests exceed spots, waitlist number decides. Request time does not change your order.'
     );
+    expect(screen.getByText('Waitlist #184')).toBeVisible();
   });
 
   it('renders team boat fields and preserves validation state', async () => {
