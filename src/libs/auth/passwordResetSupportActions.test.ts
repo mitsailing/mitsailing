@@ -1,73 +1,88 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { sendTransactionalEmail } = vi.hoisted(() => ({
-  sendTransactionalEmail: vi.fn(),
-}));
-const arcjetMocks = vi.hoisted(() => {
-  const protect = vi.fn(async (): Promise<{ isDenied: () => boolean }> => {
-    await Promise.resolve();
-    return {
-      isDenied: () => false,
-    };
-  });
-  return {
-    fixedWindow: vi.fn((rule: unknown) => rule),
-    protect,
-    request: vi.fn(async () => {
-      await Promise.resolve();
-      return { ip: '203.0.113.10' };
-    }),
-    withRule: vi.fn(() => ({ protect })),
-  };
-});
-const envMock = vi.hoisted(() => ({
-  Env: {
-    ARCJET_KEY: undefined as string | undefined,
-  },
+const mocks = vi.hoisted(() => ({
+  captureMessage: vi.fn(),
+  userFindUnique: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
 
-vi.mock('@arcjet/next', () => ({
-  fixedWindow: arcjetMocks.fixedWindow,
-  request: arcjetMocks.request,
+vi.mock('@sentry/nextjs', () => ({
+  captureMessage: mocks.captureMessage,
 }));
 
-vi.mock('@/libs/Arcjet', () => ({
-  default: {
-    withRule: arcjetMocks.withRule,
+vi.mock('@/libs/DB', () => ({
+  prisma: {
+    user: {
+      findUnique: mocks.userFindUnique,
+    },
   },
 }));
 
-vi.mock('@/libs/email/sendTransactional', () => ({
-  sendTransactionalEmail,
-}));
-
-vi.mock('@/libs/Env', () => envMock);
-
 beforeEach(() => {
   vi.clearAllMocks();
-  envMock.Env.ARCJET_KEY = undefined;
-  arcjetMocks.protect.mockResolvedValue({ isDenied: () => false });
-  sendTransactionalEmail.mockResolvedValue({ providerMessageId: null });
+  mocks.userFindUnique.mockResolvedValue({ id: 'user-1' });
 });
 
 describe('passwordResetSupportActions', () => {
-  it('send password reset support report to configured owner', async () => {
+  it('captures support request in Sentry with matched user context', async () => {
     const { reportPasswordResetIssueAction } =
       await import('@/libs/auth/passwordResetSupportActions');
 
     await expect(
-      reportPasswordResetIssueAction({ email: ' Sailor+<Test>@MIT.EDU ' })
+      reportPasswordResetIssueAction({
+        action: 'create_password_email_not_received',
+        email: ' Sailor+<Test>@MIT.EDU ',
+      })
     ).resolves.toEqual({ ok: true });
 
-    expect(sendTransactionalEmail).toHaveBeenCalledWith(
+    expect(mocks.userFindUnique).toHaveBeenCalledWith({
+      select: { id: true },
+      where: { email: 'sailor+<test>@mit.edu' },
+    });
+    expect(mocks.captureMessage).toHaveBeenCalledWith(
+      'Password reset support requested',
       expect.objectContaining({
-        category: 'other',
-        html: expect.stringContaining('sailor+&lt;test&gt;@mit.edu'),
-        subject: 'Password reset help requested',
-        text: expect.stringContaining('sailor+<test>@mit.edu'),
-        to: 'ak@callred.com',
+        extra: {
+          action: 'create_password_email_not_received',
+          email: 'sailor+<test>@mit.edu',
+          userId: 'user-1',
+        },
+        level: 'warning',
+        tags: {
+          action: 'create_password_email_not_received',
+          userFound: 'true',
+        },
+        user: {
+          email: 'sailor+<test>@mit.edu',
+          id: 'user-1',
+        },
+      })
+    );
+  });
+
+  it('captures support request without user id when no account matches', async () => {
+    mocks.userFindUnique.mockResolvedValue(null);
+    const { reportPasswordResetIssueAction } =
+      await import('@/libs/auth/passwordResetSupportActions');
+
+    await expect(
+      reportPasswordResetIssueAction({
+        action: 'password_reset_email_not_received',
+        email: 'unknown@mit.edu',
+      })
+    ).resolves.toEqual({ ok: true });
+
+    expect(mocks.captureMessage).toHaveBeenCalledWith(
+      'Password reset support requested',
+      expect.objectContaining({
+        extra: {
+          action: 'password_reset_email_not_received',
+          email: 'unknown@mit.edu',
+          userId: null,
+        },
+        tags: expect.objectContaining({ userFound: 'false' }),
+        user: { email: 'unknown@mit.edu' },
       })
     );
   });
@@ -77,33 +92,13 @@ describe('passwordResetSupportActions', () => {
       await import('@/libs/auth/passwordResetSupportActions');
 
     await expect(
-      reportPasswordResetIssueAction({ email: 'sailor@mit' })
+      reportPasswordResetIssueAction({
+        action: 'password_reset_email_not_received',
+        email: 'sailor@mit',
+      })
     ).resolves.toEqual({ error: 'invalid_email', ok: false });
 
-    expect(sendTransactionalEmail).not.toHaveBeenCalled();
-  });
-
-  it('returns send failed when support report delivery fails', async () => {
-    sendTransactionalEmail.mockRejectedValue(new Error('smtp down'));
-    const { reportPasswordResetIssueAction } =
-      await import('@/libs/auth/passwordResetSupportActions');
-
-    await expect(
-      reportPasswordResetIssueAction({ email: 'sailor@mit.edu' })
-    ).resolves.toEqual({ error: 'send_failed', ok: false });
-  });
-
-  it('rate-limits repeated support reports before sending email', async () => {
-    envMock.Env.ARCJET_KEY = 'ajkey_test';
-    arcjetMocks.protect.mockResolvedValue({ isDenied: () => true });
-    const { reportPasswordResetIssueAction } =
-      await import('@/libs/auth/passwordResetSupportActions');
-
-    await expect(
-      reportPasswordResetIssueAction({ email: 'sailor@mit.edu' })
-    ).resolves.toEqual({ error: 'rate_limited', ok: false });
-
-    expect(arcjetMocks.request).toHaveBeenCalledOnce();
-    expect(sendTransactionalEmail).not.toHaveBeenCalled();
+    expect(mocks.userFindUnique).not.toHaveBeenCalled();
+    expect(mocks.captureMessage).not.toHaveBeenCalled();
   });
 });

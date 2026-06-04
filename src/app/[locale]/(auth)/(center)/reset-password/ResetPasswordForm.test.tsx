@@ -101,10 +101,29 @@ describe('ResetPasswordForm', () => {
 
     expect(
       supportActionMock.reportPasswordResetIssueAction
-    ).toHaveBeenCalledWith({ email: 'reset@mit.edu' });
+    ).toHaveBeenCalledWith({
+      action: 'password_reset_email_not_received',
+      email: 'reset@mit.edu',
+    });
     expect(await screen.findByRole('status')).toHaveTextContent(
       'We sent a message to support.'
     );
+  });
+
+  it('reports create-password delivery trouble with the create-password action', async () => {
+    const user = userEvent.setup();
+    renderResetPasswordForm({ mode: 'create-password' });
+
+    await user.click(
+      screen.getByRole('button', { name: 'Not getting email?' })
+    );
+
+    expect(
+      supportActionMock.reportPasswordResetIssueAction
+    ).toHaveBeenCalledWith({
+      action: 'create_password_email_not_received',
+      email: 'reset@mit.edu',
+    });
   });
 
   it('shows invalid email before reporting delivery trouble without email', async () => {
@@ -124,10 +143,10 @@ describe('ResetPasswordForm', () => {
     ).not.toHaveBeenCalled();
   });
 
-  it('shows support failure when delivery trouble report is rejected', async () => {
+  it('shows invalid email when support report rejects normalized email', async () => {
     const user = userEvent.setup();
     supportActionMock.reportPasswordResetIssueAction.mockResolvedValue({
-      error: 'send_failed',
+      error: 'invalid_email',
       ok: false,
     });
     renderResetPasswordForm();
@@ -137,24 +156,7 @@ describe('ResetPasswordForm', () => {
     );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We could not send that message right now.'
-    );
-  });
-
-  it('shows rate-limit message when delivery trouble reports are throttled', async () => {
-    const user = userEvent.setup();
-    supportActionMock.reportPasswordResetIssueAction.mockResolvedValue({
-      error: 'rate_limited',
-      ok: false,
-    });
-    renderResetPasswordForm();
-
-    await user.click(
-      screen.getByRole('button', { name: 'Not getting email?' })
-    );
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Too many requests. Wait a few minutes.'
+      'Enter a valid email address with a domain'
     );
   });
 

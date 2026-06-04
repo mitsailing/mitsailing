@@ -280,14 +280,14 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     setReportingIssue(true);
     try {
       const result = await reportPasswordResetIssueAction({
+        action:
+          props.mode === 'create-password'
+            ? 'create_password_email_not_received'
+            : 'password_reset_email_not_received',
         email: normalizedEmail,
       });
       if (!result.ok) {
-        if (result.error === 'rate_limited') {
-          setError(t('error_rate_limited'));
-          return;
-        }
-        setError(t('error_support_failed'));
+        setError(t('error_invalid_email'));
         return;
       }
       setStatus(t('support_sent'));
