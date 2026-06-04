@@ -29,6 +29,12 @@ function describeResetEmailError(error: unknown) {
   };
 }
 
+/**
+ * Resolves the next login step for an email address.
+ *
+ * @param input - Email address submitted from the sign-in form
+ * @returns Invalid-email, sign-up, password-entry, reset-required, or reset-failed state
+ */
 export async function resolveSignInEmailAction(input: {
   email: string;
 }): Promise<SignInEmailActionResult> {

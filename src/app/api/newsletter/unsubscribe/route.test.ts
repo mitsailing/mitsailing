@@ -166,7 +166,7 @@ describe('newsletter one-click unsubscribe route', () => {
     );
   });
 
-  it('rejects unsupported content types', async () => {
+  it('rejects text posts without identity', async () => {
     const response = await POST(
       new Request('https://mitsailing.test/api/newsletter/unsubscribe', {
         body: 'List-Unsubscribe=One-Click',
@@ -198,6 +198,23 @@ describe('newsletter one-click unsubscribe route', () => {
       'token_123',
       'list_123'
     );
+  });
+
+  it('rejects one-click text posts with extra whitespace', async () => {
+    const response = await POST(
+      new Request(
+        'https://mitsailing.test/api/newsletter/unsubscribe?token=token_123&list=list_123',
+        {
+          body: 'List-Unsubscribe=One-Click\n',
+          headers: { 'content-type': 'text/plain' },
+          method: 'POST',
+        }
+      )
+    );
+
+    await expect(response.json()).resolves.toEqual({ ok: false });
+    expect(response.status).toBe(400);
+    expect(mocks.unsubscribeNewsletterTokenFromList).not.toHaveBeenCalled();
   });
 
   it('returns internal errors for persistence failures', async () => {

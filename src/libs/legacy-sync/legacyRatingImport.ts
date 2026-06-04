@@ -31,13 +31,17 @@ export type LegacyRatingImportResult = {
   readonly userRatingsSkipped: number;
 };
 
+const FALLBACK_RATING_DISPLAY_ORDER = 999;
+
 function stringValue(value: string | null | undefined): string {
   return value?.trim() ?? '';
 }
 
 function positiveInt(value: string | null | undefined): number {
   const parsed = Number(stringValue(value));
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 999;
+  return Number.isSafeInteger(parsed) && parsed > 0
+    ? parsed
+    : FALLBACK_RATING_DISPLAY_ORDER;
 }
 
 function slugPart(value: string): string {

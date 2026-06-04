@@ -3,12 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { findUnique, headers, loggerWarn, requestPasswordResetEmailOTP } =
   vi.hoisted(() => ({
     findUnique: vi.fn(),
-    headers: vi.fn(async () => {
-      const requestHeaders = await Promise.resolve(
-        new Headers({ 'x-test': '1' })
-      );
-      return requestHeaders;
-    }),
+    headers: vi.fn(() => new Headers({ 'x-test': '1' })),
     loggerWarn: vi.fn(),
     requestPasswordResetEmailOTP: vi.fn(),
   }));

@@ -25,8 +25,7 @@ async function unsubscribeParamsFromPost(request: Request): Promise<{
   const contentType = request.headers.get('content-type') ?? '';
   if (contentType.includes('text/plain')) {
     const rawBody = await request.text();
-    const body = rawBody.trim();
-    if (body !== 'List-Unsubscribe=One-Click') {
+    if (rawBody !== 'List-Unsubscribe=One-Click') {
       throw new TypeError('Unsupported newsletter unsubscribe semantics');
     }
     return urlParams;

@@ -461,9 +461,13 @@ type LegacyInsertedUserRow = LegacyUserIdRow &
     sailing_card_number: number | null;
   }>;
 
-function stageRows<T>(rows: readonly T[]): T[][] {
+function stageRows<T extends object>(rows: readonly T[]): T[][] {
+  const firstRow = rows.at(0);
+  if (!firstRow) {
+    return [];
+  }
   const maxParameters = 65_535;
-  const columnCount = 17;
+  const columnCount = Object.keys(firstRow).length;
   const size = Math.max(1, Math.floor(maxParameters / columnCount));
   const chunks: T[][] = [];
   for (let index = 0; index < rows.length; index += size) {
