@@ -103,6 +103,10 @@ function parsePaymentBypassNote(formData: FormData) {
   return raw.length < 3 ? null : raw;
 }
 
+function parseGymMembershipVerified(formData: FormData) {
+  return formData.getAll('gymMembershipVerified').includes('true');
+}
+
 function jsonDate(date: Date | null) {
   return date?.toISOString() ?? null;
 }
@@ -485,6 +489,7 @@ export async function issueSailingCardAction(
   );
   const manualCardNumber = parseManualCardNumber(formData);
   const paymentBypassNote = parsePaymentBypassNote(formData);
+  const gymMembershipVerified = parseGymMembershipVerified(formData);
   if (manualCardNumber === 'invalid') {
     return {
       fieldErrors: { cardNumber: 'invalid' },
@@ -523,7 +528,9 @@ export async function issueSailingCardAction(
       if (!hasMatchingOnboardingAgreement({ request, targetUserId })) {
         throw new Error('missing_onboarding_agreement');
       }
-      if (requestNeedsFitnessVerification(request)) {
+      const needsGymMembershipVerification =
+        requestNeedsFitnessVerification(request);
+      if (needsGymMembershipVerification && !gymMembershipVerified) {
         throw new Error('mit_recreation_required');
       }
       await assertCardNumberAvailable({
@@ -609,7 +616,12 @@ export async function issueSailingCardAction(
             { sailingCardYear: { not: cardYear } },
           ],
         },
-        data: after,
+        data: {
+          ...after,
+          ...(needsGymMembershipVerification
+            ? { gymMembershipVerifiedAt: now }
+            : {}),
+        },
       });
       if (issuedUser.count !== 1) {
         throw new Error('not_pending_request');

@@ -1,18 +1,15 @@
-import { setRequestLocale } from 'next-intl/server';
-import { SailingCardPrintPage } from '@/app/[locale]/(marketing)/(site)/admin/users/[id]/sailing-card/SailingCardPrintPage';
+import {
+  redirectToSailingCardPdf,
+  sailingCardPdfRedirectParams,
+} from '@/app/[locale]/(marketing)/(site)/admin/users/[id]/sailing-card/SailingCardPdfRedirectPage';
 import { requirePermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
 
-type AdminUserSailingCardQuickPrintPageProps = {
-  readonly params: Promise<{ id: string; locale: string }>;
-};
-
 export default async function AdminUserSailingCardQuickPrintPage(
-  props: AdminUserSailingCardQuickPrintPageProps
+  props: Parameters<typeof sailingCardPdfRedirectParams>[0]
 ) {
-  const { id, locale } = await props.params;
-  setRequestLocale(locale);
+  const { id, locale } = await sailingCardPdfRedirectParams(props);
   await requirePermission(Permission.CARDS_PRINT, locale);
 
-  return <SailingCardPrintPage id={id} locale={locale} mode="quick" />;
+  redirectToSailingCardPdf(id);
 }

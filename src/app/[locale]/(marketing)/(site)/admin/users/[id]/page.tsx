@@ -50,6 +50,7 @@ import { getAdminUserEmailMessages } from '@/libs/email/emailMessages';
 import type { AdminUserEmailMessageRow } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
 import { membershipPaymentAccessStatus } from '@/libs/mit-sailing/membershipBilling/membershipPaymentStatus';
+import { needsFitnessMembershipQuestion } from '@/libs/mit-sailing/sailingCardMembership';
 import {
   getCurrentSailingCardYear,
   hasCurrentSailingCard,
@@ -457,10 +458,22 @@ type AdminUserSailingCardSectionModel = {
   readonly hasCurrentCard: boolean;
   readonly issuePaymentAccess: AdminSailingCardPaymentAccess | undefined;
   readonly latestRequest: AdminUserSailingCardRequestSummary | undefined;
+  readonly needsRecreationVerification: boolean;
   readonly paymentBypass: AdminUserSailingCardRequestSummary | undefined;
   readonly pendingCardNumber: number;
   readonly pendingRequest: AdminUserSailingCardRequestSummary | undefined;
 };
+
+function pendingRequestNeedsRecreationVerification(props: {
+  readonly request: AdminUserSailingCardRequestSummary | undefined;
+  readonly summary: AdminUserSailingCardSummary;
+}) {
+  return (
+    props.request?.cardType === SailingCardType.normal &&
+    props.summary?.gymMembershipVerifiedAt === null &&
+    needsFitnessMembershipQuestion(props.request.sailingAffiliation)
+  );
+}
 
 function adminUserSailingCardSectionModel(props: {
   readonly paymentRows: readonly AdminUserPaymentHistoryRow[];
@@ -487,6 +500,10 @@ function adminUserSailingCardSectionModel(props: {
       rows: props.paymentRows,
     }),
     latestRequest: pendingRequest ?? props.summary?.sailingCardRequests[0],
+    needsRecreationVerification: pendingRequestNeedsRecreationVerification({
+      request: pendingRequest,
+      summary: props.summary,
+    }),
     paymentBypass: props.summary?.paymentBypassRequest ?? undefined,
     pendingCardNumber:
       pendingRequest?.issuedCardNumber ?? props.suggestedCardNumber,
@@ -511,6 +528,7 @@ function AdminUserSailingCardNumberAction(props: {
         <AdminSailingCardIssueForm
           cardType={props.model.pendingRequest.cardType}
           locale={props.locale}
+          needsRecreationVerification={props.model.needsRecreationVerification}
           paymentAccess={props.model.issuePaymentAccess}
           suggestedCardNumber={props.model.pendingCardNumber}
           userId={props.userId}

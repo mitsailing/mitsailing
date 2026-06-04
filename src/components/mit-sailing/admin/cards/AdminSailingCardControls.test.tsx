@@ -9,6 +9,7 @@ import {
   AdminSailingCardExpireForm,
   AdminSailingCardHistory,
   AdminSailingCardIssueForm,
+  AdminSailingCardPrintActions,
 } from './AdminSailingCardControls';
 
 vi.mock('server-only', () => ({}));
@@ -68,6 +69,9 @@ vi.mock('next-intl', () => ({
       action_save_correction: 'Save correction',
       card_number_label: 'Card number',
       card_number_placeholder: `Auto ${number}`,
+      fitness_membership_verify_help:
+        'Check after confirming this user has MIT Recreation membership.',
+      fitness_membership_verify_label: 'MIT Recreation verified',
       issue_number_help: `Assign card #${number}.`,
       change_number_form_label: 'Change sailing card number',
       change_number_help: `Correct current card #${number}.`,
@@ -298,5 +302,46 @@ describe('AdminSailingCardControls', () => {
     );
 
     expect(screen.queryByLabelText('Payment bypass note')).toBeNull();
+  });
+
+  it('requires recreation verification when issuing a normal card that needs it', () => {
+    render(
+      <AdminSailingCardIssueForm
+        action={vi.fn()}
+        cardType={SailingCardType.normal}
+        locale="en"
+        needsRecreationVerification
+        paymentAccess="none"
+        suggestedCardNumber={60}
+        userId="user-1"
+      />
+    );
+
+    const verification = screen.getByLabelText('MIT Recreation verified');
+    expect(verification).toHaveAttribute('name', 'gymMembershipVerified');
+    expect(verification).toBeRequired();
+    expect(
+      screen.getByText(
+        'Check after confirming this user has MIT Recreation membership.'
+      )
+    ).toBeVisible();
+  });
+
+  it('opens regular print directly to the inline PDF in a new tab', () => {
+    render(<AdminSailingCardPrintActions userId="user/1" />);
+
+    expect(screen.getByRole('link', { name: 'Print card' })).toHaveAttribute(
+      'href',
+      '/api/admin/users/user%2F1/sailing-card/pdf'
+    );
+    expect(screen.getByRole('link', { name: 'Print card' })).toHaveAttribute(
+      'target',
+      '_blank'
+    );
+    expect(screen.getByRole('link', { name: 'Print card' })).toHaveAttribute(
+      'rel',
+      'noopener noreferrer'
+    );
+    expect(screen.queryByRole('link', { name: 'Quick print' })).toBeNull();
   });
 });
