@@ -106,6 +106,14 @@ function ResetPasswordCodeStepHeader(props: {
   );
 }
 
+function shouldReturnToCodeStep(code: string | undefined): boolean {
+  return (
+    code === 'INVALID_OTP' ||
+    code === 'OTP_EXPIRED' ||
+    code === 'TOO_MANY_ATTEMPTS'
+  );
+}
+
 export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const tCommon = useTranslations('Common');
   const t = useTranslations('ResetPasswordPage');
@@ -298,6 +306,37 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     }
   }
 
+  async function signInAfterPasswordReset(options: {
+    readonly email: string;
+    readonly password: string;
+  }): Promise<boolean> {
+    try {
+      const signInRes = await authClient.signIn.email({
+        email: options.email,
+        password: options.password,
+        callbackURL: safeCallbackUrl,
+      });
+      if (signInRes.error) {
+        reportUnknownAuthClientError({
+          code: signInRes.error.code,
+          message: signInRes.error.message,
+          action: 'reset-password.auto-sign-in',
+        });
+        setAutoSignInFailed(true);
+        return false;
+      }
+      return true;
+    } catch (signInError) {
+      reportUnknownAuthClientError({
+        action: 'reset-password.auto-sign-in',
+        code: undefined,
+        message: signInError instanceof Error ? signInError.message : undefined,
+      });
+      setAutoSignInFailed(true);
+      return false;
+    }
+  }
+
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -316,11 +355,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
         password,
       });
       if (res.error) {
-        if (
-          res.error.code === 'INVALID_OTP' ||
-          res.error.code === 'OTP_EXPIRED' ||
-          res.error.code === 'TOO_MANY_ATTEMPTS'
-        ) {
+        if (shouldReturnToCodeStep(res.error.code)) {
           if (res.error.code === 'OTP_EXPIRED') {
             setResetCode('');
           }
@@ -339,34 +374,11 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       const passwordForSignIn = password;
       setPassword('');
       setPasswordConfirmation('');
-      const signInRes = await (async () => {
-        try {
-          return await authClient.signIn.email({
-            email: normalizedEmail,
-            password: passwordForSignIn,
-            callbackURL: safeCallbackUrl,
-          });
-        } catch (signInError) {
-          reportUnknownAuthClientError({
-            action: 'reset-password.auto-sign-in',
-            code: undefined,
-            message:
-              signInError instanceof Error ? signInError.message : undefined,
-          });
-          setAutoSignInFailed(true);
-          return null;
-        }
-      })();
-      if (!signInRes) {
-        return;
-      }
-      if (signInRes.error) {
-        reportUnknownAuthClientError({
-          code: signInRes.error.code,
-          message: signInRes.error.message,
-          action: 'reset-password.auto-sign-in',
-        });
-        setAutoSignInFailed(true);
+      const signedIn = await signInAfterPasswordReset({
+        email: normalizedEmail,
+        password: passwordForSignIn,
+      });
+      if (!signedIn) {
         return;
       }
       router.push(safeCallbackUrl);

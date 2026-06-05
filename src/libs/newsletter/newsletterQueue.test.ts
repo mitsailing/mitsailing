@@ -111,7 +111,7 @@ describe('enqueueNewsletterBroadcast', () => {
       expect.objectContaining({
         attempts: 3,
         backoff: { delay: 30_000, type: 'exponential' },
-        jobId: 'newsletter-broadcast-broadcast_1-1778769000000-delivery_1',
+        jobId: 'newsletter-broadcast:broadcast_1:1778769000000:delivery_1',
         removeOnComplete: 100,
         removeOnFail: 500,
       })

@@ -54,40 +54,14 @@ function unsubscribeRequest(options?: {
 }
 
 describe('newsletter one-click unsubscribe route', () => {
-  it('unsubscribes get requests before redirecting to manage preferences', async () => {
-    const response = await GET(unsubscribeRequest());
+  it('redirects get requests to manage preferences without unsubscribing', () => {
+    const response = GET(unsubscribeRequest());
 
-    expect(mocks.unsubscribeNewsletterTokenFromList).toHaveBeenCalledWith(
-      'token_123',
-      'list_123'
-    );
-    expect(mocks.newsletterManageUrl).toHaveBeenCalledWith('token_123', {
-      unsubscribedListId: 'list_123',
-    });
+    expect(mocks.unsubscribeNewsletterTokenFromList).not.toHaveBeenCalled();
+    expect(mocks.newsletterManageUrl).toHaveBeenCalledWith('token_123');
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe(
-      'https://mitsailing.test/newsletter/manage?token=token_123&unsubscribedList=list_123'
-    );
-  });
-
-  it('returns internal errors when browser unsubscribe links fail', async () => {
-    mocks.unsubscribeNewsletterTokenFromList.mockRejectedValueOnce(
-      new Error('db down')
-    );
-
-    const response = await GET(unsubscribeRequest());
-
-    await expect(response.json()).resolves.toEqual({
-      error: 'internal',
-      ok: false,
-    });
-    expect(response.status).toBe(500);
-    expect(mocks.logger.error).toHaveBeenCalledWith(
-      'Failed to unsubscribe newsletter token: {error}',
-      expect.objectContaining({
-        error: expect.any(Error),
-        listId: 'list_123',
-      })
+      'https://mitsailing.test/newsletter/manage?token=token_123'
     );
   });
 

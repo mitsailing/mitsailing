@@ -78,6 +78,8 @@ services:
       - type: bind
         source: ./local/cms-media
         target: /var/lib/mitsailing/cms-media
+        bind:
+          create_host_path: false
     healthcheck:
       test:
         [
@@ -107,6 +109,8 @@ services:
       - type: bind
         source: ./local/cms-media
         target: /var/lib/mitsailing/cms-media
+        bind:
+          create_host_path: false
         read_only: true
     healthcheck:
       test:

@@ -20,11 +20,11 @@ function stringValue(value: string | null | undefined): string {
 
 function decodeBasicEntities(value: string): string {
   return value
+    .replaceAll('&amp;', '&')
     .replaceAll('&lt;', '<')
     .replaceAll('&gt;', '>')
     .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"')
-    .replaceAll('&amp;', '&');
+    .replaceAll('&quot;', '"');
 }
 
 function parseLegacyDate(value: string | null | undefined): Date | null {

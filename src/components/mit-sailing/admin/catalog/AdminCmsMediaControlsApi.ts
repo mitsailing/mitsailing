@@ -348,6 +348,7 @@ async function waitForCmsMediaReady(
   }
   const deadline = Date.now() + CMS_MEDIA_READY_TIMEOUT_MS;
   while (Date.now() < deadline) {
+    // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf -- path is a same-origin upload API route built from an allowlisted asset id.
     const response = await fetch(path);
     if (!response.ok) {
       return null;

@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   eventCategoryUpsert: vi.fn(),
   eventUpsert: vi.fn(),
   executeRaw: vi.fn(),
+  loggerWarn: vi.fn(),
   queryRaw: vi.fn(),
   transaction: vi.fn(),
   userFindMany: vi.fn(),
@@ -14,6 +15,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/libs/DB', () => ({
   prisma: {
     $transaction: mocks.transaction,
+  },
+}));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: {
+    warn: mocks.loggerWarn,
   },
 }));
 
@@ -312,6 +319,9 @@ describe('importLegacyEventRows', () => {
         eventTypes: [{ name: 'Racing', rank: '1', type: '1' }],
         fees: [
           { eid: '101', feeid: 'fee-1', name: '', price: '12.34' },
+          { eid: '101', feeid: 'fee-bad', name: 'Bad fee', price: 'bad' },
+          { eid: '101', feeid: 'fee-negative', name: 'Debt fee', price: '-1' },
+          { eid: '101', feeid: 'fee-zero', name: 'Zero fee', price: '0' },
           { eid: '101', feeid: null, name: 'Skipped fee', price: '99.00' },
         ],
         members: [
@@ -445,6 +455,38 @@ describe('importLegacyEventRows', () => {
         new Date('2026-07-02T03:30:00.000Z'),
         new Date('2026-07-02T05:00:00.000Z'),
       ])
+    );
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      'Adjusted legacy event date ending before start',
+      expect.objectContaining({
+        legacyEventId: '101',
+        normalizedEndDateTime: '2026-07-02T05:00:00.000Z',
+        originalEndDateTime: '2026-07-01T05:00:00.000Z',
+      })
+    );
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      'Skipped legacy event fee with invalid amount',
+      expect.objectContaining({
+        legacyEventId: '101',
+        legacyFeeId: 'fee-bad',
+        price: 'bad',
+      })
+    );
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      'Skipped legacy event fee with invalid amount',
+      expect.objectContaining({
+        legacyEventId: '101',
+        legacyFeeId: 'fee-negative',
+        price: '-1',
+      })
+    );
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      'Skipped legacy event fee with invalid amount',
+      expect.objectContaining({
+        legacyEventId: '101',
+        legacyFeeId: 'fee-zero',
+        price: '0',
+      })
     );
   });
 });

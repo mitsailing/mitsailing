@@ -1,6 +1,5 @@
-import { chmod, mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET } from './route';
 
 const mocks = vi.hoisted(() => ({
@@ -8,6 +7,11 @@ const mocks = vi.hoisted(() => ({
   loggerError: vi.fn(),
   mediaPublicBaseUrl: undefined as string | undefined,
   mediaRoot: `${process.cwd()}/test-results/cms-media-route-test-${process.pid}`,
+  mkdir: vi.fn(),
+  readFile: vi.fn(),
+  rename: vi.fn(),
+  rm: vi.fn(),
+  writeFile: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -28,6 +32,14 @@ vi.mock('@/libs/Env', () => ({
     },
     MEDIA_STORAGE_ROOT: mocks.mediaRoot,
   },
+}));
+
+vi.mock('node:fs/promises', () => ({
+  mkdir: mocks.mkdir,
+  readFile: mocks.readFile,
+  rename: mocks.rename,
+  rm: mocks.rm,
+  writeFile: mocks.writeFile,
 }));
 
 vi.mock('@/libs/Logger', () => ({
@@ -68,20 +80,13 @@ function readyAsset(
 }
 
 describe('cms media route', () => {
-  beforeEach(async () => {
-    await rm(mocks.mediaRoot, { force: true, recursive: true });
+  beforeEach(() => {
     mocks.mediaPublicBaseUrl = undefined;
+    mocks.readFile.mockResolvedValue(Buffer.from(bytes));
     vi.clearAllMocks();
   });
 
-  afterEach(async () => {
-    await rm(mocks.mediaRoot, { force: true, recursive: true });
-  });
-
   it('serves server-folder media from the ready storage path', async () => {
-    const filePath = readyFilePath();
-    await mkdir(path.dirname(filePath), { recursive: true });
-    await writeFile(filePath, bytes);
     mocks.findUnique.mockResolvedValue(readyAsset());
 
     const response = await GET(
@@ -89,15 +94,14 @@ describe('cms media route', () => {
       routeProps()
     );
 
-    await expect(response.arrayBuffer()).resolves.toEqual(bytes.buffer);
+    await expect(response.arrayBuffer()).resolves.toEqual(
+      Buffer.from(bytes).buffer
+    );
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('image/png');
   });
 
   it('does not serve server-folder media from an unexpected ready file path', async () => {
-    const filePath = readyFilePath();
-    await mkdir(path.dirname(filePath), { recursive: true });
-    await writeFile(filePath, bytes);
     mocks.findUnique.mockResolvedValue(
       readyAsset({
         readyFilePath: path.join(mocks.mediaRoot, 'other', assetId, filename),
@@ -113,6 +117,9 @@ describe('cms media route', () => {
   });
 
   it('returns not found when the ready file is missing from storage', async () => {
+    mocks.readFile.mockRejectedValue(
+      Object.assign(new Error('missing file'), { code: 'ENOENT' })
+    );
     mocks.findUnique.mockResolvedValue(readyAsset());
 
     const response = await GET(
@@ -168,9 +175,6 @@ describe('cms media route', () => {
   });
 
   it('serves local media with an octet-stream fallback for unknown mime types', async () => {
-    const filePath = path.join(mocks.mediaRoot, assetId, filename);
-    await mkdir(path.dirname(filePath), { recursive: true });
-    await writeFile(filePath, bytes);
     mocks.findUnique.mockResolvedValue(
       readyAsset({
         mimeType: 'image/svg+xml',
@@ -184,7 +188,9 @@ describe('cms media route', () => {
       routeProps()
     );
 
-    await expect(response.arrayBuffer()).resolves.toEqual(bytes.buffer);
+    await expect(response.arrayBuffer()).resolves.toEqual(
+      Buffer.from(bytes).buffer
+    );
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe(
       'application/octet-stream'
@@ -208,10 +214,7 @@ describe('cms media route', () => {
   });
 
   it('returns server error when the ready file cannot be read', async () => {
-    const filePath = readyFilePath();
-    await mkdir(path.dirname(filePath), { recursive: true });
-    await writeFile(filePath, bytes);
-    await chmod(filePath, 0);
+    mocks.readFile.mockRejectedValue(new Error('permission denied'));
     mocks.findUnique.mockResolvedValue(readyAsset());
 
     const response = await GET(

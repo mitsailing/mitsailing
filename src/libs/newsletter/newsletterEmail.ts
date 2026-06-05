@@ -88,6 +88,12 @@ function bodyToText(params: {
   ].join('\n');
 }
 
+/**
+ * Converts the database-backed newsletter list id into a DNS-safe List-ID segment.
+ *
+ * @param listId - Unique newsletter list id from the database
+ * @returns DNS-safe List-ID segment, or a generic fallback for invalid input
+ */
 function newsletterListHeaderSegment(listId: string): string {
   let segment = '';
   let needsSeparator = false;

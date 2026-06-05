@@ -172,7 +172,7 @@ describe('importLegacyRatingRows', () => {
     });
   });
 
-  it('imports rating types ratings and members from the legacy schema query', async () => {
+  it('imports rating types, ratings, and members from the legacy schema query', async () => {
     mocks.queryRaw
       .mockResolvedValueOnce([
         {

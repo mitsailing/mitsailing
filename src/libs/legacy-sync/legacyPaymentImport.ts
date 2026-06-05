@@ -787,6 +787,7 @@ async function insertStagedLegacyUsers(props: {
         prepared.emergency_contact_phone,
         prepared.first_name,
         prepared.last_name,
+        -- Assign mit_id only when unique in prepared and unclaimed in users.
         CASE
           WHEN prepared.mit_id IS NOT NULL
             AND prepared.mit_id_stage_count = 1
@@ -798,6 +799,7 @@ async function insertStagedLegacyUsers(props: {
           THEN prepared.mit_id
           ELSE NULL
         END,
+        -- Assign sailing_card_* only when unique in prepared and unclaimed in users.
         CASE
           WHEN prepared.sailing_card_number IS NOT NULL
             AND prepared.sailing_card_year IS NOT NULL

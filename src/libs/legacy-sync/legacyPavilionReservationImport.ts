@@ -224,11 +224,11 @@ export function legacyPavilionReservationRowsFromCsv(
 
 function decodeBasicEntities(value: string): string {
   return value
+    .replaceAll('&amp;', '&')
     .replaceAll('&lt;', '<')
     .replaceAll('&gt;', '>')
     .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"')
-    .replaceAll('&amp;', '&');
+    .replaceAll('&quot;', '"');
 }
 
 function inferSpaceSlugs(row: LegacyReservationDbRow): string[] {

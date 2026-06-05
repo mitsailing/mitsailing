@@ -17,7 +17,7 @@
     "dev:spotlight": "npx @spotlightjs/spotlight",
     "dev:next": "next dev",
     "dev:app": "run-p dev:next dev:spotlight",
-    "db:up": "docker compose up -d postgres mailpit redis tusd media",
+    "db:up": "node scripts/prepare-local-media-storage.cjs && docker compose up -d postgres mailpit redis tusd media",
     "db:down": "docker compose down",
     "db:test:up": "npm run db:up",
     "db:test:down": "npm run db:down",

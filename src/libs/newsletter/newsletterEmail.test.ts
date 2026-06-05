@@ -183,4 +183,29 @@ describe('newsletter email', () => {
     expect(payload.topicId).toBe('topic_123');
     expect(payload.text).toContain('134 Memorial Drive');
   });
+
+  it('uses a safe List-ID fallback for invalid list ids', async () => {
+    const { sendNewsletterBroadcastEmail } =
+      await import('@/libs/newsletter/newsletterEmail');
+
+    await sendNewsletterBroadcastEmail({
+      body: 'The pavilion is open.',
+      broadcastId: 'broadcast_123',
+      deliveryId: 'delivery_123',
+      email: 'sailor@example.com',
+      listId: '!!!',
+      listName: 'General',
+      manageTokenHash: 'stored-token-hash',
+      previewText: 'News from the pavilion',
+      subject: 'Spring sailing',
+      subscriberId: 'subscriber_123',
+      topicId: null,
+    });
+
+    expect(sentPayload().headers).toEqual(
+      expect.objectContaining({
+        'List-ID': '<newsletter.newsletter.mitsailing.test>',
+      })
+    );
+  });
 });

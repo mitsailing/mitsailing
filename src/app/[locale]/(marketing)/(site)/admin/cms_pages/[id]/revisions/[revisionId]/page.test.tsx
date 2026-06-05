@@ -32,8 +32,8 @@ vi.mock(
       fieldLabels: Record<string, string>;
       text: {
         compareHeading: string;
-        moreChanges: (_count: number) => string;
-        snapshotVersion: (_version: number) => string;
+        moreChanges: (...args: [number]) => string;
+        snapshotVersion: (...args: [number]) => string;
       };
     }) => (
       <main

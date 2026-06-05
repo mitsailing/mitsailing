@@ -91,7 +91,14 @@ describe('production docker compose', () => {
   it('prevents privilege escalation for public production services', () => {
     const servicesStart = productionCompose.indexOf('services:');
     expect(servicesStart).toBeGreaterThanOrEqual(0);
-    const webRuntimeBlock = productionCompose.slice(0, servicesStart);
+    const webDefaultsStart = productionCompose.indexOf('x-web: &web');
+    expect(webDefaultsStart).toBeGreaterThanOrEqual(0);
+    const webDefaultsBlock = productionCompose.slice(
+      webDefaultsStart,
+      servicesStart
+    );
+    const webBlueBlock = readYamlServiceBlock(productionCompose, 'web_blue');
+    const webGreenBlock = readYamlServiceBlock(productionCompose, 'web_green');
     const appBlock = readYamlServiceBlock(productionCompose, 'app');
     const workerBlock = readYamlServiceBlock(productionCompose, 'worker');
     const tusdBlock = readYamlServiceBlock(productionCompose, 'tusd');
@@ -101,8 +108,11 @@ describe('production docker compose', () => {
       'cloudflared'
     );
 
+    expect(webBlueBlock).toContain('<<: *web');
+    expect(webGreenBlock).toContain('<<: *web');
+
     for (const serviceBlock of [
-      webRuntimeBlock,
+      webDefaultsBlock,
       appBlock,
       workerBlock,
       tusdBlock,
@@ -500,10 +510,17 @@ describe('local docker compose', () => {
   it('uses the gitignored local media tree for upload processing and serving', () => {
     expect(localCompose).toContain('source: ./local/cms-media');
     expect(localCompose).toContain('target: /var/lib/mitsailing/cms-media');
+    expect(localCompose).toMatch(
+      /source: \.\/local\/cms-media[\s\S]*target: \/var\/lib\/mitsailing\/cms-media[\s\S]*bind:[\s\S]*create_host_path: false/u
+    );
     expect(localCompose).toContain('source: ./docker/nginx/media.conf');
   });
 
   it('starts local E2E tusd with the runner host user', () => {
+    expect(e2eComposeScript).toContain('prepareLocalMediaStorage');
+    expect(e2eComposeScript).toMatch(
+      /prepareLocalMediaStorage\(\);[\s\S]*docker[\s\S]*compose[\s\S]*up/u
+    );
     expect(e2eComposeScript).toContain('configureLocalDockerUser');
     expect(e2eComposeScript).toContain('process.getuid');
     expect(e2eComposeScript).toContain('process.getgid');
@@ -513,6 +530,32 @@ describe('local docker compose', () => {
     expect(e2eComposeScript).toContain(
       'process.env.LOCAL_DOCKER_GID ??= String(gid)'
     );
+  });
+
+  it('discovers the tusd service container for E2E diagnostics', () => {
+    expect(e2eComposeScript).toContain('discoverTusdContainerIdentifier');
+    expect(e2eComposeScript).toContain(
+      "['compose', 'ps', '--format', 'json', 'tusd']"
+    );
+    expect(e2eComposeScript).toContain(
+      "stringRecordValue(record, 'Service') === 'tusd'"
+    );
+    expect(e2eComposeScript).not.toContain('mitsailing-tusd-1');
+  });
+
+  it('prepares local media storage before generic compose startup', () => {
+    const packageJson = readRepoFile('package.json');
+    const prepareScript = readRepoFile(
+      'scripts/prepare-local-media-storage.cjs'
+    );
+
+    expect(packageJson).toContain(
+      'node scripts/prepare-local-media-storage.cjs && docker compose up'
+    );
+    expect(prepareScript).toContain(
+      "prepareWritableDirectory(path.join(root, 'uploads'))"
+    );
+    expect(prepareScript).toContain('constants.W_OK');
   });
 });
 

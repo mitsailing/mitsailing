@@ -40,11 +40,11 @@ type CmsBlockFixtureProps = {
   title: PublicCmsBlock['title'];
 };
 
-const defaultBlockBodyHtml = '<p>Block body</p>';
+const defaultBlockBodyText = 'Block body';
 
 function block(props: CmsBlockFixtureProps): PublicCmsBlock {
   return {
-    body: defaultBlockBodyHtml,
+    body: defaultBlockBodyText,
     ...props,
   };
 }

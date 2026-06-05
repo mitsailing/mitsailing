@@ -94,6 +94,36 @@ function createdAsset() {
   };
 }
 
+function expectUploadSessionResponse(body: unknown): void {
+  expect(body).toEqual({
+    asset: {
+      byteSize: 1024,
+      createdAt: '2026-05-17T12:00:00.000Z',
+      id: 'asset-1',
+      mediaKind: 'image',
+      mimeType: 'image/png',
+      originalFilename: 'Race Day.png',
+      publicPath: '/cms-media/asset-1/race-day.png',
+      status: 'uploading',
+    },
+    upload: expect.objectContaining({
+      byteSize: 1024,
+      endpoint: 'https://mitsailing.com/cms-media/uploads/',
+      headers: {
+        'x-mitsailing-upload-token': expect.any(String),
+      },
+      metadata: expect.objectContaining({
+        assetId: 'asset-1',
+        byteSize: '1024',
+        filename: 'race-day.png',
+        filetype: 'image/png',
+        token: expect.any(String),
+      }),
+      protocol: 'tus',
+    }),
+  });
+}
+
 describe('cms media upload session route', () => {
   it('rejects unauthenticated upload session creation', async () => {
     mocks.getCurrentUser.mockResolvedValue(null);
@@ -260,33 +290,7 @@ describe('cms media upload session route', () => {
 
     const body = await response.json();
     expect(response.status).toBe(201);
-    expect(body.asset).toEqual({
-      byteSize: 1024,
-      createdAt: '2026-05-17T12:00:00.000Z',
-      id: 'asset-1',
-      mediaKind: 'image',
-      mimeType: 'image/png',
-      originalFilename: 'Race Day.png',
-      publicPath: '/cms-media/asset-1/race-day.png',
-      status: 'uploading',
-    });
-    expect(body.upload).toEqual(
-      expect.objectContaining({
-        byteSize: 1024,
-        endpoint: 'https://mitsailing.com/cms-media/uploads/',
-        headers: {
-          'x-mitsailing-upload-token': expect.any(String),
-        },
-        metadata: expect.objectContaining({
-          assetId: 'asset-1',
-          byteSize: '1024',
-          filename: 'race-day.png',
-          filetype: 'image/png',
-          token: expect.any(String),
-        }),
-        protocol: 'tus',
-      })
-    );
+    expectUploadSessionResponse(body);
     expect(mocks.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

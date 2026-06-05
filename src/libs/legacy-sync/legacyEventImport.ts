@@ -7,6 +7,7 @@ import {
 import { prisma } from '@/libs/DB';
 import { loadLegacyUserIdentityMaps } from '@/libs/legacy-sync/legacyPaymentImport';
 import type { LegacyMemberRow } from '@/libs/legacy-sync/legacyPaymentImport';
+import { logger } from '@/libs/Logger';
 
 type LegacyEventTypeRow = {
   readonly name: string | null;
@@ -191,9 +192,11 @@ function nonNegativeInt(value: string | null | undefined): number | null {
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
-function amountCents(value: string | null | undefined): number {
+function amountCents(value: string | null | undefined): number | null {
   const parsed = Number(stringValue(value));
-  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 100) : 0;
+  return Number.isFinite(parsed) && parsed > 0
+    ? Math.round(parsed * 100)
+    : null;
 }
 
 function legacyHash(value: string): string {
@@ -531,6 +534,11 @@ async function importEventDates(props: {
     const normalizedEndDateTime = new Date(endDateTime);
     if (normalizedEndDateTime <= startDateTime) {
       normalizedEndDateTime.setUTCDate(normalizedEndDateTime.getUTCDate() + 1);
+      logger.warn('Adjusted legacy event date ending before start', {
+        legacyEventId: stringValue(row.eid),
+        normalizedEndDateTime: normalizedEndDateTime.toISOString(),
+        originalEndDateTime: endDateTime.toISOString(),
+      });
     }
     return [
       {
@@ -597,9 +605,19 @@ async function importEventFees(props: {
     if (!eventId || !stringValue(row.feeid)) {
       return [];
     }
+    const parsedAmountCents = amountCents(row.price);
+    if (parsedAmountCents === null) {
+      logger.warn('Skipped legacy event fee with invalid amount', {
+        feeName: stringValue(row.name),
+        legacyEventId: stringValue(row.eid),
+        legacyFeeId: stringValue(row.feeid),
+        price: row.price,
+      });
+      return [];
+    }
     return [
       {
-        amountCents: amountCents(row.price),
+        amountCents: parsedAmountCents,
         description: stringValue(row.name) || 'Legacy fee',
         eventId,
         id: randomUUID(),

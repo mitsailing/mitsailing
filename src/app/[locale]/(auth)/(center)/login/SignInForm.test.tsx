@@ -104,10 +104,7 @@ async function expectPasswordSignInAlert(props: {
   expect(await screen.findByRole('alert')).toHaveTextContent(props.alertText);
 }
 
-async function submitUnverifiedResend(props?: {
-  readonly email?: string;
-  readonly password?: string;
-}) {
+async function submitUnverifiedResend() {
   const user = userEvent.setup();
   authClientMock.signIn.email.mockResolvedValue({
     error: { code: 'EMAIL_NOT_VERIFIED' },
@@ -116,8 +113,8 @@ async function submitUnverifiedResend(props?: {
   render(<SignInForm callbackUrl="/fleet" />);
 
   await submitPasswordStep({
-    email: props?.email ?? 'new-sailor@mit.edu',
-    password: props?.password ?? 'correct-password',
+    email: 'new-sailor@mit.edu',
+    password: 'correct-password',
     user,
   });
   await user.click(

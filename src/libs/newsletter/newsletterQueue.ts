@@ -83,7 +83,7 @@ export async function enqueueNewsletterBroadcast(
         attempts: 3,
         backoff: { delay: NEWSLETTER_QUEUE_BACKOFF_MS, type: 'exponential' },
         delay,
-        jobId: `newsletter-broadcast-${enqueueParams.broadcastId}-${scheduleKey}-${continuationKey}`,
+        jobId: `newsletter-broadcast:${enqueueParams.broadcastId}:${scheduleKey}:${continuationKey}`,
         removeOnComplete: 100,
         removeOnFail: 500,
       }

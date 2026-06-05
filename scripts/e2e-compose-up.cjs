@@ -4,6 +4,9 @@
  */
 const { spawnSync } = require('node:child_process');
 const { setTimeout: delay } = require('node:timers/promises');
+const {
+  prepareLocalMediaStorage,
+} = require('./prepare-local-media-storage.cjs');
 
 const port = String(process.env.PLAYWRIGHT_E2E_PORT ?? '3008');
 const fallbackAppUrl = `http://localhost:${port}`;
@@ -50,21 +53,118 @@ process.env.MEDIA_UPLOAD_CORS_ALLOW_ORIGIN = origin;
 process.env.MEDIA_UPLOAD_HOOK_URL = hookUrl;
 process.env.NEXT_PUBLIC_APP_URL = origin;
 configureLocalDockerUser();
+prepareLocalMediaStorage();
+
+/**
+ * @param {unknown} value - Parsed JSON value.
+ * @returns {value is Record<string, unknown>} Whether the value is a plain record.
+ */
+function isRecord(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * @param {string} value - JSON payload.
+ * @returns {unknown} Parsed JSON value.
+ */
+function parseJson(value) {
+  return /** @type {unknown} */ (JSON.parse(value));
+}
+
+/**
+ * @param {unknown} value - Parsed compose ps payload.
+ * @returns {Record<string, unknown>[]} Compose service records.
+ */
+function composePsRecordsFromValue(value) {
+  if (Array.isArray(value)) {
+    return value.filter(isRecord);
+  }
+  return isRecord(value) ? [value] : [];
+}
+
+/**
+ * @param {string} output - `docker compose ps --format json` output.
+ * @returns {Record<string, unknown>[]} Compose service records.
+ */
+function parseComposePsRecords(output) {
+  const trimmed = output.trim();
+  if (!trimmed) {
+    return [];
+  }
+  try {
+    return composePsRecordsFromValue(parseJson(trimmed));
+  } catch {
+    return trimmed
+      .split(/\r?\n/u)
+      .flatMap((line) => composePsRecordsFromValue(parseJson(line)));
+  }
+}
+
+/**
+ * @param {Record<string, unknown> | undefined} record - Compose service record.
+ * @param {string} key - Record key.
+ * @returns {string} String value, if present.
+ */
+function stringRecordValue(record, key) {
+  if (!record) {
+    return '';
+  }
+  const value = record[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function discoverTusdContainerIdentifier() {
+  const result = spawnSync(
+    'docker',
+    ['compose', 'ps', '--format', 'json', 'tusd'],
+    { encoding: 'utf8' }
+  );
+  if (result.error) {
+    console.error(`[e2e-compose-up] ${result.error.message}`);
+    return null;
+  }
+  if (result.status !== 0) {
+    console.error('[e2e-compose-up] unable to inspect compose tusd service');
+    return null;
+  }
+  try {
+    const records = parseComposePsRecords(result.stdout);
+    const tusdRecord =
+      records.find(
+        (record) => stringRecordValue(record, 'Service') === 'tusd'
+      ) ?? records[0];
+    const containerIdentifier =
+      stringRecordValue(tusdRecord, 'ID') ||
+      stringRecordValue(tusdRecord, 'Name') ||
+      stringRecordValue(tusdRecord, 'Names');
+    return containerIdentifier || null;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(
+      `[e2e-compose-up] unable to parse compose tusd service: ${message}`
+    );
+    return null;
+  }
+}
 
 function runDockerDiagnostics() {
-  const commands = [
-    ['docker', ['compose', 'ps', '-a']],
-    [
+  const tusdContainerIdentifier = discoverTusdContainerIdentifier();
+  const commands = [['docker', ['compose', 'ps', '-a']]];
+  if (tusdContainerIdentifier) {
+    commands.push([
       'docker',
       [
         'inspect',
-        'mitsailing-tusd-1',
+        tusdContainerIdentifier,
         '--format',
         'tusd health: {{json .State.Health}}',
       ],
-    ],
-    ['docker', ['compose', 'logs', 'tusd', '--no-color', '--tail=120']],
-  ];
+    ]);
+  }
+  commands.push([
+    'docker',
+    ['compose', 'logs', 'tusd', '--no-color', '--tail=120'],
+  ]);
 
   for (const [command, args] of commands) {
     const diagnostic = spawnSync(command, args, { stdio: 'inherit' });

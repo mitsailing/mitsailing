@@ -57,6 +57,29 @@ describe('importLegacyNewsRows', () => {
     );
   });
 
+  it('decodes double-encoded legacy news entities before import', async () => {
+    await expect(
+      importLegacyNewsRows([
+        {
+          end_date: '2026-06-30',
+          id: 'double-encoded',
+          news: 'Launch &amp;lt;notice&amp;gt; &amp;quot;today&amp;quot; &amp;#39;now&amp;#39;',
+          news_date: '2026-06-01',
+          updater: 'admin',
+        },
+      ])
+    ).resolves.toEqual({ imported: 1, skipped: 0 });
+
+    expect(mocks.siteAlertUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          body: 'Launch <notice> "today" \'now\'',
+          legacyNewsId: 'double-encoded',
+        }),
+      })
+    );
+  });
+
   it('imports legacy news from the legacy schema query', async () => {
     mocks.queryRaw.mockResolvedValueOnce([
       {
