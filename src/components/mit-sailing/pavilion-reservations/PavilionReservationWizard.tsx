@@ -2863,9 +2863,7 @@ function PavilionReservationFooter(props: {
                 if (!props.contactStepValid) {
                   event.preventDefault();
                   props.setShowErrors(true);
-                  return;
                 }
-                props.setShowErrors(false);
               }}
             >
               {props.pending ? t('pending_submitting') : t('action_submit')}
@@ -3018,7 +3016,7 @@ export function PavilionReservationWizard(
           />
         </>
       ) : null}
-      {showErrors && step !== 'spaces' ? (
+      {showErrors && step !== 'spaces' && !contactStepValid ? (
         <p className="text-sm font-medium text-destructive">
           {t('error_contact_step')}
         </p>

@@ -236,6 +236,38 @@ describe('legacyPaymentImport', () => {
     ]);
   });
 
+  it('normalizes legacy contact phones before staging users', () => {
+    const map = buildLegacyMemberPaymentMap([
+      member({
+        emer_name: 'Emergency Person',
+        emer_phone: '+44 20 7946 0958',
+        phone: '(617) 555-0100',
+      }),
+    ]);
+
+    expect(map.canonicalUsers.at(0)).toMatchObject({
+      emergencyContactName: 'Emergency Person',
+      emergencyContactPhone: '+442079460958',
+      phone: '+16175550100',
+    });
+  });
+
+  it('drops invalid optional legacy contact phones', () => {
+    const map = buildLegacyMemberPaymentMap([
+      member({
+        emer_name: 'Emergency Person',
+        emer_phone: '555',
+        phone: '+44 20 7946 0958',
+      }),
+    ]);
+
+    expect(map.canonicalUsers.at(0)).toMatchObject({
+      emergencyContactName: null,
+      emergencyContactPhone: null,
+      phone: null,
+    });
+  });
+
   it('classifies canonical racing card rows as membership payments', () => {
     expect(legacyPaymentPurpose(payment())).toEqual({
       cardType: SailingCardType.racing,

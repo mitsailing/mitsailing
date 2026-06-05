@@ -445,6 +445,54 @@ describe('PavilionReservationWizard slot picker', () => {
     deferred.resolve({ status: 'idle', errors: [] });
   });
 
+  it('shows confirmation after successful final submit', async () => {
+    const action = vi.fn(async () => {
+      const state: PavilionReservationSubmitState = await Promise.resolve({
+        status: 'confirmed',
+        referenceCode: 'PAV-TEST123',
+        errors: [],
+      });
+      return state;
+    });
+    renderWizard({ action });
+
+    fireEvent.change(screen.getByLabelText('Email address*'), {
+      target: { value: 'sailor@example.edu' },
+    });
+    fireEvent.click(screen.getByRole('radio', { name: /MIT Student/u }));
+    selectCompletedSlot();
+    vi.useRealTimers();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Next: contact information' })
+    );
+    fireEvent.change(screen.getByLabelText('First name*'), {
+      target: { value: 'Avery' },
+    });
+    fireEvent.change(screen.getByLabelText('Last name*'), {
+      target: { value: 'Sailor' },
+    });
+    fireEvent.change(screen.getByLabelText('Phone*'), {
+      target: { value: '617-555-0100' },
+    });
+    fireEvent.change(screen.getByLabelText('Event name*'), {
+      target: { value: 'Dock Talk' },
+    });
+    fireEvent.change(screen.getByLabelText('Event description*'), {
+      target: { value: 'A short waterfront event.' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Submit reservation request' })
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Request received' })
+    ).toBeInTheDocument();
+    expect(screen.getByText('PAV-TEST123')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Submitting...' })
+    ).not.toBeInTheDocument();
+  });
+
   it('clears unavailable services when group type changes on contact', () => {
     const { container } = renderWizard({ items: [space, service] });
 

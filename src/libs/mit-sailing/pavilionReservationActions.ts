@@ -121,7 +121,7 @@ function pavilionReservationDedupeLockKey(props: {
 }): string {
   return `pavilion_reservation_submit_dedupe:v1:${JSON.stringify([
     props.requesterEmail,
-    props.eventName,
+    props.eventName.toLowerCase(),
   ])}`;
 }
 
@@ -137,7 +137,7 @@ async function hasRecentMatchingReservationRequest(props: {
   const recentRequest = await props.db.pavilionReservationRequest.findFirst({
     where: {
       createdAt: { gte: createdAt },
-      eventName: props.eventName,
+      eventName: { equals: props.eventName, mode: 'insensitive' },
       requesterEmail: props.requesterEmail,
     },
     select: { id: true },

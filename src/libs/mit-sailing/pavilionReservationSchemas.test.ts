@@ -166,7 +166,7 @@ describe('pavilionReservationFormSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('normalizes requester email and event name casing', () => {
+  it('normalizes requester email and preserves event name casing', () => {
     const result = pavilionReservationFormSchema.safeParse({
       ...validInput(),
       requesterEmail: 'Sailor@MIT.edu',
@@ -178,7 +178,7 @@ describe('pavilionReservationFormSchema', () => {
       return;
     }
     expect(result.data.requesterEmail).toBe('sailor@mit.edu');
-    expect(result.data.eventName).toBe('summer picnic');
+    expect(result.data.eventName).toBe('Summer Picnic');
   });
 
   it('accepts bookable operating-hours slots', () => {

@@ -144,6 +144,11 @@ type LegacyTeamRegistrationRow = Readonly<{
   registration_id: string;
 }>;
 
+const legacyEventImportTransactionOptions = {
+  maxWait: 10_000,
+  timeout: 120_000,
+} as const;
+
 export type LegacyEventImportRows = {
   readonly boats: readonly LegacyEventBoatRow[];
   readonly contacts: readonly LegacyEventContactRow[];
@@ -369,6 +374,24 @@ function eventRegistrationStageSql(row: LegacyEventRegistrationStageRow) {
 
 function eventBoatMemberStageSql(row: LegacyEventBoatMemberStageRow) {
   return Prisma.sql`(${row.id}, ${row.legacySourceKey}, ${row.registrationId}, ${row.boatNumber}, ${row.position}, ${row.fullName}, ${row.email})`;
+}
+
+function uniqueBoatMemberStageRows(
+  rows: readonly LegacyEventBoatMemberStageRow[]
+): LegacyEventBoatMemberStageRow[] {
+  const legacySourceKeys = new Set<string>();
+  const boatSlots = new Set<string>();
+  const uniqueRows: LegacyEventBoatMemberStageRow[] = [];
+  for (const row of rows) {
+    const boatSlot = `${row.registrationId}:${row.boatNumber.toString()}:${row.position.toString()}`;
+    if (legacySourceKeys.has(row.legacySourceKey) || boatSlots.has(boatSlot)) {
+      continue;
+    }
+    legacySourceKeys.add(row.legacySourceKey);
+    boatSlots.add(boatSlot);
+    uniqueRows.push(row);
+  }
+  return uniqueRows;
 }
 
 async function importEventCategories(props: {
@@ -895,36 +918,38 @@ async function importBoatMembers(props: {
   readonly db: LegacyEventImportDb;
   readonly registrationIdByLegacyTeam: ReadonlyMap<string, string>;
 }) {
-  const rows = props.boats.flatMap((row) => {
-    const registrationId = props.registrationIdByLegacyTeam.get(
-      `${stringValue(row.eid)}:${stringValue(row.team_id)}`
-    );
-    const fullName = stringValue(row.name);
-    const email = stringValue(row.e_mail).toLowerCase();
-    const boatNumber = positiveInt(row.boat_num);
-    const position = nonNegativeInt(row.boat_pos);
-    if (
-      !registrationId ||
-      !fullName ||
-      !email ||
-      !boatNumber ||
-      position === null
-    ) {
-      return [];
-    }
-    const legacySourceKey = legacyBoatMemberSourceKey(row);
-    return [
-      {
-        boatNumber,
-        email,
-        fullName,
-        id: randomUUID(),
-        legacySourceKey,
-        position,
-        registrationId,
-      },
-    ];
-  });
+  const rows = uniqueBoatMemberStageRows(
+    props.boats.flatMap((row) => {
+      const registrationId = props.registrationIdByLegacyTeam.get(
+        `${stringValue(row.eid)}:${stringValue(row.team_id)}`
+      );
+      const fullName = stringValue(row.name);
+      const email = stringValue(row.e_mail).toLowerCase();
+      const boatNumber = positiveInt(row.boat_num);
+      const position = nonNegativeInt(row.boat_pos);
+      if (
+        !registrationId ||
+        !fullName ||
+        !email ||
+        !boatNumber ||
+        position === null
+      ) {
+        return [];
+      }
+      const legacySourceKey = legacyBoatMemberSourceKey(row);
+      return [
+        {
+          boatNumber,
+          email,
+          fullName,
+          id: randomUUID(),
+          legacySourceKey,
+          position,
+          registrationId,
+        },
+      ];
+    })
+  );
   await props.db.$executeRaw`
     CREATE TEMP TABLE legacy_import_event_boat_members (
       id text PRIMARY KEY,
@@ -1070,7 +1095,7 @@ export async function importLegacyEventRows(
       registrationsImported: registrations.imported,
       registrationsSkipped: registrations.skipped,
     };
-  });
+  }, legacyEventImportTransactionOptions);
   return result;
 }
 

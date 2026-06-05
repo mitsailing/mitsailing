@@ -179,6 +179,10 @@ describe('importLegacyEventRows', () => {
     expect(mocks.eventCategoryUpsert).not.toHaveBeenCalled();
     expect(mocks.eventUpsert).not.toHaveBeenCalled();
     expect(mocks.executeRaw).toHaveBeenCalled();
+    expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), {
+      maxWait: 10_000,
+      timeout: 120_000,
+    });
   });
 
   it('imports event dates as New York wall-clock instants', async () => {
@@ -276,6 +280,14 @@ describe('importLegacyEventRows', () => {
     await expect(
       importLegacyEventRows({
         boats: [
+          {
+            boat_num: '7',
+            boat_pos: '0',
+            e_mail: 'CREW@EXAMPLE.COM',
+            eid: '101',
+            name: 'Crew Member',
+            team_id: 'team-alpha',
+          },
           {
             boat_num: '7',
             boat_pos: '0',
@@ -447,6 +459,9 @@ describe('importLegacyEventRows', () => {
         0,
       ])
     );
+    expect(
+      values.filter((value) => value === 'event_boat:101:team-alpha:7:0')
+    ).toHaveLength(1);
     const stagedDates = values.filter(
       (value): value is Date => value instanceof Date
     );

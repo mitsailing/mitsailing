@@ -9,9 +9,6 @@ import { isPavilionReservationStoredSlotRange } from '@/libs/mit-sailing/pavilio
 
 const textField = z.string().trim().min(1);
 const normalizedEmailField = z.string().trim().toLowerCase().pipe(z.email());
-const normalizedEventNameField = textField.transform((value) =>
-  value.toLowerCase()
-);
 const optionalTextField = z
   .string()
   .trim()
@@ -75,7 +72,7 @@ const commonReservationFields = {
   firstName: textField,
   lastName: textField,
   phone: textField,
-  eventName: normalizedEventNameField,
+  eventName: textField,
   groupName: optionalTextField,
   groupSize: z
     .string()
