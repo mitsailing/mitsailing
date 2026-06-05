@@ -302,12 +302,21 @@ function registrationStart(value: string | null | undefined): Date | null {
 }
 
 function registrationEnd(value: string | null | undefined): Date | null {
-  const parsed = parseLegacyDate(value);
-  if (!parsed) {
+  const date = parseLegacyDateParts(value);
+  if (!date) {
     return null;
   }
-  parsed.setUTCHours(23, 59, 59, 999);
-  return parsed;
+  const instant = instantForNyWallClock(
+    date.year,
+    date.month,
+    date.day,
+    23,
+    59
+  );
+  instant.setUTCSeconds(59, 999);
+  return formatNyDateTimeLocalInput(instant) === `${date.dateKey}T23:59`
+    ? instant
+    : null;
 }
 
 function legacyRegistrationSourceKey(row: LegacyEventRegistrationRow): string {
