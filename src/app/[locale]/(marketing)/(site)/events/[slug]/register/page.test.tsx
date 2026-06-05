@@ -35,9 +35,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('server-only', () => ({}));
 
-vi.mock('next/server', () => ({
-  connection: mocks.connection,
-}));
+vi.mock('next/server', () => ({ connection: mocks.connection }));
 
 vi.mock('next/navigation', () => ({
   notFound: mocks.notFound,
@@ -69,10 +67,7 @@ vi.mock('@/components/mit-sailing/SiteSectionShell', () => ({
 vi.mock('@/components/ui/submit-button', () => ({
   SubmitButton: (props: {
     children: React.ReactNode;
-    className?: string;
-    pendingLabel: string;
     type: 'button' | 'submit';
-    variant: string;
   }) => (
     <button type={props.type === 'submit' ? 'submit' : 'button'}>
       {props.children}

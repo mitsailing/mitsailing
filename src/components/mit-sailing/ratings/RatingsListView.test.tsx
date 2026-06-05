@@ -161,7 +161,7 @@ describe('RatingsListView', () => {
       .getByRole('heading', { name: 'Deprecated ratings' })
       .closest('section');
     if (!(deprecatedSection instanceof HTMLElement)) {
-      throw new Error('Expected deprecated ratings section to render.');
+      throw new TypeError('Expected deprecated ratings section to render.');
     }
     expect(within(deprecatedSection).getByRole('listitem')).toHaveTextContent(
       /Legacy Rating.*Older rating kept for historical reference/u

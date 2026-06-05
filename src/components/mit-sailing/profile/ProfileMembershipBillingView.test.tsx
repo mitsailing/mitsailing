@@ -58,11 +58,39 @@ describe('ProfileMembershipBillingView', () => {
       screen.getByRole('button', { name: 'Update payment method' })
     ).toBeVisible();
 
+    const paymentsLink = screen.getByRole('link', { name: 'View payments' });
+    expect(paymentsLink).toHaveAttribute('href', '/profile/payments');
+
+    const receiptLink = screen.getByRole('link', { name: 'Receipt' });
+    expect(receiptLink).toHaveAttribute(
+      'href',
+      'https://pay.stripe.com/receipts/test'
+    );
+    expect(receiptLink).toHaveAttribute('target', '_blank');
+    expect(receiptLink).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('renders the auto-renew cancellation form for active subscriptions', () => {
+    render(
+      <ProfileMembershipBillingView
+        accessThroughLabel="Jul 15, 2026"
+        amountCents={12_000}
+        canOpenBillingPortal={false}
+        canTurnOffAutoRenew
+        cardType={SailingCardType.racing}
+        kind="active_paid"
+        locale="en"
+        receiptUrl={null}
+        subscriptionId="subscription-1"
+        t={t}
+      />
+    );
+
     const autoRenewForm = screen
       .getByRole('heading', { name: 'Auto-renew' })
       .closest('form');
     if (!(autoRenewForm instanceof HTMLElement)) {
-      throw new Error('Expected auto-renew form to render.');
+      throw new TypeError('Expected auto-renew form to render.');
     }
     expect(
       autoRenewForm.querySelector('input[name="subscriptionId"]')
@@ -74,17 +102,6 @@ describe('ProfileMembershipBillingView', () => {
     expect(
       within(autoRenewForm).getByLabelText('Optional note')
     ).toHaveAttribute('name', 'note');
-
-    const paymentsLink = screen.getByRole('link', { name: 'View payments' });
-    expect(paymentsLink).toHaveAttribute('href', '/profile/payments');
-
-    const receiptLink = screen.getByRole('link', { name: 'Receipt' });
-    expect(receiptLink).toHaveAttribute(
-      'href',
-      'https://pay.stripe.com/receipts/test'
-    );
-    expect(receiptLink).toHaveAttribute('target', '_blank');
-    expect(receiptLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
   it('hides paid billing actions and unsafe receipt links when unavailable', () => {

@@ -22,13 +22,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('server-only', () => ({}));
 
-vi.mock('next/server', () => ({
-  connection: mocks.connection,
-}));
+vi.mock('next/server', () => ({ connection: mocks.connection }));
 
-vi.mock('next/navigation', () => ({
-  notFound: mocks.notFound,
-}));
+vi.mock('next/navigation', () => ({ notFound: mocks.notFound }));
 
 vi.mock('next-intl/server', () => ({
   getTranslations: mocks.getTranslations,

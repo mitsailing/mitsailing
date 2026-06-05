@@ -4,7 +4,6 @@ import type * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { PaymentStatus } from '@/generated/prisma/enums';
 import { cn } from '@/lib/utils';
-import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import { Link } from '@/libs/I18nNavigation';
 import type {
   PublicEventDetail,
@@ -14,7 +13,7 @@ import { eventRegistrationErrorMessage } from '@/libs/mit-sailing/eventRegistrat
 import type { PublicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
 import { eventUsesLearnToSailWaitlist } from '@/libs/mit-sailing/learnToSailEvents';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
-import { getI18nPath } from '@/utils/Helpers';
+import { LearnToSailWaitlistNote } from './LearnToSailWaitlistNote';
 
 type EventRegistrationTranslations = Awaited<
   ReturnType<typeof getTranslations<'MitSailingEvents'>>
@@ -35,6 +34,15 @@ type EventRegistrationCtaProps = {
   registrationOpens: string;
   reservationState: PublicEventReservationState;
   t: EventRegistrationTranslations;
+};
+
+type LocalEventReservationState = Exclude<
+  PublicEventReservationState,
+  'external' | 'unavailable'
+>;
+
+type LocalEventRegistrationCtaProps = EventRegistrationCtaProps & {
+  readonly reservationState: LocalEventReservationState;
 };
 
 function RegistrationNote(props: { children: React.ReactNode }) {
@@ -106,100 +114,6 @@ function isPaymentDue(
   );
 }
 
-function learnToSailClassRequestsLabel(props: {
-  count: number;
-  t: EventRegistrationTranslations;
-}): string {
-  return props.t(
-    props.count === 1
-      ? 'learn_to_sail_class_request_one'
-      : 'learn_to_sail_class_requests_many',
-    { count: props.count }
-  );
-}
-
-function learnToSailSpotsLabel(props: {
-  count: number;
-  t: EventRegistrationTranslations;
-}): string {
-  return props.t(
-    props.count === 1 ? 'learn_to_sail_spot_one' : 'learn_to_sail_spots_many',
-    { count: props.count }
-  );
-}
-
-function LearnToSailWaitlistNote(props: {
-  event: PublicEventDetail;
-  t: EventRegistrationTranslations;
-}) {
-  if (!eventUsesLearnToSailWaitlist(props.event)) {
-    return null;
-  }
-  const requestCount =
-    props.event.pendingRegistrationCount +
-    props.event.approvedRegistrationCount;
-  return (
-    <div className="rounded-lg border border-mit-red/30 bg-mit-red-highlight p-3 text-sm text-mit-readable-ink">
-      <div className="mb-2 flex flex-wrap gap-2">
-        <span className="rounded-full bg-mit-red px-2 py-1 text-xs font-semibold text-white">
-          {props.t('learn_to_sail_waitlist_badge')}
-        </span>
-        <span className="rounded-full bg-mit-red px-2 py-1 text-xs font-semibold text-white">
-          {props.t('learn_to_sail_not_first_come')}
-        </span>
-        {requestCount > 0 ? (
-          <span className="rounded-full border border-mit-line bg-background px-2 py-1 text-xs font-semibold text-mit-readable-ink">
-            {learnToSailClassRequestsLabel({
-              count: requestCount,
-              t: props.t,
-            })}
-          </span>
-        ) : null}
-        {props.event.maxParticipants === null ? null : (
-          <span className="rounded-full border border-mit-line bg-background px-2 py-1 text-xs font-semibold text-mit-readable-ink">
-            {learnToSailSpotsLabel({
-              count: props.event.maxParticipants,
-              t: props.t,
-            })}
-          </span>
-        )}
-      </div>
-      <p className="m-0 leading-relaxed font-medium">
-        {props.t('learn_to_sail_request_rule')}
-      </p>
-    </div>
-  );
-}
-
-type EventRegistrationCtaLinks = {
-  readonly checkoutHref: string;
-  readonly eventsHref: string;
-  readonly loginHref: string;
-  readonly registrationHref: string;
-};
-
-function eventRegistrationCtaLinks(props: {
-  readonly event: PublicEventDetail;
-  readonly locale: string;
-}): EventRegistrationCtaLinks {
-  const registrationHref = getI18nPath(
-    `/events/${encodeURIComponent(props.event.slug)}/register`,
-    props.locale
-  );
-  return {
-    checkoutHref: getI18nPath(
-      `/events/${encodeURIComponent(props.event.slug)}/checkout`,
-      props.locale
-    ),
-    eventsHref: getI18nPath('/events', props.locale),
-    loginHref: authHrefWithCallback(
-      getI18nPath('/login', props.locale),
-      registrationHref
-    ),
-    registrationHref,
-  };
-}
-
 function CancelRegistrationForm(props: {
   readonly action: EventRegistrationCancelFormAction;
   readonly t: EventRegistrationTranslations;
@@ -214,7 +128,7 @@ function CancelRegistrationForm(props: {
 }
 
 function PaymentDueRecovery(props: {
-  readonly checkoutHref: string;
+  readonly eventSlug: string;
   readonly locale: string;
   readonly payment: NonNullable<PublicEventRegistrationState['payment']>;
   readonly t: EventRegistrationTranslations;
@@ -230,7 +144,7 @@ function PaymentDueRecovery(props: {
         })}
       </p>
       <Button asChild className="mt-3 min-h-11 w-full" size="sm" variant="mit">
-        <Link href={props.checkoutHref}>
+        <Link href={`/events/${encodeURIComponent(props.eventSlug)}/checkout`}>
           <CreditCard aria-hidden className="size-4" />
           {props.t('registration_pay_button')}
         </Link>
@@ -254,11 +168,29 @@ function approvedRegistrationStatusLabel(props: {
   );
 }
 
+function ApprovedRegistrationStatusPill(props: {
+  readonly paymentIsDue: boolean;
+  readonly t: EventRegistrationTranslations;
+  readonly usesLearnToSailWaitlist: boolean;
+}) {
+  const Icon = props.paymentIsDue ? CreditCard : Check;
+  return (
+    <RegistrationStatusPill tone={props.paymentIsDue ? 'warning' : 'good'}>
+      <Icon aria-hidden className="size-4" />
+      {approvedRegistrationStatusLabel({
+        paymentIsDue: props.paymentIsDue,
+        t: props.t,
+        usesLearnToSailWaitlist: props.usesLearnToSailWaitlist,
+      })}
+    </RegistrationStatusPill>
+  );
+}
+
 function ApprovedRegistrationCta(props: {
   readonly cancelRegistrationAction: EventRegistrationCancelFormAction;
   readonly currentRegistration: PublicEventRegistrationState | null;
   readonly errorMessage: string | null;
-  readonly links: EventRegistrationCtaLinks;
+  readonly event: PublicEventDetail;
   readonly locale: string;
   readonly t: EventRegistrationTranslations;
   readonly usesLearnToSailWaitlist: boolean;
@@ -268,18 +200,11 @@ function ApprovedRegistrationCta(props: {
   return (
     <div className="flex flex-col items-start gap-3">
       <RegistrationErrorAlert message={props.errorMessage} />
-      <RegistrationStatusPill tone={paymentIsDue ? 'warning' : 'good'}>
-        {paymentIsDue ? (
-          <CreditCard aria-hidden className="size-4" />
-        ) : (
-          <Check aria-hidden className="size-4" />
-        )}
-        {approvedRegistrationStatusLabel({
-          paymentIsDue,
-          t: props.t,
-          usesLearnToSailWaitlist: props.usesLearnToSailWaitlist,
-        })}
-      </RegistrationStatusPill>
+      <ApprovedRegistrationStatusPill
+        paymentIsDue={paymentIsDue}
+        t={props.t}
+        usesLearnToSailWaitlist={props.usesLearnToSailWaitlist}
+      />
       {paymentIsDue ? null : (
         <RegistrationOutcomeNote>
           {props.t(
@@ -291,7 +216,7 @@ function ApprovedRegistrationCta(props: {
       )}
       {paymentIsDue ? (
         <PaymentDueRecovery
-          checkoutHref={props.links.checkoutHref}
+          eventSlug={props.event.slug}
           locale={props.locale}
           payment={payment}
           t={props.t}
@@ -367,7 +292,6 @@ function OpeningLaterRegistrationCta(props: {
 
 function ClosedRegistrationCta(props: {
   readonly errorMessage: string | null;
-  readonly eventsHref: string;
   readonly t: EventRegistrationTranslations;
 }) {
   return (
@@ -379,7 +303,7 @@ function ClosedRegistrationCta(props: {
         size="sm"
         variant="outline"
       >
-        <Link href={props.eventsHref}>
+        <Link href="/events">
           {props.t('registration_view_other_events')}
           <ArrowRight aria-hidden className="size-4" />
         </Link>
@@ -408,7 +332,6 @@ function FullRegistrationCta(props: {
 function SignedOutRegistrationCta(props: {
   readonly errorMessage: string | null;
   readonly event: PublicEventDetail;
-  readonly loginHref: string;
   readonly t: EventRegistrationTranslations;
 }) {
   return (
@@ -416,7 +339,11 @@ function SignedOutRegistrationCta(props: {
       <RegistrationErrorAlert message={props.errorMessage} />
       <LearnToSailWaitlistNote event={props.event} t={props.t} />
       <Button asChild className="min-h-11 w-full" size="lg" variant="mit">
-        <Link href={props.loginHref}>
+        <Link
+          href={`/login?callbackUrl=${encodeURIComponent(
+            `/events/${encodeURIComponent(props.event.slug)}/register`
+          )}`}
+        >
           <LogIn aria-hidden className="size-4" />
           {props.t(
             props.event.requiresApproval
@@ -433,7 +360,6 @@ function SignedOutRegistrationCta(props: {
 function AvailableRegistrationCta(props: {
   readonly errorMessage: string | null;
   readonly event: PublicEventDetail;
-  readonly registrationHref: string;
   readonly t: EventRegistrationTranslations;
 }) {
   return (
@@ -441,7 +367,7 @@ function AvailableRegistrationCta(props: {
       <RegistrationErrorAlert message={props.errorMessage} />
       <LearnToSailWaitlistNote event={props.event} t={props.t} />
       <Button asChild className="min-h-11 w-full" size="lg" variant="mit">
-        <Link href={props.registrationHref}>
+        <Link href={`/events/${encodeURIComponent(props.event.slug)}/register`}>
           {props.event.requiresApproval
             ? props.t('registration_request_button')
             : props.t('registration_register_button')}
@@ -453,8 +379,7 @@ function AvailableRegistrationCta(props: {
 
 type EventRegistrationCtaRenderContext = {
   readonly errorMessage: string | null;
-  readonly links: EventRegistrationCtaLinks;
-  readonly props: EventRegistrationCtaProps;
+  readonly props: LocalEventRegistrationCtaProps;
   readonly usesLearnToSailWaitlist: boolean;
 };
 
@@ -466,7 +391,7 @@ function renderApprovedRegistrationCta(
       cancelRegistrationAction={context.props.cancelRegistrationAction}
       currentRegistration={context.props.currentRegistration}
       errorMessage={context.errorMessage}
-      links={context.links}
+      event={context.props.event}
       locale={context.props.locale}
       t={context.props.t}
       usesLearnToSailWaitlist={context.usesLearnToSailWaitlist}
@@ -496,7 +421,6 @@ function renderAvailableRegistrationCta(
       <SignedOutRegistrationCta
         errorMessage={context.errorMessage}
         event={context.props.event}
-        loginHref={context.links.loginHref}
         t={context.props.t}
       />
     );
@@ -505,7 +429,6 @@ function renderAvailableRegistrationCta(
     <AvailableRegistrationCta
       errorMessage={context.errorMessage}
       event={context.props.event}
-      registrationHref={context.links.registrationHref}
       t={context.props.t}
     />
   );
@@ -530,7 +453,6 @@ function renderClosedRegistrationCta(
   return (
     <ClosedRegistrationCta
       errorMessage={context.errorMessage}
-      eventsHref={context.links.eventsHref}
       t={context.props.t}
     />
   );
@@ -546,37 +468,55 @@ function renderFullRegistrationCta(context: EventRegistrationCtaRenderContext) {
   );
 }
 
-function renderNoLocalRegistrationCta() {
-  return null;
+function renderEventRegistrationCta(
+  context: EventRegistrationCtaRenderContext
+) {
+  switch (context.props.reservationState) {
+    case 'approved': {
+      return renderApprovedRegistrationCta(context);
+    }
+    case 'available': {
+      return renderAvailableRegistrationCta(context);
+    }
+    case 'closed': {
+      return renderClosedRegistrationCta(context);
+    }
+    case 'full': {
+      return renderFullRegistrationCta(context);
+    }
+    case 'opening_later': {
+      return renderOpeningLaterRegistrationCta(context);
+    }
+    case 'pending': {
+      return renderPendingRegistrationCta(context);
+    }
+    default: {
+      return null;
+    }
+  }
 }
 
-const eventRegistrationCtaRenderers: Record<
-  PublicEventReservationState,
-  (context: EventRegistrationCtaRenderContext) => React.ReactNode
-> = {
-  approved: renderApprovedRegistrationCta,
-  available: renderAvailableRegistrationCta,
-  closed: renderClosedRegistrationCta,
-  external: renderNoLocalRegistrationCta,
-  full: renderFullRegistrationCta,
-  opening_later: renderOpeningLaterRegistrationCta,
-  pending: renderPendingRegistrationCta,
-  unavailable: renderNoLocalRegistrationCta,
-};
+function isLocalEventReservationState(
+  state: PublicEventReservationState
+): state is LocalEventReservationState {
+  return state !== 'external' && state !== 'unavailable';
+}
 
 export function EventRegistrationCta(
   props: EventRegistrationCtaProps
 ): React.ReactNode {
   const errorMessage = eventRegistrationErrorMessage(props.errorCode, props.t);
-  const links = eventRegistrationCtaLinks({
-    event: props.event,
-    locale: props.locale,
-  });
   const usesLearnToSailWaitlist = eventUsesLearnToSailWaitlist(props.event);
-  return eventRegistrationCtaRenderers[props.reservationState]({
+  if (!isLocalEventReservationState(props.reservationState)) {
+    return null;
+  }
+  const localProps: LocalEventRegistrationCtaProps = {
+    ...props,
+    reservationState: props.reservationState,
+  };
+  return renderEventRegistrationCta({
     errorMessage,
-    links,
-    props,
+    props: localProps,
     usesLearnToSailWaitlist,
   });
 }
