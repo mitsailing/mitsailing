@@ -57,13 +57,13 @@ describe('importLegacyNewsRows', () => {
     );
   });
 
-  it('decodes double-encoded legacy news entities before import', async () => {
+  it('decodes legacy news entities once before import', async () => {
     await expect(
       importLegacyNewsRows([
         {
           end_date: '2026-06-30',
           id: 'double-encoded',
-          news: 'Launch &amp;lt;notice&amp;gt; &amp;quot;today&amp;quot; &amp;#39;now&amp;#39;',
+          news: 'Launch &lt;notice&gt; &quot;today&quot; &#39;now&#39; &amp; &amp;lt;literal&amp;gt;',
           news_date: '2026-06-01',
           updater: 'admin',
         },
@@ -73,7 +73,7 @@ describe('importLegacyNewsRows', () => {
     expect(mocks.siteAlertUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({
-          body: 'Launch <notice> "today" \'now\'',
+          body: 'Launch <notice> "today" \'now\' & &lt;literal&gt;',
           legacyNewsId: 'double-encoded',
         }),
       })

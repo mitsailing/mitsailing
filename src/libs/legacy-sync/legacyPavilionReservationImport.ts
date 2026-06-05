@@ -1,4 +1,5 @@
 import { prisma } from '@/libs/DB';
+import { decodeBasicLegacyEntities } from '@/libs/legacy-sync/legacyHtmlEntities';
 import { logger } from '@/libs/Logger';
 import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
 import { pavilionReservationStoredSlotMinutesFromRaw } from '@/libs/mit-sailing/pavilionReservationSlotMinutes';
@@ -220,15 +221,6 @@ export function legacyPavilionReservationRowsFromCsv(
       },
     ];
   });
-}
-
-function decodeBasicEntities(value: string): string {
-  return value
-    .replaceAll('&amp;', '&')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"');
 }
 
 function inferSpaceSlugs(row: LegacyReservationDbRow): string[] {
@@ -501,19 +493,20 @@ export async function importLegacyPavilionReservationRows(
           lastName: stringValue(row.last).trim() || 'Requester',
           phone: stringValue(row.phone).trim() || 'Unknown',
           eventName:
-            decodeBasicEntities(stringValue(row.title).trim()) ||
+            decodeBasicLegacyEntities(stringValue(row.title).trim()) ||
             '(Untitled event)',
           groupName:
-            decodeBasicEntities(stringValue(row.groupname).trim()) || null,
+            decodeBasicLegacyEntities(stringValue(row.groupname).trim()) ||
+            null,
           groupSize: intOrNull(row.groupsize),
           description:
-            decodeBasicEntities(stringValue(row.comments).trim()) ||
+            decodeBasicLegacyEntities(stringValue(row.comments).trim()) ||
             `Imported legacy reservation ${row.resid}.`,
           hasTent: numberFlag(row.infotent) === 1,
           servesAlcohol: numberFlag(row.infoalcohol) === 1,
           projectTitle: null,
           advisorName:
-            decodeBasicEntities(stringValue(row.acadfac).trim()) || null,
+            decodeBasicLegacyEntities(stringValue(row.acadfac).trim()) || null,
           advisorEmail: stringValue(row.acadfacemail).trim() || null,
           costCenter: stringValue(row.acct).trim() || null,
           mitId: stringValue(row.mitid).trim() || null,

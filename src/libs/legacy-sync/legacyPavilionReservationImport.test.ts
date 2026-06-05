@@ -252,7 +252,7 @@ describe('legacyPavilionReservationImport', () => {
     expect(prisma.$transaction).toHaveBeenCalled();
   });
 
-  it('decodes double-encoded text fields before import', async () => {
+  it('decodes legacy text fields once before import', async () => {
     prisma.$transaction.mockClear();
 
     const result = await importLegacyPavilionReservationRows([
@@ -265,8 +265,8 @@ describe('legacyPavilionReservationImport', () => {
         phone: '555',
         affil: 'student',
         groupname: 'Group &amp; crew',
-        title: 'Roof deck &amp;lt;launch&amp;gt;',
-        acadfac: 'Advisor &amp;#39;Name&amp;#39;',
+        title: 'Roof deck &lt;launch&gt; &amp;lt;literal&amp;gt;',
+        acadfac: 'Advisor &#39;Name&#39;',
         acadfacemail: null,
         acct: null,
         date1: '2026-07-01',
@@ -276,7 +276,7 @@ describe('legacyPavilionReservationImport', () => {
         start2: null,
         end2: null,
         datesel: 1,
-        comments: 'Use roof deck &amp;quot;today&amp;quot;',
+        comments: 'Use roof deck &quot;today&quot;',
         infotent: 0,
         infoalcohol: 0,
         groupsize: '10',
@@ -318,7 +318,7 @@ describe('legacyPavilionReservationImport', () => {
         create: expect.objectContaining({
           advisorName: "Advisor 'Name'",
           description: 'Use roof deck "today"',
-          eventName: 'Roof deck <launch>',
+          eventName: 'Roof deck <launch> &lt;literal&gt;',
           groupName: 'Group & crew',
         }),
       })

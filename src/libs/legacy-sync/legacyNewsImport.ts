@@ -1,4 +1,5 @@
 import { prisma } from '@/libs/DB';
+import { decodeBasicLegacyEntities } from '@/libs/legacy-sync/legacyHtmlEntities';
 import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
 
 export type LegacyNewsRow = {
@@ -18,15 +19,6 @@ function stringValue(value: string | null | undefined): string {
   return value?.trim() ?? '';
 }
 
-function decodeBasicEntities(value: string): string {
-  return value
-    .replaceAll('&amp;', '&')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"');
-}
-
 function parseLegacyDate(value: string | null | undefined): Date | null {
   const normalized = stringValue(value).slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/u.test(normalized)) {
@@ -42,7 +34,7 @@ export async function importLegacyNewsRows(
   let skipped = 0;
   for (const row of rows) {
     const legacyNewsId = stringValue(row.id);
-    const body = decodeBasicEntities(stringValue(row.news));
+    const body = decodeBasicLegacyEntities(stringValue(row.news));
     const startDate = parseLegacyDate(row.news_date);
     const lastDate = parseLegacyDate(row.end_date) ?? startDate;
     if (

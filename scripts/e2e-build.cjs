@@ -10,6 +10,7 @@
  * in playwright.config.ts). Next.js replaces `process.env.NEXT_PUBLIC_*` at build time
  * (see https://nextjs.org/docs/app/guides/environment-variables).
  */
+const esbuild = require('esbuild');
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -181,12 +182,24 @@ function prepareStandaloneAssets() {
 }
 
 function buildWorkerOrExit() {
-  const result = spawnSync('npm', ['run', 'build:worker'], {
-    stdio: 'inherit',
-    cwd: repoRoot,
-  });
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+  try {
+    esbuild.buildSync({
+      absWorkingDir: repoRoot,
+      alias: { 'server-only': './src/worker/serverOnlyShim.ts' },
+      banner: {
+        js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
+      },
+      bundle: true,
+      entryPoints: ['src/worker/index.ts'],
+      format: 'esm',
+      logLevel: 'warning',
+      outfile: 'worker.mjs',
+      platform: 'node',
+      target: 'node24',
+    });
+  } catch (error) {
+    console.error('[e2e-build] Worker build failed:', error);
+    process.exit(1);
   }
 }
 

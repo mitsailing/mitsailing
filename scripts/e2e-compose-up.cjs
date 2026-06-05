@@ -3,6 +3,7 @@
  * Playwright standalone server origin.
  */
 const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
 const { setTimeout: delay } = require('node:timers/promises');
 const {
   prepareLocalMediaStorage,
@@ -12,6 +13,47 @@ const port = String(process.env.PLAYWRIGHT_E2E_PORT ?? '3008');
 const fallbackAppUrl = `http://localhost:${port}`;
 const appUrl = String(process.env.NEXT_PUBLIC_APP_URL ?? fallbackAppUrl);
 const startupTimeoutMs = 60_000;
+const dockerExecutablePath = resolveDockerExecutablePath();
+
+/**
+ * @param {string} filePath - Candidate executable path.
+ * @returns {boolean} Whether the path is executable.
+ */
+function isExecutable(filePath) {
+  try {
+    fs.accessSync(filePath, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveDockerExecutablePath() {
+  const candidates = [
+    '/usr/bin/docker',
+    '/usr/local/bin/docker',
+    '/opt/homebrew/bin/docker',
+  ];
+  const dockerPath = candidates.find(isExecutable);
+  if (!dockerPath) {
+    console.error(
+      `[e2e-compose-up] docker executable not found in fixed paths: ${candidates.join(
+        ', '
+      )}`
+    );
+    process.exit(1);
+  }
+  return dockerPath;
+}
+
+/**
+ * @param {readonly string[]} args - Docker CLI arguments.
+ * @param {import('node:child_process').SpawnSyncOptions} [options] - Spawn options.
+ * @returns {import('node:child_process').SpawnSyncReturns<Buffer | string>} Spawn result.
+ */
+function spawnDocker(args, options = {}) {
+  return spawnSync(dockerExecutablePath, args, options);
+}
 
 function configureLocalDockerUser() {
   const uid = typeof process.getuid === 'function' ? process.getuid() : 1000;
@@ -114,11 +156,9 @@ function stringRecordValue(record, key) {
 }
 
 function discoverTusdContainerIdentifier() {
-  const result = spawnSync(
-    'docker',
-    ['compose', 'ps', '--format', 'json', 'tusd'],
-    { encoding: 'utf8' }
-  );
+  const result = spawnDocker(['compose', 'ps', '--format', 'json', 'tusd'], {
+    encoding: 'utf8',
+  });
   if (result.error) {
     console.error(`[e2e-compose-up] ${result.error.message}`);
     return null;
@@ -149,33 +189,26 @@ function discoverTusdContainerIdentifier() {
 
 function runDockerDiagnostics() {
   const tusdContainerIdentifier = discoverTusdContainerIdentifier();
-  const commands = [['docker', ['compose', 'ps', '-a']]];
+  const commands = [['compose', 'ps', '-a']];
   if (tusdContainerIdentifier) {
     commands.push([
-      'docker',
-      [
-        'inspect',
-        tusdContainerIdentifier,
-        '--format',
-        'tusd health: {{json .State.Health}}',
-      ],
+      'inspect',
+      tusdContainerIdentifier,
+      '--format',
+      'tusd health: {{json .State.Health}}',
     ]);
   }
-  commands.push([
-    'docker',
-    ['compose', 'logs', 'tusd', '--no-color', '--tail=120'],
-  ]);
+  commands.push(['compose', 'logs', 'tusd', '--no-color', '--tail=120']);
 
-  for (const [command, args] of commands) {
-    const diagnostic = spawnSync(command, args, { stdio: 'inherit' });
+  for (const args of commands) {
+    const diagnostic = spawnDocker(args, { stdio: 'inherit' });
     if (diagnostic.error) {
       console.error(`[e2e-compose-up] ${diagnostic.error.message}`);
     }
   }
 }
 
-const result = spawnSync(
-  'docker',
+const result = spawnDocker(
   [
     'compose',
     'up',
