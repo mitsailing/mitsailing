@@ -2,7 +2,14 @@ import { render, screen, within } from '@testing-library/react';
 import { createTranslator } from 'next-intl';
 import type * as React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
+import {
+  EventRegistrationStatus,
+  LearnToSailManagedClassKind,
+} from '@/generated/prisma/enums';
+import type {
+  PublicEventDetail,
+  PublicEventRegistrationState,
+} from '@/libs/mit-sailing/eventQueries';
 import messages from '@/locales/en.json';
 import { EventDetailView } from './EventDetailView';
 
@@ -61,6 +68,7 @@ function eventFixture(
     externalRegistrationUrl: null,
     id: 'event-1',
     isSpecial: false,
+    learnToSailManagedClassKind: LearnToSailManagedClassKind.none,
     maxParticipants: null,
     name: 'Harbor Regatta',
     pendingRegistrationCount: 0,
@@ -71,6 +79,7 @@ function eventFixture(
     registrationStart: null,
     requiresApproval: false,
     requiresPhone: false,
+    selectionNote: null,
     shortName: 'Harbor Regatta',
     slug: 'harbor-regatta',
     teamRegistration: {
@@ -84,6 +93,82 @@ function eventFixture(
 }
 
 describe('EventDetailView', () => {
+  it.each<{
+    currentRegistration?: PublicEventRegistrationState | null;
+    eventOverrides?: Partial<PublicEventDetail>;
+    heading: string;
+  }>([
+    {
+      currentRegistration: {
+        id: 'registration-approved',
+        payment: null,
+        status: EventRegistrationStatus.approved,
+      },
+      heading: 'Your registration',
+    },
+    {
+      currentRegistration: {
+        id: 'registration-pending',
+        payment: null,
+        status: EventRegistrationStatus.pending,
+      },
+      heading: 'Your registration',
+    },
+    {
+      eventOverrides: {
+        registrationStart: new Date('2099-06-01T14:00:00.000Z'),
+      },
+      heading: 'Registration opens Jun 1, 2099',
+    },
+    {
+      eventOverrides: {
+        registrationEnd: new Date('2020-06-01T14:00:00.000Z'),
+      },
+      heading: 'Registration closed',
+    },
+    {
+      eventOverrides: {
+        approvedRegistrationCount: 2,
+        maxParticipants: 2,
+        requiresApproval: false,
+      },
+      heading: 'Event is full',
+    },
+  ])('renders the $heading registration panel heading', async (scenario) => {
+    render(
+      await EventDetailView({
+        currentRegistration: scenario.currentRegistration ?? null,
+        errorCode: null,
+        event: eventFixture(scenario.eventOverrides),
+        isSignedIn: true,
+        locale: 'en',
+      })
+    );
+
+    expect(
+      screen.getByRole('region', { name: scenario.heading })
+    ).toBeVisible();
+  });
+
+  it('renders the event description as sanitized rich text', async () => {
+    render(
+      await EventDetailView({
+        currentRegistration: null,
+        errorCode: null,
+        event: eventFixture({
+          description:
+            '<p>This three-day <em><strong>beginner</strong></em> course</p><script>alert("x")</script>',
+        }),
+        isSignedIn: false,
+        locale: 'en',
+      })
+    );
+
+    expect(screen.getByText('beginner').tagName).toBe('STRONG');
+    expect(document.body).not.toHaveTextContent('<p>');
+    expect(document.body).not.toHaveTextContent('alert("x")');
+  });
+
   it('renders public content sections as rich text', async () => {
     const eventWithSections = eventFixture({
       publicContentSections: [
@@ -185,13 +270,15 @@ describe('EventDetailView', () => {
     );
 
     expect(
-      screen.getByRole('link', { name: 'Visit external registration page' })
+      screen.getByRole('link', { name: 'Open registration page' })
     ).toHaveAttribute('href', 'https://example.com/register');
     expect(screen.getByRole('link', { name: 'View entries' })).toHaveAttribute(
       'href',
       'https://example.com/entries'
     );
-    expect(screen.queryByRole('link', { name: 'Register' })).toBeNull();
+    expect(
+      screen.queryByRole('link', { name: 'Register for this event' })
+    ).toBeNull();
   });
 
   it('keeps event facts above the description without repeating them later', async () => {
@@ -284,7 +371,7 @@ describe('EventDetailView', () => {
     expect(screen.getByText(/134 Memorial Drive/)).toBeVisible();
 
     const registrationPanel = screen.getByRole('region', {
-      name: 'Reserve your spot',
+      name: 'Registration open',
     });
     expect(within(registrationPanel).queryByText('Opened')).toBeNull();
     expect(
@@ -335,7 +422,7 @@ describe('EventDetailView', () => {
     );
 
     expect(
-      screen.queryByRole('link', { name: 'Visit external registration page' })
+      screen.queryByRole('link', { name: 'Open registration page' })
     ).toBeNull();
     expect(screen.queryByRole('link', { name: 'View entries' })).toBeNull();
     expect(
@@ -359,9 +446,57 @@ describe('EventDetailView', () => {
     expect(
       screen.getByText('Registration is not available for this event.')
     ).toBeVisible();
-    expect(screen.queryByRole('link', { name: 'Register' })).toBeNull();
     expect(
-      screen.queryByRole('link', { name: 'Request to register' })
+      screen.queryByRole('link', { name: 'Register for this event' })
     ).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Request a spot' })).toBeNull();
+  });
+
+  it('shows annual waitlist number rule for managed Learn-to-Sail classes', async () => {
+    render(
+      await EventDetailView({
+        currentRegistration: null,
+        errorCode: null,
+        event: eventFixture({
+          approvedRegistrationCount: 18,
+          attendees: {
+            approved: [
+              { id: 'registration-1', image: null, name: 'Sailor One' },
+            ],
+            pending: [
+              { id: 'registration-2', image: null, name: 'Waitlist Request' },
+            ],
+          },
+          category: { name: 'Learn to Sail' },
+          learnToSailManagedClassKind:
+            LearnToSailManagedClassKind.beginner_mid_week_123,
+          maxParticipants: 18,
+          name: 'Mid-Week 1-2-3',
+          pendingRegistrationCount: 132,
+          requiresApproval: true,
+          selectionNote: 'Decisions Monday afternoon',
+        }),
+        isSignedIn: true,
+        locale: 'en',
+      })
+    );
+
+    expect(screen.getAllByText('Annual waitlist')).not.toHaveLength(0);
+    expect(screen.getByText('Waitlist number decides')).toBeVisible();
+    expect(screen.getAllByText('150 class requests')).not.toHaveLength(0);
+    expect(screen.getByText('Decisions Monday afternoon')).toBeVisible();
+    expect(screen.getByLabelText('Sailor One')).toBeVisible();
+    expect(screen.queryByLabelText('Waitlist Request')).toBeNull();
+    expect(screen.queryByText('Pending approval')).toBeNull();
+    expect(screen.queryByText('MIT Sailing reviews requests')).toBeNull();
+    expect(screen.getByText('Already know how to sail?')).toBeVisible();
+    expect(
+      screen.getByText(
+        'Take Intro for Experienced Sailors. No beginner waitlist.'
+      )
+    ).toBeVisible();
+    expect(
+      screen.getByRole('link', { name: 'View experienced intro' })
+    ).toHaveAttribute('href', '/classes/intro-for-experienced-sailors');
   });
 });

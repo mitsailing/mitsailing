@@ -7,7 +7,7 @@ import { getAdminEventEditorDataBySlug } from '@/libs/admin/events/eventAdminQue
 
 type PageProps = {
   params: Promise<{ locale: string; slug: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; status?: string }>;
 };
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
@@ -21,7 +21,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 
 export default async function AdminEventEditPage(props: PageProps) {
   const { locale, slug } = await props.params;
-  const { error: errorCode } = await props.searchParams;
+  const { error: errorCode, status } = await props.searchParams;
   setRequestLocale(locale);
   const access = await requireAdminEventAccess({
     locale,
@@ -46,6 +46,7 @@ export default async function AdminEventEditPage(props: PageProps) {
       errorCode={errorCode ?? null}
       event={data.event}
       locale={locale}
+      statusCode={status === 'saved' ? status : null}
       t={t}
       tCommon={tCommon}
       users={data.users}

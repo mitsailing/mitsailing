@@ -1,16 +1,13 @@
-import { BadgeCheck, Mail, Phone, UserRound } from 'lucide-react';
+import { BadgeCheck, Mail, UserRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 type ProfileSectionHref =
   | '#change-email-section'
-  | '#contact-section'
-  | '#member-information-section'
+  | '#profile-details-section'
   | '#sailing-card-section';
 
 type ProfileOverviewProps = {
   readonly affiliationSummary: string;
-  readonly contactLabel: string;
-  readonly contactSummary: string;
   readonly currentEmail: string;
   readonly emailLabel: string;
   readonly emailStatus: string;
@@ -148,8 +145,6 @@ function ProfileOverviewFacts(props: {
 
 function ProfileOverviewNav(props: {
   readonly affiliationSummary: string;
-  readonly contactLabel: string;
-  readonly contactSummary: string;
   readonly emailLabel: string;
   readonly emailStatus: string;
   readonly memberLabel: string;
@@ -169,16 +164,10 @@ function ProfileOverviewNav(props: {
         summary={props.sailingCardSummary}
       />
       <ProfileSectionLink
-        href="#member-information-section"
+        href="#profile-details-section"
         icon={UserRound}
         label={props.memberLabel}
         summary={props.affiliationSummary}
-      />
-      <ProfileSectionLink
-        href="#contact-section"
-        icon={Phone}
-        label={props.contactLabel}
-        summary={props.contactSummary}
       />
       <ProfileSectionLink
         href="#change-email-section"
@@ -216,8 +205,6 @@ export function ProfileOverview(props: ProfileOverviewProps) {
       />
       <ProfileOverviewNav
         affiliationSummary={props.affiliationSummary}
-        contactLabel={props.contactLabel}
-        contactSummary={props.contactSummary}
         emailLabel={props.emailLabel}
         emailStatus={props.emailStatus}
         memberLabel={props.memberLabel}

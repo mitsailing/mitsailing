@@ -58,6 +58,7 @@ export default async function AdminEventShowPage(props: PageProps) {
       event={event}
       filter={registrationFilterFromParam(status)}
       locale={locale}
+      statusCode={status === 'saved' ? status : null}
       t={t}
     />
   );

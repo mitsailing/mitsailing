@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
 import type { PublicEventRegistrationFormState } from '@/libs/mit-sailing/eventRegistrationActions';
 import type { EventRegistrationMutationCode } from '@/libs/mit-sailing/eventRegistrationErrors';
+import { eventUsesLearnToSailWaitlist } from '@/libs/mit-sailing/learnToSailEvents';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 import { formatPhoneForDisplay } from '@/utils/phoneValidation';
 
@@ -24,6 +25,10 @@ export type EventRegistrationFormLabels = {
   selectPlaceholder: string;
   submitRequestButton: string;
   feesHeading: string;
+  learnToSailRankingHeading: string;
+  learnToSailRankingRule: string;
+  learnToSailWaitlistNumber: string;
+  learnToSailRequestNote: string;
   nextStepHeading: string;
   phoneHelp: string;
   phoneLabel: string;
@@ -51,12 +56,13 @@ type EventRegistrationFormProps = {
   event: PublicEventDetail;
   formPermalink: string;
   initialPhone?: string | null;
+  learnToSailWaitlistPosition?: number | null;
   labels: EventRegistrationFormLabels;
   locale: string;
 };
 
 const registrationSelectClassName =
-  'h-8 min-w-0 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-sm text-mit-text transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input-background dark:contrast-more:border-white';
+  'min-h-11 min-w-0 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-base text-mit-text transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:min-h-8 md:text-sm dark:bg-input-background dark:contrast-more:border-white';
 
 const initialRegistrationFormState: PublicEventRegistrationFormState = {
   code: null,
@@ -88,15 +94,23 @@ function fieldErrorMessage(props: {
   return code ? props.labels.errorMessages[code] : null;
 }
 
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
 function FieldError(props: { id: string; message: string | null }) {
   if (!props.message) {
     return null;
   }
   return (
     <p
-      className="text-sm font-medium text-destructive"
+      className="rounded-md bg-destructive/10 px-3 py-2 text-sm font-medium text-red-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:text-red-100"
       data-registration-error="true"
       id={props.id}
+      role="alert"
     >
       {props.message}
     </p>
@@ -358,6 +372,7 @@ function PhoneField(props: {
         }
         id={controlId}
         inputMode="tel"
+        className="min-h-11 md:min-h-8"
         name="phone"
         onFocus={(event) => {
           event.currentTarget.select();
@@ -465,6 +480,7 @@ function TeamBoatMemberField(props: {
           aria-describedby={nameErrorMessage ? nameErrorId : undefined}
           aria-invalid={nameErrorMessage ? true : undefined}
           autoComplete="name"
+          className="min-h-11 md:min-h-8"
           defaultValue={fieldValue(props.state, nameFieldName)}
           id={nameControlId}
           name={nameFieldName}
@@ -485,6 +501,7 @@ function TeamBoatMemberField(props: {
           aria-describedby={emailErrorMessage ? emailErrorId : undefined}
           aria-invalid={emailErrorMessage ? true : undefined}
           autoComplete="email"
+          className="min-h-11 md:min-h-8"
           defaultValue={fieldValue(props.state, emailFieldName)}
           id={emailControlId}
           name={emailFieldName}
@@ -551,6 +568,7 @@ function TeamRegistrationFields(props: {
         <Input
           aria-describedby={teamNameErrorMessage ? teamNameErrorId : undefined}
           aria-invalid={teamNameErrorMessage ? true : undefined}
+          className="min-h-11 md:min-h-8"
           defaultValue={fieldValue(props.state, 'teamName')}
           id="event-registration-team-name"
           name="teamName"
@@ -666,7 +684,7 @@ function RegistrationFeeSummary(props: {
         <div className="flex flex-col gap-2">
           {props.event.entryFees.map((fee) => (
             <label
-              className="flex cursor-pointer items-baseline justify-between gap-4 rounded-md border border-border bg-background px-3 py-2 text-sm text-mit-text has-checked:border-mit-red has-checked:bg-mit-red-highlight/60"
+              className="flex min-h-11 cursor-pointer items-baseline justify-between gap-4 rounded-md border border-border bg-background px-3 py-2 text-sm text-mit-text transition-colors has-checked:border-mit-red has-checked:bg-mit-red-highlight/60"
               key={fee.id}
             >
               <span className="inline-flex min-w-0 items-center gap-2">
@@ -734,6 +752,52 @@ function RegistrationFeeSummary(props: {
   );
 }
 
+function registrationNextStepMessage(props: {
+  event: PublicEventDetail;
+  labels: EventRegistrationFormLabels;
+}): string {
+  if (eventUsesLearnToSailWaitlist(props.event)) {
+    return props.labels.learnToSailRequestNote;
+  }
+  if (props.event.requiresApproval) {
+    return props.labels.requiresApprovalNote;
+  }
+  return props.labels.autoApprovalNote;
+}
+
+function LearnToSailRankingContext(props: {
+  event: PublicEventDetail;
+  labels: EventRegistrationFormLabels;
+  waitlistPosition: number | null;
+}) {
+  if (!eventUsesLearnToSailWaitlist(props.event)) {
+    return null;
+  }
+  return (
+    <section
+      aria-label={props.labels.learnToSailRankingHeading}
+      className="rounded-lg border border-mit-red/20 bg-mit-red-highlight/60 px-4 py-3 motion-safe:animate-in motion-safe:duration-200 motion-safe:fade-in-0 motion-reduce:animate-none"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-mit-serif text-base font-semibold tracking-tight text-mit-text">
+          {props.labels.learnToSailRankingHeading}
+        </h3>
+        {props.waitlistPosition === null ? null : (
+          <span className="rounded-full bg-mit-red px-2.5 py-1 text-xs font-semibold text-white">
+            {props.labels.learnToSailWaitlistNumber.replace(
+              '{number}',
+              String(props.waitlistPosition)
+            )}
+          </span>
+        )}
+      </div>
+      <p className="mt-1 text-sm leading-relaxed font-medium text-mit-text">
+        {props.labels.learnToSailRankingRule}
+      </p>
+    </section>
+  );
+}
+
 function RegistrationNextStep(props: {
   event: PublicEventDetail;
   labels: EventRegistrationFormLabels;
@@ -741,15 +805,13 @@ function RegistrationNextStep(props: {
   return (
     <section
       aria-label={props.labels.nextStepHeading}
-      className="rounded-lg border border-mit-line bg-muted/30 px-4 py-3"
+      className="rounded-lg border border-mit-line bg-muted/30 px-4 py-3 motion-safe:animate-in motion-safe:duration-200 motion-safe:fade-in-0 motion-reduce:animate-none"
     >
       <h3 className="font-mit-serif text-base font-semibold tracking-tight text-mit-text">
         {props.labels.nextStepHeading}
       </h3>
       <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-        {props.event.requiresApproval
-          ? props.labels.requiresApprovalNote
-          : props.labels.autoApprovalNote}
+        {registrationNextStepMessage(props)}
       </p>
     </section>
   );
@@ -784,7 +846,10 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
       return;
     }
     target.focus({ preventScroll: true });
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.scrollIntoView({
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+      block: 'center',
+    });
   }, [state]);
 
   return (
@@ -797,12 +862,18 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
       {formError ? (
         <p
           aria-live="polite"
-          className="rounded-lg border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-red-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:text-red-100"
           data-registration-error="true"
+          role="alert"
         >
           {formError}
         </p>
       ) : null}
+      <LearnToSailRankingContext
+        event={props.event}
+        labels={props.labels}
+        waitlistPosition={props.learnToSailWaitlistPosition ?? null}
+      />
       <RegistrationFeeSummary
         event={props.event}
         labels={props.labels}
@@ -828,7 +899,7 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
       <RegistrationNextStep event={props.event} labels={props.labels} />
 
       <SubmitButton
-        className="w-full"
+        className="min-h-11 w-full"
         pendingLabel={submitLabel}
         type="submit"
         variant="mit"

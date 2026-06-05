@@ -23,6 +23,10 @@ import {
 } from '@/libs/mit-sailing/sailingAffiliations';
 import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
 import { getI18nPath } from '@/utils/Helpers';
+import {
+  normalizeInternationalPhone,
+  normalizeUsPhone,
+} from '@/utils/phoneValidation';
 
 type ProfileIdentity = {
   readonly affiliation: SailingAffiliation;
@@ -39,6 +43,20 @@ type ProfileIdentityInput = {
   readonly firstName: string;
   readonly lastName: string;
   readonly mitId: string;
+};
+
+type ProfileContactInput = {
+  readonly emergencyContactName: string;
+  readonly emergencyContactPhone: string;
+  readonly phone: string;
+};
+
+type ProfileDetailsInput = ProfileIdentityInput & ProfileContactInput;
+
+type ProfileContact = {
+  readonly emergencyContactName: string | null;
+  readonly emergencyContactPhone: string | null;
+  readonly phone: string;
 };
 
 type CurrentProfileIdentityUser = {
@@ -63,6 +81,17 @@ export type UpdateProfileIdentityResult =
         | 'mit_id_invalid'
         | 'mit_id_required'
         | 'unauthorized';
+    };
+
+export type UpdateProfileDetailsResult =
+  | { ok: true; identity: ProfileIdentity }
+  | {
+      ok: false;
+      error:
+        | Exclude<UpdateProfileIdentityResult, { ok: true }>['error']
+        | 'incomplete_emergency_contact'
+        | 'invalid_emergency_phone'
+        | 'invalid_phone';
     };
 
 const parseProfileAffiliation = (value: string) =>
@@ -122,6 +151,25 @@ const isLockedIdentityChange = (props: {
   props.linkedMitIdentity &&
   props.currentUser.sailingAffiliation !== null &&
   props.affiliation !== props.currentUser.sailingAffiliation;
+
+type ProfileIdentityValidationResult =
+  | {
+      ok: true;
+      identity: ProfileIdentity;
+      userId: string;
+    }
+  | Exclude<UpdateProfileIdentityResult, { ok: true }>;
+
+async function currentProfileIdentityUserId(): Promise<
+  | { ok: true; userId: string }
+  | Exclude<UpdateProfileIdentityResult, { ok: true }>
+> {
+  const session = await getSession();
+  if (!session?.user?.id) {
+    return { ok: false, error: 'unauthorized' };
+  }
+  return { ok: true, userId: session.user.id };
+}
 
 function manualProfileIdentity(props: {
   readonly affiliation: SailingAffiliation;
@@ -222,14 +270,115 @@ function profileIdentityForInput(props: {
   });
 }
 
+async function validateProfileIdentity(props: {
+  readonly input: ProfileIdentityInput;
+  readonly userId: string;
+}): Promise<ProfileIdentityValidationResult> {
+  const currentUser = await prisma.user.findUnique({
+    select: {
+      email: true,
+      emailVerified: true,
+      mitDataWarehouseVerifiedAt: true,
+      mitId: true,
+      sailingAffiliation: true,
+    },
+    where: { id: props.userId },
+  });
+  if (!currentUser) {
+    return { ok: false, error: 'unauthorized' };
+  }
+
+  const affiliation = parseProfileAffiliation(props.input.affiliation);
+  if (affiliation === null) {
+    return { ok: false, error: 'affiliation_required' };
+  }
+
+  const rule = getSailingAffiliationRule(affiliation);
+  const linkedMitIdentity = hasLinkedMitIdentity(currentUser);
+  if (
+    isLockedIdentityChange({
+      affiliation,
+      currentUser,
+      linkedMitIdentity,
+    })
+  ) {
+    return { ok: false, error: 'identity_locked' };
+  }
+  if (linkedMitIdentity && rule.mitIdMode === 'hidden') {
+    return { ok: false, error: 'identity_locked' };
+  }
+
+  const identityResult = await profileIdentityForInput({
+    affiliation,
+    currentUser,
+    input: props.input,
+    linkedMitIdentity,
+    rule,
+  });
+  if (!identityResult.ok) {
+    return identityResult;
+  }
+
+  return {
+    identity: identityResult.identity,
+    ok: true,
+    userId: props.userId,
+  };
+}
+
+function profileContactForInput(
+  input: ProfileContactInput
+):
+  | { ok: true; contact: ProfileContact }
+  | Exclude<UpdateProfileDetailsResult, { ok: true }> {
+  const phone = normalizeUsPhone(input.phone);
+  if (!phone.ok) {
+    return { ok: false, error: 'invalid_phone' };
+  }
+
+  const emergencyContactName = input.emergencyContactName.trim();
+  const rawEmergencyContactPhone = input.emergencyContactPhone.trim();
+  if (
+    emergencyContactName.length === 0 ||
+    rawEmergencyContactPhone.length === 0
+  ) {
+    return { ok: false, error: 'incomplete_emergency_contact' };
+  }
+
+  const emergencyContactPhone = normalizeInternationalPhone(
+    rawEmergencyContactPhone
+  );
+  if (!emergencyContactPhone.ok) {
+    return { ok: false, error: 'invalid_emergency_phone' };
+  }
+
+  return {
+    contact: {
+      emergencyContactName,
+      emergencyContactPhone: emergencyContactPhone.phone,
+      phone: phone.phone,
+    },
+    ok: true,
+  };
+}
+
 async function persistProfileIdentity(props: {
+  readonly contact?: ProfileContact;
   readonly identity: ProfileIdentity;
   readonly userId: string;
 }) {
   const identityVerifiedAt = props.identity.lockedByMitId ? new Date() : null;
+  const contactData = props.contact
+    ? {
+        emergencyContactName: props.contact.emergencyContactName,
+        emergencyContactPhone: props.contact.emergencyContactPhone,
+        phone: props.contact.phone,
+      }
+    : {};
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
       data: {
+        ...contactData,
         firstName: props.identity.firstName,
         lastName: props.identity.lastName,
         mitClassYear: props.identity.mitClassYear,
@@ -261,51 +410,13 @@ export async function updateProfileIdentityAction(
   locale: string,
   input: ProfileIdentityInput
 ): Promise<UpdateProfileIdentityResult> {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    return { ok: false, error: 'unauthorized' };
+  const sessionResult = await currentProfileIdentityUserId();
+  if (!sessionResult.ok) {
+    return sessionResult;
   }
-
-  const currentUser = await prisma.user.findUnique({
-    select: {
-      email: true,
-      emailVerified: true,
-      mitDataWarehouseVerifiedAt: true,
-      mitId: true,
-      sailingAffiliation: true,
-    },
-    where: { id: session.user.id },
-  });
-  if (!currentUser) {
-    return { ok: false, error: 'unauthorized' };
-  }
-
-  const affiliation = parseProfileAffiliation(input.affiliation);
-  if (affiliation === null) {
-    return { ok: false, error: 'affiliation_required' };
-  }
-
-  const rule = getSailingAffiliationRule(affiliation);
-  const linkedMitIdentity = hasLinkedMitIdentity(currentUser);
-  if (
-    isLockedIdentityChange({
-      affiliation,
-      currentUser,
-      linkedMitIdentity,
-    })
-  ) {
-    return { ok: false, error: 'identity_locked' };
-  }
-  if (linkedMitIdentity && rule.mitIdMode === 'hidden') {
-    return { ok: false, error: 'identity_locked' };
-  }
-
-  const identityResult = await profileIdentityForInput({
-    affiliation,
-    currentUser,
+  const identityResult = await validateProfileIdentity({
     input,
-    linkedMitIdentity,
-    rule,
+    userId: sessionResult.userId,
   });
   if (!identityResult.ok) {
     return identityResult;
@@ -314,7 +425,46 @@ export async function updateProfileIdentityAction(
   try {
     await persistProfileIdentity({
       identity: identityResult.identity,
-      userId: session.user.id,
+      userId: identityResult.userId,
+    });
+  } catch (error) {
+    if (isUniqueMitIdConflict(error)) {
+      return { ok: false, error: 'mit_id_duplicate' };
+    }
+    throw error;
+  }
+
+  revalidatePath(getI18nPath('/profile', locale));
+  return { identity: identityResult.identity, ok: true };
+}
+
+export async function updateProfileDetailsAction(
+  locale: string,
+  input: ProfileDetailsInput
+): Promise<UpdateProfileDetailsResult> {
+  const sessionResult = await currentProfileIdentityUserId();
+  if (!sessionResult.ok) {
+    return sessionResult;
+  }
+
+  const contactResult = profileContactForInput(input);
+  if (!contactResult.ok) {
+    return contactResult;
+  }
+
+  const identityResult = await validateProfileIdentity({
+    input,
+    userId: sessionResult.userId,
+  });
+  if (!identityResult.ok) {
+    return identityResult;
+  }
+
+  try {
+    await persistProfileIdentity({
+      contact: contactResult.contact,
+      identity: identityResult.identity,
+      userId: identityResult.userId,
     });
   } catch (error) {
     if (isUniqueMitIdConflict(error)) {

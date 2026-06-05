@@ -40,6 +40,27 @@ test.describe('Admin events', () => {
     await expect(
       page.getByRole('heading', { name: 'Entry fees and deposits' })
     ).toBeVisible();
+
+    const descriptionEditor = page.locator(
+      '#event-description .ProseMirror[role="textbox"][aria-label="Description"]'
+    );
+    await expect(descriptionEditor).toBeVisible();
+    await descriptionEditor.click();
+    await page.keyboard.press('ControlOrMeta+A');
+    await page.keyboard.type('Admin rich text e2e description update');
+    await expect(
+      page.locator('input[type="hidden"][name="description"]')
+    ).toHaveValue(/Admin rich text e2e description update/u);
+    await page.getByRole('button', { name: 'Save event details' }).click();
+
+    await expect(page).toHaveURL(
+      /\/admin\/events\/bluewater-boston-provincetown\?status=saved$/
+    );
+    await expect(page.getByRole('status')).toHaveText('Event saved.');
+    await page.goto('/events/bluewater-boston-provincetown');
+    await expect(
+      page.locator('p', { hasText: 'Admin rich text e2e description update' })
+    ).toBeVisible();
   });
 
   test('shows registrations status controls', async ({ page }) => {

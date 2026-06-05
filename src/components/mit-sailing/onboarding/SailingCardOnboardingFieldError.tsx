@@ -119,7 +119,7 @@ export function FieldError(props: {
 
   return (
     <p
-      className="text-sm font-medium text-destructive"
+      className="text-sm font-medium text-red-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:text-red-100"
       id={fieldErrorId(props.field)}
       role="alert"
     >

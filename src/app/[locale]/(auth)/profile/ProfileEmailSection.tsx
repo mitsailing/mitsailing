@@ -1,7 +1,6 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { OtpCodeField } from '@/components/auth/OtpCodeField';
@@ -78,7 +77,6 @@ export function ProfileEmailSection(props: {
 }) {
   const tCommon = useTranslations('Common');
   const t = useTranslations('UserProfilePage');
-  const router = useRouter();
   const [emailBanner, setEmailBanner] = useState<ProfileBannerState>(null);
   const [emailOtpBanner, setEmailOtpBanner] =
     useState<ProfileBannerState>(null);
@@ -193,7 +191,6 @@ export function ProfileEmailSection(props: {
       props.onCurrentEmailChange(options.emailToConfirm);
       props.onPendingEmailChange(null);
       setEmailCode('');
-      router.refresh();
     } catch {
       setEmailOtpBanner({
         kind: 'error',

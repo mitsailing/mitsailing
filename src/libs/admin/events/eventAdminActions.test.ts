@@ -438,7 +438,7 @@ describe('createAdminEventAction', () => {
       await import('@/libs/admin/events/eventAdminActions');
 
     await expect(createAdminEventAction('en', formData)).rejects.toThrow(
-      /^NEXT_REDIRECT:\/admin\/events\/2026-06-01-intro-sail$/u
+      /^NEXT_REDIRECT:\/admin\/events\/2026-06-01-intro-sail\?status=saved$/u
     );
 
     expect(mocks.requirePermission).toHaveBeenCalledWith(
@@ -487,7 +487,7 @@ describe('createAdminEventAction', () => {
       await import('@/libs/admin/events/eventAdminActions');
 
     await expect(createAdminEventAction('en', formData)).rejects.toThrow(
-      /^NEXT_REDIRECT:\/admin\/events\/2026-06-01-intro-sail$/u
+      /^NEXT_REDIRECT:\/admin\/events\/2026-06-01-intro-sail\?status=saved$/u
     );
 
     expect(mocks.eventCreate).toHaveBeenCalledWith(
@@ -522,7 +522,7 @@ describe('createAdminEventAction', () => {
       await import('@/libs/admin/events/eventAdminActions');
 
     await expect(createAdminEventAction('en', formData)).rejects.toThrow(
-      /^NEXT_REDIRECT:\/admin\/events\/2026-06-01-intro-sail$/u
+      /^NEXT_REDIRECT:\/admin\/events\/2026-06-01-intro-sail\?status=saved$/u
     );
 
     expect(mocks.eventCreate).toHaveBeenCalledWith(
@@ -598,7 +598,9 @@ describe('updateAdminEventBasicsAction', () => {
 
     await expect(
       updateAdminEventBasicsAction('en', 'intro-sail', formData)
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
+    );
 
     expect(mocks.eventUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -613,6 +615,46 @@ describe('updateAdminEventBasicsAction', () => {
     });
   });
 
+  it('keeps the existing public slug when saving event basics', async () => {
+    mocks.requireAdminEventAccess.mockResolvedValue({
+      ...access(),
+      event: {
+        id: 'event-1',
+        slug: 'bluewater-boston-provincetown',
+      },
+    });
+    const formData = validEventFormData();
+    formData.set('name', 'Bluewater: Boston to Provincetown Passage');
+    formData.set('shortName', 'Bluewater');
+    formData.set('description', '<p>Updated passage description.</p>');
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction(
+        'en',
+        'bluewater-boston-provincetown',
+        formData
+      )
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/bluewater-boston-provincetown\?status=saved$/u
+    );
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          description: '<p>Updated passage description.</p>',
+          slug: 'bluewater-boston-provincetown',
+        }),
+        where: { id: 'event-1' },
+      })
+    );
+    expect(mocks.revalidatePath).toHaveBeenCalledWith(
+      '/events/bluewater-boston-provincetown'
+    );
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/events/[slug]', 'page');
+  });
+
   it('persists registration mode and external registration URLs', async () => {
     const formData = validEventFormData();
     formData.set('registrationMode', 'external');
@@ -623,7 +665,9 @@ describe('updateAdminEventBasicsAction', () => {
 
     await expect(
       updateAdminEventBasicsAction('en', 'intro-sail', formData)
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
+    );
 
     expect(mocks.eventUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -644,7 +688,9 @@ describe('updateAdminEventBasicsAction', () => {
 
     await expect(
       updateAdminEventBasicsAction('en', 'intro-sail', formData)
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail\/edit$/u);
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\/edit\?status=saved$/u
+    );
   });
 
   it('persists phone requirement from event basics', async () => {
@@ -655,7 +701,9 @@ describe('updateAdminEventBasicsAction', () => {
 
     await expect(
       updateAdminEventBasicsAction('en', 'intro-sail', formData)
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
+    );
 
     expect(mocks.eventUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -677,7 +725,9 @@ describe('updateAdminEventBasicsAction', () => {
 
     await expect(
       updateAdminEventBasicsAction('en', 'intro-sail', formData)
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
+    );
 
     expect(mocks.eventUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -699,7 +749,9 @@ describe('updateAdminEventBasicsAction', () => {
 
     await expect(
       updateAdminEventBasicsAction('en', 'intro-sail', formData)
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
+    );
 
     expect(mocks.eventUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -723,7 +775,9 @@ describe('updateAdminEventBasicsAction', () => {
 
     await expect(
       updateAdminEventBasicsAction('en', 'intro-sail', formData)
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
+    );
 
     expect(mocks.txQueryRaw).toHaveBeenCalledWith(
       expect.arrayContaining([expect.stringContaining('FOR UPDATE')]),
@@ -824,7 +878,9 @@ describe('updateAdminEventBasicsAction', () => {
 
     await expect(
       updateAdminEventBasicsAction('en', 'intro-sail', formData)
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
+    );
 
     expect(mocks.eventUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -842,31 +898,28 @@ describe('updateAdminEventBasicsAction', () => {
     );
   });
 
-  it('ignores submitted slugs and updates slug from current dates and name', async () => {
+  it('ignores submitted slugs and keeps the current public slug', async () => {
     const formData = validEventFormData();
     formData.set('name', 'Summer Regatta');
     formData.set('slug', 'attacker-controlled-slug');
-    mocks.eventDateFindMany.mockResolvedValue([
-      { startDateTime: new Date('2026-08-10T13:00:00Z') },
-      { startDateTime: new Date('2026-08-11T13:00:00Z') },
-    ]);
     const { updateAdminEventBasicsAction } =
       await import('@/libs/admin/events/eventAdminActions');
 
     await expect(
       updateAdminEventBasicsAction('en', 'intro-sail', formData)
     ).rejects.toThrow(
-      /^NEXT_REDIRECT:\/admin\/events\/2026-08-10-11-summer-regatta$/u
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
     );
 
     expect(mocks.eventUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           name: 'Summer Regatta',
-          slug: '2026-08-10-11-summer-regatta',
+          slug: 'intro-sail',
         }),
       })
     );
+    expect(mocks.eventDateFindMany).not.toHaveBeenCalled();
   });
 
   it('redirects when event access is denied', async () => {
@@ -900,7 +953,7 @@ describe('admin event date actions', () => {
         validEventDateFormData()
       )
     ).rejects.toThrow(
-      /^NEXT_REDIRECT:\/admin\/events\/2026-06-01-intro-sail$/u
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
     );
 
     expect(mocks.eventDateCreate).toHaveBeenCalledWith(
@@ -909,6 +962,8 @@ describe('admin event date actions', () => {
       })
     );
     expect(mocks.dbTransaction).toHaveBeenCalledTimes(1);
+    expect(mocks.eventUpdate).not.toHaveBeenCalled();
+    expect(mocks.eventDateFindMany).not.toHaveBeenCalled();
   });
 
   it('rejects mismatched event ids before creating dates', async () => {
@@ -952,14 +1007,11 @@ describe('admin event date actions', () => {
     );
   });
 
-  it('regenerates and redirects to a new slug after a date update changes the first event day', async () => {
+  it('keeps the public slug after updating an event date', async () => {
     mocks.requireAdminEventAccess.mockResolvedValue({
       ...access(),
       event: { id: 'event-1', name: 'Intro Sail', slug: 'intro-sail' },
     });
-    mocks.eventDateFindMany.mockResolvedValue([
-      { startDateTime: new Date('2026-08-10T13:00:00Z') },
-    ]);
     const { updateAdminEventDateAction } =
       await import('@/libs/admin/events/eventAdminActions');
 
@@ -971,13 +1023,11 @@ describe('admin event date actions', () => {
         validEventDateFormData()
       )
     ).rejects.toThrow(
-      /^NEXT_REDIRECT:\/admin\/events\/2026-08-10-intro-sail$/u
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
     );
 
-    expect(mocks.eventUpdate).toHaveBeenCalledWith({
-      where: { id: 'event-1' },
-      data: { slug: '2026-08-10-intro-sail' },
-    });
+    expect(mocks.eventUpdate).not.toHaveBeenCalled();
+    expect(mocks.eventDateFindMany).not.toHaveBeenCalled();
   });
 
   it('stays on the edit screen when requested after updating a date', async () => {
@@ -988,7 +1038,9 @@ describe('admin event date actions', () => {
 
     await expect(
       updateAdminEventDateAction('en', 'intro-sail', 'date-1', formData)
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail\/edit$/u);
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\/edit\?status=saved$/u
+    );
   });
 
   it('deletes dates through the protected event id', async () => {
@@ -997,12 +1049,16 @@ describe('admin event date actions', () => {
 
     await expect(
       deleteAdminEventDateAction('en', 'intro-sail', 'date-1')
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
+    );
 
     expect(mocks.eventDateDeleteMany).toHaveBeenCalledWith({
       where: { id: 'date-1', eventId: 'event-1' },
     });
     expect(mocks.dbTransaction).toHaveBeenCalledTimes(1);
+    expect(mocks.eventUpdate).not.toHaveBeenCalled();
+    expect(mocks.eventDateFindMany).not.toHaveBeenCalled();
   });
 
   it('keeps the last event date', async () => {
@@ -1033,7 +1089,9 @@ describe('admin event question actions', () => {
         'event-1',
         validEventQuestionFormData()
       )
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
+    );
 
     expect(mocks.eventRegistrationQuestionCreate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1057,7 +1115,9 @@ describe('admin event question actions', () => {
         'question-1',
         validEventQuestionFormData(EventAnswerType.text)
       )
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
+    );
 
     expect(mocks.eventRegistrationQuestionUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1107,7 +1167,9 @@ describe('admin event fee actions', () => {
         'fee-1',
         validEventFeeFormData()
       )
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
+    );
 
     expect(mocks.eventEntryFeeUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1236,7 +1298,9 @@ describe('updateAdminEventAdminsAction', () => {
 
     await expect(
       updateAdminEventAdminsAction('en', 'intro-sail', 'event-1', formData)
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/intro-sail\?status=saved$/u
+    );
 
     expect(mocks.eventAdminDeleteMany).toHaveBeenCalledWith({
       where: { eventId: 'event-1' },

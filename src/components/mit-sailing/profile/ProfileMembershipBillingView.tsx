@@ -89,6 +89,8 @@ export function ProfileMembershipBillingView(
     props.locale
   );
   const receiptHref = safeStripeHostedPaymentHref(props.receiptUrl);
+  const canTurnOffAutoRenew =
+    props.canTurnOffAutoRenew && props.subscriptionId !== null;
 
   return (
     <section className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8 md:px-6">
@@ -143,7 +145,7 @@ export function ProfileMembershipBillingView(
         </div>
       </section>
 
-      {props.canTurnOffAutoRenew ? (
+      {canTurnOffAutoRenew ? (
         <form
           action={cancelAction}
           className="flex flex-col gap-4 rounded-lg border border-mit-line bg-card p-5"
@@ -151,7 +153,7 @@ export function ProfileMembershipBillingView(
           <input
             name="subscriptionId"
             type="hidden"
-            value={props.subscriptionId ?? ''}
+            value={props.subscriptionId}
           />
           <div>
             <h2 className="text-lg font-semibold text-foreground">

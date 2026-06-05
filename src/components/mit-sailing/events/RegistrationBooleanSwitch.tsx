@@ -71,7 +71,7 @@ export function RegistrationBooleanSwitch(
         aria-labelledby={props['aria-labelledby']}
         aria-required={isRequired ? true : undefined}
         className={cn(
-          'group inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-2 border-border bg-secondary p-0.5 shadow-inner transition-colors outline-none data-checked:border-mit-red data-checked:bg-mit-red data-focus:border-ring data-focus:ring-3 data-focus:ring-ring/50',
+          'group inline-flex h-11 w-16 shrink-0 cursor-pointer items-center rounded-full border-2 border-border bg-secondary p-1 shadow-inner transition-colors outline-none motion-reduce:transition-none data-checked:border-mit-red data-checked:bg-mit-red data-focus:border-ring data-focus:ring-3 data-focus:ring-ring/50 md:h-7 md:w-12 md:p-0.5',
           props.className
         )}
         checked={checked}
@@ -81,7 +81,7 @@ export function RegistrationBooleanSwitch(
       >
         <span
           aria-hidden
-          className="pointer-events-none block size-5 translate-x-0 rounded-full border border-black/15 bg-white shadow-md ring-0 transition-transform group-data-checked:translate-x-5 dark:border-black/25"
+          className="pointer-events-none block size-7 translate-x-0 rounded-full border border-black/15 bg-white shadow-md ring-0 transition-transform group-data-checked:translate-x-6 motion-reduce:transition-none md:size-5 md:group-data-checked:translate-x-5 dark:border-black/25"
         />
       </Switch>
     </>

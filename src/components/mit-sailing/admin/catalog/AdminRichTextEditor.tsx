@@ -207,17 +207,26 @@ function findInsertedImagePosition(props: {
 }
 
 function editorAttributes(props: {
+  describedById?: string;
   errorId?: string;
   errorMessage?: string | null;
   label: string;
 }): Record<string, string> {
   const attributes: Record<string, string> = {
     'aria-label': props.label,
+    'aria-multiline': 'true',
     class:
       'cms-rich-text min-h-[220px] px-3 py-3 outline-none focus-visible:ring-0',
+    role: 'textbox',
   };
+  const describedBy = [
+    props.describedById,
+    ...(props.errorMessage && props.errorId ? [props.errorId] : []),
+  ].filter(Boolean);
+  if (describedBy.length > 0) {
+    attributes['aria-describedby'] = describedBy.join(' ');
+  }
   if (props.errorMessage && props.errorId) {
-    attributes['aria-describedby'] = props.errorId;
     attributes['aria-invalid'] = 'true';
   }
   return attributes;
@@ -603,6 +612,7 @@ export function AdminRichTextEditor(props: {
   errorMessage?: string | null;
   fieldId: string;
   fieldKey: string;
+  hint?: string;
   label: string;
   onChange?: (value: string) => void;
   required?: boolean;
@@ -623,6 +633,7 @@ export function AdminRichTextEditor(props: {
   );
   const [, setToolbarRevision] = useState(0);
   const attributes = editorAttributes({
+    describedById: props.hint ? `${props.fieldId}-hint` : undefined,
     errorId: props.errorId,
     errorMessage: props.errorMessage,
     label: props.label,
@@ -819,6 +830,14 @@ export function AdminRichTextEditor(props: {
       <Label className="text-foreground" htmlFor={props.fieldId}>
         {props.label}
       </Label>
+      {props.hint ? (
+        <p
+          className="text-xs leading-relaxed text-muted-foreground"
+          id={`${props.fieldId}-hint`}
+        >
+          {props.hint}
+        </p>
+      ) : null}
       <div
         className="overflow-hidden rounded-lg border border-input bg-background text-foreground shadow-xs focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input-background dark:contrast-more:border-white"
         ref={editorShellRef}

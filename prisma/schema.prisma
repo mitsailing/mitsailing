@@ -182,6 +182,21 @@ enum EventRegistrationMode {
     external
 }
 
+enum LearnToSailManagedClassKind {
+    none
+    beginner_mid_week_123
+    beginner_sunday_all_in_one
+    @@map("learn_to_sail_managed_class_kind")
+}
+
+enum LearnToSailWaitlistEntryStatus {
+    active
+    left
+    closed_by_tech_rating
+    expired
+    @@map("learn_to_sail_waitlist_entry_status")
+}
+
 enum EventAddressPreset {
     pavilion
     bluewater
@@ -429,6 +444,7 @@ model User {
     sailingCardIssuedBy User? @relation("SailingCardIssuer", fields: [sailingCardIssuedByUserId], references: [id], onDelete: SetNull)
     sailingCardsIssued User[] @relation("SailingCardIssuer")
     eventRegistrations EventRegistration[]
+    learnToSailWaitlistEntries LearnToSailWaitlistEntry[]
     legalAgreementAcceptances LegalAgreementAcceptance[]
     sailingCardRequests SailingCardRequest[]
     approvedSailingCardRequests SailingCardRequest[] @relation("SailingCardRequestApprover")
@@ -549,7 +565,10 @@ model AuditLog {
 
 model LegalAgreementAcceptance {
     id String @id() @default(cuid())
-    userId String @map("user_id")
+    userId String? @map("user_id")
+    acceptedUserId String? @map("accepted_user_id")
+    acceptedUserName String? @map("accepted_user_name") @db.Text()
+    acceptedUserEmail String? @map("accepted_user_email") @db.VarChar(255)
     source LegalAgreementAcceptanceSource
     sourceRecordId String? @map("source_record_id")
     agreementLabel String @map("agreement_label") @db.Text()
@@ -559,10 +578,11 @@ model LegalAgreementAcceptance {
     ipAddress String? @map("ip_address") @db.VarChar(80)
     userAgent String? @map("user_agent") @db.Text()
     createdAt DateTime @default(now()) @map("created_at")
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
     sailingCardRequests SailingCardRequest[]
 
     @@index([userId, source, acceptedAt])
+    @@index([acceptedUserId, source, acceptedAt])
     @@index([source, sourceRecordId])
     @@map("legal_agreement_acceptances")
 }
@@ -966,6 +986,8 @@ model Event {
     registrationMode EventRegistrationMode @default(standard) @map("registration_mode")
     externalRegistrationUrl String? @map("external_registration_url")
     externalEntriesUrl String? @map("external_entries_url")
+    learnToSailManagedClassKind LearnToSailManagedClassKind @default(none) @map("learn_to_sail_managed_class_kind")
+    selectionNote String? @map("selection_note") @db.VarChar(160)
     faqVisible Boolean @default(false) @map("faq_visible")
     faqContent String @default("") @map("faq_content") @db.Text()
     noticeOfRaceVisible Boolean @default(false) @map("notice_of_race_visible")
@@ -1024,6 +1046,25 @@ model EventAdmin {
     @@map("event_admins")
 }
 
+model LearnToSailWaitlistEntry {
+    id String @id() @default(cuid())
+    seasonYear Int @map("season_year")
+    userId String @map("user_id")
+    activeEntryKey String? @unique() @map("active_entry_key")
+    sequence Int
+    status LearnToSailWaitlistEntryStatus @default(active)
+    joinedAt DateTime @default(now()) @map("joined_at")
+    closedAt DateTime? @map("closed_at")
+    closureReason String? @map("closure_reason") @db.Text()
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    eventRegistrations EventRegistration[]
+
+    @@unique([seasonYear, sequence])
+    @@index([seasonYear, status, sequence])
+    @@index([userId, seasonYear])
+    @@map("learn_to_sail_waitlist_entries")
+}
+
 model EventRegistration {
     id String @id()
     legacySourceKey String? @unique() @map("legacy_source_key")
@@ -1032,10 +1073,13 @@ model EventRegistration {
     status EventRegistrationStatus
     phone String @map("phone")
     eventEntryFeeId String? @map("event_entry_fee_id")
+    learnToSailWaitlistEntryId String? @map("learn_to_sail_waitlist_entry_id")
+    learnToSailAuditPositionAtRequest Int? @map("learn_to_sail_audit_position_at_request")
     createdAt DateTime @map("created_at")
     swimAgreementAcceptedAt DateTime @map("swim_agreement_accepted_at")
     event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
     eventEntryFee EventEntryFee? @relation(fields: [eventEntryFeeId], references: [id], onDelete: SetNull)
+    learnToSailWaitlistEntry LearnToSailWaitlistEntry? @relation(fields: [learnToSailWaitlistEntryId], references: [id], onDelete: SetNull)
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
     registrationAnswers EventRegistrationAnswer[]
     registrationTeam EventRegistrationTeam?
@@ -1044,6 +1088,7 @@ model EventRegistration {
 
     @@index([eventId])
     @@index([eventEntryFeeId])
+    @@index([learnToSailWaitlistEntryId])
     @@index([userId])
     @@unique([id, eventId, userId])
     @@map("event_registrations")
@@ -1181,8 +1226,8 @@ model Payment {
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt() @map("updated_at")
     event Event? @relation(fields: [eventId], references: [id], onDelete: Restrict)
-    registration EventRegistration? @relation(fields: [registrationId, eventId, userId], references: [id, eventId, userId], onDelete: Restrict)
-    user User? @relation(fields: [userId], references: [id], onDelete: Restrict)
+    registration EventRegistration? @relation(fields: [registrationId, eventId, userId], references: [id, eventId, userId], onDelete: Cascade)
+    user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
     selectedFee EventEntryFee? @relation(fields: [eventId, selectedFeeId], references: [eventId, id], onDelete: Restrict)
     membershipSubscription SailingCardSubscription? @relation(fields: [membershipSubscriptionId], references: [id], onDelete: SetNull)
     membershipInitialPrice SailingCardMembershipPrice? @relation("PaymentInitialMembershipPrice", fields: [membershipInitialPriceId], references: [id], onDelete: SetNull)

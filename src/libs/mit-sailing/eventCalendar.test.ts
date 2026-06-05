@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { LearnToSailManagedClassKind } from '@/generated/prisma/enums';
 import {
   buildEventCalendarOccurrenceRows,
   buildEventCalendarWeeks,
@@ -13,8 +14,10 @@ import type { EventCalendarDate } from '@/libs/mit-sailing/eventCalendar';
 const event = {
   id: 'event-1',
   name: 'Spring regatta',
+  shortName: 'Regatta',
   slug: 'spring-regatta',
   eventCategoryId: 'cat-racing',
+  learnToSailManagedClassKind: LearnToSailManagedClassKind.none,
   category: {
     id: 'cat-racing',
     name: 'Racing',
@@ -194,7 +197,7 @@ describe('eventCalendar', () => {
 
   it('builds calendar href with category filter', () => {
     expect(eventsCalendarHref({ year: 2026, month: 4 }, 'cat-racing')).toBe(
-      '/events/?month=2026-04&category=cat-racing'
+      '/events?month=2026-04&category=cat-racing'
     );
   });
 });

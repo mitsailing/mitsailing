@@ -8,8 +8,12 @@ import { Prisma } from '@/generated/prisma/client';
 import {
   PaymentStatus,
   EventRegistrationStatus,
+  LearnToSailWaitlistEntryStatus,
 } from '@/generated/prisma/enums';
-import type { EventAnswerType } from '@/generated/prisma/enums';
+import type {
+  EventAnswerType,
+  LearnToSailManagedClassKind,
+} from '@/generated/prisma/enums';
 import { requireCurrentUser, verifySession } from '@/libs/auth/dal';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
@@ -20,6 +24,8 @@ import { parsePublicEventRegistrationAnswersFromForm } from '@/libs/mit-sailing/
 import type { PublicRegistrationQuestionForValidation } from '@/libs/mit-sailing/eventRegistrationAnswerValidation';
 import type { EventRegistrationMutationCode } from '@/libs/mit-sailing/eventRegistrationErrors';
 import { isPublicEventRegistrationWindowOpen } from '@/libs/mit-sailing/eventRegistrationWindow';
+import { eventUsesLearnToSailWaitlist } from '@/libs/mit-sailing/learnToSailEvents';
+import { getLearnToSailSeasonYear } from '@/libs/mit-sailing/learnToSailWaitlist';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { zenstackForAuthContext } from '@/libs/zenstack/auth';
 import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
@@ -183,6 +189,7 @@ type PublicEventRegistrationLockedEvent = {
   registrationStart: Date | null;
   registrationEnd: Date | null;
   entryFees: { amountCents: number; description: string; id: string }[];
+  learnToSailManagedClassKind: LearnToSailManagedClassKind;
   paymentDeadlineAt: Date | null;
   paymentsEnabled: boolean;
 };
@@ -448,6 +455,8 @@ async function upsertPublicEventRegistration(options: {
   eventEntryFeeId: string | null;
   eventId: string;
   existingRegistrationId: string | null;
+  learnToSailAuditPositionAtRequest: number | null;
+  learnToSailWaitlistEntryId: string | null;
   now: Date;
   phone: string;
   registrationId: string;
@@ -462,6 +471,9 @@ async function upsertPublicEventRegistration(options: {
         status: options.status,
         phone: options.phone,
         eventEntryFeeId: options.eventEntryFeeId,
+        learnToSailAuditPositionAtRequest:
+          options.learnToSailAuditPositionAtRequest,
+        learnToSailWaitlistEntryId: options.learnToSailWaitlistEntryId,
         swimAgreementAcceptedAt: options.now,
         registrationAnswers: { deleteMany: {} },
       },
@@ -476,10 +488,49 @@ async function upsertPublicEventRegistration(options: {
       status: options.status,
       phone: options.phone,
       eventEntryFeeId: options.eventEntryFeeId,
+      learnToSailAuditPositionAtRequest:
+        options.learnToSailAuditPositionAtRequest,
+      learnToSailWaitlistEntryId: options.learnToSailWaitlistEntryId,
       createdAt: options.now,
       swimAgreementAcceptedAt: options.now,
     },
   });
+}
+
+async function learnToSailWaitlistSnapshotForRegistration(options: {
+  event: Pick<
+    PublicEventRegistrationLockedEvent,
+    'learnToSailManagedClassKind'
+  >;
+  now: Date;
+  tx: Prisma.TransactionClient;
+  userId: string;
+}): Promise<{
+  learnToSailAuditPositionAtRequest: number | null;
+  learnToSailWaitlistEntryId: string | null;
+}> {
+  if (!eventUsesLearnToSailWaitlist(options.event)) {
+    return {
+      learnToSailAuditPositionAtRequest: null,
+      learnToSailWaitlistEntryId: null,
+    };
+  }
+  const waitlistEntry = await options.tx.learnToSailWaitlistEntry.findFirst({
+    orderBy: { sequence: 'asc' },
+    select: { id: true, sequence: true },
+    where: {
+      seasonYear: getLearnToSailSeasonYear(options.now),
+      status: LearnToSailWaitlistEntryStatus.active,
+      userId: options.userId,
+    },
+  });
+  if (!waitlistEntry) {
+    throw new EventRegistrationFlowError('waitlist_required');
+  }
+  return {
+    learnToSailAuditPositionAtRequest: waitlistEntry.sequence,
+    learnToSailWaitlistEntryId: waitlistEntry.id,
+  };
 }
 
 async function replacePublicEventRegistrationAnswers(options: {
@@ -656,6 +707,7 @@ export async function createPublicEventRegistrationAction(
     boatsPerTeam: number;
     personsPerBoat: number;
     allowRepeatTeamCaptain: boolean;
+    learnToSailManagedClassKind: LearnToSailManagedClassKind;
   };
   try {
     const eventResult = await access.db.event.findFirst({
@@ -677,6 +729,7 @@ export async function createPublicEventRegistrationAction(
         boatsPerTeam: true,
         personsPerBoat: true,
         allowRepeatTeamCaptain: true,
+        learnToSailManagedClassKind: true,
       },
     });
     if (!eventResult) {
@@ -799,6 +852,7 @@ export async function createPublicEventRegistrationAction(
             boatsPerTeam: true,
             personsPerBoat: true,
             allowRepeatTeamCaptain: true,
+            learnToSailManagedClassKind: true,
             registrationStart: true,
             registrationEnd: true,
             entryFees: {
@@ -826,6 +880,13 @@ export async function createPublicEventRegistrationAction(
         const status = lockedContext.event.requiresApproval
           ? EventRegistrationStatus.pending
           : EventRegistrationStatus.approved;
+        const learnToSailSnapshot =
+          await learnToSailWaitlistSnapshotForRegistration({
+            event: lockedContext.event,
+            now,
+            tx,
+            userId: access.userId,
+          });
 
         const existing = await tx.eventRegistration.findFirst({
           where: { eventId: event.id, userId: access.userId },
@@ -846,6 +907,7 @@ export async function createPublicEventRegistrationAction(
           eventEntryFeeId: lockedSelectedFee.eventEntryFeeId,
           eventId: event.id,
           existingRegistrationId: existing?.id ?? null,
+          ...learnToSailSnapshot,
           now,
           phone: lockedContext.phone,
           registrationId,

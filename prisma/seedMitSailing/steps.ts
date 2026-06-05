@@ -9,92 +9,23 @@ import {
   FLEET_BOATS,
   SAILING_CLASSES,
 } from '../../src/data/mit-sailing/classesFleetSeed';
-import {
-  CMS_MENU_SEED_ROWS,
-  CMS_PAGE_SEED_ROWS,
-  orderedCmsSeedMenuItems,
-} from '../../src/data/mit-sailing/cmsSeed';
-import type {
-  CmsSeedMenu,
-  CmsSeedMenuItem,
-  CmsSeedPage,
-} from '../../src/data/mit-sailing/cmsSeed';
 import { DONATION_FUND_SEED_ROWS } from '../../src/data/mit-sailing/donationFundsSeed';
-import {
-  EVENT_ADMINS,
-  EVENT_CATEGORIES,
-  EVENT_COMMENTS,
-  EVENTS,
-  EVENT_ENTRY_FEES,
-  EVENT_REGISTRATION_ANSWERS,
-  EVENT_REGISTRATIONS,
-  EVENT_REGISTRATION_QUESTIONS,
-  GLOBAL_EVENT_DATES,
-  STUB_USERS,
-} from '../../src/data/mit-sailing/eventsSeed';
 import { PAVILION_RESERVABLE_ITEM_SEED_ROWS } from '../../src/data/mit-sailing/pavilionReservationCatalogSeed';
 import {
   SAILING_RATING_RULES,
   SAILING_RATINGS,
 } from '../../src/data/mit-sailing/sailingRatingsSeed';
 import { SITE_ALERT_SEED_ROWS } from '../../src/data/mit-sailing/siteAlertsSeed';
-import { Prisma } from '../../src/generated/prisma/client';
-import type { PrismaClient } from '../../src/generated/prisma/client';
-import type { EventRegistrationStatus } from '../../src/generated/prisma/enums';
+import type { Prisma, PrismaClient } from '../../src/generated/prisma/client';
 import { PAVILION_RESERVATION_PERSONAS } from '../../src/libs/mit-sailing/pavilionReservationPersonas';
-import { toDetailPageKind } from './detailPageKind';
-import { toDate } from './toPrismaDate';
-
-/**
- * @param p - Prisma client (injected for tests; production uses `src/libs/DB`)
- */
-export async function seedStubUsers(p: PrismaClient): Promise<void> {
-  for (const u of STUB_USERS) {
-    await p.user.upsert({
-      where: { id: u.id },
-      create: {
-        id: u.id,
-        appRole: 'user',
-        email: u.email,
-        name: u.name,
-        emailVerified: true,
-        role: 'user',
-      },
-      update: {
-        appRole: 'user',
-        email: u.email,
-        name: u.name,
-        emailVerified: true,
-        role: 'user',
-      },
-    });
-  }
-}
-
-/**
- * @param p - Prisma client
- */
-export async function seedEventCategories(p: PrismaClient): Promise<void> {
-  for (const c of EVENT_CATEGORIES) {
-    await p.eventCategory.upsert({
-      where: { id: c.id },
-      create: {
-        id: c.id,
-        name: c.name,
-        displayOrder: c.display_order,
-        isVisible: c.is_visible,
-        accentClassName: c.accent_class_name ?? null,
-        createdAt: new Date(c.created_at),
-      },
-      update: {
-        name: c.name,
-        displayOrder: c.display_order,
-        isVisible: c.is_visible,
-        accentClassName: c.accent_class_name ?? null,
-      },
-    });
-  }
-}
+export { seedCmsContent } from './cmsSteps';
+export {
+  seedEventCategories,
+  seedEventRelatedRows,
+  seedEvents,
+  seedSailingClassRelatedEventsFromSeed,
+  seedStubUsers,
+} from './eventSteps';
 
 /**
  * Idempotent: upserts categories and reconciles slug collisions so `classCategoryIdFromSeedKey` matches the database.
@@ -269,30 +200,34 @@ function sailingRatingRuleTargetData(
   };
 }
 
-/**
- * @param p - Prisma client
- */
-export async function seedSailingRatings(p: PrismaClient): Promise<void> {
-  const now = new Date();
-  const ratingIds = SAILING_RATINGS.map((rating) => rating.id);
-  const ruleIds = SAILING_RATING_RULES.map((rule) => rule.id);
-
+async function removeStaleSailingRatingRows(
+  p: PrismaClient,
+  props: {
+    readonly ratingIds: string[];
+    readonly ruleIds: string[];
+  }
+): Promise<void> {
   await p.sailingRatingRule.deleteMany({
-    where: { id: { notIn: ruleIds } },
+    where: { id: { notIn: props.ruleIds } },
   });
   await p.userSailingRating.deleteMany({
-    where: { sailingRatingId: { notIn: ratingIds } },
+    where: { sailingRatingId: { notIn: props.ratingIds } },
   });
   await p.sailingRating.deleteMany({
-    where: { id: { notIn: ratingIds } },
+    where: { id: { notIn: props.ratingIds } },
   });
+}
 
+async function seedSailingRatingRows(
+  p: PrismaClient,
+  createdAt: Date
+): Promise<void> {
   for (const rating of SAILING_RATINGS) {
     await p.sailingRating.upsert({
       where: { id: rating.id },
       create: {
         ...rating,
-        createdAt: now,
+        createdAt,
       },
       update: {
         slug: rating.slug,
@@ -309,58 +244,56 @@ export async function seedSailingRatings(p: PrismaClient): Promise<void> {
       },
     });
   }
+}
 
-  if (SAILING_RATING_RULES.length > 0) {
-    for (const rule of SAILING_RATING_RULES) {
-      const target = sailingRatingRuleTargetData(rule);
-      await p.sailingRatingRule.upsert({
-        where: { id: rule.id },
-        create: {
-          id: rule.id,
-          ...target,
-          ruleType: rule.ruleType,
-          sailingRatingId: rule.sailingRatingId,
-          groupKey: rule.groupKey,
-          displayOrder: rule.displayOrder,
-        },
-        update: {
-          ...target,
-          ruleType: rule.ruleType,
-          sailingRatingId: rule.sailingRatingId,
-          groupKey: rule.groupKey,
-          displayOrder: rule.displayOrder,
-        },
-      });
-    }
+async function seedSailingRatingRuleRows(p: PrismaClient): Promise<void> {
+  for (const rule of SAILING_RATING_RULES) {
+    const target = sailingRatingRuleTargetData(rule);
+    const data = {
+      ...target,
+      ruleType: rule.ruleType,
+      sailingRatingId: rule.sailingRatingId,
+      groupKey: rule.groupKey,
+      displayOrder: rule.displayOrder,
+    };
+    await p.sailingRatingRule.upsert({
+      where: { id: rule.id },
+      create: {
+        id: rule.id,
+        ...data,
+      },
+      update: data,
+    });
   }
 }
 
 /**
- * Populates {@link SAILING_CLASSES} related-event links after `event` rows exist.
- *
  * @param p - Prisma client
  */
-export async function seedSailingClassRelatedEventsFromSeed(
-  p: PrismaClient
-): Promise<void> {
-  for (const cl of SAILING_CLASSES) {
-    await p.sailingClassRelatedEvent.deleteMany({
-      where: { sailingClassId: cl.id },
-    });
-    const existingEvents = await p.event.findMany({
-      where: { id: { in: cl.relatedEventIds } },
-      select: { id: true },
-    });
-    if (existingEvents.length > 0) {
-      await p.sailingClassRelatedEvent.createMany({
-        data: existingEvents.map((e) => ({
-          sailingClassId: cl.id,
-          eventId: e.id,
-        })),
-        skipDuplicates: true,
-      });
-    }
-  }
+export async function seedSailingRatings(p: PrismaClient): Promise<void> {
+  const ratingIds = SAILING_RATINGS.map((rating) => rating.id);
+  const ruleIds = SAILING_RATING_RULES.map((rule) => rule.id);
+
+  await removeStaleSailingRatingRows(p, { ratingIds, ruleIds });
+  await seedSailingRatingRows(p, new Date());
+  await seedSailingRatingRuleRows(p);
+}
+
+function seedTextOrNull(value: string | undefined): string | null {
+  return value ?? null;
+}
+
+function staffMemberSeedData(s: (typeof staff)[number]) {
+  return {
+    slug: s.slug,
+    name: s.name,
+    role: s.role,
+    bio: seedTextOrNull(s.bio),
+    fullBio: structuredClone(s.fullBio) as Prisma.InputJsonValue,
+    imageSrc: seedTextOrNull(s.imageSrc),
+    imageAlt: seedTextOrNull(s.imageAlt),
+    email: s.email,
+  };
 }
 
 /**
@@ -368,205 +301,14 @@ export async function seedSailingClassRelatedEventsFromSeed(
  */
 export async function seedStaff(p: PrismaClient): Promise<void> {
   for (const s of staff) {
-    const fullBio = structuredClone(s.fullBio) as Prisma.InputJsonValue;
+    const data = staffMemberSeedData(s);
     await p.staffMember.upsert({
       where: { slug: s.slug },
       create: {
         id: s.slug,
-        slug: s.slug,
-        name: s.name,
-        role: s.role,
-        bio: s.bio ?? null,
-        fullBio,
-        imageSrc: s.imageSrc ?? null,
-        imageAlt: s.imageAlt ?? null,
-        email: s.email,
+        ...data,
       },
-      update: {
-        name: s.name,
-        role: s.role,
-        bio: s.bio ?? null,
-        fullBio,
-        imageSrc: s.imageSrc ?? null,
-        imageAlt: s.imageAlt ?? null,
-        email: s.email,
-      },
-    });
-  }
-}
-
-/**
- * @param p - Prisma client
- */
-export async function seedEvents(p: PrismaClient): Promise<void> {
-  for (const e of EVENTS) {
-    const detailKind = toDetailPageKind(e.detail_page_kind);
-    await p.event.upsert({
-      where: { id: e.id },
-      create: {
-        id: e.id,
-        name: e.name,
-        shortName: e.short_name,
-        eventCategoryId: e.event_category_id,
-        description: e.description,
-        slug: e.slug,
-        isSpecial: e.is_special,
-        maxParticipants: e.max_participants,
-        requiresApproval: e.requires_approval,
-        registrationStart: toDate(e.registration_start),
-        registrationEnd: toDate(e.registration_end),
-        createdAt: new Date(e.created_at),
-        detailPageKind: detailKind,
-        externalDetailUrl: e.external_detail_url ?? null,
-        isPublished: e.is_published,
-      },
-      update: {
-        name: e.name,
-        shortName: e.short_name,
-        eventCategoryId: e.event_category_id,
-        description: e.description,
-        isSpecial: e.is_special,
-        maxParticipants: e.max_participants,
-        requiresApproval: e.requires_approval,
-        registrationStart: toDate(e.registration_start),
-        registrationEnd: toDate(e.registration_end),
-        createdAt: new Date(e.created_at),
-        detailPageKind: detailKind,
-        externalDetailUrl: e.external_detail_url ?? null,
-        isPublished: e.is_published,
-      },
-    });
-  }
-}
-
-/**
- * @param p - Prisma client
- */
-export async function seedEventRelatedRows(p: PrismaClient): Promise<void> {
-  for (const d of GLOBAL_EVENT_DATES) {
-    await p.eventDate.upsert({
-      where: { id: d.id },
-      create: {
-        id: d.id,
-        eventId: d.eventId,
-        startDateTime: new Date(d.start_datetime),
-        endDateTime: new Date(d.end_datetime),
-      },
-      update: {
-        startDateTime: new Date(d.start_datetime),
-        endDateTime: new Date(d.end_datetime),
-      },
-    });
-  }
-
-  for (const a of EVENT_ADMINS) {
-    await p.eventAdmin.upsert({
-      where: { id: a.id },
-      create: {
-        id: a.id,
-        eventId: a.event_id,
-        adminUserId: a.admin_user_id,
-      },
-      update: {
-        adminUserId: a.admin_user_id,
-      },
-    });
-  }
-
-  for (const q of EVENT_REGISTRATION_QUESTIONS) {
-    const optionsValue: Prisma.InputJsonValue | typeof Prisma.JsonNull =
-      q.options === undefined
-        ? Prisma.JsonNull
-        : (structuredClone(q.options) as Prisma.InputJsonValue);
-    await p.eventRegistrationQuestion.upsert({
-      where: { id: q.id },
-      create: {
-        id: q.id,
-        eventId: q.event_id,
-        questionText: q.question_text,
-        answerType: q.answer_type,
-        options: optionsValue,
-        required: q.required,
-        displayOrder: q.display_order,
-      },
-      update: {
-        questionText: q.question_text,
-        answerType: q.answer_type,
-        options: optionsValue,
-        required: q.required,
-        displayOrder: q.display_order,
-      },
-    });
-  }
-
-  for (const f of EVENT_ENTRY_FEES) {
-    await p.eventEntryFee.upsert({
-      where: { id: f.id },
-      create: {
-        id: f.id,
-        eventId: f.event_id,
-        description: f.description,
-        amountCents: f.amount_cents,
-        isDeposit: f.is_deposit,
-      },
-      update: {
-        description: f.description,
-        amountCents: f.amount_cents,
-        isDeposit: f.is_deposit,
-      },
-    });
-  }
-
-  for (const r of EVENT_REGISTRATIONS) {
-    await p.eventRegistration.upsert({
-      where: { id: r.id },
-      create: {
-        id: r.id,
-        eventId: r.event_id,
-        userId: r.user_id,
-        status: r.status as EventRegistrationStatus,
-        phone: '+16175550100',
-        createdAt: new Date(r.created_at),
-        swimAgreementAcceptedAt: new Date(r.swim_agreement_accepted_at),
-      },
-      update: {
-        status: r.status as EventRegistrationStatus,
-        phone: '+16175550100',
-        createdAt: new Date(r.created_at),
-        swimAgreementAcceptedAt: new Date(r.swim_agreement_accepted_at),
-      },
-    });
-  }
-
-  for (const a of EVENT_REGISTRATION_ANSWERS) {
-    await p.eventRegistrationAnswer.upsert({
-      where: { id: a.id },
-      create: {
-        id: a.id,
-        registrationId: a.registration_id,
-        questionId: a.question_id,
-        value: a.value,
-      },
-      update: { value: a.value },
-    });
-  }
-
-  for (const c of EVENT_COMMENTS) {
-    await p.eventComment.upsert({
-      where: { id: c.id },
-      create: {
-        id: c.id,
-        eventId: c.event_id,
-        parentId: c.parent_id,
-        userId: c.user_id,
-        body: c.body,
-        createdAt: new Date(c.created_at),
-      },
-      update: {
-        body: c.body,
-        parentId: c.parent_id,
-        createdAt: new Date(c.created_at),
-      },
+      update: data,
     });
   }
 }
@@ -670,169 +412,4 @@ export async function seedSiteAlerts(p: PrismaClient): Promise<void> {
       },
     });
   }
-}
-
-function hasSeedText(value: string | undefined): boolean {
-  return (value?.trim().length ?? 0) > 0;
-}
-
-function cmsSeedBlockDisplayFlags(block: CmsSeedPage['blocks'][number]) {
-  return {
-    showCta:
-      block.showCta ??
-      (hasSeedText(block.ctaLabel) && hasSeedText(block.ctaUrl)),
-    showImage:
-      block.showImage ??
-      (hasSeedText(block.imageSrc) && hasSeedText(block.imageAlt)),
-  };
-}
-
-async function seedCmsPageBlocks(props: {
-  p: PrismaClient;
-  page: CmsSeedPage;
-}): Promise<void> {
-  const { p, page } = props;
-
-  for (const block of page.blocks) {
-    const { showCta, showImage } = cmsSeedBlockDisplayFlags(block);
-    await p.cmsPageBlock.upsert({
-      where: { id: block.id },
-      create: {
-        id: block.id,
-        pageId: page.id,
-        kind: block.kind,
-        title: block.title,
-        subtitle: block.subtitle ?? null,
-        body: block.body ?? null,
-        ctaLabel: block.ctaLabel ?? null,
-        ctaUrl: block.ctaUrl ?? null,
-        showCta,
-        imageSrc: block.imageSrc ?? null,
-        imageAlt: block.imageAlt ?? null,
-        showImage,
-        displayOrder: block.displayOrder,
-        isVisible: block.isVisible,
-      },
-      update: {
-        pageId: page.id,
-        kind: block.kind,
-        title: block.title,
-        subtitle: block.subtitle ?? null,
-        body: block.body ?? null,
-        ctaLabel: block.ctaLabel ?? null,
-        ctaUrl: block.ctaUrl ?? null,
-        showCta,
-        imageSrc: block.imageSrc ?? null,
-        imageAlt: block.imageAlt ?? null,
-        showImage,
-        displayOrder: block.displayOrder,
-        isVisible: block.isVisible,
-      },
-    });
-  }
-}
-
-async function seedCmsPages(p: PrismaClient): Promise<void> {
-  for (const page of CMS_PAGE_SEED_ROWS) {
-    await p.cmsPage.upsert({
-      where: { id: page.id },
-      create: {
-        id: page.id,
-        slug: page.slug,
-        path: page.path,
-        title: page.title,
-        metaTitle: page.metaTitle,
-        metaDescription: page.metaDescription,
-        isPublished: page.isPublished ?? true,
-      },
-      update: {
-        slug: page.slug,
-        path: page.path,
-        title: page.title,
-        metaTitle: page.metaTitle,
-        metaDescription: page.metaDescription,
-        isPublished: page.isPublished ?? true,
-      },
-    });
-    await seedCmsPageBlocks({ p, page });
-  }
-}
-
-async function seedCmsMenuItem(props: {
-  p: PrismaClient;
-  menu: CmsSeedMenu;
-  item: CmsSeedMenuItem;
-}): Promise<void> {
-  const { p, menu, item } = props;
-  const linkedPageId = item.kind === 'page_link' ? item.linkedPageId : null;
-  const url = item.kind === 'url_link' ? (item.url ?? null) : null;
-  const isExternal = item.kind === 'url_link' ? item.isExternal : false;
-
-  await p.cmsMenuItem.upsert({
-    where: { id: item.id },
-    create: {
-      id: item.id,
-      menuId: menu.id,
-      parentId: item.parentId ?? null,
-      linkedPageId,
-      label: item.label,
-      url,
-      isExternal,
-      isVisible: item.isVisible,
-      displayOrder: item.displayOrder,
-      systemKey: item.systemKey ?? null,
-    },
-    update: {
-      menuId: menu.id,
-      parentId: item.parentId ?? null,
-      linkedPageId,
-      label: item.label,
-      url,
-      isExternal,
-      isVisible: item.isVisible,
-      displayOrder: item.displayOrder,
-      systemKey: item.systemKey ?? null,
-    },
-  });
-}
-
-async function seedCmsMenus(p: PrismaClient): Promise<void> {
-  for (const menu of CMS_MENU_SEED_ROWS) {
-    const items = orderedCmsSeedMenuItems(menu);
-
-    await p.cmsMenu.upsert({
-      where: { id: menu.id },
-      create: {
-        id: menu.id,
-        location: menu.location,
-        title: menu.title,
-      },
-      update: {
-        location: menu.location,
-        title: menu.title,
-      },
-    });
-
-    await p.cmsMenuItem.deleteMany({
-      where:
-        items.length === 0
-          ? { menuId: menu.id }
-          : {
-              menuId: menu.id,
-              id: { notIn: items.map((item) => item.id) },
-            },
-    });
-
-    for (const item of items) {
-      await seedCmsMenuItem({ p, menu, item });
-    }
-  }
-}
-
-/**
- * @param p - Prisma client
- */
-export async function seedCmsContent(p: PrismaClient): Promise<void> {
-  await seedCmsPages(p);
-  await seedCmsMenus(p);
 }

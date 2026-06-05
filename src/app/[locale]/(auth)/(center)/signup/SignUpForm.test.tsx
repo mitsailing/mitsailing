@@ -67,8 +67,15 @@ describe('SignUpForm', () => {
       name: 'new-sailor',
       password: 'correct-password',
     });
-    expect(await screen.findByRole('status')).toHaveTextContent(
+    const status = await screen.findByRole('status');
+    expect(status).toHaveTextContent(
       'Check your email for a verification code.'
+    );
+    expect(status).toHaveAttribute('aria-live', 'polite');
+    expect(status).toHaveClass(
+      'border-green-700/30',
+      'text-green-900',
+      'motion-reduce:animate-none'
     );
     expect(componentTestRouter().push).toHaveBeenCalledWith(
       '/verify-email?email=new-sailor%40mit.edu&codeSent=1&callbackUrl=%2Fonboarding'
@@ -127,8 +134,12 @@ describe('SignUpForm', () => {
     });
     await user.click(screen.getByRole('button', { name: 'Sign up' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'That email is already in the system.'
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('That email is already in the system.');
+    expect(alert).toHaveClass(
+      'border-destructive/40',
+      'text-red-900',
+      'motion-reduce:animate-none'
     );
     expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute(
       'href',
@@ -284,7 +295,9 @@ describe('SignUpForm', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Something went wrong.'
     );
-    expect(screen.getByRole('button', { name: 'Sign up' })).not.toBeDisabled();
+    const submitButton = screen.getByRole('button', { name: 'Sign up' });
+    expect(submitButton).not.toBeDisabled();
+    expect(submitButton).toHaveClass('min-h-11', 'w-full');
     expect(componentTestRouter().push).not.toHaveBeenCalled();
   });
 

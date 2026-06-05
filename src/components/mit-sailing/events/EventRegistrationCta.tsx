@@ -4,7 +4,6 @@ import type * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { PaymentStatus } from '@/generated/prisma/enums';
 import { cn } from '@/lib/utils';
-import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import { Link } from '@/libs/I18nNavigation';
 import type {
   PublicEventDetail,
@@ -12,8 +11,9 @@ import type {
 } from '@/libs/mit-sailing/eventQueries';
 import { eventRegistrationErrorMessage } from '@/libs/mit-sailing/eventRegistrationErrors';
 import type { PublicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
+import { eventUsesLearnToSailWaitlist } from '@/libs/mit-sailing/learnToSailEvents';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
-import { getI18nPath } from '@/utils/Helpers';
+import { LearnToSailWaitlistNote } from './LearnToSailWaitlistNote';
 
 type EventRegistrationTranslations = Awaited<
   ReturnType<typeof getTranslations<'MitSailingEvents'>>
@@ -36,6 +36,15 @@ type EventRegistrationCtaProps = {
   t: EventRegistrationTranslations;
 };
 
+type LocalEventReservationState = Exclude<
+  PublicEventReservationState,
+  'external' | 'unavailable'
+>;
+
+type LocalEventRegistrationCtaProps = EventRegistrationCtaProps & {
+  readonly reservationState: LocalEventReservationState;
+};
+
 function RegistrationNote(props: { children: React.ReactNode }) {
   return (
     <p className="text-xs leading-relaxed text-muted-foreground">
@@ -50,7 +59,7 @@ function RegistrationErrorAlert(props: { message: string | null }) {
   }
   return (
     <p
-      className="rounded-lg border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive"
+      className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-red-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:text-red-100"
       role="alert"
     >
       {props.message}
@@ -75,13 +84,21 @@ function RegistrationStatusPill(props: {
 }) {
   return (
     <div
+      aria-live="polite"
       className={cn(
-        'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold',
+        'inline-flex min-h-11 w-full items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold motion-safe:transition-colors motion-reduce:transition-none sm:w-auto',
         registrationStatusPillToneClassName[props.tone]
       )}
+      role="status"
     >
       {props.children}
     </div>
+  );
+}
+
+function RegistrationOutcomeNote(props: { children: React.ReactNode }) {
+  return (
+    <p className="text-sm leading-relaxed text-mit-text">{props.children}</p>
   );
 }
 
@@ -97,147 +114,260 @@ function isPaymentDue(
   );
 }
 
-export function EventRegistrationCta(props: EventRegistrationCtaProps) {
-  const errorMessage = eventRegistrationErrorMessage(props.errorCode, props.t);
-  const registrationHref = getI18nPath(
-    `/events/${encodeURIComponent(props.event.slug)}/register`,
-    props.locale
+function CancelRegistrationForm(props: {
+  readonly action: EventRegistrationCancelFormAction;
+  readonly t: EventRegistrationTranslations;
+}) {
+  return (
+    <form action={props.action} className="w-full sm:w-auto">
+      <Button className="min-h-11 px-0" size="sm" type="submit" variant="link">
+        {props.t('registration_cancel_button')}
+      </Button>
+    </form>
   );
-  const loginHref = authHrefWithCallback(
-    getI18nPath('/login', props.locale),
-    registrationHref
+}
+
+function PaymentDueRecovery(props: {
+  readonly eventSlug: string;
+  readonly locale: string;
+  readonly payment: NonNullable<PublicEventRegistrationState['payment']>;
+  readonly t: EventRegistrationTranslations;
+}) {
+  return (
+    <div className="w-full rounded-lg border border-mit-line bg-muted/30 p-3">
+      <p className="text-sm font-semibold text-foreground">
+        {props.t('registration_payment_due', {
+          amount: formatUsdMinorUnitsAsCurrency(
+            props.payment.amountCents,
+            props.locale
+          ),
+        })}
+      </p>
+      <Button asChild className="mt-3 min-h-11 w-full" size="sm" variant="mit">
+        <Link href={`/events/${encodeURIComponent(props.eventSlug)}/checkout`}>
+          <CreditCard aria-hidden className="size-4" />
+          {props.t('registration_pay_button')}
+        </Link>
+      </Button>
+    </div>
   );
-  const checkoutHref = getI18nPath(
-    `/events/${encodeURIComponent(props.event.slug)}/checkout`,
-    props.locale
+}
+
+function approvedRegistrationStatusLabel(props: {
+  readonly paymentIsDue: boolean;
+  readonly t: EventRegistrationTranslations;
+  readonly usesLearnToSailWaitlist: boolean;
+}) {
+  if (props.paymentIsDue) {
+    return props.t('registration_status_payment_due');
+  }
+  return props.t(
+    props.usesLearnToSailWaitlist
+      ? 'learn_to_sail_status_confirmed'
+      : 'registration_status_going'
   );
-  const eventsHref = getI18nPath('/events', props.locale);
+}
 
-  if (props.reservationState === 'approved') {
-    const payment = props.currentRegistration?.payment ?? null;
-    return (
-      <div className="flex flex-col items-start gap-2">
-        <RegistrationErrorAlert message={errorMessage} />
-        <RegistrationStatusPill tone="good">
-          <Check aria-hidden className="size-4" />
-          {props.t('registration_status_going')}
-        </RegistrationStatusPill>
-        {isPaymentDue(payment) ? (
-          <div className="w-full rounded-lg border border-mit-line bg-muted/30 p-3">
-            <p className="text-sm font-semibold text-foreground">
-              {props.t('registration_payment_due', {
-                amount: formatUsdMinorUnitsAsCurrency(
-                  payment.amountCents,
-                  props.locale
-                ),
-              })}
-            </p>
-            <Button asChild className="mt-3 w-full" size="sm" variant="mit">
-              <Link href={checkoutHref}>
-                <CreditCard aria-hidden className="size-4" />
-                {props.t('registration_pay_button')}
-              </Link>
-            </Button>
-          </div>
-        ) : null}
-        <form action={props.cancelRegistrationAction}>
-          <Button size="sm" type="submit" variant="link">
-            {props.t('registration_cancel_button')}
-          </Button>
-        </form>
-      </div>
-    );
-  }
+function ApprovedRegistrationStatusPill(props: {
+  readonly paymentIsDue: boolean;
+  readonly t: EventRegistrationTranslations;
+  readonly usesLearnToSailWaitlist: boolean;
+}) {
+  const Icon = props.paymentIsDue ? CreditCard : Check;
+  return (
+    <RegistrationStatusPill tone={props.paymentIsDue ? 'warning' : 'good'}>
+      <Icon aria-hidden className="size-4" />
+      {approvedRegistrationStatusLabel({
+        paymentIsDue: props.paymentIsDue,
+        t: props.t,
+        usesLearnToSailWaitlist: props.usesLearnToSailWaitlist,
+      })}
+    </RegistrationStatusPill>
+  );
+}
 
-  if (props.reservationState === 'pending') {
-    return (
-      <div className="flex flex-col items-start gap-2">
-        <RegistrationErrorAlert message={errorMessage} />
-        <RegistrationStatusPill tone="warning">
-          <Clock aria-hidden className="size-4" />
-          {props.t('registration_status_pending')}
-        </RegistrationStatusPill>
-        <form action={props.cancelRegistrationAction}>
-          <Button
-            className="!bg-white !text-zinc-950"
-            size="sm"
-            type="submit"
-            variant="outline"
-          >
-            {props.t('registration_cancel_request_button')}
-          </Button>
-        </form>
-      </div>
-    );
-  }
+function ApprovedRegistrationCta(props: {
+  readonly cancelRegistrationAction: EventRegistrationCancelFormAction;
+  readonly currentRegistration: PublicEventRegistrationState | null;
+  readonly errorMessage: string | null;
+  readonly event: PublicEventDetail;
+  readonly locale: string;
+  readonly t: EventRegistrationTranslations;
+  readonly usesLearnToSailWaitlist: boolean;
+}) {
+  const payment = props.currentRegistration?.payment ?? null;
+  const paymentIsDue = isPaymentDue(payment);
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <RegistrationErrorAlert message={props.errorMessage} />
+      <ApprovedRegistrationStatusPill
+        paymentIsDue={paymentIsDue}
+        t={props.t}
+        usesLearnToSailWaitlist={props.usesLearnToSailWaitlist}
+      />
+      {paymentIsDue ? null : (
+        <RegistrationOutcomeNote>
+          {props.t(
+            props.usesLearnToSailWaitlist
+              ? 'learn_to_sail_confirmed_note'
+              : 'registration_confirmed_note'
+          )}
+        </RegistrationOutcomeNote>
+      )}
+      {paymentIsDue ? (
+        <PaymentDueRecovery
+          eventSlug={props.event.slug}
+          locale={props.locale}
+          payment={payment}
+          t={props.t}
+        />
+      ) : null}
+      <CancelRegistrationForm
+        action={props.cancelRegistrationAction}
+        t={props.t}
+      />
+    </div>
+  );
+}
 
-  if (props.reservationState === 'opening_later') {
-    return (
-      <div className="flex flex-col items-start gap-2">
-        <RegistrationErrorAlert message={errorMessage} />
-        <RegistrationStatusPill tone="muted">
-          <Clock aria-hidden className="size-4" />
-          {props.t('registration_opening_on', {
-            date: props.registrationOpens,
-          })}
-        </RegistrationStatusPill>
-      </div>
-    );
-  }
-
-  if (props.reservationState === 'closed') {
-    return (
-      <div className="flex flex-col items-start gap-2">
-        <RegistrationErrorAlert message={errorMessage} />
+function PendingRegistrationCta(props: {
+  readonly cancelRegistrationAction: EventRegistrationCancelFormAction;
+  readonly errorMessage: string | null;
+  readonly event: PublicEventDetail;
+  readonly t: EventRegistrationTranslations;
+  readonly usesLearnToSailWaitlist: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <RegistrationErrorAlert message={props.errorMessage} />
+      <RegistrationStatusPill tone="warning">
+        <Clock aria-hidden className="size-4" />
+        {props.t(
+          props.usesLearnToSailWaitlist
+            ? 'learn_to_sail_status_requested'
+            : 'registration_status_pending'
+        )}
+      </RegistrationStatusPill>
+      <RegistrationOutcomeNote>
+        {props.t(
+          props.usesLearnToSailWaitlist
+            ? 'learn_to_sail_requested_note'
+            : 'registration_pending_note'
+        )}
+      </RegistrationOutcomeNote>
+      <LearnToSailWaitlistNote event={props.event} t={props.t} />
+      <form action={props.cancelRegistrationAction} className="w-full">
         <Button
-          asChild
-          className="!bg-white !text-zinc-950"
+          className="min-h-11 w-full bg-background text-mit-text"
           size="sm"
+          type="submit"
           variant="outline"
         >
-          <Link href={eventsHref}>
-            {props.t('registration_view_other_events')}
-            <ArrowRight aria-hidden className="size-4" />
-          </Link>
+          {props.t('registration_cancel_request_button')}
         </Button>
-      </div>
-    );
-  }
+      </form>
+    </div>
+  );
+}
 
-  if (props.reservationState === 'full') {
-    return (
-      <div className="flex flex-col items-start gap-2">
-        <RegistrationErrorAlert message={errorMessage} />
-        <RegistrationStatusPill tone="muted">
-          <X aria-hidden className="size-4" />
-          {props.t('registration_full')}
-        </RegistrationStatusPill>
-      </div>
-    );
-  }
+function OpeningLaterRegistrationCta(props: {
+  readonly errorMessage: string | null;
+  readonly event: PublicEventDetail;
+  readonly registrationOpens: string;
+  readonly t: EventRegistrationTranslations;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <RegistrationErrorAlert message={props.errorMessage} />
+      <RegistrationStatusPill tone="muted">
+        <Clock aria-hidden className="size-4" />
+        {props.t('registration_opening_on', {
+          date: props.registrationOpens,
+        })}
+      </RegistrationStatusPill>
+      <LearnToSailWaitlistNote event={props.event} t={props.t} />
+    </div>
+  );
+}
 
-  if (!props.isSignedIn) {
-    return (
-      <div className="flex flex-col gap-2">
-        <RegistrationErrorAlert message={errorMessage} />
-        <Button asChild className="w-full" size="lg" variant="mit">
-          <Link href={loginHref}>
-            <LogIn aria-hidden className="size-4" />
-            {props.t('registration_login_button')}
-          </Link>
-        </Button>
-        <RegistrationNote>
-          {props.t('registration_login_note')}
-        </RegistrationNote>
-      </div>
-    );
-  }
+function ClosedRegistrationCta(props: {
+  readonly errorMessage: string | null;
+  readonly t: EventRegistrationTranslations;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <RegistrationErrorAlert message={props.errorMessage} />
+      <Button
+        asChild
+        className="min-h-11 bg-background text-mit-text"
+        size="sm"
+        variant="outline"
+      >
+        <Link href="/events">
+          {props.t('registration_view_other_events')}
+          <ArrowRight aria-hidden className="size-4" />
+        </Link>
+      </Button>
+    </div>
+  );
+}
 
+function FullRegistrationCta(props: {
+  readonly errorMessage: string | null;
+  readonly event: PublicEventDetail;
+  readonly t: EventRegistrationTranslations;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <RegistrationErrorAlert message={props.errorMessage} />
+      <RegistrationStatusPill tone="muted">
+        <X aria-hidden className="size-4" />
+        {props.t('registration_full')}
+      </RegistrationStatusPill>
+      <LearnToSailWaitlistNote event={props.event} t={props.t} />
+    </div>
+  );
+}
+
+function SignedOutRegistrationCta(props: {
+  readonly errorMessage: string | null;
+  readonly event: PublicEventDetail;
+  readonly t: EventRegistrationTranslations;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <RegistrationErrorAlert message={props.errorMessage} />
+      <LearnToSailWaitlistNote event={props.event} t={props.t} />
+      <Button asChild className="min-h-11 w-full" size="lg" variant="mit">
+        <Link
+          href={`/login?callbackUrl=${encodeURIComponent(
+            `/events/${encodeURIComponent(props.event.slug)}/register`
+          )}`}
+        >
+          <LogIn aria-hidden className="size-4" />
+          {props.t(
+            props.event.requiresApproval
+              ? 'registration_login_request_button'
+              : 'registration_login_button'
+          )}
+        </Link>
+      </Button>
+      <RegistrationNote>{props.t('registration_login_note')}</RegistrationNote>
+    </div>
+  );
+}
+
+function AvailableRegistrationCta(props: {
+  readonly errorMessage: string | null;
+  readonly event: PublicEventDetail;
+  readonly t: EventRegistrationTranslations;
+}) {
   return (
     <div className="flex flex-col gap-3">
-      <RegistrationErrorAlert message={errorMessage} />
-      <Button asChild className="w-full" size="lg" variant="mit">
-        <Link href={registrationHref}>
+      <RegistrationErrorAlert message={props.errorMessage} />
+      <LearnToSailWaitlistNote event={props.event} t={props.t} />
+      <Button asChild className="min-h-11 w-full" size="lg" variant="mit">
+        <Link href={`/events/${encodeURIComponent(props.event.slug)}/register`}>
           {props.event.requiresApproval
             ? props.t('registration_request_button')
             : props.t('registration_register_button')}
@@ -245,4 +375,148 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
       </Button>
     </div>
   );
+}
+
+type EventRegistrationCtaRenderContext = {
+  readonly errorMessage: string | null;
+  readonly props: LocalEventRegistrationCtaProps;
+  readonly usesLearnToSailWaitlist: boolean;
+};
+
+function renderApprovedRegistrationCta(
+  context: EventRegistrationCtaRenderContext
+) {
+  return (
+    <ApprovedRegistrationCta
+      cancelRegistrationAction={context.props.cancelRegistrationAction}
+      currentRegistration={context.props.currentRegistration}
+      errorMessage={context.errorMessage}
+      event={context.props.event}
+      locale={context.props.locale}
+      t={context.props.t}
+      usesLearnToSailWaitlist={context.usesLearnToSailWaitlist}
+    />
+  );
+}
+
+function renderPendingRegistrationCta(
+  context: EventRegistrationCtaRenderContext
+) {
+  return (
+    <PendingRegistrationCta
+      cancelRegistrationAction={context.props.cancelRegistrationAction}
+      errorMessage={context.errorMessage}
+      event={context.props.event}
+      t={context.props.t}
+      usesLearnToSailWaitlist={context.usesLearnToSailWaitlist}
+    />
+  );
+}
+
+function renderAvailableRegistrationCta(
+  context: EventRegistrationCtaRenderContext
+) {
+  if (!context.props.isSignedIn) {
+    return (
+      <SignedOutRegistrationCta
+        errorMessage={context.errorMessage}
+        event={context.props.event}
+        t={context.props.t}
+      />
+    );
+  }
+  return (
+    <AvailableRegistrationCta
+      errorMessage={context.errorMessage}
+      event={context.props.event}
+      t={context.props.t}
+    />
+  );
+}
+
+function renderOpeningLaterRegistrationCta(
+  context: EventRegistrationCtaRenderContext
+) {
+  return (
+    <OpeningLaterRegistrationCta
+      errorMessage={context.errorMessage}
+      event={context.props.event}
+      registrationOpens={context.props.registrationOpens}
+      t={context.props.t}
+    />
+  );
+}
+
+function renderClosedRegistrationCta(
+  context: EventRegistrationCtaRenderContext
+) {
+  return (
+    <ClosedRegistrationCta
+      errorMessage={context.errorMessage}
+      t={context.props.t}
+    />
+  );
+}
+
+function renderFullRegistrationCta(context: EventRegistrationCtaRenderContext) {
+  return (
+    <FullRegistrationCta
+      errorMessage={context.errorMessage}
+      event={context.props.event}
+      t={context.props.t}
+    />
+  );
+}
+
+function renderEventRegistrationCta(
+  context: EventRegistrationCtaRenderContext
+) {
+  switch (context.props.reservationState) {
+    case 'approved': {
+      return renderApprovedRegistrationCta(context);
+    }
+    case 'available': {
+      return renderAvailableRegistrationCta(context);
+    }
+    case 'closed': {
+      return renderClosedRegistrationCta(context);
+    }
+    case 'full': {
+      return renderFullRegistrationCta(context);
+    }
+    case 'opening_later': {
+      return renderOpeningLaterRegistrationCta(context);
+    }
+    case 'pending': {
+      return renderPendingRegistrationCta(context);
+    }
+    default: {
+      return null;
+    }
+  }
+}
+
+function isLocalEventReservationState(
+  state: PublicEventReservationState
+): state is LocalEventReservationState {
+  return state !== 'external' && state !== 'unavailable';
+}
+
+export function EventRegistrationCta(
+  props: EventRegistrationCtaProps
+): React.ReactNode {
+  const errorMessage = eventRegistrationErrorMessage(props.errorCode, props.t);
+  const usesLearnToSailWaitlist = eventUsesLearnToSailWaitlist(props.event);
+  if (!isLocalEventReservationState(props.reservationState)) {
+    return null;
+  }
+  const localProps: LocalEventRegistrationCtaProps = {
+    ...props,
+    reservationState: props.reservationState,
+  };
+  return renderEventRegistrationCta({
+    errorMessage,
+    props: localProps,
+    usesLearnToSailWaitlist,
+  });
 }

@@ -5,12 +5,21 @@ import { cn } from '@/lib/utils';
 const adminAlertErrorClasses =
   'rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive dark:bg-destructive/20';
 
+/** Shared surface classes for inline admin success messages after server actions. */
+const adminAlertSuccessClasses =
+  'rounded-lg border border-mit-success/30 bg-mit-success/10 px-3 py-2 text-sm font-medium text-mit-success-ink';
+
 /**
  * Native `p` attributes; live-region props are fixed per MDN guidance (`role="alert"` plus explicit
  * `aria-live` for assistive-tech compatibility).
  */
 export type AdminErrorAlertProps = Omit<
   React.ComponentPropsWithoutRef<'p'>,
+  'role' | 'aria-live' | 'aria-atomic' | 'aria-relevant'
+>;
+
+export type AdminSuccessAlertProps = Omit<
+  React.ComponentPropsWithoutRef<'output'>,
   'role' | 'aria-live' | 'aria-atomic' | 'aria-relevant'
 >;
 
@@ -31,6 +40,18 @@ export function AdminErrorAlert(props: AdminErrorAlertProps) {
       aria-atomic="true"
       aria-relevant="all"
       className={cn(adminAlertErrorClasses, props.className)}
+    />
+  );
+}
+
+export function AdminSuccessAlert(props: AdminSuccessAlertProps) {
+  return (
+    <output
+      {...props}
+      aria-live="polite"
+      aria-atomic="true"
+      aria-relevant="all"
+      className={cn(adminAlertSuccessClasses, props.className)}
     />
   );
 }

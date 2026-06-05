@@ -53,7 +53,7 @@ test.describe('Event registration switches', () => {
       await expect(
         page.getByRole('heading', {
           level: 1,
-          name: 'Learn to Sail — All-in-One',
+          name: 'Learn to Sail Class - All-in-One',
         })
       ).toBeVisible();
 

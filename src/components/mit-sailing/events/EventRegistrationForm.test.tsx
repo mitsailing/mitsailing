@@ -1,10 +1,16 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
-import { EventRegistrationForm } from '@/components/mit-sailing/events/EventRegistrationForm';
+import { createTranslator } from 'next-intl';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  EventRegistrationForm,
+  eventRegistrationFormLabels,
+} from '@/components/mit-sailing/events/EventRegistrationForm';
 import type { EventRegistrationFormLabels } from '@/components/mit-sailing/events/EventRegistrationForm';
+import { LearnToSailManagedClassKind } from '@/generated/prisma/enums';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
 import type { PublicEventRegistrationFormState } from '@/libs/mit-sailing/eventRegistrationActions';
+import messages from '@/locales/en.json';
 
 const labels: EventRegistrationFormLabels = {
   autoApprovalNote: 'Your spot is confirmed immediately after you submit.',
@@ -17,18 +23,24 @@ const labels: EventRegistrationFormLabels = {
     not_found: 'That event is no longer available.',
     questions_required: 'Answer the required registration questions.',
     swim_agreement_required: 'Accept the swim agreement before registering.',
+    waitlist_required:
+      'Join the annual Learn-to-Sail waitlist before requesting this class.',
     unknown: 'Something went wrong with registration.',
   },
   feesHeading: 'Entry fees',
-  phoneHelp: 'Used by event admins if they need to reach you.',
+  learnToSailRankingHeading: 'Waitlist-ranked request',
+  learnToSailRankingRule:
+    'Request this class. If requests exceed spots, waitlist number decides. Request time does not change your order.',
+  learnToSailWaitlistNumber: 'Waitlist #{number}',
+  learnToSailRequestNote: 'We will email you when your request is reviewed.',
+  phoneHelp: 'Used only if we need to reach you about this event.',
   phoneLabel: 'Phone',
   nextStepHeading: 'What happens next',
   questionsHeading: 'Registration questions',
   required: 'Required',
-  requiresApprovalNote:
-    'An event admin will review and confirm your registration.',
+  requiresApprovalNote: 'We will email you when your request is reviewed.',
   selectPlaceholder: 'Select an option',
-  submitRequestButton: 'Submit registration request',
+  submitRequestButton: 'Request a spot',
   swimAgreementHeading: 'Swim agreement',
   swimAgreementLabel: 'I agree to the Swim Agreement and Liability Release.',
   teamBoatEmailLabel: 'Email',
@@ -56,6 +68,7 @@ const event: PublicEventDetail = {
   externalDetailUrl: null,
   id: 'event-1',
   isSpecial: false,
+  learnToSailManagedClassKind: LearnToSailManagedClassKind.none,
   maxParticipants: null,
   name: 'Learn to Sail',
   pendingRegistrationCount: 0,
@@ -81,6 +94,7 @@ const event: PublicEventDetail = {
   registrationStart: null,
   requiresApproval: false,
   requiresPhone: false,
+  selectionNote: null,
   shortName: 'LTS',
   slug: 'learn-to-sail',
   teamRegistration: {
@@ -90,6 +104,28 @@ const event: PublicEventDetail = {
     usesTeamRegistration: false,
   },
 };
+
+const originalMatchMedia = window.matchMedia;
+const originalScrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(
+  window.HTMLElement.prototype,
+  'scrollIntoView'
+);
+
+afterEach(() => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: originalMatchMedia,
+  });
+  if (originalScrollIntoViewDescriptor) {
+    Object.defineProperty(
+      window.HTMLElement.prototype,
+      'scrollIntoView',
+      originalScrollIntoViewDescriptor
+    );
+  } else {
+    Reflect.deleteProperty(window.HTMLElement.prototype, 'scrollIntoView');
+  }
+});
 
 function formValues(formData: FormData): Record<string, string[]> {
   const values: Record<string, string[]> = {};
@@ -106,6 +142,7 @@ function renderRegistrationForm(options: {
     typeof EventRegistrationForm
   >[0]['createRegistrationAction'];
   eventOverrides?: Partial<PublicEventDetail>;
+  learnToSailWaitlistPosition?: number | null;
 }) {
   render(
     <EventRegistrationForm
@@ -113,6 +150,7 @@ function renderRegistrationForm(options: {
       event={{ ...event, ...options.eventOverrides }}
       formPermalink="/events/learn-to-sail/register"
       labels={labels}
+      learnToSailWaitlistPosition={options.learnToSailWaitlistPosition}
       locale="en"
     />
   );
@@ -243,6 +281,23 @@ function expectElementBefore(first: Element, second: Element): void {
 }
 
 describe('EventRegistrationForm', () => {
+  it('maps translated labels used by the register page', () => {
+    const t = createTranslator({
+      locale: 'en',
+      messages,
+      namespace: 'MitSailingEvents',
+    });
+
+    const translatedLabels = eventRegistrationFormLabels(t);
+
+    expect(translatedLabels.confirmButton).toBe('Confirm registration');
+    expect(translatedLabels.errorMessages.waitlist_required).toBe(
+      'Join the annual Learn-to-Sail waitlist before requesting this class.'
+    );
+    expect(translatedLabels.teamBoatHeading).toBe('Boat {number} information');
+    expect(translatedLabels.teamCrewNumberLabel).toBe('Crew {number}');
+  });
+
   it('renders required phone input with preserved validation state', async () => {
     const user = userEvent.setup();
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -273,7 +328,7 @@ describe('EventRegistrationForm', () => {
     expect(phoneInput).toBeRequired();
     expect(phoneInput).toHaveAttribute('name', 'phone');
     expect(
-      screen.getByText('Used by event admins if they need to reach you.')
+      screen.getByText('Used only if we need to reach you about this event.')
     ).toBeVisible();
 
     await user.type(phoneInput, '   ');
@@ -374,6 +429,10 @@ describe('EventRegistrationForm', () => {
   it('renders inline swim error and keeps selected answers', async () => {
     const user = userEvent.setup();
     const scrollIntoView = vi.fn();
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true }),
+    });
     window.HTMLElement.prototype.scrollIntoView = scrollIntoView;
     const action = invalidFormAction({
       code: 'swim_agreement_required',
@@ -407,7 +466,10 @@ describe('EventRegistrationForm', () => {
       })
     ).toHaveAttribute('aria-invalid', 'true');
     await waitFor(() => {
-      expect(scrollIntoView).toHaveBeenCalled();
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        behavior: 'auto',
+        block: 'center',
+      });
     });
   });
 
@@ -497,15 +559,40 @@ describe('EventRegistrationForm', () => {
       name: 'What happens next',
     });
     const submitButton = screen.getByRole('button', {
-      name: 'Submit registration request',
+      name: 'Request a spot',
     });
 
     expectElementBefore(feeGroup, phoneInput);
     expectElementBefore(phoneInput, swimAgreement);
     expectElementBefore(nextStep, submitButton);
     expect(nextStep).toHaveTextContent(
-      'An event admin will review and confirm your registration.'
+      'We will email you when your request is reviewed.'
     );
+  });
+
+  it('uses waitlist-number copy for managed Learn-to-Sail requests', () => {
+    renderRegistrationForm({
+      eventOverrides: {
+        learnToSailManagedClassKind:
+          LearnToSailManagedClassKind.beginner_mid_week_123,
+        requiresApproval: true,
+      },
+      learnToSailWaitlistPosition: 184,
+    });
+
+    const nextStep = screen.getByRole('region', {
+      name: 'What happens next',
+    });
+
+    expect(nextStep).toHaveTextContent(
+      'We will email you when your request is reviewed.'
+    );
+    expect(
+      screen.getByRole('region', { name: 'Waitlist-ranked request' })
+    ).toHaveTextContent(
+      'Request this class. If requests exceed spots, waitlist number decides. Request time does not change your order.'
+    );
+    expect(screen.getByText('Waitlist #184')).toBeVisible();
   });
 
   it('renders team boat fields and preserves validation state', async () => {

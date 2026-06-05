@@ -8,6 +8,7 @@ import { prisma } from '@/libs/DB';
 import { loadLegacyUserIdentityMaps } from '@/libs/legacy-sync/legacyPaymentImport';
 import type { LegacyMemberRow } from '@/libs/legacy-sync/legacyPaymentImport';
 import { logger } from '@/libs/Logger';
+import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 
 type LegacyEventTypeRow = {
   readonly name: string | null;
@@ -144,6 +145,11 @@ type LegacyTeamRegistrationRow = Readonly<{
   registration_id: string;
 }>;
 
+const legacyEventImportTransactionOptions = {
+  maxWait: 10_000,
+  timeout: 120_000,
+} as const;
+
 export type LegacyEventImportRows = {
   readonly boats: readonly LegacyEventBoatRow[];
   readonly contacts: readonly LegacyEventContactRow[];
@@ -211,7 +217,7 @@ function slugPart(value: string): string {
   return slug || 'legacy-event';
 }
 
-function legacyEventSlug(row: LegacyEventRow): string {
+function oldGeneratedLegacyEventSlug(row: LegacyEventRow): string {
   const eid = stringValue(row.eid);
   return `legacy-${legacyHash(eid)}-${slugPart(stringValue(row.short_name) || stringValue(row.name))}`;
 }
@@ -371,6 +377,24 @@ function eventBoatMemberStageSql(row: LegacyEventBoatMemberStageRow) {
   return Prisma.sql`(${row.id}, ${row.legacySourceKey}, ${row.registrationId}, ${row.boatNumber}, ${row.position}, ${row.fullName}, ${row.email})`;
 }
 
+function uniqueBoatMemberStageRows(
+  rows: readonly LegacyEventBoatMemberStageRow[]
+): LegacyEventBoatMemberStageRow[] {
+  const legacySourceKeys = new Set<string>();
+  const boatSlots = new Set<string>();
+  const uniqueRows: LegacyEventBoatMemberStageRow[] = [];
+  for (const row of rows) {
+    const boatSlot = `${row.registrationId}:${row.boatNumber.toString()}:${row.position.toString()}`;
+    if (legacySourceKeys.has(row.legacySourceKey) || boatSlots.has(boatSlot)) {
+      continue;
+    }
+    legacySourceKeys.add(row.legacySourceKey);
+    boatSlots.add(boatSlot);
+    uniqueRows.push(row);
+  }
+  return uniqueRows;
+}
+
 async function importEventCategories(props: {
   readonly db: LegacyEventImportDb;
   readonly eventTypes: readonly LegacyEventTypeRow[];
@@ -432,6 +456,10 @@ function legacyEventIsPublished(row: LegacyEventRow): boolean {
   return flag(row.menu) || flag(row.reg_page) || flag(row.res_page);
 }
 
+function legacyPublicContent(value: string | null | undefined): string {
+  return sanitizeCmsRichTextHtml(stringValue(value));
+}
+
 function legacyEventWriteData(
   row: LegacyEventRow,
   context: LegacyEventWriteContext
@@ -440,7 +468,7 @@ function legacyEventWriteData(
     name: context.name,
     shortName: stringValue(row.short_name) || context.name,
     eventCategoryId: context.eventCategoryId,
-    description: stringValue(row.description),
+    description: legacyPublicContent(row.description),
     isSpecial: flag(row.special),
     maxParticipants: positiveInt(row.reg_limit),
     requiresApproval: flag(row.reg_approve),
@@ -457,13 +485,13 @@ function legacyEventWriteData(
     externalRegistrationUrl: stringValue(row.reg_urlreg) || null,
     externalEntriesUrl: stringValue(row.reg_urlentries) || null,
     faqVisible: flag(row.faq_page),
-    faqContent: stringValue(row.faq),
+    faqContent: legacyPublicContent(row.faq),
     noticeOfRaceVisible: flag(row.nor_page),
-    noticeOfRaceContent: stringValue(row.nor),
+    noticeOfRaceContent: legacyPublicContent(row.nor),
     sailingInstructionsVisible: flag(row.si_page),
-    sailingInstructionsContent: stringValue(row.si),
+    sailingInstructionsContent: legacyPublicContent(row.si),
     resultsVisible: flag(row.res_page),
-    resultsContent: stringValue(row.results),
+    resultsContent: legacyPublicContent(row.results),
     isPublished: legacyEventIsPublished(row),
     paymentsEnabled: flag(row.has_fee),
     paymentDeadlineAt: registrationEnd(row.reg_date),
@@ -477,12 +505,24 @@ function legacyEventCreateData(
   return {
     id: randomUUID(),
     legacyEventId: context.legacyEventId,
-    slug: legacyEventSlug(row),
+    slug: context.legacyEventId,
     createdAt: parseLegacyDate(row.reg_begin) ?? new Date(0),
     sailingCardRequirement: 'NONE' as const,
     addressPreset: 'pavilion' as const,
     ...legacyEventWriteData(row, context),
   };
+}
+
+function legacyEventUpdateData(
+  row: LegacyEventRow,
+  context: LegacyEventWriteContext,
+  existingEvent: { readonly slug: string } | null
+) {
+  const writeData = legacyEventWriteData(row, context);
+  if (existingEvent?.slug === oldGeneratedLegacyEventSlug(row)) {
+    return { ...writeData, slug: context.legacyEventId };
+  }
+  return writeData;
 }
 
 async function importEvents(props: {
@@ -507,10 +547,14 @@ async function importEvents(props: {
       name,
       registrationMode: legacyEventRegistrationMode(row),
     };
+    const existingEvent = await props.db.event.findUnique({
+      where: { legacyEventId },
+      select: { slug: true },
+    });
     const event = await props.db.event.upsert({
       where: { legacyEventId },
       create: legacyEventCreateData(row, context),
-      update: legacyEventWriteData(row, context),
+      update: legacyEventUpdateData(row, context, existingEvent),
       select: { id: true },
     });
     eventIdByLegacyEid.set(legacyEventId, event.id);
@@ -895,36 +939,38 @@ async function importBoatMembers(props: {
   readonly db: LegacyEventImportDb;
   readonly registrationIdByLegacyTeam: ReadonlyMap<string, string>;
 }) {
-  const rows = props.boats.flatMap((row) => {
-    const registrationId = props.registrationIdByLegacyTeam.get(
-      `${stringValue(row.eid)}:${stringValue(row.team_id)}`
-    );
-    const fullName = stringValue(row.name);
-    const email = stringValue(row.e_mail).toLowerCase();
-    const boatNumber = positiveInt(row.boat_num);
-    const position = nonNegativeInt(row.boat_pos);
-    if (
-      !registrationId ||
-      !fullName ||
-      !email ||
-      !boatNumber ||
-      position === null
-    ) {
-      return [];
-    }
-    const legacySourceKey = legacyBoatMemberSourceKey(row);
-    return [
-      {
-        boatNumber,
-        email,
-        fullName,
-        id: randomUUID(),
-        legacySourceKey,
-        position,
-        registrationId,
-      },
-    ];
-  });
+  const rows = uniqueBoatMemberStageRows(
+    props.boats.flatMap((row) => {
+      const registrationId = props.registrationIdByLegacyTeam.get(
+        `${stringValue(row.eid)}:${stringValue(row.team_id)}`
+      );
+      const fullName = stringValue(row.name);
+      const email = stringValue(row.e_mail).toLowerCase();
+      const boatNumber = positiveInt(row.boat_num);
+      const position = nonNegativeInt(row.boat_pos);
+      if (
+        !registrationId ||
+        !fullName ||
+        !email ||
+        !boatNumber ||
+        position === null
+      ) {
+        return [];
+      }
+      const legacySourceKey = legacyBoatMemberSourceKey(row);
+      return [
+        {
+          boatNumber,
+          email,
+          fullName,
+          id: randomUUID(),
+          legacySourceKey,
+          position,
+          registrationId,
+        },
+      ];
+    })
+  );
   await props.db.$executeRaw`
     CREATE TEMP TABLE legacy_import_event_boat_members (
       id text PRIMARY KEY,
@@ -1070,7 +1116,7 @@ export async function importLegacyEventRows(
       registrationsImported: registrations.imported,
       registrationsSkipped: registrations.skipped,
     };
-  });
+  }, legacyEventImportTransactionOptions);
   return result;
 }
 

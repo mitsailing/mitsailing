@@ -72,8 +72,14 @@ describe('SailingCardOnboardingForm', () => {
 
     renderForm();
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(
       'We could not start Stripe Checkout. Your sailing card request is not complete until payment is finished.'
+    );
+    expect(alert).toHaveClass(
+      'border-destructive/40',
+      'text-red-900',
+      'motion-reduce:animate-none'
     );
   });
 
@@ -642,10 +648,25 @@ describe('SailingCardOnboardingForm', () => {
 
     expect(fitnessQuestion).toHaveAccessibleDescription(/Required\./u);
     expect(fitnessQuestion).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByText('Required.')).toHaveAttribute(
+    const requiredError = screen.getByText('Required.');
+    expect(requiredError).toHaveAttribute(
       'id',
       'sailing-card-onboarding-hasFitnessMembership-error'
     );
+    expect(requiredError).toHaveClass(
+      'text-red-900',
+      'motion-reduce:animate-none'
+    );
+  });
+
+  it('keeps the final submit action touch safe on mobile', async () => {
+    renderForm();
+
+    await showWellesleyDetails();
+
+    expect(
+      screen.getByRole('button', { name: 'Request sailing card' })
+    ).toHaveClass('min-h-11', 'w-full');
   });
 
   it('hides sailing card plan choices when mit recreation membership is present', async () => {

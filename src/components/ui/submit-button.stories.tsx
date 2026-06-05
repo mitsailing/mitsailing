@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { expect, within } from 'storybook/test';
+import { expect } from 'storybook/test';
 import { SubmitButton } from './submit-button';
 
 const meta = {
@@ -51,9 +51,8 @@ export const BusyAccessibleName: Story = {
     pending: true,
     pendingLabel: 'Submitting...',
   },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const button = canvas.getByRole('button', { name: 'Submit' });
+  play: async ({ canvas }) => {
+    const button = canvas.getByRole('button', { name: 'Submitting...' });
     await expect(button).toBeDisabled();
     await expect(button).toHaveAttribute('aria-busy', 'true');
     await expect(button).toHaveAccessibleDescription('Submitting...');

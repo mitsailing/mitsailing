@@ -1,3 +1,4 @@
+import type { LearnToSailManagedClassKind } from '@/generated/prisma/enums';
 import {
   EVENTS_TIME_ZONE,
   listNyDayKeysInMonth,
@@ -35,8 +36,10 @@ export type EventCalendarCategory = {
 export type EventCalendarEvent = {
   id: string;
   name: string;
+  shortName: string;
   slug: string;
   eventCategoryId: string;
+  learnToSailManagedClassKind: LearnToSailManagedClassKind | null;
   category: {
     id: string;
     name: string;
@@ -427,7 +430,7 @@ export function eventsCalendarHref(
   if (categoryId) {
     params.set('category', categoryId);
   }
-  return `/events/?${params.toString()}`;
+  return `/events?${params.toString()}`;
 }
 
 /**

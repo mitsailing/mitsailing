@@ -46,8 +46,11 @@ const SubmitButton = React.forwardRef<HTMLButtonElement, SubmitButtonProps>(
         >
           {isPending ? (
             <>
-              <LoaderCircle aria-hidden className="size-4 animate-spin" />
-              {children}
+              <LoaderCircle
+                aria-hidden
+                className="size-4 animate-spin motion-reduce:animate-none"
+              />
+              {pendingLabel}
             </>
           ) : (
             children

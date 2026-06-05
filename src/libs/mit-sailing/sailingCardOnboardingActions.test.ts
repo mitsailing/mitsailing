@@ -394,10 +394,10 @@ describe('submitSailingCardOnboardingAction', () => {
             cardType: SailingCardType.normal,
             hasFitnessMembership: true,
             legalAgreementAcceptance: {
+              acceptedUserId: 'user-1',
               agreementHash: sailingCardAgreementHash(),
               agreementVersion: sailingCardAgreement.version,
               source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-              userId: 'user-1',
             },
             sailingAffiliation: SailingAffiliation.MIT_ALUM,
             status: SailingCardRequestStatus.pending,
@@ -492,6 +492,9 @@ describe('submitSailingCardOnboardingAction', () => {
     expect(mocks.prismaLegalAgreementAcceptanceCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
         acceptedAt: expect.any(Date),
+        acceptedUserEmail: 'ada@mit.edu',
+        acceptedUserId: 'user-1',
+        acceptedUserName: 'Ada Lovelace',
         agreementHash: sailingCardAgreementHash(),
         agreementLabel: sailingCardAgreement.label,
         agreementVersion: sailingCardAgreement.version,
@@ -508,10 +511,10 @@ describe('submitSailingCardOnboardingAction', () => {
     mocks.prismaSailingCardRequestFindUnique.mockResolvedValue({
       cardYear: 2026,
       legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
         agreementHash: sailingCardAgreementHash(),
         agreementVersion: sailingCardAgreement.version,
         source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-        userId: 'user-1',
       },
       status: SailingCardRequestStatus.approved,
       userId: 'user-1',
@@ -693,10 +696,10 @@ describe('submitSailingCardOnboardingAction', () => {
       cardType: SailingCardType.normal,
       hasFitnessMembership: false,
       legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
         agreementHash: sailingCardAgreementHash(),
         agreementVersion: sailingCardAgreement.version,
         source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-        userId: 'user-1',
       },
       sailingAffiliation: SailingAffiliation.MIT_ALUM,
       status: SailingCardRequestStatus.pending,

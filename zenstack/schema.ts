@@ -291,6 +291,12 @@ export class SchemaType implements SchemaDef {
                     array: true,
                     relation: { opposite: "user" }
                 },
+                learnToSailWaitlistEntries: {
+                    name: "learnToSailWaitlistEntries",
+                    type: "LearnToSailWaitlistEntry",
+                    array: true,
+                    relation: { opposite: "user" }
+                },
                 legalAgreementAcceptances: {
                     name: "legalAgreementAcceptances",
                     type: "LegalAgreementAcceptance",
@@ -843,10 +849,29 @@ export class SchemaType implements SchemaDef {
                 userId: {
                     name: "userId",
                     type: "String",
+                    optional: true,
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("user_id") }] }] as readonly AttributeApplication[],
                     foreignKeyFor: [
                         "user"
                     ] as readonly string[]
+                },
+                acceptedUserId: {
+                    name: "acceptedUserId",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("accepted_user_id") }] }] as readonly AttributeApplication[]
+                },
+                acceptedUserName: {
+                    name: "acceptedUserName",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("accepted_user_name") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
+                },
+                acceptedUserEmail: {
+                    name: "acceptedUserEmail",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("accepted_user_email") }] }, { name: "@db.VarChar", args: [{ name: "x", value: ExpressionUtils.literal(255) }] }] as readonly AttributeApplication[]
                 },
                 source: {
                     name: "source",
@@ -899,8 +924,9 @@ export class SchemaType implements SchemaDef {
                 user: {
                     name: "user",
                     type: "User",
-                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
-                    relation: { opposite: "legalAgreementAcceptances", fields: ["userId"], references: ["id"], onDelete: "Cascade" }
+                    optional: true,
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "legalAgreementAcceptances", fields: ["userId"], references: ["id"], onDelete: "SetNull" }
                 },
                 sailingCardRequests: {
                     name: "sailingCardRequests",
@@ -911,9 +937,12 @@ export class SchemaType implements SchemaDef {
             },
             attributes: [
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId"), ExpressionUtils.field("source"), ExpressionUtils.field("acceptedAt")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("acceptedUserId"), ExpressionUtils.field("source"), ExpressionUtils.field("acceptedAt")]) }] },
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("LegalAgreementAcceptanceSource", [ExpressionUtils.field("source"), ExpressionUtils.field("sourceRecordId")]) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("userId"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("acceptedUserId"), "==", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.field("acceptedUserId"), "!=", ExpressionUtils.field("userId")))) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("userId"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("acceptedUserName"), "==", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.field("acceptedUserEmail"), "==", ExpressionUtils._null()))) }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("update,delete") }, { name: "condition", value: ExpressionUtils.literal(true) }] },
-                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"])), "||", ExpressionUtils.binary(ExpressionUtils.field("acceptedUserId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"])))) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin")), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_master"))) }] },
                 { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("legal_agreement_acceptances") }] }
             ] as readonly AttributeApplication[],
@@ -2837,6 +2866,18 @@ export class SchemaType implements SchemaDef {
                     optional: true,
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("external_entries_url") }] }] as readonly AttributeApplication[]
                 },
+                learnToSailManagedClassKind: {
+                    name: "learnToSailManagedClassKind",
+                    type: "LearnToSailManagedClassKind",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("none") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("learn_to_sail_managed_class_kind") }] }] as readonly AttributeApplication[],
+                    default: "none" as FieldDefault
+                },
+                selectionNote: {
+                    name: "selectionNote",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@trim" }, { name: "@length", args: [{ name: "max", value: ExpressionUtils.literal(160) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("selection_note") }] }, { name: "@db.VarChar", args: [{ name: "x", value: ExpressionUtils.literal(160) }] }] as readonly AttributeApplication[]
+                },
                 faqVisible: {
                     name: "faqVisible",
                     type: "Boolean",
@@ -3015,6 +3056,8 @@ export class SchemaType implements SchemaDef {
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventCategoryId")]) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.field("isPublished") }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("boatsPerTeam"), "<", ExpressionUtils.literal(1)), "||", ExpressionUtils.binary(ExpressionUtils.field("personsPerBoat"), "<", ExpressionUtils.literal(1))) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("learnToSailManagedClassKind"), "!=", ExpressionUtils.literal("none")), "&&", ExpressionUtils.binary(ExpressionUtils.field("registrationMode"), "!=", ExpressionUtils.literal("standard"))) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("learnToSailManagedClassKind"), "!=", ExpressionUtils.literal("none")), "&&", ExpressionUtils.unary("!", ExpressionUtils.field("requiresApproval"))) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read,update,delete") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin")), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_staff"))), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_master"))), "||", ExpressionUtils.binary(ExpressionUtils.field("admins"), "?", ExpressionUtils.binary(ExpressionUtils.field("adminUserId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))))) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("create") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin")), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_staff"))), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_master")))) }] },
                 { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("events") }] }
@@ -3123,6 +3166,94 @@ export class SchemaType implements SchemaDef {
                 eventId_adminUserId: { eventId: { type: "String" }, adminUserId: { type: "String" } }
             }
         },
+        LearnToSailWaitlistEntry: {
+            name: "LearnToSailWaitlistEntry",
+            fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    id: true,
+                    attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("cuid") as FieldDefault
+                },
+                seasonYear: {
+                    name: "seasonYear",
+                    type: "Int",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("season_year") }] }] as readonly AttributeApplication[]
+                },
+                userId: {
+                    name: "userId",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("user_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "user"
+                    ] as readonly string[]
+                },
+                activeEntryKey: {
+                    name: "activeEntryKey",
+                    type: "String",
+                    unique: true,
+                    optional: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("active_entry_key") }] }] as readonly AttributeApplication[]
+                },
+                sequence: {
+                    name: "sequence",
+                    type: "Int"
+                },
+                status: {
+                    name: "status",
+                    type: "LearnToSailWaitlistEntryStatus",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("active") }] }] as readonly AttributeApplication[],
+                    default: "active" as FieldDefault
+                },
+                joinedAt: {
+                    name: "joinedAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.call("now") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("joined_at") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("now") as FieldDefault
+                },
+                closedAt: {
+                    name: "closedAt",
+                    type: "DateTime",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("closed_at") }] }] as readonly AttributeApplication[]
+                },
+                closureReason: {
+                    name: "closureReason",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@trim" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("closure_reason") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
+                },
+                user: {
+                    name: "user",
+                    type: "User",
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "learnToSailWaitlistEntries", fields: ["userId"], references: ["id"], onDelete: "Cascade" }
+                },
+                eventRegistrations: {
+                    name: "eventRegistrations",
+                    type: "EventRegistration",
+                    array: true,
+                    relation: { opposite: "learnToSailWaitlistEntry" }
+                }
+            },
+            attributes: [
+                { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("Int", [ExpressionUtils.field("seasonYear"), ExpressionUtils.field("sequence")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("Int", [ExpressionUtils.field("seasonYear"), ExpressionUtils.field("status"), ExpressionUtils.field("sequence")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId"), ExpressionUtils.field("seasonYear")]) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin")), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_staff"))), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_master")))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read,create,update,delete") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin")), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_staff"))), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_master")))) }] },
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("learn_to_sail_waitlist_entries") }] }
+            ] as readonly AttributeApplication[],
+            idFields: ["id"],
+            uniqueFields: {
+                id: { type: "String" },
+                activeEntryKey: { type: "String" },
+                seasonYear_sequence: { seasonYear: { type: "Int" }, sequence: { type: "Int" } }
+            }
+        },
         EventRegistration: {
             name: "EventRegistration",
             fields: {
@@ -3173,6 +3304,21 @@ export class SchemaType implements SchemaDef {
                         "eventEntryFee"
                     ] as readonly string[]
                 },
+                learnToSailWaitlistEntryId: {
+                    name: "learnToSailWaitlistEntryId",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("learn_to_sail_waitlist_entry_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "learnToSailWaitlistEntry"
+                    ] as readonly string[]
+                },
+                learnToSailAuditPositionAtRequest: {
+                    name: "learnToSailAuditPositionAtRequest",
+                    type: "Int",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("learn_to_sail_audit_position_at_request") }] }] as readonly AttributeApplication[]
+                },
                 createdAt: {
                     name: "createdAt",
                     type: "DateTime",
@@ -3195,6 +3341,13 @@ export class SchemaType implements SchemaDef {
                     optional: true,
                     attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventEntryFeeId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
                     relation: { opposite: "registrations", fields: ["eventEntryFeeId"], references: ["id"], onDelete: "SetNull" }
+                },
+                learnToSailWaitlistEntry: {
+                    name: "learnToSailWaitlistEntry",
+                    type: "LearnToSailWaitlistEntry",
+                    optional: true,
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("learnToSailWaitlistEntryId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "eventRegistrations", fields: ["learnToSailWaitlistEntryId"], references: ["id"], onDelete: "SetNull" }
                 },
                 user: {
                     name: "user",
@@ -3230,6 +3383,7 @@ export class SchemaType implements SchemaDef {
             attributes: [
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventId")]) }] },
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventEntryFeeId")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("learnToSailWaitlistEntryId")]) }] },
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }] },
                 { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("id"), ExpressionUtils.field("eventId"), ExpressionUtils.field("userId")]) }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.field("event"), ["registrationMode"]), "!=", ExpressionUtils.literal("standard")) }] },
@@ -3951,15 +4105,15 @@ export class SchemaType implements SchemaDef {
                     name: "registration",
                     type: "EventRegistration",
                     optional: true,
-                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("registrationId"), ExpressionUtils.field("eventId"), ExpressionUtils.field("userId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id"), ExpressionUtils.field("eventId"), ExpressionUtils.field("userId")]) }, { name: "onDelete", value: ExpressionUtils.literal("Restrict") }] }] as readonly AttributeApplication[],
-                    relation: { opposite: "payment", fields: ["registrationId", "eventId", "userId"], references: ["id", "eventId", "userId"], onDelete: "Restrict" }
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("registrationId"), ExpressionUtils.field("eventId"), ExpressionUtils.field("userId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id"), ExpressionUtils.field("eventId"), ExpressionUtils.field("userId")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "payment", fields: ["registrationId", "eventId", "userId"], references: ["id", "eventId", "userId"], onDelete: "Cascade" }
                 },
                 user: {
                     name: "user",
                     type: "User",
                     optional: true,
-                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Restrict") }] }] as readonly AttributeApplication[],
-                    relation: { opposite: "payments", fields: ["userId"], references: ["id"], onDelete: "Restrict" }
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "payments", fields: ["userId"], references: ["id"], onDelete: "Cascade" }
                 },
                 selectedFee: {
                     name: "selectedFee",
@@ -4024,6 +4178,7 @@ export class SchemaType implements SchemaDef {
                 { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("legacySourceTable"), ExpressionUtils.field("legacySourceId")]) }] },
                 { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("registrationId"), ExpressionUtils.field("eventId"), ExpressionUtils.field("userId")]) }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("post-update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("eventId"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["eventId"])), "||", ExpressionUtils.binary(ExpressionUtils.field("registrationId"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["registrationId"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("userId"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["userId"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("selectedFeeId"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["selectedFeeId"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("selectedFeeDescription"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["selectedFeeDescription"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("cardYear"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["cardYear"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("membershipSubscriptionId"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["membershipSubscriptionId"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("membershipInitialPriceId"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["membershipInitialPriceId"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("membershipRenewalPriceId"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["membershipRenewalPriceId"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("membershipConsentSnapshot"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["membershipConsentSnapshot"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("activeCheckoutKey"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["activeCheckoutKey"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("legacySourceTable"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["legacySourceTable"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("legacySourceId"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["legacySourceId"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("legacyCategory"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["legacyCategory"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("legacyDescription"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["legacyDescription"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("legacySettled"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["legacySettled"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("payerName"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["payerName"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("payerEmail"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["payerEmail"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("amountCents"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["amountCents"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("currency"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["currency"]))) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("registrationId"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("eventId"), "==", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils._null()))) }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("purpose"), "==", ExpressionUtils.literal("event_payment")), "&&", ExpressionUtils.binary(ExpressionUtils.field("source"), "!=", ExpressionUtils.literal("legacy"))), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("eventId"), "==", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.field("registrationId"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("selectedFeeId"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("selectedFeeDescription"), "==", ExpressionUtils._null()))) }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("purpose"), "==", ExpressionUtils.literal("membership")), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("eventId"), "!=", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.field("registrationId"), "!=", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("selectedFeeId"), "!=", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("selectedFeeDescription"), "!=", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("source"), "!=", ExpressionUtils.literal("legacy")), "||", ExpressionUtils.binary(ExpressionUtils.field("status"), "!=", ExpressionUtils.literal("needs_review"))))), "||", ExpressionUtils.binary(ExpressionUtils.field("cardYear"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("cardType"), "==", ExpressionUtils._null()))) }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("source"), "==", ExpressionUtils.literal("legacy")), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("legacySourceTable"), "==", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.field("legacySourceTable"), "==", ExpressionUtils.literal(""))), "||", ExpressionUtils.binary(ExpressionUtils.field("legacySourceId"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("legacySourceId"), "==", ExpressionUtils.literal(""))), "||", ExpressionUtils.binary(ExpressionUtils.field("legacyCategory"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("legacyCategory"), "==", ExpressionUtils.literal(""))), "||", ExpressionUtils.binary(ExpressionUtils.field("legacyDescription"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("legacyDescription"), "==", ExpressionUtils.literal(""))), "||", ExpressionUtils.binary(ExpressionUtils.field("legacySettled"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("payerName"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("payerName"), "==", ExpressionUtils.literal(""))), "||", ExpressionUtils.binary(ExpressionUtils.field("payerEmail"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("payerEmail"), "==", ExpressionUtils.literal("")))) }] },
@@ -6844,6 +6999,29 @@ export class SchemaType implements SchemaDef {
                 standard: "standard",
                 external: "external"
             }
+        },
+        LearnToSailManagedClassKind: {
+            name: "LearnToSailManagedClassKind",
+            values: {
+                none: "none",
+                beginner_mid_week_123: "beginner_mid_week_123",
+                beginner_sunday_all_in_one: "beginner_sunday_all_in_one"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("learn_to_sail_managed_class_kind") }] }
+            ] as readonly AttributeApplication[]
+        },
+        LearnToSailWaitlistEntryStatus: {
+            name: "LearnToSailWaitlistEntryStatus",
+            values: {
+                active: "active",
+                left: "left",
+                closed_by_tech_rating: "closed_by_tech_rating",
+                expired: "expired"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("learn_to_sail_waitlist_entry_status") }] }
+            ] as readonly AttributeApplication[]
         },
         EventAddressPreset: {
             name: "EventAddressPreset",

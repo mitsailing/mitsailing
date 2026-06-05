@@ -2,7 +2,10 @@ import { render, screen } from '@testing-library/react';
 import { createTranslator } from 'next-intl';
 import type * as React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { EventRegistrationStatus } from '@/generated/prisma/enums';
+import {
+  EventRegistrationStatus,
+  LearnToSailManagedClassKind,
+} from '@/generated/prisma/enums';
 import messages from '@/locales/en.json';
 import { AdminEventShowView } from './AdminEventShowView';
 
@@ -66,6 +69,7 @@ function eventFixture(
     id: 'event-1',
     isPublished: true,
     isSpecial: false,
+    learnToSailManagedClassKind: LearnToSailManagedClassKind.none,
     maxParticipants: 12,
     name: 'Intro Sail',
     publicContentSections: [
@@ -104,8 +108,9 @@ function eventFixture(
           isDeposit: false,
         },
         id: 'registration-1',
+        learnToSailWaitlistNumber: null,
         payment: null,
-        phone: null,
+        phone: '617-555-0100',
         registrationTeam: null,
         boatMembers: [],
         status: EventRegistrationStatus.pending,
@@ -119,6 +124,7 @@ function eventFixture(
     ],
     requiresApproval: true,
     requiresPhone: false,
+    selectionNote: null,
     usesTeamRegistration: false,
     boatsPerTeam: 1,
     personsPerBoat: 1,
@@ -178,6 +184,21 @@ describe('AdminEventShowView', () => {
     ).toBeVisible();
     expect(screen.getByText('Adult entry')).toBeVisible();
     expect(screen.getByText('$150.00')).toBeVisible();
+  });
+
+  it('shows saved feedback after an admin event save', () => {
+    render(
+      <AdminEventShowView
+        errorCode={null}
+        event={eventFixture('editable')}
+        filter="all"
+        locale="en"
+        statusCode="saved"
+        t={t}
+      />
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('Event saved.');
   });
 
   it('renders remaining seats from confirmed registrations', () => {

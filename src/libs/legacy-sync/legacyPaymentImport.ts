@@ -8,6 +8,10 @@ import {
 } from '@/generated/prisma/enums';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
+import {
+  normalizeInternationalPhone,
+  normalizeUsPhone,
+} from '@/utils/phoneValidation';
 
 export type LegacyMemberRow = {
   readonly active: string | null;
@@ -83,6 +87,11 @@ type LegacySailingCardSnapshot = {
   readonly year: number;
 };
 
+type LegacyEmergencyContact = {
+  readonly emergencyContactName: string | null;
+  readonly emergencyContactPhone: string | null;
+};
+
 export type LegacyPaymentImportResult = {
   readonly cardRecordsMerged: number;
   readonly paymentsImported: number;
@@ -103,6 +112,42 @@ function stringValue(value: string | null | undefined): string {
 function nullableString(value: string | null | undefined): string | null {
   const normalized = stringValue(value);
   return normalized === '' ? null : normalized;
+}
+
+function nullableLegacyUsPhone(
+  value: string | null | undefined
+): string | null {
+  const rawPhone = nullableString(value);
+  if (!rawPhone) {
+    return null;
+  }
+  const phone = normalizeUsPhone(rawPhone);
+  return phone.ok ? phone.phone : null;
+}
+
+function legacyEmergencyContact(
+  name: string | null | undefined,
+  phone: string | null | undefined
+): LegacyEmergencyContact {
+  const emergencyContactName = nullableString(name);
+  const rawPhone = nullableString(phone);
+  if (!emergencyContactName || !rawPhone) {
+    return {
+      emergencyContactName: null,
+      emergencyContactPhone: null,
+    };
+  }
+  const emergencyContactPhone = normalizeInternationalPhone(rawPhone);
+  if (!emergencyContactPhone.ok) {
+    return {
+      emergencyContactName: null,
+      emergencyContactPhone: null,
+    };
+  }
+  return {
+    emergencyContactName,
+    emergencyContactPhone: emergencyContactPhone.phone,
+  };
 }
 
 function normalizeLegacyEmail(value: string | null | undefined): string {
@@ -234,10 +279,14 @@ function canonicalUserFromMembers(
       .filter((value) => isValidMitId(value))
   );
   const mitId = mitIds.size === 1 ? ([...mitIds].at(0) ?? null) : null;
+  const emergencyContact = legacyEmergencyContact(
+    profile?.emer_name,
+    profile?.emer_phone
+  );
   return {
     email,
-    emergencyContactName: nullableString(profile?.emer_name),
-    emergencyContactPhone: nullableString(profile?.emer_phone),
+    emergencyContactName: emergencyContact.emergencyContactName,
+    emergencyContactPhone: emergencyContact.emergencyContactPhone,
     firstName: nullableString(profile?.first),
     key,
     lastName: nullableString(profile?.last),
@@ -246,7 +295,7 @@ function canonicalUserFromMembers(
     legacyMemberRows: sorted,
     mitId,
     name: profile ? displayName(profile) : key,
-    phone: nullableString(profile?.phone),
+    phone: nullableLegacyUsPhone(profile?.phone),
     role: roleFromLegacyMemberType(profile?.memb_type),
   };
 }

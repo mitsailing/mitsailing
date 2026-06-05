@@ -11,6 +11,7 @@ export type EventRegistrationMutationCode =
   | 'not_found'
   | 'questions_required'
   | 'swim_agreement_required'
+  | 'waitlist_required'
   | 'unknown';
 
 const EVENT_REGISTRATION_MUTATION_CODES = [
@@ -20,6 +21,7 @@ const EVENT_REGISTRATION_MUTATION_CODES = [
   'not_found',
   'questions_required',
   'swim_agreement_required',
+  'waitlist_required',
   'unknown',
 ] as const satisfies readonly EventRegistrationMutationCode[];
 
@@ -36,6 +38,7 @@ const EVENT_REGISTRATION_MUTATION_MESSAGE_KEYS = {
   not_found: 'registration_error_not_found',
   questions_required: 'registration_error_questions_required',
   swim_agreement_required: 'registration_error_swim_agreement_required',
+  waitlist_required: 'registration_error_waitlist_required',
   unknown: 'registration_error_unknown',
 } as const satisfies Record<
   EventRegistrationMutationCode,

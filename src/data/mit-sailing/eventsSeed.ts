@@ -23,6 +23,11 @@ export type AnswerType = 'text' | 'select' | 'checkbox';
 
 /** How the public detail experience is served (legacy “custom vs standard web page”). */
 export type EventDetailPageKind = 'standard' | 'external';
+export type EventRegistrationMode = 'none' | 'standard' | 'external';
+export type LearnToSailManagedClassKind =
+  | 'none'
+  | 'beginner_mid_week_123'
+  | 'beginner_sunday_all_in_one';
 
 export type Event = {
   id: string;
@@ -44,6 +49,9 @@ export type Event = {
   detail_page_kind?: EventDetailPageKind;
   /** When `detail_page_kind` is `external`, destination URL (https…). */
   external_detail_url?: string | null;
+  registration_mode?: EventRegistrationMode;
+  learn_to_sail_managed_class_kind?: LearnToSailManagedClassKind;
+  selection_note?: string | null;
   /**
    * When false, the event is hidden from the public calendar and registration
    * is disabled; the `/events/:slug` URL still works for anyone with the link.
@@ -352,6 +360,94 @@ export const EVENT_CATEGORIES: EventCategory[] = [
 /* Events — the legacy entries remapped to new MITNA categories + 3 new demos. */
 /* -------------------------------------------------------------------------- */
 
+const LTS_PRIORITY_QUEUE_LEGACY_HREF =
+  'https://sailing.mit.edu/calendar/events/event.php?id=484a231d05ee0b8331980daf4c1749fb';
+
+function learnToSailWeekdayLegacyDescription(props: {
+  firstClassLine: string;
+  registrationCloseLine: string;
+  secondClassLine: string;
+  thirdClassLine: string;
+}): string {
+  return `<p>This three-day <em><strong>beginner</strong></em> course will be conducted in our new Tech Dinghies and is open to members of the MIT community who have access to DAPER facilities,</p>
+
+<p>which includes all registered students who are new to sailing.</p>
+
+<p>Participants must be available for all three consecutive classes in the same week as each class will build on the previous day's skills.&nbsp;</p>
+
+<p>DATE&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; START&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; END</p>
+
+<p>${props.firstClassLine}</p>
+
+<p>${props.secondClassLine}</p>
+
+<p>${props.thirdClassLine}</p>
+
+<p>&nbsp;</p>
+
+<p><strong>Registration</strong></p>
+
+<p>Registration for this set of classes (note the above dates)&nbsp;will run</p>
+
+<p>from&nbsp;<strong>${props.registrationCloseLine}</strong></p>
+
+<p><strong>Confirmations</strong>&nbsp;for class spots will be based on your position in the<strong> <a href="${LTS_PRIORITY_QUEUE_LEGACY_HREF}" target="_blank">Priority Queue</a>&nbsp;AND whether you have a current Athletic Membership (included for all MIT students).</strong></p>
+
+<p>Please register for the Priority Queue before signing up for a class.</p>
+
+<p><strong>Registering for this event&nbsp;</strong>(<em><strong>Registration</strong></em>&nbsp;on Red/Yellow menu above)&nbsp;<strong>does not confirm your entry into the class.</strong></p>
+
+<p><strong>You will receive an email stating whether you have been confirmed or not.</strong>&nbsp;</p>
+
+<p><strong>Beginners must be available to take Classes 1, 2, and 3 on consecutive afternoons.</strong></p>
+
+<p>&nbsp;</p>
+
+<p><strong>For the first day of class:</strong></p>
+
+<ul>
+  <li>Come dressed ready to sail on day 1! Bring extra layers for evening temps and a rain jacket if there's a chance of showers.</li>
+  <li>You must bring a valid MIT ID&nbsp;</li>
+  <li>You&nbsp;<strong>must be able to swim</strong>&nbsp;&mdash; no exceptions. You should be able to meet the standard MITNA&nbsp;<a href="http://sailing.mit.edu/card/swim.php">swimming requirement</a>, but do not need to present proof.</li>
+  <li>Pre-registration is required. Click the &quot;Registration&quot; link above (when available) to register.</li>
+</ul>
+
+<p>&nbsp;</p>`;
+}
+
+const LTS_WEEKDAY_APR_14_DESCRIPTION = learnToSailWeekdayLegacyDescription({
+  firstClassLine:
+    'Tuesday, Apr 14th&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 5:30pm&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;7:30pm',
+  registrationCloseLine:
+    'Midnight (12:00:01 am) to 10 am&nbsp;on Monday, Apr 13th.',
+  secondClassLine:
+    'Wednesday, Apr 15th&nbsp; &nbsp; &nbsp; &nbsp;5:30pm&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;7:30pm',
+  thirdClassLine:
+    'Thursday, Apr 16th&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 5:30pm&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;7:30pm',
+});
+
+const LTS_WEEKDAY_APR_21_DESCRIPTION = learnToSailWeekdayLegacyDescription({
+  firstClassLine:
+    'Tuesday, Apr 21st&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 5:30pm&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;7:30pm',
+  registrationCloseLine:
+    'Midnight (12:00:01 am) to 10 am&nbsp;on Monday, Apr 20th.',
+  secondClassLine:
+    'Wednesday, Apr 22nd&nbsp; &nbsp; &nbsp; &nbsp;5:30pm&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;7:30pm',
+  thirdClassLine:
+    'Thursday, Apr&nbsp;23rd &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;5:30pm&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;7:30pm',
+});
+
+const LTS_WEEKDAY_MAY_5_DESCRIPTION = learnToSailWeekdayLegacyDescription({
+  firstClassLine:
+    'Tuesday, May 5th&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 5:30pm&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;7:30pm',
+  registrationCloseLine:
+    'Midnight (12:00:01 am) to 10 am&nbsp;on Monday, May 4th.',
+  secondClassLine:
+    'Wednesday, May 6th&nbsp; &nbsp; &nbsp; &nbsp;5:30pm&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;7:30pm',
+  thirdClassLine:
+    'Thursday, May 7th&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 5:30pm&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;7:30pm',
+});
+
 export const EVENTS: Event[] = [
   {
     id: 'evt-dinghy-cup',
@@ -371,8 +467,8 @@ export const EVENTS: Event[] = [
   },
   {
     id: 'evt-lts-allinone',
-    name: 'Learn to Sail — All-in-One',
-    short_name: 'LTS All-in-One',
+    name: 'Learn to Sail Class - All-in-One',
+    short_name: 'Learn-to-Sail All-in-One',
     event_category_id: 'cat-learn-to-series',
     description:
       "Beginner-friendly full day covering rigging, points of sail, and supervised practice. Life jackets and boats provided — bring clothes you don't mind getting wet.",
@@ -386,56 +482,58 @@ export const EVENTS: Event[] = [
     is_published: true,
   },
   /**
-   * Learn to Sail — Weekday runs as an independent 3-day cohort (Tue/Wed/Thu).
+   * Learn to Sail Class 1-2-3 runs as an independent 3-day cohort (Tue/Wed/Thu).
    * Each week is its own event with its own slug and its own registrations —
-   * a participant who signs up for the Apr 7–9 cohort is separate from one
-   * in the Apr 14–16 cohort.
+   * the dates stay in event date rows, matching the legacy schema shape.
    */
   {
-    id: 'evt-lts-weekday-apr-7',
-    name: 'Learn to Sail — Weekday (Apr 7–9)',
-    short_name: 'LTS Weekday · Apr 7',
-    event_category_id: 'cat-pe-class',
-    description:
-      'Three consecutive afternoon sessions (Tue/Wed/Thu) on Tech Dinghies; life jackets provided. Counts toward a provisional rating.',
-    slug: 'learn-to-sail-weekday-apr-7',
-    is_special: false,
-    max_participants: 12,
-    requires_approval: false,
-    registration_start: '2026-03-15T04:00:00.000Z',
-    registration_end: '2026-04-06T03:59:59.000Z',
-    created_at: '2026-01-06T15:05:00.000Z',
-    is_published: true,
-  },
-  {
     id: 'evt-lts-weekday-apr-14',
-    name: 'Learn to Sail — Weekday (Apr 14–16)',
-    short_name: 'LTS Weekday · Apr 14',
+    name: 'Learn to Sail Class - Tech Dinghy for Beginners',
+    short_name: 'Learn-to-Sail Class 1-2-3',
     event_category_id: 'cat-pe-class',
-    description:
-      'Three consecutive afternoon sessions (Tue/Wed/Thu) on Tech Dinghies; life jackets provided. Counts toward a provisional rating.',
+    description: LTS_WEEKDAY_APR_14_DESCRIPTION,
     slug: 'learn-to-sail-weekday-apr-14',
     is_special: false,
-    max_participants: 12,
-    requires_approval: false,
-    registration_start: '2026-03-22T04:00:00.000Z',
-    registration_end: '2026-04-13T03:59:59.000Z',
+    max_participants: 8,
+    requires_approval: true,
+    registration_start: '2026-04-13T04:00:01.000Z',
+    registration_end: '2026-04-13T14:00:00.000Z',
+    learn_to_sail_managed_class_kind: 'beginner_mid_week_123',
+    selection_note: 'Decisions Monday afternoon',
     created_at: '2026-01-06T15:05:00.000Z',
     is_published: true,
   },
   {
     id: 'evt-lts-weekday-apr-21',
-    name: 'Learn to Sail — Weekday (Apr 21–23)',
-    short_name: 'LTS Weekday · Apr 21',
+    name: 'Learn to Sail Class - Tech Dinghy for Beginners',
+    short_name: 'Learn-to-Sail Class 1-2-3',
     event_category_id: 'cat-pe-class',
-    description:
-      'Three consecutive afternoon sessions (Tue/Wed/Thu) on Tech Dinghies; life jackets provided. Counts toward a provisional rating.',
+    description: LTS_WEEKDAY_APR_21_DESCRIPTION,
     slug: 'learn-to-sail-weekday-apr-21',
     is_special: false,
-    max_participants: 12,
-    requires_approval: false,
-    registration_start: '2026-03-29T04:00:00.000Z',
-    registration_end: '2026-04-20T03:59:59.000Z',
+    max_participants: 10,
+    requires_approval: true,
+    registration_start: '2026-04-20T04:00:01.000Z',
+    registration_end: '2026-04-20T14:00:00.000Z',
+    learn_to_sail_managed_class_kind: 'beginner_mid_week_123',
+    selection_note: 'Decisions Monday afternoon',
+    created_at: '2026-01-06T15:05:00.000Z',
+    is_published: true,
+  },
+  {
+    id: 'evt-lts-weekday-may-5',
+    name: 'Learn to Sail Class - Tech Dinghy for Beginners',
+    short_name: 'Learn-to-Sail Class 1-2-3',
+    event_category_id: 'cat-pe-class',
+    description: LTS_WEEKDAY_MAY_5_DESCRIPTION,
+    slug: 'learn-to-sail-weekday-may-5',
+    is_special: false,
+    max_participants: 14,
+    requires_approval: true,
+    registration_start: '2026-05-04T04:00:01.000Z',
+    registration_end: '2026-05-04T14:00:00.000Z',
+    learn_to_sail_managed_class_kind: 'beginner_mid_week_123',
+    selection_note: 'Decisions Monday afternoon',
     created_at: '2026-01-06T15:05:00.000Z',
     is_published: true,
   },
@@ -604,143 +702,143 @@ function pushRow(
 function buildCatalogEventDates(): EventDate[] {
   const rows: EventDate[] = [];
 
-  /* Learn to Sail — Weekday cohorts (1–4 pm ET, Tue/Wed/Thu of a single week). */
-  /* Cohort 1 — Apr 7, 8, 9 (Tue, Wed, Thu) */
-  pushRow(
-    rows,
-    'ed-lts-wd-2026-04-07',
-    'evt-lts-weekday-apr-7',
-    '2026-04-07',
-    13,
-    0,
-    '2026-04-07',
-    16,
-    0
-  );
-  pushRow(
-    rows,
-    'ed-lts-wd-2026-04-08',
-    'evt-lts-weekday-apr-7',
-    '2026-04-08',
-    13,
-    0,
-    '2026-04-08',
-    16,
-    0
-  );
-  pushRow(
-    rows,
-    'ed-lts-wd-2026-04-09',
-    'evt-lts-weekday-apr-7',
-    '2026-04-09',
-    13,
-    0,
-    '2026-04-09',
-    16,
-    0
-  );
-  /* Cohort 2 — Apr 14, 15, 16 */
+  /* Learn-to-Sail Class 1-2-3 cohorts (5:30–7:30 pm ET, Tue/Wed/Thu). */
+  /* Cohort 1 — Apr 14, 15, 16 */
   pushRow(
     rows,
     'ed-lts-wd-2026-04-14',
     'evt-lts-weekday-apr-14',
     '2026-04-14',
-    13,
-    0,
+    17,
+    30,
     '2026-04-14',
-    16,
-    0
+    19,
+    30
   );
   pushRow(
     rows,
     'ed-lts-wd-2026-04-15',
     'evt-lts-weekday-apr-14',
     '2026-04-15',
-    13,
-    0,
+    17,
+    30,
     '2026-04-15',
-    16,
-    0
+    19,
+    30
   );
   pushRow(
     rows,
     'ed-lts-wd-2026-04-16',
     'evt-lts-weekday-apr-14',
     '2026-04-16',
-    13,
-    0,
+    17,
+    30,
     '2026-04-16',
-    16,
-    0
+    19,
+    30
   );
-  /* Cohort 3 — Apr 21, 22, 23 */
+  /* Cohort 2 — Apr 21, 22, 23 */
   pushRow(
     rows,
     'ed-lts-wd-2026-04-21',
     'evt-lts-weekday-apr-21',
     '2026-04-21',
-    13,
-    0,
+    17,
+    30,
     '2026-04-21',
-    16,
-    0
+    19,
+    30
   );
   pushRow(
     rows,
     'ed-lts-wd-2026-04-22',
     'evt-lts-weekday-apr-21',
     '2026-04-22',
-    13,
-    0,
+    17,
+    30,
     '2026-04-22',
-    16,
-    0
+    19,
+    30
   );
   pushRow(
     rows,
     'ed-lts-wd-2026-04-23',
     'evt-lts-weekday-apr-21',
     '2026-04-23',
-    13,
-    0,
+    17,
+    30,
     '2026-04-23',
-    16,
-    0
+    19,
+    30
+  );
+  /* Cohort 3 — May 5, 6, 7 */
+  pushRow(
+    rows,
+    'ed-lts-wd-2026-05-05',
+    'evt-lts-weekday-may-5',
+    '2026-05-05',
+    17,
+    30,
+    '2026-05-05',
+    19,
+    30
+  );
+  pushRow(
+    rows,
+    'ed-lts-wd-2026-05-06',
+    'evt-lts-weekday-may-5',
+    '2026-05-06',
+    17,
+    30,
+    '2026-05-06',
+    19,
+    30
+  );
+  pushRow(
+    rows,
+    'ed-lts-wd-2026-05-07',
+    'evt-lts-weekday-may-5',
+    '2026-05-07',
+    17,
+    30,
+    '2026-05-07',
+    19,
+    30
   );
 
-  /* Learn to Sail — All-in-One (10 am–4 pm ET) */
+  /* Learn-to-Sail All-in-One (9:45 am–3:30 pm ET) */
   pushRow(
     rows,
     'ed-lts-ai-2026-05-16',
     'evt-lts-allinone',
     '2026-05-16',
-    10,
-    0,
+    9,
+    45,
     '2026-05-16',
-    16,
-    0
+    15,
+    30
   );
   pushRow(
     rows,
     'ed-lts-ai-2026-07-11',
     'evt-lts-allinone',
     '2026-07-11',
-    10,
-    0,
+    9,
+    45,
     '2026-07-11',
-    16,
-    0
+    15,
+    30
   );
   pushRow(
     rows,
     'ed-lts-ai-2026-09-05',
     'evt-lts-allinone',
     '2026-09-05',
-    10,
-    0,
+    9,
+    45,
     '2026-09-05',
-    16,
-    0
+    15,
+    30
   );
 
   /* Boston Dinghy Cup (9 am–5 pm ET, two days) */
@@ -965,11 +1063,6 @@ export const EVENT_ADMINS: EventAdmin[] = [
     admin_user_id: 'user-fritz',
   },
   {
-    id: 'ea-lts-wd-1-apr-7',
-    event_id: 'evt-lts-weekday-apr-7',
-    admin_user_id: 'user-fritz',
-  },
-  {
     id: 'ea-lts-wd-1-apr-14',
     event_id: 'evt-lts-weekday-apr-14',
     admin_user_id: 'user-fritz',
@@ -977,6 +1070,11 @@ export const EVENT_ADMINS: EventAdmin[] = [
   {
     id: 'ea-lts-wd-1-apr-21',
     event_id: 'evt-lts-weekday-apr-21',
+    admin_user_id: 'user-fritz',
+  },
+  {
+    id: 'ea-lts-wd-1-may-5',
+    event_id: 'evt-lts-weekday-may-5',
     admin_user_id: 'user-fritz',
   },
   {
@@ -1228,7 +1326,7 @@ const RAW_EVENT_REGISTRATIONS: Omit<
     status: 'approved',
     created_at: '2026-02-25T18:20:00.000Z',
   },
-  /* LTS All-in-One — auto-approved */
+  /* Learn-to-Sail All-in-One — auto-approved */
   {
     id: 'reg-ltsai-ehwang',
     event_id: 'evt-lts-allinone',
@@ -1258,42 +1356,42 @@ const RAW_EVENT_REGISTRATIONS: Omit<
     status: 'pending',
     created_at: '2026-04-12T13:00:00.000Z',
   },
-  /* Learn to Sail — Weekday, Apr 7–9 cohort (auto-approved) */
+  /* Learn-to-Sail Class 1-2-3, Apr 14-16 cohort */
   {
-    id: 'reg-ltswd-a7-jchen',
-    event_id: 'evt-lts-weekday-apr-7',
+    id: 'reg-ltswd-a14-jchen',
+    event_id: 'evt-lts-weekday-apr-14',
     user_id: 'user-jchen',
     status: 'approved',
-    created_at: '2026-03-16T10:00:00.000Z',
+    created_at: '2026-04-13T04:00:01.000Z',
   },
   {
-    id: 'reg-ltswd-a7-ehwang',
-    event_id: 'evt-lts-weekday-apr-7',
+    id: 'reg-ltswd-a14-ehwang',
+    event_id: 'evt-lts-weekday-apr-14',
     user_id: 'user-ehwang',
     status: 'approved',
-    created_at: '2026-03-17T14:25:00.000Z',
+    created_at: '2026-04-13T12:25:00.000Z',
   },
   {
-    id: 'reg-ltswd-a7-dnguyen',
-    event_id: 'evt-lts-weekday-apr-7',
+    id: 'reg-ltswd-a14-dnguyen',
+    event_id: 'evt-lts-weekday-apr-14',
     user_id: 'user-dnguyen',
     status: 'cancelled',
-    created_at: '2026-03-18T08:10:00.000Z',
+    created_at: '2026-04-13T13:55:00.000Z',
   },
-  /* Learn to Sail — Weekday, Apr 14–16 cohort */
+  /* Learn-to-Sail Class 1-2-3, Apr 21-23 cohort */
   {
-    id: 'reg-ltswd-a14-spark',
-    event_id: 'evt-lts-weekday-apr-14',
+    id: 'reg-ltswd-a21-spark',
+    event_id: 'evt-lts-weekday-apr-21',
     user_id: 'user-spark',
     status: 'approved',
-    created_at: '2026-03-25T09:00:00.000Z',
+    created_at: '2026-04-20T04:00:01.000Z',
   },
   {
-    id: 'reg-ltswd-a14-rstein',
-    event_id: 'evt-lts-weekday-apr-14',
+    id: 'reg-ltswd-a21-rstein',
+    event_id: 'evt-lts-weekday-apr-21',
     user_id: 'user-rstein',
     status: 'approved',
-    created_at: '2026-03-26T12:30:00.000Z',
+    created_at: '2026-04-20T13:30:00.000Z',
   },
 ];
 
@@ -1333,7 +1431,7 @@ export const EVENT_REGISTRATION_ANSWERS: EventRegistrationAnswer[] = [
     question_id: 'q-bluewater-role',
     value: 'Sail trim',
   },
-  /* LTS All-in-One answers */
+  /* Learn-to-Sail All-in-One answers */
   {
     id: 'ra-ltsai-ehwang-shirt',
     registration_id: 'reg-ltsai-ehwang',

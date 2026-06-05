@@ -9,9 +9,35 @@ import {
   EventDetailPageKind,
   EventRegistrationMode,
   EventSailingCardRequirement,
+  LearnToSailManagedClassKind,
 } from '@/generated/prisma/enums';
 import messages from '@/locales/en.json';
 import { AdminEventFormView } from './AdminEventFormView';
+
+const mocks = vi.hoisted(() => ({
+  AdminRichTextEditor: vi.fn(
+    (props: {
+      defaultValue: string;
+      fieldId: string;
+      fieldKey: string;
+      label: string;
+    }) => (
+      <div data-testid={`rich-editor-${props.fieldKey}`}>
+        <label htmlFor={props.fieldId}>{props.label}</label>
+        <input
+          data-field-id={props.fieldId}
+          name={props.fieldKey}
+          type="hidden"
+          value={props.defaultValue}
+        />
+      </div>
+    )
+  ),
+}));
+
+vi.mock('@/components/mit-sailing/admin/catalog/AdminRichTextEditor', () => ({
+  AdminRichTextEditor: mocks.AdminRichTextEditor,
+}));
 
 vi.mock('@/libs/admin/events/eventAdminActions', () => ({
   addAdminEventDateAction: vi.fn(),
@@ -101,6 +127,7 @@ function createEventFixture(
     id: 'event-1',
     isPublished: true,
     isSpecial: false,
+    learnToSailManagedClassKind: LearnToSailManagedClassKind.none,
     maxParticipants: null,
     name: 'Intro Sail',
     noticeOfRaceContent: '',
@@ -122,6 +149,7 @@ function createEventFixture(
     resultsContent: '',
     resultsVisible: false,
     sailingCardRequirement: EventSailingCardRequirement.NONE,
+    selectionNote: null,
     sailingInstructionsContent: '',
     sailingInstructionsVisible: false,
     shortName: '',
@@ -133,7 +161,8 @@ function createEventFixture(
 
 function renderView(
   accessMode: AdminEventFormViewProps['accessMode'],
-  eventOverrides: Partial<AdminEventFixture> = {}
+  eventOverrides: Partial<AdminEventFixture> = {},
+  statusCode: AdminEventFormViewProps['statusCode'] = null
 ) {
   return render(
     <AdminEventFormView
@@ -142,6 +171,7 @@ function renderView(
       errorCode={null}
       event={createEventFixture(eventOverrides)}
       locale="en"
+      statusCode={statusCode}
       t={t}
       tCommon={tCommon}
       users={[
@@ -166,6 +196,12 @@ describe('AdminEventFormView', () => {
     expect(
       screen.getByRole('link', { name: 'Back to events' })
     ).toHaveAttribute('href', '/admin/events/intro-sail');
+  });
+
+  it('shows saved feedback after saving and continuing to edit', () => {
+    renderView('editable', {}, 'saved');
+
+    expect(screen.getByRole('status')).toHaveTextContent('Event saved.');
   });
 
   it('links read-only users back to the event index', () => {
@@ -241,7 +277,7 @@ describe('AdminEventFormView', () => {
 
   it('uses public content disclosure state without a separate visibility checkbox', () => {
     const view = renderView('editable', {
-      faqContent: 'Answers for sailors',
+      faqContent: '<p>Answers for <strong>sailors</strong></p>',
       faqVisible: true,
     });
     const faqVisibleInput = view.container.querySelector(
@@ -250,7 +286,48 @@ describe('AdminEventFormView', () => {
 
     expect(screen.queryByLabelText('Show on public event page')).toBeNull();
     expect(faqVisibleInput).toHaveAttribute('value', 'true');
-    expect(view.container.querySelector('#event-faq-content')).toBeVisible();
+    expect(
+      view.container.querySelector('input[name="faqContent"][type="hidden"]')
+    ).toHaveValue('<p>Answers for <strong>sailors</strong></p>');
+    expect(
+      view.container.querySelector('textarea[name="faqContent"]')
+    ).toBeNull();
+  });
+
+  it('edits public event HTML fields with rich text editors', () => {
+    const view = renderView('editable', {
+      description: '<p>Learn <strong>fast</strong>.</p>',
+      faqContent: '<p>FAQ <em>details</em>.</p>',
+      faqVisible: true,
+      noticeOfRaceContent: '<p>Notice text.</p>',
+      noticeOfRaceVisible: true,
+      resultsContent: '<p>Final scores.</p>',
+      resultsVisible: true,
+      sailingInstructionsContent: '<ul><li>Check in.</li></ul>',
+      sailingInstructionsVisible: true,
+    });
+
+    expect(
+      view.container.querySelector('input[name="description"][type="hidden"]')
+    ).toHaveValue('<p>Learn <strong>fast</strong>.</p>');
+    expect(
+      view.container.querySelector('textarea[name="description"]')
+    ).toBeNull();
+    for (const fieldName of [
+      'faqContent',
+      'noticeOfRaceContent',
+      'sailingInstructionsContent',
+      'resultsContent',
+    ]) {
+      expect(
+        view.container.querySelector(
+          `input[name="${fieldName}"][type="hidden"]`
+        )
+      ).not.toBeNull();
+      expect(
+        view.container.querySelector(`textarea[name="${fieldName}"]`)
+      ).toBeNull();
+    }
   });
 
   it('hides internal notes and mutation controls for read-only access', () => {

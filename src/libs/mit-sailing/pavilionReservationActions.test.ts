@@ -87,7 +87,7 @@ function validFormData(): FormData {
   formData.set('firstName', 'Pavilion');
   formData.set('lastName', 'Requester');
   formData.set('phone', '617-555-0142');
-  formData.set('eventName', 'Late night pavilion booking');
+  formData.set('eventName', 'Late Night Pavilion Booking');
   formData.set('groupName', '');
   formData.set('groupSize', '12');
   formData.set('description', 'A waterfront event.');
@@ -258,6 +258,39 @@ describe('submitPavilionReservationRequestAction', () => {
       expect.any(String)
     );
     expect(txExecuteRaw.mock.calls[0]?.[1]).not.toContain('\0');
+  });
+
+  it('preserves event name casing while deduplicating case-insensitively', async () => {
+    setPavilionReservationSystemTime();
+    const { submitPavilionReservationRequestAction } =
+      await import('@/libs/mit-sailing/pavilionReservationActions');
+
+    const result = await submitPavilionReservationRequestAction(
+      'en',
+      { errors: [], status: 'idle' } satisfies PavilionReservationSubmitState,
+      validFormData()
+    );
+
+    expect(result.status).toBe('confirmed');
+    expect(findFirstReservation).toHaveBeenCalledWith({
+      select: { id: true },
+      where: {
+        createdAt: { gte: new Date('2026-06-29T03:55:00.000Z') },
+        eventName: {
+          equals: 'Late Night Pavilion Booking',
+          mode: 'insensitive',
+        },
+        requesterEmail: 'pavilion-requester@example.com',
+      },
+    });
+    expect(txExecuteRaw.mock.calls[0]?.[1]).toContain(
+      'late night pavilion booking'
+    );
+    expect(requestCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        eventName: 'Late Night Pavilion Booking',
+      }),
+    });
   });
 
   it('schedules submitted email for background retry after confirmed persistence', async () => {

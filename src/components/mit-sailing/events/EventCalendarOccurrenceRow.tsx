@@ -3,8 +3,10 @@ import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
 import { formatEasternEventCalendarLine } from '@/libs/mit-sailing/easternTimeFormat';
 import type { EventCalendarOccurrenceRow as EventCalendarOccurrence } from '@/libs/mit-sailing/eventCalendar';
+import { eventUsesLearnToSailWaitlist } from '@/libs/mit-sailing/learnToSailEvents';
 
 type EventCalendarOccurrenceRowProps = {
+  learnToSailWaitlistLabel?: string;
   row: EventCalendarOccurrence;
   showBottomBorder: boolean;
   wrapTitle?: boolean;
@@ -17,6 +19,7 @@ type EventCalendarOccurrenceRowProps = {
 export function EventCalendarOccurrenceRow(
   props: EventCalendarOccurrenceRowProps
 ) {
+  const usesLearnToSailWaitlist = eventUsesLearnToSailWaitlist(props.row.event);
   return (
     <div
       className={cn(
@@ -32,22 +35,9 @@ export function EventCalendarOccurrenceRow(
         )}
       />
       <div className="min-w-0 flex-1">
-        <p className="mb-0.5 text-[0.6875rem] leading-tight font-semibold tracking-wide text-muted-foreground uppercase">
-          {props.row.category.name}
-        </p>
-        <Link
-          className={cn(
-            'block text-sm leading-tight font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink',
-            textFocusRingClassName,
-            '[overflow-wrap:anywhere] whitespace-normal'
-          )}
-          href={`/events/${props.row.event.slug}/`}
-        >
-          {props.row.event.name}
-        </Link>
         <p
           className={cn(
-            'mt-0.5 text-xs leading-snug text-mit-text',
+            'mb-0.5 text-xs leading-snug font-semibold text-mit-text',
             props.wrapTitle
               ? '[overflow-wrap:anywhere]'
               : '[overflow-wrap:anywhere] whitespace-normal'
@@ -58,6 +48,24 @@ export function EventCalendarOccurrenceRow(
             end: props.row.end,
             segment: props.row.listSegment,
           })}
+        </p>
+        <Link
+          className={cn(
+            'flex min-h-11 items-center text-sm leading-tight font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink',
+            textFocusRingClassName,
+            '[overflow-wrap:anywhere] whitespace-normal'
+          )}
+          href={`/events/${props.row.event.slug}`}
+        >
+          {props.row.event.shortName}
+        </Link>
+        <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[0.6875rem] leading-tight font-semibold text-muted-foreground">
+          <span>{props.row.category.name}</span>
+          {usesLearnToSailWaitlist && props.learnToSailWaitlistLabel ? (
+            <span className="rounded-full bg-mit-red-highlight px-1.5 py-0.5 text-[0.625rem] text-mit-red">
+              {props.learnToSailWaitlistLabel}
+            </span>
+          ) : null}
         </p>
       </div>
     </div>

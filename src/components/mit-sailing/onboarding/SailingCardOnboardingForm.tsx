@@ -24,7 +24,7 @@ function OnboardingFormErrorAlert(props: {
 
   return (
     <div
-      className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-6 text-destructive"
+      className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm leading-6 font-medium text-red-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:text-red-100"
       role="alert"
     >
       {t(props.formError)}

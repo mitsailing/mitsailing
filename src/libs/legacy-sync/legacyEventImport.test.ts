@@ -4,6 +4,7 @@ import type { LegacyMemberRow } from '@/libs/legacy-sync/legacyPaymentImport';
 
 const mocks = vi.hoisted(() => ({
   eventCategoryUpsert: vi.fn(),
+  eventFindUnique: vi.fn(),
   eventUpsert: vi.fn(),
   executeRaw: vi.fn(),
   loggerWarn: vi.fn(),
@@ -66,6 +67,10 @@ function allSqlValues(): unknown[] {
   );
 }
 
+const legacyEventId = '4efb80f630ccecb2d3b9b2087b0f9c89';
+const otherLegacyEventId = '415185ea244ea2b2bedeb0449b926802';
+const missingCategoryLegacyEventId = 'baed9f51d412c2514ee46a0942138ad6';
+
 function legacyMember(
   overrides: Partial<LegacyMemberRow> = {}
 ): LegacyMemberRow {
@@ -101,16 +106,17 @@ function legacyEventRow(
     ask_notes: null,
     boat_size: '3',
     deposit: null,
-    description: 'Legacy racing weekend',
+    description:
+      '<p>Legacy <strong>racing</strong> weekend</p><script>alert("x")</script>',
     desc_type: null,
-    eid: overrides.eid ?? '101',
+    eid: overrides.eid ?? legacyEventId,
     event_type: overrides.event_type ?? '1',
-    faq: 'FAQ body',
+    faq: '<p>FAQ <em>body</em></p><script>alert("faq")</script>',
     faq_page: '1',
     has_fee: '1',
     menu: '1',
     name: 'Legacy Racing Weekend',
-    nor: 'Notice body',
+    nor: '<p>Notice body</p><script>alert("notice")</script>',
     nor_page: '1',
     phone: '1',
     reg_approve: '1',
@@ -124,9 +130,9 @@ function legacyEventRow(
     reg_urlentries: null,
     reg_urlreg: null,
     res_page: '1',
-    results: 'Results body',
+    results: '<p>Results body</p><script>alert("results")</script>',
     short_name: 'Legacy Race',
-    si: 'Instructions body',
+    si: '<ul><li>Instructions body</li></ul><script>alert("si")</script>',
     si_page: '1',
     special: '1',
     team_size: '2',
@@ -139,6 +145,7 @@ describe('importLegacyEventRows', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.executeRaw.mockResolvedValue(0);
+    mocks.eventFindUnique.mockResolvedValue(null);
     mocks.queryRaw.mockResolvedValue([]);
     mocks.userFindMany.mockResolvedValue([]);
     mocks.transaction.mockImplementation(
@@ -146,7 +153,10 @@ describe('importLegacyEventRows', () => {
         operation({
           $executeRaw: mocks.executeRaw,
           $queryRaw: mocks.queryRaw,
-          event: { upsert: mocks.eventUpsert },
+          event: {
+            findUnique: mocks.eventFindUnique,
+            upsert: mocks.eventUpsert,
+          },
           eventCategory: { upsert: mocks.eventCategoryUpsert },
           user: { findMany: mocks.userFindMany },
         })
@@ -179,6 +189,10 @@ describe('importLegacyEventRows', () => {
     expect(mocks.eventCategoryUpsert).not.toHaveBeenCalled();
     expect(mocks.eventUpsert).not.toHaveBeenCalled();
     expect(mocks.executeRaw).toHaveBeenCalled();
+    expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), {
+      maxWait: 10_000,
+      timeout: 120_000,
+    });
   });
 
   it('imports event dates as New York wall-clock instants', async () => {
@@ -192,7 +206,7 @@ describe('importLegacyEventRows', () => {
         dates: [
           {
             date: '2026-07-01',
-            eid: '101',
+            eid: legacyEventId,
             end: '10:30:00',
             start: '09:00:00',
           },
@@ -204,7 +218,7 @@ describe('importLegacyEventRows', () => {
             deposit: null,
             description: 'Summer race',
             desc_type: null,
-            eid: '101',
+            eid: legacyEventId,
             event_type: '1',
             faq: null,
             faq_page: null,
@@ -258,6 +272,73 @@ describe('importLegacyEventRows', () => {
     );
   });
 
+  it('uses legacy event ids as imported public slugs', async () => {
+    mocks.eventCategoryUpsert.mockResolvedValue({ id: 'category-1' });
+    mocks.eventUpsert.mockResolvedValue({ id: 'event-1' });
+
+    await importLegacyEventRows({
+      boats: [],
+      contacts: [],
+      dates: [],
+      events: [legacyEventRow({ eid: legacyEventId })],
+      eventTypes: [{ name: 'Racing', rank: '1', type: '1' }],
+      fees: [],
+      members: [],
+      registrations: [],
+    });
+
+    expect(mocks.eventUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          legacyEventId,
+          slug: legacyEventId,
+        }),
+        update: expect.not.objectContaining({
+          slug: expect.any(String),
+        }),
+      })
+    );
+  });
+
+  it('repairs stale generated legacy slugs without overwriting custom slugs', async () => {
+    mocks.eventCategoryUpsert.mockResolvedValue({ id: 'category-1' });
+    mocks.eventFindUnique
+      .mockResolvedValueOnce({ slug: 'legacy-c41f1cf4f3-legacy-race' })
+      .mockResolvedValueOnce({ slug: 'custom-public-event' });
+    mocks.eventUpsert.mockResolvedValue({ id: 'event-1' });
+
+    await importLegacyEventRows({
+      boats: [],
+      contacts: [],
+      dates: [],
+      events: [
+        legacyEventRow({ eid: legacyEventId }),
+        legacyEventRow({ eid: otherLegacyEventId }),
+      ],
+      eventTypes: [{ name: 'Racing', rank: '1', type: '1' }],
+      fees: [],
+      members: [],
+      registrations: [],
+    });
+
+    expect(mocks.eventUpsert).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        update: expect.objectContaining({
+          slug: legacyEventId,
+        }),
+      })
+    );
+    expect(mocks.eventUpsert).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        update: expect.not.objectContaining({
+          slug: expect.any(String),
+        }),
+      })
+    );
+  });
+
   it('imports event fees admins registrations and team boat members', async () => {
     mocks.eventCategoryUpsert.mockResolvedValue({ id: 'category-1' });
     mocks.eventUpsert.mockResolvedValue({ id: 'event-1' });
@@ -268,7 +349,7 @@ describe('importLegacyEventRows', () => {
     ]);
     mocks.queryRaw.mockResolvedValue([
       {
-        legacy_team_key: '101:team-alpha',
+        legacy_team_key: `${legacyEventId}:team-alpha`,
         registration_id: 'registration-team-alpha',
       },
     ]);
@@ -280,7 +361,15 @@ describe('importLegacyEventRows', () => {
             boat_num: '7',
             boat_pos: '0',
             e_mail: 'CREW@EXAMPLE.COM',
-            eid: '101',
+            eid: legacyEventId,
+            name: 'Crew Member',
+            team_id: 'team-alpha',
+          },
+          {
+            boat_num: '7',
+            boat_pos: '0',
+            e_mail: 'CREW@EXAMPLE.COM',
+            eid: legacyEventId,
             name: 'Crew Member',
             team_id: 'team-alpha',
           },
@@ -288,41 +377,64 @@ describe('importLegacyEventRows', () => {
             boat_num: '0',
             boat_pos: '1',
             e_mail: 'skip@example.com',
-            eid: '101',
+            eid: legacyEventId,
             name: 'Skipped Crew',
             team_id: 'team-alpha',
           },
         ],
         contacts: [
-          { eid: '101', userid: 'captain-legacy' },
-          { eid: '101', userid: 'admin-legacy' },
-          { eid: '999', userid: 'captain-legacy' },
+          { eid: legacyEventId, userid: 'captain-legacy' },
+          { eid: legacyEventId, userid: 'admin-legacy' },
+          { eid: otherLegacyEventId, userid: 'captain-legacy' },
         ],
         dates: [
           {
             date: '2026-07-01',
-            eid: '101',
+            eid: legacyEventId,
             end: '01:00:00',
             start: '23:30:00',
           },
           {
             date: 'not-a-date',
-            eid: '101',
+            eid: legacyEventId,
             end: '10:00:00',
             start: '09:00:00',
           },
         ],
         events: [
           legacyEventRow(),
-          legacyEventRow({ eid: 'missing-category', event_type: '999' }),
+          legacyEventRow({
+            eid: missingCategoryLegacyEventId,
+            event_type: '999',
+          }),
         ],
         eventTypes: [{ name: 'Racing', rank: '1', type: '1' }],
         fees: [
-          { eid: '101', feeid: 'fee-1', name: '', price: '12.34' },
-          { eid: '101', feeid: 'fee-bad', name: 'Bad fee', price: 'bad' },
-          { eid: '101', feeid: 'fee-negative', name: 'Debt fee', price: '-1' },
-          { eid: '101', feeid: 'fee-zero', name: 'Zero fee', price: '0' },
-          { eid: '101', feeid: null, name: 'Skipped fee', price: '99.00' },
+          { eid: legacyEventId, feeid: 'fee-1', name: '', price: '12.34' },
+          {
+            eid: legacyEventId,
+            feeid: 'fee-bad',
+            name: 'Bad fee',
+            price: 'bad',
+          },
+          {
+            eid: legacyEventId,
+            feeid: 'fee-negative',
+            name: 'Debt fee',
+            price: '-1',
+          },
+          {
+            eid: legacyEventId,
+            feeid: 'fee-zero',
+            name: 'Zero fee',
+            price: '0',
+          },
+          {
+            eid: legacyEventId,
+            feeid: null,
+            name: 'Skipped fee',
+            price: '99.00',
+          },
         ],
         members: [
           legacyMember(),
@@ -345,7 +457,7 @@ describe('importLegacyEventRows', () => {
           {
             activereg: '1',
             confirm: '1',
-            eid: '101',
+            eid: legacyEventId,
             team_id: 'team-alpha',
             team_name: '',
             userid: 'captain-legacy',
@@ -353,7 +465,7 @@ describe('importLegacyEventRows', () => {
           {
             activereg: '1',
             confirm: '0',
-            eid: '101',
+            eid: legacyEventId,
             team_id: null,
             team_name: null,
             userid: 'crew-legacy',
@@ -361,7 +473,7 @@ describe('importLegacyEventRows', () => {
           {
             activereg: '0',
             confirm: '1',
-            eid: '101',
+            eid: legacyEventId,
             team_id: null,
             team_name: null,
             userid: 'admin-legacy',
@@ -369,7 +481,7 @@ describe('importLegacyEventRows', () => {
           {
             activereg: '1',
             confirm: '1',
-            eid: '101',
+            eid: legacyEventId,
             team_id: null,
             team_name: null,
             userid: 'missing-user',
@@ -391,8 +503,8 @@ describe('importLegacyEventRows', () => {
       expect.objectContaining({
         create: expect.objectContaining({
           boatsPerTeam: 2,
-          description: 'Legacy racing weekend',
-          legacyEventId: '101',
+          description: '<p>Legacy <strong>racing</strong> weekend</p>',
+          legacyEventId,
           maxParticipants: 42,
           paymentDeadlineAt: new Date('2026-07-01T03:59:59.999Z'),
           paymentsEnabled: true,
@@ -401,15 +513,21 @@ describe('importLegacyEventRows', () => {
           registrationMode: 'standard',
           requiresApproval: true,
           requiresPhone: true,
+          slug: legacyEventId,
           usesTeamRegistration: true,
         }),
         update: expect.objectContaining({
-          faqContent: 'FAQ body',
+          faqContent: '<p>FAQ <em>body</em></p>',
           faqVisible: true,
-          resultsContent: 'Results body',
+          noticeOfRaceContent: '<p>Notice body</p>',
+          resultsContent: '<p>Results body</p>',
           resultsVisible: true,
+          sailingInstructionsContent: '<ul><li>Instructions body</li></ul>',
         }),
       })
+    );
+    expect(mocks.eventUpsert.mock.calls[0]?.[0].update).not.toEqual(
+      expect.objectContaining({ slug: expect.any(String) })
     );
     expect(mocks.userFindMany).toHaveBeenCalledWith({
       select: { email: true, id: true },
@@ -432,21 +550,26 @@ describe('importLegacyEventRows', () => {
         false,
         'app-user-captain',
         'app-user-admin',
-        'event_reg:101:captain-legacy:team-alpha',
-        '101:team-alpha',
+        `event_reg:${legacyEventId}:captain-legacy:team-alpha`,
+        `${legacyEventId}:team-alpha`,
         'approved',
         'Legacy team team-alpha',
-        'event_reg:101:crew-legacy:',
+        `event_reg:${legacyEventId}:crew-legacy:`,
         'pending',
-        'event_reg:101:admin-legacy:',
+        `event_reg:${legacyEventId}:admin-legacy:`,
         'cancelled',
-        'event_boat:101:team-alpha:7:0',
+        `event_boat:${legacyEventId}:team-alpha:7:0`,
         'crew@example.com',
         'Crew Member',
         7,
         0,
       ])
     );
+    expect(
+      values.filter(
+        (value) => value === `event_boat:${legacyEventId}:team-alpha:7:0`
+      )
+    ).toHaveLength(1);
     const stagedDates = values.filter(
       (value): value is Date => value instanceof Date
     );
@@ -459,7 +582,7 @@ describe('importLegacyEventRows', () => {
     expect(mocks.loggerWarn).toHaveBeenCalledWith(
       'Adjusted legacy event date ending before start',
       expect.objectContaining({
-        legacyEventId: '101',
+        legacyEventId,
         normalizedEndDateTime: '2026-07-02T05:00:00.000Z',
         originalEndDateTime: '2026-07-01T05:00:00.000Z',
       })
@@ -467,7 +590,7 @@ describe('importLegacyEventRows', () => {
     expect(mocks.loggerWarn).toHaveBeenCalledWith(
       'Skipped legacy event fee with invalid amount',
       expect.objectContaining({
-        legacyEventId: '101',
+        legacyEventId,
         legacyFeeId: 'fee-bad',
         price: 'bad',
       })
@@ -475,7 +598,7 @@ describe('importLegacyEventRows', () => {
     expect(mocks.loggerWarn).toHaveBeenCalledWith(
       'Skipped legacy event fee with invalid amount',
       expect.objectContaining({
-        legacyEventId: '101',
+        legacyEventId,
         legacyFeeId: 'fee-negative',
         price: '-1',
       })
@@ -483,7 +606,7 @@ describe('importLegacyEventRows', () => {
     expect(mocks.loggerWarn).toHaveBeenCalledWith(
       'Skipped legacy event fee with invalid amount',
       expect.objectContaining({
-        legacyEventId: '101',
+        legacyEventId,
         legacyFeeId: 'fee-zero',
         price: '0',
       })

@@ -1,5 +1,14 @@
 # Learn-to-Sail Waitlist Implementation Plan
 
+> **Superseded for implementation:** Do not implement from this plan directly.
+> The current Learn-to-Sail waitlist source of truth is
+> `docs/superpowers/specs/2026-06-03-learn-to-sail-waitlist-feature-start.md`
+> plus the approved static prototype in
+> `docs/superpowers/specs/learn-to-sail-waitlist-prototype/index.html`.
+> This earlier plan predates later product corrections about Apr 1 setup,
+> SMS, normal calendar event page URLs, class request timing, waitlist closure,
+> and full-page UX. Use it only as historical context.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a seasonal Learn-to-Sail Waitlist that makes the beginner-class path obvious, stops midnight signup behavior, and keeps experienced sailors out of an unnecessary waitlist.

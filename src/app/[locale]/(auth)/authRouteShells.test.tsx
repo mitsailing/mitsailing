@@ -443,6 +443,11 @@ describe('auth route shells', () => {
     expect(routeMocks.setRequestLocale).toHaveBeenCalledWith('en');
     expect(screen.getByTestId('auth-center-brand')).toBeInTheDocument();
     expect(screen.getByText('Center child')).toBeVisible();
+    expect(screen.getByRole('main').parentElement).toHaveClass(
+      'justify-start',
+      'py-8',
+      'sm:justify-center'
+    );
   });
 
   it('sign-in metadata uses localized copy', async () => {

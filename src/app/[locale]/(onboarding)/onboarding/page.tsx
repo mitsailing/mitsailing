@@ -130,10 +130,10 @@ async function getOnboardingUser(userId: string) {
           hasFitnessMembership: true,
           legalAgreementAcceptance: {
             select: {
+              acceptedUserId: true,
               agreementHash: true,
               agreementVersion: true,
               source: true,
-              userId: true,
             },
           },
           sailingAffiliation: true,

@@ -217,8 +217,8 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
         <p
           className={
             banner.kind === 'error'
-              ? 'w-full rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800'
-              : 'w-full rounded-2xl bg-green-50 px-4 py-3 text-sm text-green-800'
+              ? 'w-full rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm font-medium text-red-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:text-red-100'
+              : 'w-full rounded-2xl border border-green-700/30 bg-green-50 px-4 py-3 text-sm font-medium text-green-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:bg-green-950/30 dark:text-green-100'
           }
           role={banner.kind === 'error' ? 'alert' : 'status'}
         >
@@ -266,7 +266,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
         />
 
         <SubmitButton
-          className="h-14 w-full rounded-full bg-foreground text-lg font-normal text-background hover:bg-foreground/90"
+          className="h-14 min-h-11 w-full rounded-full bg-foreground text-lg font-normal text-background hover:bg-foreground/90"
           disabled={submitting || code.length !== 6}
           pending={submitting}
           pendingLabel={tCommon('pending_submitting')}
@@ -276,7 +276,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
       </form>
 
       <Button
-        className="h-auto min-h-0 px-0 py-0 text-lg font-normal text-foreground no-underline shadow-none hover:bg-transparent hover:text-foreground/70 hover:no-underline disabled:opacity-60"
+        className="h-auto min-h-11 px-0 py-0 text-lg font-normal text-foreground no-underline shadow-none hover:bg-transparent hover:text-foreground/70 hover:no-underline disabled:opacity-60"
         disabled={resending || resendLocked}
         onClick={() => {
           // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the resend promise.
