@@ -51,6 +51,26 @@ describe('cms media validation', () => {
     expect(detectCmsMediaMimeType(svg)).toBeNull();
   });
 
+  it('rejects empty image upload bytes', () => {
+    expect(
+      validateCmsMediaUpload({
+        bytes: new Uint8Array(),
+        declaredMimeType: 'image/png',
+        originalFilename: 'empty.png',
+      })
+    ).toEqual({ ok: false, code: 'empty_file' });
+  });
+
+  it('rejects unknown signatures even without declared mime types', () => {
+    expect(
+      validateCmsMediaUpload({
+        bytes: new TextEncoder().encode('not an image'),
+        declaredMimeType: '',
+        originalFilename: 'upload.bin',
+      })
+    ).toEqual({ ok: false, code: 'unsupported_type' });
+  });
+
   it('rejects declared mime type mismatches', () => {
     expect(
       validateCmsMediaUpload({
@@ -115,10 +135,18 @@ describe('cms media validation', () => {
 
   it('keeps storage paths inside the configured root', () => {
     const root = path.resolve('test-cms-media-root');
+    const rootWithTrailingSlash = `${root}${path.sep}`;
 
     expect(
       resolveCmsMediaStoragePath({
         root,
+        id: 'asset-1',
+        filename: 'race-day.png',
+      })
+    ).toBe(path.join(root, 'asset-1', 'race-day.png'));
+    expect(
+      resolveCmsMediaStoragePath({
+        root: rootWithTrailingSlash,
         id: 'asset-1',
         filename: 'race-day.png',
       })
@@ -161,6 +189,21 @@ describe('cms media validation', () => {
     });
   });
 
+  it('validates video upload metadata before opening a server-folder upload', () => {
+    expect(
+      validateCmsMediaMetadata({
+        byteSize: 2048,
+        declaredMimeType: 'video/webm',
+        originalFilename: 'Race Day.webm',
+      })
+    ).toEqual({
+      ok: true,
+      mediaKind: 'video',
+      mimeType: 'video/webm',
+      storedFilename: 'race-day.webm',
+    });
+  });
+
   it('rejects invalid metadata byte sizes', () => {
     for (const byteSize of [Number.NaN, 1024.5]) {
       expect(
@@ -171,6 +214,16 @@ describe('cms media validation', () => {
         })
       ).toEqual({ ok: false, code: 'too_large' });
     }
+  });
+
+  it('rejects empty upload metadata before opening storage paths', () => {
+    expect(
+      validateCmsMediaMetadata({
+        byteSize: 0,
+        declaredMimeType: 'application/pdf',
+        originalFilename: 'sailing-handbook.pdf',
+      })
+    ).toEqual({ ok: false, code: 'empty_file' });
   });
 
   it('rejects video metadata above the shared upload limit', () => {
@@ -191,11 +244,33 @@ describe('cms media validation', () => {
     expect(detectCmsMediaKind(mp4Bytes, 'video/mp4')).toBe('video');
   });
 
+  it('detects webm signatures during worker processing', () => {
+    expect(
+      detectCmsMediaKind(new Uint8Array([26, 69, 223, 163]), 'video/webm')
+    ).toBe('video');
+  });
+
   it('detects mp4 signatures after leading bytes during worker processing', () => {
     const bytes = new Uint8Array(40);
     bytes.set([102, 116, 121, 112], 20);
 
     expect(detectCmsMediaKind(bytes, 'video/mp4')).toBe('video');
+  });
+
+  it('rejects short video headers during worker processing', () => {
+    expect(detectCmsMediaKind(new Uint8Array([1, 2]), 'video/mp4')).toBeNull();
+  });
+
+  it('requires real image signatures during worker processing', () => {
+    expect(
+      detectCmsMediaKind(new TextEncoder().encode('not an image'), 'image/png')
+    ).toBeNull();
+  });
+
+  it('classifies safe generic files during worker processing', () => {
+    expect(
+      detectCmsMediaKind(new TextEncoder().encode('dock notes'), 'text/plain')
+    ).toBe('file');
   });
 
   it('rejects known file types with invalid signatures', () => {

@@ -43,6 +43,29 @@ process.env.MEDIA_UPLOAD_CORS_ALLOW_ORIGIN = origin;
 process.env.MEDIA_UPLOAD_HOOK_URL = hookUrl;
 process.env.NEXT_PUBLIC_APP_URL = origin;
 
+function runDockerDiagnostics() {
+  const commands = [
+    ['docker', ['compose', 'ps', '-a']],
+    [
+      'docker',
+      [
+        'inspect',
+        'mitsailing-tusd-1',
+        '--format',
+        'tusd health: {{json .State.Health}}',
+      ],
+    ],
+    ['docker', ['compose', 'logs', 'tusd', '--no-color', '--tail=120']],
+  ];
+
+  for (const [command, args] of commands) {
+    const diagnostic = spawnSync(command, args, { stdio: 'inherit' });
+    if (diagnostic.error) {
+      console.error(`[e2e-compose-up] ${diagnostic.error.message}`);
+    }
+  }
+}
+
 const result = spawnSync(
   'docker',
   [
@@ -67,6 +90,7 @@ if (result.error) {
 }
 
 if (result.status !== 0) {
+  runDockerDiagnostics();
   process.exit(result.status ?? 1);
 }
 
@@ -91,12 +115,7 @@ async function waitForHostHttp(url, label) {
   }
   console.error(`[e2e-compose-up] ${label} not reachable at ${url}`);
   console.error(`[e2e-compose-up] last error: ${lastError}`);
-  const diagnostics = spawnSync('docker', ['compose', 'ps', '-a'], {
-    stdio: 'inherit',
-  });
-  if (diagnostics.error) {
-    console.error(`[e2e-compose-up] ${diagnostics.error.message}`);
-  }
+  runDockerDiagnostics();
   process.exit(1);
 }
 

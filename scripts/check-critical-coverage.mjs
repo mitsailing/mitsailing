@@ -161,6 +161,18 @@ const authCoverageExcludedFiles = [
 ];
 
 const additionalCriticalCoverageFiles = [
+  'src/app/[locale]/(marketing)/(site)/[...cmsPath]/page.tsx',
+  'src/app/[locale]/(marketing)/(site)/admin/cms_pages/[id]/revisions/[revisionId]/page.tsx',
+  'src/app/api/admin/cms-media/route.ts',
+  'src/app/api/admin/cms-media/uploads/route.ts',
+  'src/app/api/admin/cms-media/uploads/[id]/route.ts',
+  'src/app/api/admin/cms-media/uploads/[id]/finalize/route.ts',
+  'src/app/api/internal/cms-media/tusd/hooks/route.ts',
+  'src/app/cms-media/[id]/[filename]/route.ts',
+  'src/components/mit-sailing/admin/catalog/AdminCmsMediaControlsApi.ts',
+  'src/components/mit-sailing/cms/CmsPageBlocks.tsx',
+  'src/components/mit-sailing/cms/CmsPricingBlock.tsx',
+  'src/components/mit-sailing/cms/CmsRichText.tsx',
   'src/components/mit-sailing/SiteShellHeaderNav.tsx',
   'src/components/mit-sailing/site/SiteHeader.tsx',
   'src/components/mit-sailing/site/NavigationDropdown.tsx',
@@ -171,6 +183,8 @@ const additionalCriticalCoverageFiles = [
   'src/lib/weatherParse.ts',
   'src/libs/email/account-emails.ts',
   'src/libs/email/sendTransactional.ts',
+  'src/libs/mit-sailing/cmsMediaValidation.ts',
+  'src/worker/cmsMediaProcessingJob.ts',
   'emails/account-unlock.tsx',
   'emails/confirm-email-change.tsx',
   'emails/delete-account.tsx',

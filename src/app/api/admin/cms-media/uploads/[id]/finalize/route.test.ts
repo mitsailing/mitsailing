@@ -1,15 +1,22 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type * as cmsMediaTusStatusModule from '@/libs/mit-sailing/cmsMediaTusStatus';
 import { POST } from './route';
+
+type GetCmsMediaTusUploadStatus =
+  typeof cmsMediaTusStatusModule.getCmsMediaTusUploadStatus;
 
 const mocks = vi.hoisted(() => ({
   enqueueCmsMediaProcessingJob: vi.fn(),
   findUnique: vi.fn(),
+  getCmsMediaTusUploadStatus: vi.fn<GetCmsMediaTusUploadStatus>(),
   getCurrentUser: vi.fn(),
   getDefaultQueue: vi.fn(() => ({ name: 'default' })),
   loggerError: vi.fn(),
   loggerWarn: vi.fn(),
+  mediaUploadBaseUrl: 'https://mitsailing.com' as string | undefined,
   update: vi.fn(),
   updateMany: vi.fn(),
+  useMockTusStatus: false,
 }));
 
 vi.mock('@/libs/auth/dal', () => ({
@@ -28,7 +35,9 @@ vi.mock('@/libs/DB', () => ({
 
 vi.mock('@/libs/Env', () => ({
   Env: {
-    MEDIA_UPLOAD_BASE_URL: 'https://mitsailing.com',
+    get MEDIA_UPLOAD_BASE_URL() {
+      return mocks.mediaUploadBaseUrl;
+    },
   },
 }));
 
@@ -39,6 +48,24 @@ vi.mock('@/libs/Logger', () => ({
   },
 }));
 
+vi.mock('@/libs/mit-sailing/cmsMediaTusStatus', async () => {
+  const actual = await vi.importActual<typeof cmsMediaTusStatusModule>(
+    '@/libs/mit-sailing/cmsMediaTusStatus'
+  );
+  return {
+    getCmsMediaTusUploadStatus: async (
+      props: Parameters<GetCmsMediaTusUploadStatus>[0]
+    ) => {
+      if (mocks.useMockTusStatus) {
+        const status = await mocks.getCmsMediaTusUploadStatus(props);
+        return status;
+      }
+      const status = await actual.getCmsMediaTusUploadStatus(props);
+      return status;
+    },
+  };
+});
+
 vi.mock('@/worker/cmsMediaProcessingJob', () => ({
   enqueueCmsMediaProcessingJob: mocks.enqueueCmsMediaProcessingJob,
 }));
@@ -48,6 +75,8 @@ vi.mock('@/worker/defaultQueue', () => ({
 }));
 
 afterEach(() => {
+  mocks.mediaUploadBaseUrl = 'https://mitsailing.com';
+  mocks.useMockTusStatus = false;
   vi.clearAllMocks();
   vi.unstubAllGlobals();
 });
@@ -65,7 +94,10 @@ function routeProps() {
   };
 }
 
-function asset(status: 'processing' | 'queued' | 'uploading' = 'uploading') {
+function asset(
+  status: 'processing' | 'queued' | 'ready' | 'uploading' = 'uploading',
+  props: { storageProvider?: 'local' | 'server_folder' } = {}
+) {
   return {
     byteSize: BigInt(Number.parseInt('1024', 10)),
     createdAt: new Date(Date.UTC(2026, 4, 17, 12)),
@@ -76,7 +108,7 @@ function asset(status: 'processing' | 'queued' | 'uploading' = 'uploading') {
     processingErrorCode: null,
     publicPath: '/cms-media/asset-1/race-day.png',
     status,
-    storageProvider: 'server_folder',
+    storageProvider: props.storageProvider ?? 'server_folder',
   };
 }
 
@@ -162,6 +194,63 @@ describe('cms media upload finalize route', () => {
     expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
   });
 
+  it('returns ready asset when finalize is repeated after processing completes', async () => {
+    stubAdminUser();
+    mocks.findUnique.mockResolvedValue(asset('ready'));
+
+    const response = await POST(finalizeRequest(), routeProps());
+
+    await expect(response.json()).resolves.toMatchObject({
+      asset: {
+        id: 'asset-1',
+        status: 'ready',
+      },
+    });
+    expect(response.status).toBe(200);
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+    expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
+  });
+
+  it('returns not found when the upload asset is missing', async () => {
+    stubAdminUser();
+    mocks.findUnique.mockResolvedValue(null);
+
+    const response = await POST(finalizeRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({ error: 'not_found' });
+    expect(response.status).toBe(404);
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects finalize for local direct-upload assets', async () => {
+    stubAdminUser();
+    mocks.findUnique.mockResolvedValue(
+      asset('uploading', { storageProvider: 'local' })
+    );
+
+    const response = await POST(finalizeRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({
+      error: 'unsupported_storage',
+    });
+    expect(response.status).toBe(409);
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('returns unavailable when the upload service base url is missing', async () => {
+    stubAdminUser();
+    mocks.mediaUploadBaseUrl = undefined;
+    mocks.findUnique.mockResolvedValue(asset());
+
+    const response = await POST(finalizeRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({
+      error: 'upload_service_not_configured',
+    });
+    expect(response.status).toBe(503);
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+
   it('returns 409 when another finalize has only marked the asset queued', async () => {
     vi.stubGlobal(
       'fetch',
@@ -186,6 +275,33 @@ describe('cms media upload finalize route', () => {
     expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
   });
 
+  it('returns processing asset when another finalize already moved status forward', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          headResponse({ 'Upload-Length': '1024', 'Upload-Offset': '1024' })
+        )
+    );
+    stubAdminUser();
+    mocks.findUnique
+      .mockResolvedValueOnce(asset())
+      .mockResolvedValueOnce(asset('processing'));
+    mocks.updateMany.mockResolvedValue({ count: 0 });
+
+    const response = await POST(finalizeRequest(), routeProps());
+
+    await expect(response.json()).resolves.toMatchObject({
+      asset: {
+        id: 'asset-1',
+        status: 'processing',
+      },
+    });
+    expect(response.status).toBe(200);
+    expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
+  });
+
   it('does not queue processing when the asset leaves uploading before update', async () => {
     vi.stubGlobal(
       'fetch',
@@ -198,6 +314,28 @@ describe('cms media upload finalize route', () => {
     stubAdminUser();
     mocks.findUnique.mockResolvedValue(asset());
     mocks.updateMany.mockResolvedValue({ count: 0 });
+
+    const response = await POST(finalizeRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({
+      error: 'upload_finalize_conflict',
+    });
+    expect(response.status).toBe(409);
+    expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
+  });
+
+  it('returns conflict when queued asset disappears after finalize update', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          headResponse({ 'Upload-Length': '1024', 'Upload-Offset': '1024' })
+        )
+    );
+    stubAdminUser();
+    mocks.findUnique.mockResolvedValueOnce(asset()).mockResolvedValueOnce(null);
+    mocks.updateMany.mockResolvedValue({ count: 1 });
 
     const response = await POST(finalizeRequest(), routeProps());
 
@@ -330,6 +468,49 @@ describe('cms media upload finalize route', () => {
       error: 'upload_incomplete',
     });
     expect(response.status).toBe(409);
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('returns unavailable when tusd status response is invalid', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(new Response(null, { status: 500 }))
+    );
+    stubAdminUser();
+    mocks.findUnique.mockResolvedValue(asset());
+
+    const response = await POST(finalizeRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({
+      error: 'upload_status_unavailable',
+    });
+    expect(response.status).toBe(503);
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      'tusd upload status unavailable before finalize',
+      { assetId: 'asset-1' }
+    );
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('returns unavailable when the tusd status helper throws', async () => {
+    const error = new Error('unexpected tus status failure');
+    mocks.useMockTusStatus = true;
+    mocks.getCmsMediaTusUploadStatus.mockRejectedValue(error);
+    stubAdminUser();
+    mocks.findUnique.mockResolvedValue(asset());
+
+    const response = await POST(finalizeRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({
+      error: 'upload_status_unavailable',
+    });
+    expect(response.status).toBe(503);
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      'Failed to read tusd upload status before finalize: {error}',
+      { assetId: 'asset-1', error }
+    );
     expect(mocks.updateMany).not.toHaveBeenCalled();
   });
 

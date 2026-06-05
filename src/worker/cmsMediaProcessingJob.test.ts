@@ -95,6 +95,49 @@ describe('cms media processing job', () => {
     expect(options).not.toHaveProperty('jobId');
   });
 
+  it('rejects non-object processing job data', async () => {
+    const { processCmsMediaProcessingJob } =
+      await import('@/worker/cmsMediaProcessingJob');
+
+    await expect(processCmsMediaProcessingJob(null)).rejects.toThrow(
+      'CMS media processing job data must be an object'
+    );
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
+  it('rejects processing job data without asset ids', async () => {
+    const { processCmsMediaProcessingJob } =
+      await import('@/worker/cmsMediaProcessingJob');
+
+    await expect(processCmsMediaProcessingJob({ assetId: '' })).rejects.toThrow(
+      'CMS media processing job data must include assetId'
+    );
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
+  it('skips missing, ready, and local media assets', async () => {
+    const { processCmsMediaProcessingJob } =
+      await import('@/worker/cmsMediaProcessingJob');
+    findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 'asset-1',
+        status: 'ready',
+        storageProvider: 'server_folder',
+      })
+      .mockResolvedValueOnce({
+        id: 'asset-1',
+        status: 'queued',
+        storageProvider: 'local',
+      });
+
+    await processCmsMediaProcessingJob({ assetId: 'missing-asset' });
+    await processCmsMediaProcessingJob({ assetId: 'ready-asset' });
+    await processCmsMediaProcessingJob({ assetId: 'local-asset' });
+
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('moves uploaded image bytes into the ready folder', async () => {
     const root = await createMediaRoot();
     const { processCmsMediaProcessingJob } =
@@ -138,6 +181,40 @@ describe('cms media processing job', () => {
     });
   });
 
+  it('uses asset ids when raw upload ids are absent', async () => {
+    const root = await createMediaRoot();
+    const { processCmsMediaProcessingJob } =
+      await import('@/worker/cmsMediaProcessingJob');
+    const rawPath = path.join(root, 'uploads', 'asset-1');
+    const readyPath = path.join(root, 'ready', 'asset-1', 'race-day.png');
+    await mkdir(path.dirname(rawPath), { recursive: true });
+    await writeFile(
+      rawPath,
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3])
+    );
+    findUnique.mockResolvedValue({
+      ...processingAsset({
+        byteSize: BigInt(Number('11')),
+        rawPath,
+        readyPath,
+      }),
+      rawUploadId: null,
+    });
+
+    await processCmsMediaProcessingJob({ assetId: 'asset-1' });
+
+    await expect(readFile(readyPath)).resolves.toEqual(
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3])
+    );
+    expect(update).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({
+        processingErrorCode: null,
+        status: 'ready',
+      }),
+      where: { id: 'asset-1' },
+    });
+  });
+
   it('fixes ready file permissions when retrying an already moved file', async () => {
     const root = await createMediaRoot();
     const { processCmsMediaProcessingJob } =
@@ -170,6 +247,56 @@ describe('cms media processing job', () => {
         processingErrorCode: null,
         status: 'ready',
       }),
+      where: { id: 'asset-1' },
+    });
+  });
+
+  it('marks unsafe storage paths as failed without filesystem access', async () => {
+    const root = await createMediaRoot();
+    const { processCmsMediaProcessingJob } =
+      await import('@/worker/cmsMediaProcessingJob');
+    findUnique.mockResolvedValue(
+      processingAsset({
+        byteSize: BigInt(Number('11')),
+        rawPath: path.join(root, 'uploads', 'asset-1'),
+        readyPath: path.join(root, 'ready', 'other-asset', 'race-day.png'),
+      })
+    );
+
+    await processCmsMediaProcessingJob({ assetId: 'asset-1' });
+
+    expect(update).toHaveBeenCalledWith({
+      data: {
+        processingErrorCode: 'unsafe_storage_path',
+        status: 'failed',
+      },
+      where: { id: 'asset-1' },
+    });
+  });
+
+  it('marks missing raw uploads before retrying the job', async () => {
+    const root = await createMediaRoot();
+    const { processCmsMediaProcessingJob } =
+      await import('@/worker/cmsMediaProcessingJob');
+    const rawPath = path.join(root, 'uploads', 'asset-1');
+    const readyPath = path.join(root, 'ready', 'asset-1', 'race-day.png');
+    findUnique.mockResolvedValue(
+      processingAsset({
+        byteSize: BigInt(Number('11')),
+        rawPath,
+        readyPath,
+      })
+    );
+
+    await expect(
+      processCmsMediaProcessingJob({ assetId: 'asset-1' })
+    ).rejects.toThrow('CMS media upload file is missing');
+
+    expect(update).toHaveBeenCalledWith({
+      data: {
+        processingErrorCode: 'missing_upload',
+        status: 'failed',
+      },
       where: { id: 'asset-1' },
     });
   });
@@ -226,6 +353,35 @@ describe('cms media processing job', () => {
     expect(update).toHaveBeenCalledWith({
       data: {
         processingErrorCode: 'byte_size_mismatch',
+        status: 'failed',
+      },
+      where: { id: 'asset-1' },
+    });
+  });
+
+  it('marks MIME mismatches before publishing uploaded media', async () => {
+    const root = await createMediaRoot();
+    const { processCmsMediaProcessingJob } =
+      await import('@/worker/cmsMediaProcessingJob');
+    const rawPath = path.join(root, 'uploads', 'asset-1');
+    const readyPath = path.join(root, 'ready', 'asset-1', 'race-day.png');
+    await mkdir(path.dirname(rawPath), { recursive: true });
+    await writeFile(rawPath, Buffer.from('%PDF-1.7\n'));
+    findUnique.mockResolvedValue(
+      processingAsset({
+        byteSize: BigInt(Number('9')),
+        rawPath,
+        readyPath,
+      })
+    );
+
+    await expect(
+      processCmsMediaProcessingJob({ assetId: 'asset-1' })
+    ).rejects.toThrow('CMS media upload signature does not match metadata');
+
+    expect(update).toHaveBeenCalledWith({
+      data: {
+        processingErrorCode: 'mime_mismatch',
         status: 'failed',
       },
       where: { id: 'asset-1' },

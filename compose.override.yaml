@@ -90,6 +90,7 @@ services:
         ]
       interval: 2s
       timeout: 5s
+      start_period: 30s
       retries: 30
 
   media:

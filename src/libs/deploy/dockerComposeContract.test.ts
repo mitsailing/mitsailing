@@ -142,6 +142,9 @@ describe('production docker compose', () => {
       '-cors-expose-headers=location,tus-resumable,upload-offset,upload-length,upload-metadata,upload-expires'
     );
     expect(productionCompose).toContain('http://127.0.0.1:1080/metrics');
+    expect(productionCompose).toMatch(
+      /tusd:[\s\S]*healthcheck:[\s\S]*start_period: 30s/u
+    );
   });
 
   it('routes the MIT Sailing tunnel to in-stack docker services', () => {
@@ -469,9 +472,10 @@ describe('local docker compose', () => {
     const defaultLocalAppUrl = composeVariable(
       'NEXT_PUBLIC_APP_URL:-http://localhost:3000'
     );
-    expect(localCompose).toContain(
-      `-cors-allow-origin=${composeVariable(`MEDIA_UPLOAD_CORS_ALLOW_ORIGIN:-${defaultLocalAppUrl}`)}`
+    const defaultCorsOrigin = composeVariable(
+      'MEDIA_UPLOAD_CORS_ALLOW_ORIGIN:-'.concat(defaultLocalAppUrl)
     );
+    expect(localCompose).toContain(`-cors-allow-origin=${defaultCorsOrigin}`);
     expect(localCompose).toContain(
       '-cors-allow-headers=authorization,content-type,tus-resumable,upload-length,upload-metadata,upload-offset,x-mitsailing-upload-token'
     );
@@ -479,6 +483,9 @@ describe('local docker compose', () => {
       '-cors-expose-headers=location,tus-resumable,upload-offset,upload-length,upload-metadata,upload-expires'
     );
     expect(localCompose).toContain('http://127.0.0.1:1080/metrics');
+    expect(localCompose).toMatch(
+      /tusd:[\s\S]*healthcheck:[\s\S]*start_period: 30s/u
+    );
     expect(localCompose).toContain('media:');
     expect(localCompose).toContain('image: nginx:1.29-alpine');
     expect(localCompose).toContain(
