@@ -520,7 +520,7 @@ describe('event admin queries', () => {
       registrations: [
         {
           id: 'cancelled-1',
-          phone: null,
+          phone: '+16175551001',
           status: EventRegistrationStatus.cancelled,
           createdAt: newer,
           swimAgreementAcceptedAt: newer,
@@ -532,7 +532,7 @@ describe('event admin queries', () => {
         },
         {
           id: 'pending-older',
-          phone: null,
+          phone: '+16175551002',
           status: EventRegistrationStatus.pending,
           createdAt: older,
           swimAgreementAcceptedAt: older,
@@ -604,7 +604,9 @@ describe('event admin queries', () => {
       result?.registrations[0]?.answers.map((answer) => answer.id)
     ).toEqual(['answer-1', 'answer-2']);
     expect(result?.registrations[0]?.phone).toBe('617-555-0100');
-    expect(result?.registrations[0]?.user.email).toBe('c@example.com');
+    expect(result?.registrations[0]?.user).toEqual(
+      expect.objectContaining({ email: 'c@example.com' })
+    );
     expect(result?.registrations[0]?.payment).toEqual({
       amountCents: 15_000,
       currency: 'usd',
@@ -701,7 +703,7 @@ describe('event admin queries', () => {
       registrations: [
         {
           id: 'registration-1',
-          phone: null,
+          phone: '+16175551003',
           status: EventRegistrationStatus.pending,
           createdAt,
           swimAgreementAcceptedAt: createdAt,

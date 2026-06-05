@@ -209,6 +209,14 @@ describe('AdminRichTextEditor helpers', () => {
 });
 
 describe('AdminRichTextEditor formatting controls', () => {
+  it('exposes the editor as a named multiline textbox', async () => {
+    renderEditor();
+
+    const editor = await screen.findByRole('textbox', { name: 'Body' });
+
+    expect(editor).toHaveAttribute('aria-multiline', 'true');
+  });
+
   it('updates hidden html from toolbar actions', async () => {
     const user = userEvent.setup();
     const view = renderEditor();

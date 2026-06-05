@@ -188,7 +188,7 @@ export type AdminEventRegistrationPaymentDto = {
 export type AdminEventRegistrationDto = {
   id: string;
   status: EventRegistrationStatusValue;
-  phone: string | null;
+  phone: string;
   learnToSailWaitlistNumber: number | null;
   entryFee?: AdminEventFeeDto | null;
   createdAt: Date;
@@ -411,7 +411,7 @@ function registrationDtosFromRows(
   rows: readonly {
     id: string;
     status: EventRegistrationStatusValue;
-    phone: string | null;
+    phone: string;
     learnToSailAuditPositionAtRequest?: number | null;
     learnToSailWaitlistEntry?: {
       sequence: number;

@@ -168,10 +168,10 @@ describe('adminSailingCardActions', () => {
       hasFitnessMembership: true,
       id: 'request-1',
       legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
         agreementHash: sailingCardAgreementHash(),
         agreementVersion: sailingCardAgreement.version,
         source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-        userId: 'user-1',
       },
       sailingAffiliation: SailingAffiliation.MIT_ALUM,
       user: {
@@ -421,10 +421,10 @@ describe('adminSailingCardActions', () => {
     mocks.txSailingCardRequestFindFirst.mockResolvedValue({
       id: 'request-1',
       legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
         agreementHash: sailingCardAgreementHash(),
         agreementVersion: sailingCardAgreement.version,
         source: LegalAgreementAcceptanceSource.EVENT_REGISTRATION,
-        userId: 'user-1',
       },
     });
     await expectIssueCardFormError({
@@ -457,10 +457,10 @@ describe('adminSailingCardActions', () => {
         id: true,
         legalAgreementAcceptance: {
           select: {
+            acceptedUserId: true,
             agreementHash: true,
             agreementVersion: true,
             source: true,
-            userId: true,
           },
         },
         sailingAffiliation: true,
@@ -480,10 +480,10 @@ describe('adminSailingCardActions', () => {
       hasFitnessMembership: false,
       id: 'request-1',
       legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
         agreementHash: sailingCardAgreementHash(),
         agreementVersion: sailingCardAgreement.version,
         source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-        userId: 'user-1',
       },
       sailingAffiliation: SailingAffiliation.MIT_ALUM,
       user: {
@@ -501,10 +501,10 @@ describe('adminSailingCardActions', () => {
       hasFitnessMembership: null,
       id: 'request-1',
       legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
         agreementHash: sailingCardAgreementHash(),
         agreementVersion: sailingCardAgreement.version,
         source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-        userId: 'user-1',
       },
       sailingAffiliation: SailingAffiliation.MIT_ALUM,
       user: {
@@ -522,10 +522,10 @@ describe('adminSailingCardActions', () => {
       hasFitnessMembership: true,
       id: 'request-1',
       legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
         agreementHash: sailingCardAgreementHash(),
         agreementVersion: sailingCardAgreement.version,
         source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-        userId: 'user-1',
       },
       sailingAffiliation: SailingAffiliation.MIT_ALUM,
       user: {
@@ -543,10 +543,10 @@ describe('adminSailingCardActions', () => {
       hasFitnessMembership: true,
       id: 'request-1',
       legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
         agreementHash: sailingCardAgreementHash(),
         agreementVersion: sailingCardAgreement.version,
         source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-        userId: 'user-1',
       },
       sailingAffiliation: SailingAffiliation.MIT_ALUM,
       user: {
@@ -648,10 +648,10 @@ describe('adminSailingCardActions', () => {
         cardYear: 2027,
         id: 'request-1',
         legalAgreementAcceptance: {
+          acceptedUserId: 'user-1',
           agreementHash: sailingCardAgreementHash(),
           agreementVersion: sailingCardAgreement.version,
           source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-          userId: 'user-1',
         },
         status: SailingCardRequestStatus.pending,
         userId: 'user-1',
@@ -671,10 +671,10 @@ describe('adminSailingCardActions', () => {
       hasFitnessMembership: null,
       id: 'request-1',
       legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
         agreementHash: sailingCardAgreementHash(),
         agreementVersion: sailingCardAgreement.version,
         source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-        userId: 'user-1',
       },
       sailingAffiliation: SailingAffiliation.MIT_ALUM,
     });
@@ -733,10 +733,10 @@ describe('adminSailingCardActions', () => {
       hasFitnessMembership: null,
       id: 'request-1',
       legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
         agreementHash: sailingCardAgreementHash(),
         agreementVersion: sailingCardAgreement.version,
         source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-        userId: 'user-1',
       },
       sailingAffiliation: SailingAffiliation.MIT_ALUM,
     });
@@ -788,10 +788,10 @@ describe('adminSailingCardActions', () => {
       hasFitnessMembership: null,
       id: 'request-1',
       legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
         agreementHash: sailingCardAgreementHash(),
         agreementVersion: sailingCardAgreement.version,
         source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-        userId: 'user-1',
       },
       sailingAffiliation: SailingAffiliation.MIT_ALUM,
     });
@@ -813,10 +813,10 @@ describe('adminSailingCardActions', () => {
       hasFitnessMembership: null,
       id: 'request-1',
       legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
         agreementHash: sailingCardAgreementHash(),
         agreementVersion: sailingCardAgreement.version,
         source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-        userId: 'user-1',
       },
       sailingAffiliation: SailingAffiliation.MIT_ALUM,
     });

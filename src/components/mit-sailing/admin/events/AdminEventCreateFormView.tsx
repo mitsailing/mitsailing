@@ -1,6 +1,7 @@
 import { ArrowLeft, Save } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
 import { AdminErrorAlert } from '@/components/mit-sailing/admin/AdminErrorAlert';
+import { AdminRichTextEditor } from '@/components/mit-sailing/admin/catalog/AdminRichTextEditor';
 import {
   AdminEventBackLink,
   AdminEventCheckbox,
@@ -10,7 +11,6 @@ import {
 } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Input } from '@/components/ui/input';
 import { SubmitButton } from '@/components/ui/submit-button';
-import { Textarea } from '@/components/ui/textarea';
 import { EventDetailPageKind } from '@/generated/prisma/enums';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import { createAdminEventAction } from '@/libs/admin/events/eventAdminActions';
@@ -123,20 +123,13 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
             </AdminEventField>
           </div>
 
-          <AdminEventField
-            htmlFor="event-description"
+          <AdminRichTextEditor
+            defaultValue=""
+            fieldId="event-description"
+            fieldKey="description"
             hint={props.t('field_description_hint')}
             label={props.t('field_description')}
-          >
-            {(controlProps) => (
-              <Textarea
-                className="min-h-28"
-                id="event-description"
-                name="description"
-                {...controlProps}
-              />
-            )}
-          </AdminEventField>
+          />
 
           <div className="grid gap-4 md:grid-cols-2">
             <AdminEventCheckbox

@@ -86,6 +86,16 @@ describe('eventAdminSchemas', () => {
     expect(parsed.requiresPhone).toBe(true);
   });
 
+  it('sanitizes event description as public rich text', () => {
+    const parsed = eventAdminBasicsFormSchema.parse({
+      ...validEventBasicsInput(),
+      description:
+        '<p>Learn <strong>fast</strong>.</p><script>alert("x")</script>',
+    });
+
+    expect(parsed.description).toBe('<p>Learn <strong>fast</strong>.</p>');
+  });
+
   it('defaults missing sailing card requirement to none', () => {
     const parsed = eventAdminBasicsFormSchema.parse(validEventBasicsInput());
 

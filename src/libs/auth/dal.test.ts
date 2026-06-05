@@ -96,6 +96,7 @@ function createSession(user: TestSession['user']): TestSession {
 }
 
 const currentOnboardingLegalAcceptance = {
+  acceptedUserId: 'user-1',
   agreementHash: sailingCardAgreementHash(),
   agreementVersion: sailingCardAgreement.version,
   source: 'SAILING_CARD_ONBOARDING',

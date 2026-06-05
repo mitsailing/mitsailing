@@ -46,11 +46,11 @@ The Learn-to-Sail workflow is the most complex event-page variant and has two la
 
 Mid-Week 1-2-3 and Sunday All-in-One share the same beginner waitlist. Each class has limited spots, and that number may change. When more people request a class than can be accepted, waitlist number ranks those requesters for acceptance. Requesting at midnight does not improve acceptance order once the request window is open.
 
-Before April 1, users may complete setup for Apr 1: account identity, email, phone, required terms/privacy acceptance, and optional SMS consent. They do not receive a waitlist number until the waitlist actually opens.
+Before April 1, users may complete setup for Apr 1: account identity, email, phone, and required terms/privacy acceptance. SMS consent is deferred — apply after blocker #175 is resolved. Users do not receive a waitlist number until the waitlist actually opens.
 
 Intro for Experienced Sailors is not part of the beginner waitlist. It is the first MIT-specific orientation path for people who already know how to sail and want to use the Tech Dinghy at MIT. Other fleet and rating paths, including Lynx Catboat, Windsurfing, and Mashnee, must stay discoverable without being mistaken for beginner waitlist steps.
 
-SMS and email are part of the MVP notification model. SMS signup happens during waitlist setup or signup, is optional, and must mention message/data charges and late-night texts. Registration-open SMS links go to the normal calendar event page, not a generated or custom account URL.
+Email is the MVP notification path for this event-registration slice. SMS is a separate approval-gated follow-up per `AI_UNKNOWN_BLOCKERS_WAITLIST_PLAYBOOK.md` and GitHub issue #175; do not implement SMS signup, consent copy, late-night text behavior, or registration-open text links until that blocker is resolved.
 
 The current product slice is the event page and its registration surfaces: the event detail shell, the sticky registration panel, the normal `/events/[slug]/register` form, Storybook state coverage for event actions, and the registration/status copy those surfaces show. It is not a new home page, standalone waitlist dashboard, or separate Learn-to-Sail microsite.
 
@@ -82,7 +82,7 @@ Preferred copy:
 - "Register for this event"
 - "Request a spot"
 - "Registration confirms your spot"
-- "Text me when registration opens"
+- "Text me when registration opens" — deferred; apply after blocker #175 is resolved
 - "We will email you when your request is reviewed"
 
 Avoid internal or ambiguous terms in public UI:
@@ -131,5 +131,5 @@ Target WCAG 2.2 AA for public and product surfaces.
 - Do not rely on color alone for waitlist status, registration windows, acceptance, success, or errors.
 - Error and success messages must be attached to the relevant control or region and should explain the recovery action.
 - Motion must respect reduced-motion preferences and communicate state rather than decoration.
-- SMS consent must be optional, explicit, and understandable before signup completes.
+- SMS consent is deferred — apply after blocker #175 is resolved. When approved, consent must be optional, explicit, and understandable before signup completes.
 - Mobile users, users with limited time, and users unfamiliar with MIT Sailing vocabulary are first-class users, not edge cases.

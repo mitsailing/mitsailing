@@ -110,7 +110,7 @@ function eventFixture(
         id: 'registration-1',
         learnToSailWaitlistNumber: null,
         payment: null,
-        phone: null,
+        phone: '617-555-0100',
         registrationTeam: null,
         boatMembers: [],
         status: EventRegistrationStatus.pending,
@@ -184,6 +184,21 @@ describe('AdminEventShowView', () => {
     ).toBeVisible();
     expect(screen.getByText('Adult entry')).toBeVisible();
     expect(screen.getByText('$150.00')).toBeVisible();
+  });
+
+  it('shows saved feedback after an admin event save', () => {
+    render(
+      <AdminEventShowView
+        errorCode={null}
+        event={eventFixture('editable')}
+        filter="all"
+        locale="en"
+        statusCode="saved"
+        t={t}
+      />
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('Event saved.');
   });
 
   it('renders remaining seats from confirmed registrations', () => {

@@ -279,7 +279,7 @@ export const eventAdminBasicsFormSchema = z
     name: z.string().trim().min(1),
     shortName: z.string().trim(),
     eventCategoryId: z.string().trim().min(1),
-    description: z.string().trim(),
+    description: eventAdminPublicContentSchema,
     isSpecial: z.boolean(),
     requiresApproval: z.boolean(),
     requiresPhone: z.boolean(),

@@ -430,7 +430,7 @@ export function eventsCalendarHref(
   if (categoryId) {
     params.set('category', categoryId);
   }
-  return `/events/?${params.toString()}`;
+  return `/events?${params.toString()}`;
 }
 
 /**

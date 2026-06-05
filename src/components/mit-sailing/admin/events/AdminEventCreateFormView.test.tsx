@@ -5,6 +5,31 @@ import { describe, expect, it, vi } from 'vitest';
 import messages from '@/locales/en.json';
 import { AdminEventCreateFormView } from './AdminEventCreateFormView';
 
+const mocks = vi.hoisted(() => ({
+  AdminRichTextEditor: vi.fn(
+    (props: {
+      defaultValue: string;
+      fieldId: string;
+      fieldKey: string;
+      label: string;
+    }) => (
+      <div data-testid={`rich-editor-${props.fieldKey}`}>
+        <label htmlFor={props.fieldId}>{props.label}</label>
+        <input
+          data-field-id={props.fieldId}
+          name={props.fieldKey}
+          type="hidden"
+          value={props.defaultValue}
+        />
+      </div>
+    )
+  ),
+}));
+
+vi.mock('@/components/mit-sailing/admin/catalog/AdminRichTextEditor', () => ({
+  AdminRichTextEditor: mocks.AdminRichTextEditor,
+}));
+
 vi.mock('@/libs/admin/events/eventAdminActions', () => ({
   createAdminEventAction: vi.fn(),
 }));
@@ -51,5 +76,17 @@ describe('AdminEventCreateFormView', () => {
 
     expect(screen.getByLabelText('Starts')).toBeRequired();
     expect(screen.getByLabelText('Ends')).toBeRequired();
+  });
+
+  it('creates event descriptions with the rich text editor', () => {
+    const view = renderView();
+
+    expect(screen.getByTestId('rich-editor-description')).toBeVisible();
+    expect(
+      view.container.querySelector('input[name="description"][type="hidden"]')
+    ).toHaveValue('');
+    expect(
+      view.container.querySelector('textarea[name="description"]')
+    ).toBeNull();
   });
 });

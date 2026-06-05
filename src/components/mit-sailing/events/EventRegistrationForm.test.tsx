@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createTranslator } from 'next-intl';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   EventRegistrationForm,
   eventRegistrationFormLabels,
@@ -104,6 +104,28 @@ const event: PublicEventDetail = {
     usesTeamRegistration: false,
   },
 };
+
+const originalMatchMedia = window.matchMedia;
+const originalScrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(
+  window.HTMLElement.prototype,
+  'scrollIntoView'
+);
+
+afterEach(() => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: originalMatchMedia,
+  });
+  if (originalScrollIntoViewDescriptor) {
+    Object.defineProperty(
+      window.HTMLElement.prototype,
+      'scrollIntoView',
+      originalScrollIntoViewDescriptor
+    );
+  } else {
+    Reflect.deleteProperty(window.HTMLElement.prototype, 'scrollIntoView');
+  }
+});
 
 function formValues(formData: FormData): Record<string, string[]> {
   const values: Record<string, string[]> = {};

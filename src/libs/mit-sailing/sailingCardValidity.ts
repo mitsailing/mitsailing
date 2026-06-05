@@ -32,10 +32,10 @@ type YearlySailingCardOnboardingFields = SailingCardFields &
 type CurrentYearSailingCardRequestFields = {
   readonly cardYear: number;
   readonly legalAgreementAcceptance: {
+    readonly acceptedUserId: string | null;
     readonly agreementHash: string;
     readonly agreementVersion: string;
     readonly source: string;
-    readonly userId: string;
   } | null;
   readonly status: string;
   readonly userId?: string;
@@ -137,6 +137,6 @@ export const hasCompletedCurrentYearSailingCardRequest = (
     sailingCardAgreement.version &&
   request.legalAgreementAcceptance.source === 'SAILING_CARD_ONBOARDING' &&
   (request.userId === undefined ||
-    request.legalAgreementAcceptance.userId === request.userId) &&
+    request.legalAgreementAcceptance.acceptedUserId === request.userId) &&
   request.status !== 'cancelled' &&
   hasRequiredSailingCardOnboardingProfile(request.user);

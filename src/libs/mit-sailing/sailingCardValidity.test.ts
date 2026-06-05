@@ -20,10 +20,10 @@ describe('sailingCardValidity', () => {
     agreementVersion: sailingCardAgreement.version,
   };
   const currentOnboardingAgreementAcceptance = {
+    acceptedUserId: 'user-1',
     agreementHash: sailingCardAgreementHash(),
     agreementVersion: sailingCardAgreement.version,
     source: 'SAILING_CARD_ONBOARDING',
-    userId: 'user-1',
   };
 
   it('uses the current year before july 15 eastern', () => {
@@ -269,7 +269,7 @@ describe('sailingCardValidity', () => {
           cardYear: 2026,
           legalAgreementAcceptance: {
             ...currentOnboardingAgreementAcceptance,
-            userId: 'other-user',
+            acceptedUserId: 'other-user',
           },
           status: 'pending',
           userId: 'user-1',

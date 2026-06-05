@@ -159,10 +159,10 @@ async function findCurrentPendingSailingCardRequest(props: {
       id: true,
       legalAgreementAcceptance: {
         select: {
+          acceptedUserId: true,
           agreementHash: true,
           agreementVersion: true,
           source: true,
-          userId: true,
         },
       },
       sailingAffiliation: true,
@@ -293,7 +293,7 @@ function hasMatchingOnboardingAgreement(props: {
       sailingCardAgreement.version &&
     props.request.legalAgreementAcceptance.source ===
       LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING &&
-    props.request.legalAgreementAcceptance.userId === props.targetUserId
+    props.request.legalAgreementAcceptance.acceptedUserId === props.targetUserId
   );
 }
 
@@ -583,10 +583,10 @@ export async function issueSailingCardAction(
           cardYear,
           id: request.id,
           legalAgreementAcceptance: {
+            acceptedUserId: targetUserId,
             agreementHash: sailingCardAgreementHash(),
             agreementVersion: sailingCardAgreement.version,
             source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-            userId: targetUserId,
           },
           status: SailingCardRequestStatus.pending,
           userId: targetUserId,

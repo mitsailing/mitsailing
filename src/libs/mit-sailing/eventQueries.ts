@@ -380,28 +380,26 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
       }),
     ]);
     const attendees = {
-      approved: attendeeRegistrations.flatMap((registration) =>
-        registration.status === EventRegistrationStatus.approved
-          ? [
-              {
-                id: registration.id,
-                image: registration.user.image,
-                name: registration.user.name,
-              },
-            ]
-          : []
-      ),
-      pending: attendeeRegistrations.flatMap((registration) =>
-        registration.status === EventRegistrationStatus.pending
-          ? [
-              {
-                id: registration.id,
-                image: registration.user.image,
-                name: registration.user.name,
-              },
-            ]
-          : []
-      ),
+      approved: attendeeRegistrations
+        .filter(
+          (registration) =>
+            registration.status === EventRegistrationStatus.approved
+        )
+        .map((registration) => ({
+          id: registration.id,
+          image: registration.user.image,
+          name: registration.user.name,
+        })),
+      pending: attendeeRegistrations
+        .filter(
+          (registration) =>
+            registration.status === EventRegistrationStatus.pending
+        )
+        .map((registration) => ({
+          id: registration.id,
+          image: registration.user.image,
+          name: registration.user.name,
+        })),
     };
 
     return {

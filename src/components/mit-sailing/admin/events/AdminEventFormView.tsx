@@ -9,7 +9,11 @@ import {
 } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
 import type * as React from 'react';
-import { AdminErrorAlert } from '@/components/mit-sailing/admin/AdminErrorAlert';
+import {
+  AdminErrorAlert,
+  AdminSuccessAlert,
+} from '@/components/mit-sailing/admin/AdminErrorAlert';
+import { AdminRichTextEditor } from '@/components/mit-sailing/admin/catalog/AdminRichTextEditor';
 import {
   AdminEventDetailPageKindFields,
   AdminEventDisclosureSection,
@@ -91,6 +95,7 @@ type AdminEventFormViewProps = {
   users: AdminEventUserOption[];
   errorCode: string | null;
   locale: string;
+  statusCode?: string | null;
   t: AdminEventFormTranslations;
   tCommon: AdminEventCommonTranslations;
 };
@@ -131,6 +136,16 @@ function AdminEventErrorAlert(props: {
     return null;
   }
   return <AdminErrorAlert>{message}</AdminErrorAlert>;
+}
+
+function AdminEventStatusAlert(props: {
+  code: string | null;
+  t: AdminEventFormTranslations;
+}) {
+  if (props.code === 'saved') {
+    return <AdminSuccessAlert>{props.t('status_saved')}</AdminSuccessAlert>;
+  }
+  return null;
 }
 
 function optionalTextPresent(value: string | null | undefined): boolean {
@@ -199,7 +214,7 @@ function PublicContentEditorSection(props: {
   contentName: string;
   defaultOpen: boolean;
   summary: string;
-  textareaId: string;
+  fieldId: string;
   t: AdminEventFormTranslations;
   visible: boolean | undefined;
   visibleName: string;
@@ -210,17 +225,12 @@ function PublicContentEditorSection(props: {
       enableName={props.visibleName}
       summary={props.summary}
     >
-      <AdminEventField
-        htmlFor={props.textareaId}
+      <AdminRichTextEditor
+        defaultValue={props.content ?? ''}
+        fieldId={props.fieldId}
+        fieldKey={props.contentName}
         label={props.t('field_content_body')}
-      >
-        <Textarea
-          className="min-h-28"
-          defaultValue={props.content ?? ''}
-          id={props.textareaId}
-          name={props.contentName}
-        />
-      </AdminEventField>
+      />
     </AdminEventDisclosureSection>
   );
 }
@@ -286,21 +296,13 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
           </AdminEventField>
         </div>
 
-        <AdminEventField
-          htmlFor="event-description"
+        <AdminRichTextEditor
+          defaultValue={props.event.description}
+          fieldId="event-description"
+          fieldKey="description"
           hint={props.t('field_description_hint')}
           label={props.t('field_description')}
-        >
-          {(controlProps) => (
-            <Textarea
-              className="min-h-28"
-              defaultValue={props.event.description}
-              id="event-description"
-              name="description"
-              {...controlProps}
-            />
-          )}
-        </AdminEventField>
+        />
 
         <div className="grid gap-4 md:grid-cols-2">
           <AdminEventCheckbox
@@ -353,8 +355,8 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
         content={props.event.faqContent}
         contentName="faqContent"
         defaultOpen={optionalTextPresent(props.event.faqContent)}
+        fieldId="event-faq-content"
         summary={props.t('optional_faq')}
-        textareaId="event-faq-content"
         t={props.t}
         visible={props.event.faqVisible}
         visibleName="faqVisible"
@@ -363,8 +365,8 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
         content={props.event.noticeOfRaceContent}
         contentName="noticeOfRaceContent"
         defaultOpen={optionalTextPresent(props.event.noticeOfRaceContent)}
+        fieldId="event-notice-of-race-content"
         summary={props.t('optional_notice_of_race')}
-        textareaId="event-notice-of-race-content"
         t={props.t}
         visible={props.event.noticeOfRaceVisible}
         visibleName="noticeOfRaceVisible"
@@ -376,8 +378,8 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
           Boolean(props.event.sailingInstructionsVisible) ||
           optionalTextPresent(props.event.sailingInstructionsContent)
         }
+        fieldId="event-sailing-instructions-content"
         summary={props.t('optional_sailing_instructions')}
-        textareaId="event-sailing-instructions-content"
         t={props.t}
         visible={props.event.sailingInstructionsVisible}
         visibleName="sailingInstructionsVisible"
@@ -389,8 +391,8 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
           Boolean(props.event.resultsVisible) ||
           optionalTextPresent(props.event.resultsContent)
         }
+        fieldId="event-results-content"
         summary={props.t('optional_results')}
-        textareaId="event-results-content"
         t={props.t}
         visible={props.event.resultsVisible}
         visibleName="resultsVisible"
@@ -1714,6 +1716,7 @@ export function AdminEventFormView(props: AdminEventFormViewProps) {
       </header>
 
       <AdminEventErrorAlert code={props.errorCode} t={props.t} />
+      <AdminEventStatusAlert code={props.statusCode ?? null} t={props.t} />
       {props.accessMode === 'readOnly' ? (
         <AdminEventReadOnlyNotice t={props.t} />
       ) : null}

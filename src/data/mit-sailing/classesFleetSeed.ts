@@ -49,7 +49,7 @@ export const SAILING_CLASSES: SailingClass[] = [
       'First rating path on Tech Dinghies: rigging, tacking, gybing, crew-overboard prep, and Charles River traffic patterns with coach boats alongside.',
     prerequisites: [],
     relatedEventIds: [
-      'evt-lts-weekday-apr-7',
+      'evt-lts-weekday-apr-14',
       'evt-lts-allinone',
       'evt-dinghy-cup',
     ],
@@ -65,7 +65,7 @@ export const SAILING_CLASSES: SailingClass[] = [
       'Accelerated checkout for sailors who already know points of sail but need a Charles River orientation, capsize recovery, and fleet rules of the road.',
     prerequisites: [],
     relatedEventIds: [
-      'evt-lts-weekday-apr-7',
+      'evt-lts-weekday-apr-14',
       'evt-lts-allinone',
       'evt-intermediate-clinic',
     ],
@@ -82,7 +82,7 @@ export const SAILING_CLASSES: SailingClass[] = [
     prerequisites: [],
     relatedEventIds: [
       'evt-lts-allinone',
-      'evt-lts-weekday-apr-7',
+      'evt-lts-weekday-apr-14',
       'evt-boardsailing-weekend',
     ],
     unlockedBoatIds: ['boat-tech-dinghy'],
@@ -99,7 +99,7 @@ export const SAILING_CLASSES: SailingClass[] = [
     relatedEventIds: [
       'evt-boardsailing-weekend',
       'evt-lts-allinone',
-      'evt-lts-weekday-apr-7',
+      'evt-lts-weekday-apr-14',
     ],
     unlockedBoatIds: ['boat-windsurfing'],
   },
@@ -115,7 +115,7 @@ export const SAILING_CLASSES: SailingClass[] = [
     relatedEventIds: [
       'evt-racing-rules-clinic',
       'evt-dinghy-cup',
-      'evt-lts-weekday-apr-7',
+      'evt-lts-weekday-apr-14',
     ],
     unlockedBoatIds: ['boat-laser'],
   },
@@ -130,7 +130,7 @@ export const SAILING_CLASSES: SailingClass[] = [
     prerequisites: ['class-intro-sailing-101'],
     relatedEventIds: [
       'evt-intermediate-clinic',
-      'evt-lts-weekday-apr-7',
+      'evt-lts-weekday-apr-14',
       'evt-overnight-series',
     ],
     unlockedBoatIds: [],

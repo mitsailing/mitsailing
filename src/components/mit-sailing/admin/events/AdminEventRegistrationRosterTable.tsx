@@ -283,6 +283,8 @@ function RegistrationRosterRow(props: {
   slug: string;
   t: AdminEventRegistrationsTranslations;
 }) {
+  const attendeeName = props.registration.user.name;
+  const attendeeEmail = props.registration.user.email;
   return (
     <li className="rounded-lg border border-border bg-background p-4">
       <article className="flex min-w-0 flex-col gap-4">
@@ -298,10 +300,10 @@ function RegistrationRosterRow(props: {
             ) : null}
             <div className="min-w-0">
               <p className="font-semibold break-words text-foreground">
-                {props.registration.user.name}
+                {attendeeName}
               </p>
               <p className="text-xs break-words text-mit-readable-ink">
-                {props.registration.user.email}
+                {attendeeEmail}
               </p>
             </div>
           </div>
@@ -314,7 +316,7 @@ function RegistrationRosterRow(props: {
 
         <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <RosterField label={props.t('column_attendee')}>
-            {props.registration.user.name}
+            {attendeeName}
           </RosterField>
           <RosterField label={props.t('column_status')}>
             {statusLabel(props.registration.status, props.t)}

@@ -193,7 +193,6 @@ enum LearnToSailWaitlistEntryStatus {
     active
     left
     closed_by_tech_rating
-    closed_by_account_deletion
     expired
     @@map("learn_to_sail_waitlist_entry_status")
 }
@@ -566,7 +565,10 @@ model AuditLog {
 
 model LegalAgreementAcceptance {
     id String @id() @default(cuid())
-    userId String @map("user_id")
+    userId String? @map("user_id")
+    acceptedUserId String? @map("accepted_user_id")
+    acceptedUserName String? @map("accepted_user_name") @db.Text()
+    acceptedUserEmail String? @map("accepted_user_email") @db.VarChar(255)
     source LegalAgreementAcceptanceSource
     sourceRecordId String? @map("source_record_id")
     agreementLabel String @map("agreement_label") @db.Text()
@@ -576,10 +578,11 @@ model LegalAgreementAcceptance {
     ipAddress String? @map("ip_address") @db.VarChar(80)
     userAgent String? @map("user_agent") @db.Text()
     createdAt DateTime @default(now()) @map("created_at")
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
     sailingCardRequests SailingCardRequest[]
 
     @@index([userId, source, acceptedAt])
+    @@index([acceptedUserId, source, acceptedAt])
     @@index([source, sourceRecordId])
     @@map("legal_agreement_acceptances")
 }
@@ -1223,8 +1226,8 @@ model Payment {
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt() @map("updated_at")
     event Event? @relation(fields: [eventId], references: [id], onDelete: Restrict)
-    registration EventRegistration? @relation(fields: [registrationId, eventId, userId], references: [id, eventId, userId], onDelete: Restrict)
-    user User? @relation(fields: [userId], references: [id], onDelete: Restrict)
+    registration EventRegistration? @relation(fields: [registrationId, eventId, userId], references: [id, eventId, userId], onDelete: Cascade)
+    user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
     selectedFee EventEntryFee? @relation(fields: [eventId, selectedFeeId], references: [eventId, id], onDelete: Restrict)
     membershipSubscription SailingCardSubscription? @relation(fields: [membershipSubscriptionId], references: [id], onDelete: SetNull)
     membershipInitialPrice SailingCardMembershipPrice? @relation("PaymentInitialMembershipPrice", fields: [membershipInitialPriceId], references: [id], onDelete: SetNull)

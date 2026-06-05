@@ -16,9 +16,11 @@ async function insertLegalAgreementAcceptance(options: {
 }) {
   await options.pool.query(
     `INSERT INTO "legal_agreement_acceptances"
-      ("id", "user_id", "source", "agreement_label", "agreement_version", "agreement_hash", "accepted_at", "ip_address", "user_agent", "created_at")
-     VALUES
-      ($1, $2, 'SAILING_CARD_ONBOARDING', $3, $4, $5, NOW(), '127.0.0.1', $6, NOW())`,
+      ("id", "user_id", "accepted_user_id", "accepted_user_name", "accepted_user_email", "source", "agreement_label", "agreement_version", "agreement_hash", "accepted_at", "ip_address", "user_agent", "created_at")
+     SELECT
+      $1, u."id", u."id", u."name", u."email", 'SAILING_CARD_ONBOARDING', $3, $4, $5, NOW(), '127.0.0.1', $6, NOW()
+     FROM "user" u
+     WHERE u."id" = $2`,
     [
       options.id,
       options.userId,

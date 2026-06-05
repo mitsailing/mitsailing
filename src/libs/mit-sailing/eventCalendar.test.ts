@@ -197,7 +197,7 @@ describe('eventCalendar', () => {
 
   it('builds calendar href with category filter', () => {
     expect(eventsCalendarHref({ year: 2026, month: 4 }, 'cat-racing')).toBe(
-      '/events/?month=2026-04&category=cat-racing'
+      '/events?month=2026-04&category=cat-racing'
     );
   });
 });

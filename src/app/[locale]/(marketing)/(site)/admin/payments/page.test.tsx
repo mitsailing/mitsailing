@@ -65,8 +65,8 @@ describe('AdminPaymentsPage', () => {
 
   it('requires payment permission and passes normalized filters to the ledger', async () => {
     mocks.Env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = 'pk_test_configured';
-    mocks.Env.STRIPE_SECRET_KEY = 'sk_test_configured';
-    mocks.Env.STRIPE_WEBHOOK_SECRET = 'whsec_configured';
+    mocks.Env.STRIPE_SECRET_KEY = 'stripe_secret_configured';
+    mocks.Env.STRIPE_WEBHOOK_SECRET = 'stripe_webhook_configured';
     const { default: AdminPaymentsPage } = await import('./page');
 
     render(
@@ -98,7 +98,7 @@ describe('AdminPaymentsPage', () => {
   });
 
   it('uses the live Stripe dashboard when live keys are configured', async () => {
-    mocks.Env.STRIPE_SECRET_KEY = 'sk_live_configured';
+    mocks.Env.STRIPE_SECRET_KEY = 'stripe_live_secret_configured';
     const { default: AdminPaymentsPage } = await import('./page');
 
     render(await AdminPaymentsPage({ params: Promise.resolve(params()) }));

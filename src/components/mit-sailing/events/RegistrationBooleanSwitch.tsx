@@ -81,7 +81,7 @@ export function RegistrationBooleanSwitch(
       >
         <span
           aria-hidden
-          className="pointer-events-none block size-7 translate-x-0 rounded-full border border-black/15 bg-white shadow-md ring-0 transition-transform group-data-checked:translate-x-7 motion-reduce:transition-none md:size-5 md:group-data-checked:translate-x-5 dark:border-black/25"
+          className="pointer-events-none block size-7 translate-x-0 rounded-full border border-black/15 bg-white shadow-md ring-0 transition-transform group-data-checked:translate-x-6 motion-reduce:transition-none md:size-5 md:group-data-checked:translate-x-5 dark:border-black/25"
         />
       </Switch>
     </>

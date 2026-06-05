@@ -91,7 +91,7 @@ describe('EventsListView', () => {
     });
     expect(
       within(categoryFilters).getByRole('link', { name: 'All categories' })
-    ).toHaveAttribute('href', '/events/?month=2026-04');
+    ).toHaveAttribute('href', '/events?month=2026-04');
     expect(
       within(categoryFilters).getByRole('link', { name: 'Racing' })
     ).toHaveAttribute('aria-current', 'true');
@@ -99,7 +99,7 @@ describe('EventsListView', () => {
       within(categoryFilters).getByRole('link', { name: 'Classes' })
     ).toHaveAttribute(
       'href',
-      '/events/?month=2026-04&category=category-classes'
+      '/events?month=2026-04&category=category-classes'
     );
 
     const monthNavigation = screen.getByRole('navigation', {
@@ -107,16 +107,10 @@ describe('EventsListView', () => {
     });
     expect(
       within(monthNavigation).getByRole('link', { name: 'Previous month' })
-    ).toHaveAttribute(
-      'href',
-      '/events/?month=2026-03&category=category-racing'
-    );
+    ).toHaveAttribute('href', '/events?month=2026-03&category=category-racing');
     expect(
       within(monthNavigation).getByRole('link', { name: 'Next month' })
-    ).toHaveAttribute(
-      'href',
-      '/events/?month=2026-05&category=category-racing'
-    );
+    ).toHaveAttribute('href', '/events?month=2026-05&category=category-racing');
     expect(within(monthNavigation).getByText('April 2026')).toBeVisible();
 
     const calendarGrid = screen.getByRole('region', {

@@ -119,10 +119,10 @@ function completedRequest(
     cardType,
     hasFitnessMembership: null,
     legalAgreementAcceptance: {
+      acceptedUserId: userId,
       agreementHash: sailingCardAgreementHash(),
       agreementVersion: sailingCardAgreement.version,
       source: 'SAILING_CARD_ONBOARDING',
-      userId,
     },
     sailingAffiliation: SailingAffiliation.MIT_ALUM,
     status: 'pending',

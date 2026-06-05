@@ -233,6 +233,11 @@ describe('getPublishedEventForPublicBySlug', () => {
         }),
       })
     );
+    expect(mocks.eventRegistrationFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.not.objectContaining({ userId: { not: null } }),
+      })
+    );
     expect(result?.admins).toEqual([
       {
         id: 'event-admin-1',

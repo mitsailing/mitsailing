@@ -187,6 +187,16 @@ describe('EventDetailPage', () => {
     });
   });
 
+  it('renders event detail pages per request after admin edits', async () => {
+    mocks.getPublishedEventForPublicBySlug.mockResolvedValue(publicEvent);
+    mocks.getCurrentUser.mockResolvedValue(null);
+    const { default: EventDetailPage } = await import('./[slug]/page');
+
+    render(await EventDetailPage({ params: Promise.resolve(pageParams()) }));
+
+    expect(mocks.connection).toHaveBeenCalledTimes(1);
+  });
+
   it('passes the signed-in registration state to the detail view', async () => {
     mocks.getPublishedEventForPublicBySlug.mockResolvedValue(publicEvent);
     mocks.getCurrentUser.mockResolvedValue({ id: 'user-1' });

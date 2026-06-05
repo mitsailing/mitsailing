@@ -1607,6 +1607,7 @@
     "status_draft": "Draft",
     "status_external": "External",
     "status_published": "Published",
+    "status_saved": "Event saved.",
     "status_special": "Special",
     "stripe_placeholder_body": "Stripe checkout is intentionally separate from the first event-admin port.",
     "stripe_placeholder_status": "Payment configuration will appear here once payments are set up."

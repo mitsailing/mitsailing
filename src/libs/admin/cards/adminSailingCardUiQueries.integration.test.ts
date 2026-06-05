@@ -93,6 +93,9 @@ describe.skipIf(!shouldRunSummaryDatabaseTest)(
         data: [
           {
             acceptedAt: olderAgreementAcceptedAt,
+            acceptedUserEmail: `${targetUserId}@example.test`,
+            acceptedUserId: targetUserId,
+            acceptedUserName: 'Ada Lovelace',
             agreementHash: sailingCardAgreementHash(),
             agreementLabel: sailingCardAgreement.label,
             agreementVersion: sailingCardAgreement.version,
@@ -102,6 +105,9 @@ describe.skipIf(!shouldRunSummaryDatabaseTest)(
           },
           {
             acceptedAt: new Date('2026-05-24T16:00:00.000Z'),
+            acceptedUserEmail: `${targetUserId}@example.test`,
+            acceptedUserId: targetUserId,
+            acceptedUserName: 'Ada Lovelace',
             agreementHash: '0'.repeat(64),
             agreementLabel: sailingCardAgreement.label,
             agreementVersion: sailingCardAgreement.version,
@@ -111,6 +117,9 @@ describe.skipIf(!shouldRunSummaryDatabaseTest)(
           },
           {
             acceptedAt: new Date('2026-05-25T16:00:00.000Z'),
+            acceptedUserEmail: `${targetUserId}@example.test`,
+            acceptedUserId: targetUserId,
+            acceptedUserName: 'Ada Lovelace',
             agreementHash: sailingCardAgreementHash(),
             agreementLabel: sailingCardAgreement.label,
             agreementVersion: sailingCardAgreement.version,
@@ -120,6 +129,9 @@ describe.skipIf(!shouldRunSummaryDatabaseTest)(
           },
           {
             acceptedAt: latestAgreementAcceptedAt,
+            acceptedUserEmail: `${targetUserId}@example.test`,
+            acceptedUserId: targetUserId,
+            acceptedUserName: 'Ada Lovelace',
             agreementHash: sailingCardAgreementHash(),
             agreementLabel: sailingCardAgreement.label,
             agreementVersion: sailingCardAgreement.version,

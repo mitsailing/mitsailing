@@ -415,9 +415,10 @@ export async function EventDetailView(props: EventDetailViewProps) {
         </aside>
 
         <div className="min-w-0 lg:col-start-1 lg:row-start-2">
-          <p className="mb-10 max-w-3xl text-base leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap text-mit-text">
-            {props.event.description}
-          </p>
+          <CmsRichText
+            className="mb-10 max-w-3xl text-base leading-relaxed text-mit-text"
+            html={props.event.description}
+          />
           {props.event.entryFees.length > 0 ? (
             <section className="mb-10" aria-labelledby="event-fees-heading">
               <SectionHeading id="event-fees-heading">

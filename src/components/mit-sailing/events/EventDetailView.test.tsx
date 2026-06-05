@@ -150,6 +150,25 @@ describe('EventDetailView', () => {
     ).toBeVisible();
   });
 
+  it('renders the event description as sanitized rich text', async () => {
+    render(
+      await EventDetailView({
+        currentRegistration: null,
+        errorCode: null,
+        event: eventFixture({
+          description:
+            '<p>This three-day <em><strong>beginner</strong></em> course</p><script>alert("x")</script>',
+        }),
+        isSignedIn: false,
+        locale: 'en',
+      })
+    );
+
+    expect(screen.getByText('beginner').tagName).toBe('STRONG');
+    expect(document.body).not.toHaveTextContent('<p>');
+    expect(document.body).not.toHaveTextContent('alert("x")');
+  });
+
   it('renders public content sections as rich text', async () => {
     const eventWithSections = eventFixture({
       publicContentSections: [

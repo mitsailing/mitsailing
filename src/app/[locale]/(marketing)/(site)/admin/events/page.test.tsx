@@ -17,9 +17,7 @@ const mocks = vi.hoisted(() => ({
   AdminEventsListView: vi.fn((props: AdminEventsListViewProps) => (
     <div data-testid="admin-events-list">{props.rows.length}</div>
   )),
-  getPathname: vi.fn(
-    (props: { href: string; locale: string }) => `/${props.locale}${props.href}`
-  ),
+  getPathname: vi.fn((props: { href: string; locale: string }) => props.href),
   getTranslations: vi.fn(),
   listAdminEventCategories: vi.fn(),
   listAdminEventRows: vi.fn(),
@@ -99,7 +97,7 @@ describe('AdminEventsListPage', () => {
     expect(mocks.AdminEventsListView).toHaveBeenCalledWith(
       expect.objectContaining({
         categories: [{ id: 'cat-1', name: 'Clinics' }],
-        filterAction: '/en/admin/events',
+        filterAction: '/admin/events',
         filters: { categoryId: 'cat-1', query: 'intro', scope: 'all' },
         rows: [{ id: 'event-1', name: 'Intro Sail' }],
       }),

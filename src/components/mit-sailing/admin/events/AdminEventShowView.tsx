@@ -1,6 +1,7 @@
 import { ArrowLeft, Eye, Pencil, Trash2 } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
 import type * as React from 'react';
+import { AdminSuccessAlert } from '@/components/mit-sailing/admin/AdminErrorAlert';
 import { AdminEventRegistrationsView } from '@/components/mit-sailing/admin/events/AdminEventRegistrationsView';
 import type { RegistrationFilter } from '@/components/mit-sailing/admin/events/AdminEventRegistrationsView';
 import {
@@ -35,6 +36,7 @@ type AdminEventShowViewProps = {
   event: AdminEventShowDto;
   filter: RegistrationFilter;
   locale: string;
+  statusCode?: string | null;
   t: AdminEventShowTranslations;
 };
 
@@ -128,6 +130,16 @@ function AdminEventSummaryLink(props: { href: string }) {
       {href}
     </a>
   );
+}
+
+function AdminEventStatusAlert(props: {
+  code: string | null;
+  t: AdminEventShowTranslations;
+}) {
+  if (props.code === 'saved') {
+    return <AdminSuccessAlert>{props.t('status_saved')}</AdminSuccessAlert>;
+  }
+  return null;
 }
 
 export function AdminEventShowView(props: AdminEventShowViewProps) {
@@ -268,6 +280,7 @@ export function AdminEventShowView(props: AdminEventShowViewProps) {
       {props.event.accessMode === 'readOnly' ? (
         <AdminEventReadOnlyNotice t={props.t} />
       ) : null}
+      <AdminEventStatusAlert code={props.statusCode ?? null} t={props.t} />
 
       <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {metrics.map(([label, value]) => (

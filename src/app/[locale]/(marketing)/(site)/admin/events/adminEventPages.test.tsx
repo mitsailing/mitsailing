@@ -9,6 +9,7 @@ type ViewProps = {
   event?: unknown;
   filter?: string;
   locale?: string;
+  statusCode?: string | null;
   users?: readonly unknown[];
 };
 
@@ -139,7 +140,10 @@ describe('Admin event route pages', () => {
       await AdminEventShowPage({
         params: Promise.resolve(routeParams()),
         searchParams: Promise.resolve(
-          searchParams({ error: 'capacity_full', status: 'pending' })
+          searchParams({
+            error: 'capacity_full',
+            status: 'pending',
+          })
         ),
       })
     );
@@ -160,6 +164,26 @@ describe('Admin event route pages', () => {
         event,
         filter: 'pending',
         locale: 'en',
+        statusCode: null,
+      }),
+      undefined
+    );
+  });
+
+  it('passes event save status to the show view', async () => {
+    const { default: AdminEventShowPage } = await import('./[slug]/page');
+
+    render(
+      await AdminEventShowPage({
+        params: Promise.resolve(routeParams()),
+        searchParams: Promise.resolve(searchParams({ status: 'saved' })),
+      })
+    );
+
+    expect(mocks.AdminEventShowView).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filter: 'all',
+        statusCode: 'saved',
       }),
       undefined
     );
@@ -225,7 +249,26 @@ describe('Admin event route pages', () => {
         errorCode: 'stale_slug',
         event,
         locale: 'en',
+        statusCode: null,
         users,
+      }),
+      undefined
+    );
+  });
+
+  it('passes event save status to the edit view', async () => {
+    const { default: AdminEventEditPage } = await import('./[slug]/edit/page');
+
+    render(
+      await AdminEventEditPage({
+        params: Promise.resolve(routeParams()),
+        searchParams: Promise.resolve(searchParams({ status: 'saved' })),
+      })
+    );
+
+    expect(mocks.AdminEventFormView).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 'saved',
       }),
       undefined
     );

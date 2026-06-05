@@ -204,10 +204,10 @@ async function requireYearlyOnboardingState(options: {
           cardYear: true,
           legalAgreementAcceptance: {
             select: {
+              acceptedUserId: true,
               agreementHash: true,
               agreementVersion: true,
               source: true,
-              userId: true,
             },
           },
           status: true,

@@ -32,7 +32,9 @@ function firstElement<T>(elements: T[]): T {
 
 function renderView(
   accessMode: AdminEventRegistrationsViewProps['accessMode'],
-  options: { learnToSailWaitlistNumber?: number | null } = {}
+  options: {
+    learnToSailWaitlistNumber?: number | null;
+  } = {}
 ) {
   return render(
     <AdminEventRegistrationsView
