@@ -109,6 +109,7 @@ describe('sailing card PDF route', () => {
           email: 'AdminUsers.sailing_card_pdf_email',
           expires: 'AdminUsers.sailing_card_pdf_expires',
           membership: 'AdminUsers.sailing_card_pdf_membership',
+          noRatings: 'AdminUsers.sailing_card_pdf_no_ratings',
           notTransferable: 'AdminUsers.sailing_card_pdf_not_transferable',
           pavilionName: 'AdminUsers.sailing_card_pdf_pavilion_name',
           phone: 'AdminUsers.sailing_card_pdf_phone',
