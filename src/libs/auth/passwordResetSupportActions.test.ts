@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 
 describe('passwordResetSupportActions', () => {
-  it('captures support request in Sentry with matched user context', async () => {
+  it('captures support request with matched user context in Sentry', async () => {
     const { reportPasswordResetIssueAction } =
       await import('@/libs/auth/passwordResetSupportActions');
 
@@ -87,7 +87,7 @@ describe('passwordResetSupportActions', () => {
     );
   });
 
-  it('reject invalid support report email', async () => {
+  it('rejects invalid support report email', async () => {
     const { reportPasswordResetIssueAction } =
       await import('@/libs/auth/passwordResetSupportActions');
 

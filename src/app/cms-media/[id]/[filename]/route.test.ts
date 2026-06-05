@@ -3,11 +3,14 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET } from './route';
 
-const mocks = vi.hoisted(() => ({
-  findUnique: vi.fn(),
-  loggerError: vi.fn(),
-  mediaRoot: `${process.cwd()}/local/cms-media-route-test`,
-}));
+const mocks = vi.hoisted(() => {
+  const tempRoot = process.env.TMPDIR ?? '/tmp';
+  return {
+    findUnique: vi.fn(),
+    loggerError: vi.fn(),
+    mediaRoot: `${tempRoot.replace(/\/$/u, '')}/mitsailing-cms-media-route-test-${process.pid}`,
+  };
+});
 
 vi.mock('server-only', () => ({}));
 

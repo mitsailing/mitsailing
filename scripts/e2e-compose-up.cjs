@@ -3,10 +3,12 @@
  * Playwright standalone server origin.
  */
 const { spawnSync } = require('node:child_process');
+const { setTimeout: delay } = require('node:timers/promises');
 
 const port = String(process.env.PLAYWRIGHT_E2E_PORT ?? '3008');
 const fallbackAppUrl = `http://localhost:${port}`;
 const appUrl = String(process.env.NEXT_PUBLIC_APP_URL ?? fallbackAppUrl);
+const startupTimeoutMs = 60_000;
 
 /**
  * @param {string} value - Candidate app URL.
@@ -43,7 +45,18 @@ process.env.NEXT_PUBLIC_APP_URL = origin;
 
 const result = spawnSync(
   'docker',
-  ['compose', 'up', '-d', 'postgres', 'mailpit', 'redis', 'tusd', 'media'],
+  [
+    'compose',
+    'up',
+    '--wait',
+    '--wait-timeout',
+    String(Math.ceil(startupTimeoutMs / 1000)),
+    'postgres',
+    'mailpit',
+    'redis',
+    'tusd',
+    'media',
+  ],
   {
     stdio: 'inherit',
   }
@@ -53,4 +66,54 @@ if (result.error) {
   console.error(`[e2e-compose-up] ${result.error.message}`);
 }
 
-process.exit(result.status ?? 1);
+if (result.status !== 0) {
+  process.exit(result.status ?? 1);
+}
+
+/**
+ * @param {string} url - Health URL exposed on the host network.
+ * @param {string} label - Service label for diagnostics.
+ */
+async function waitForHostHttp(url, label) {
+  const deadline = Date.now() + startupTimeoutMs;
+  let lastError = '';
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(url);
+      if (response.ok || response.status === 204) {
+        return;
+      }
+      lastError = `${response.status} ${response.statusText}`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await delay(1000);
+  }
+  console.error(`[e2e-compose-up] ${label} not reachable at ${url}`);
+  console.error(`[e2e-compose-up] last error: ${lastError}`);
+  const diagnostics = spawnSync('docker', ['compose', 'ps', '-a'], {
+    stdio: 'inherit',
+  });
+  if (diagnostics.error) {
+    console.error(`[e2e-compose-up] ${diagnostics.error.message}`);
+  }
+  process.exit(1);
+}
+
+async function main() {
+  await waitForHostHttp('http://127.0.0.1:1080/metrics', 'tusd');
+  await waitForHostHttp('http://127.0.0.1:8025/readyz', 'mailpit');
+  await waitForHostHttp('http://127.0.0.1:8088/cms-media/healthz', 'media');
+}
+
+// eslint-disable-next-line no-void -- Top-level async entry point catches and reports failures before exiting.
+void (async function run() {
+  try {
+    await main();
+  } catch (error) {
+    console.error(
+      `[e2e-compose-up] ${error instanceof Error ? error.message : String(error)}`
+    );
+    process.exit(1);
+  }
+})();

@@ -91,7 +91,7 @@ test.describe('Account lockout', () => {
     '-'
   );
 
-  test('locked-out sailor unlocks account from email link', async ({
+  test('unlocks account from email link when sailor is locked out', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;

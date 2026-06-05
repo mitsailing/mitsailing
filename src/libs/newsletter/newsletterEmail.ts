@@ -45,6 +45,11 @@ type NewsletterTestEmailParams = {
   subject: string;
 };
 
+/**
+ * Loads localized footer copy shared by newsletter email renderers.
+ *
+ * @returns Manage-preferences label and postal address text
+ */
 export async function getNewsletterFooterCopy(): Promise<{
   managePreferencesLabel: string;
   postalAddress: string;

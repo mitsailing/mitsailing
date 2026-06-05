@@ -227,6 +227,51 @@ describe('uploadCmsMediaFile', () => {
     );
   });
 
+  it('waits for queued session asset to become ready', async () => {
+    const file = new File(['image-bytes'], 'hero.png', { type: 'image/png' });
+    vi.mocked(uploadCmsMediaWithTus).mockResolvedValue({
+      assetId: 'session-asset',
+    });
+
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      const path = fetchInputPath(input);
+      if (path === '/api/admin/cms-media/uploads' && init?.method === 'POST') {
+        await Promise.resolve();
+        return uploadSessionResponse(file);
+      }
+      if (
+        path === '/api/admin/cms-media/uploads/session-asset/finalize' &&
+        init?.method === 'POST'
+      ) {
+        await Promise.resolve();
+        return Response.json({
+          asset: { ...uploadSessionAsset(file), status: 'queued' },
+        });
+      }
+      if (path === '/api/admin/cms-media/uploads/session-asset') {
+        await Promise.resolve();
+        return Response.json({
+          asset: { ...uploadSessionAsset(file), status: 'ready' },
+        });
+      }
+      await Promise.resolve();
+      return Response.json({ asset: null });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(uploadCmsMediaFile({ file })).resolves.toEqual(
+      expect.objectContaining({
+        id: 'session-asset',
+        originalFilename: 'hero.png',
+        status: 'ready',
+      })
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/admin/cms-media/uploads/session-asset'
+    );
+  });
+
   it('reports finalize failure', async () => {
     const file = new File(['image-bytes'], 'hero.png', { type: 'image/png' });
     vi.mocked(uploadCmsMediaWithTus).mockResolvedValue({

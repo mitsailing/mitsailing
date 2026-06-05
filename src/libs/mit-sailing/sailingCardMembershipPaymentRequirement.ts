@@ -7,6 +7,12 @@ import {
   membershipAccessForOnboardingFlags,
 } from '@/libs/mit-sailing/sailingCardMembershipEligibility';
 
+/**
+ * Determines whether a sailing card request must collect membership payment.
+ *
+ * @param request - Card type, affiliation, and membership evidence
+ * @returns Whether the request needs paid membership checkout
+ */
 export function sailingCardRequestNeedsMembershipPayment(request: {
   readonly cardType: SailingCardType;
   readonly hasFitnessMembership: boolean | null;

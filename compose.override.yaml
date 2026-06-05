@@ -114,7 +114,7 @@ services:
           '--quiet',
           '--tries=1',
           '--spider',
-          'http://localhost:8080/cms-media/healthz',
+          'http://127.0.0.1:8080/cms-media/healthz',
         ]
       interval: 2s
       timeout: 5s
