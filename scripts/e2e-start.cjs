@@ -18,6 +18,13 @@ function startProcess(name, command, args) {
     stdio: 'inherit',
   });
   children.push(child);
+  child.on('error', (error) => {
+    if (shuttingDown) {
+      return;
+    }
+    console.error(`[e2e-start] ${name} failed to start (${error.message}).`);
+    shutdown(1);
+  });
   child.on('exit', (code, signal) => {
     if (shuttingDown) {
       return;
@@ -48,7 +55,7 @@ function shutdown(exitCode) {
       }
     }
     process.exit(exitCode);
-  }, 5000).unref();
+  }, 5000);
 }
 
 process.on('SIGINT', () => {
