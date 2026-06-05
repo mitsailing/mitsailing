@@ -48,7 +48,6 @@ export function AdminSuccessAlert(props: AdminSuccessAlertProps) {
   return (
     <output
       {...props}
-      role="status"
       aria-live="polite"
       aria-atomic="true"
       aria-relevant="all"

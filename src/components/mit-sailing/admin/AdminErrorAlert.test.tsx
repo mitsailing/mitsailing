@@ -18,6 +18,8 @@ describe('AdminSuccessAlert', () => {
     render(<AdminSuccessAlert>Event saved.</AdminSuccessAlert>);
     const status = screen.getByRole('status');
     expect(status).toHaveTextContent('Event saved.');
+    expect(status.tagName).toBe('OUTPUT');
+    expect(status).not.toHaveAttribute('role');
     expect(status).toHaveAttribute('aria-live', 'polite');
     expect(status).toHaveAttribute('aria-atomic', 'true');
     expect(status).toHaveAttribute('aria-relevant', 'all');
