@@ -455,10 +455,14 @@ describe('production deploy script', () => {
 
 describe('local docker compose', () => {
   const localCompose = readRepoFile('compose.override.yaml');
+  const e2eComposeScript = readRepoFile('scripts/e2e-compose-up.cjs');
 
   it('starts local upload and media services on loopback ports', () => {
     expect(localCompose).toContain('tusd:');
     expect(localCompose).toContain('image: tusproject/tusd:v2.9.2');
+    expect(localCompose).toContain(
+      `user: '${composeVariable('LOCAL_DOCKER_UID:-1000')}:${composeVariable('LOCAL_DOCKER_GID:-1000')}'`
+    );
     expect(localCompose).toContain(
       `'127.0.0.1:${composeVariable('MEDIA_UPLOAD_PUBLISH_PORT:-1080')}:1080'`
     );
@@ -497,6 +501,18 @@ describe('local docker compose', () => {
     expect(localCompose).toContain('source: ./local/cms-media');
     expect(localCompose).toContain('target: /var/lib/mitsailing/cms-media');
     expect(localCompose).toContain('source: ./docker/nginx/media.conf');
+  });
+
+  it('starts local E2E tusd with the runner host user', () => {
+    expect(e2eComposeScript).toContain('configureLocalDockerUser');
+    expect(e2eComposeScript).toContain('process.getuid');
+    expect(e2eComposeScript).toContain('process.getgid');
+    expect(e2eComposeScript).toContain(
+      'process.env.LOCAL_DOCKER_UID ??= String(uid)'
+    );
+    expect(e2eComposeScript).toContain(
+      'process.env.LOCAL_DOCKER_GID ??= String(gid)'
+    );
   });
 });
 

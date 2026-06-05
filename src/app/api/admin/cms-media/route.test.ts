@@ -51,6 +51,8 @@ vi.mock('@/libs/mit-sailing/cmsMediaStorage', () => ({
 }));
 
 const pngBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+const storedRaceDayPngPath =
+  '/var/lib/mitsailing/cms-media/ready/asset-1/race-day.png';
 
 function stubAdminUser() {
   mocks.getCurrentUser.mockResolvedValue({
@@ -300,7 +302,7 @@ describe('cms media route', () => {
     const error = new Error('postgres down');
     mocks.appEnv = 'local';
     stubAdminUser();
-    mocks.writeCmsMediaFile.mockResolvedValue('/tmp/race-day.png');
+    mocks.writeCmsMediaFile.mockResolvedValue(storedRaceDayPngPath);
     mocks.create.mockRejectedValue(error);
 
     const response = await POST(
@@ -325,7 +327,7 @@ describe('cms media route', () => {
     const cleanupError = new Error('unlink failed');
     mocks.appEnv = 'local';
     stubAdminUser();
-    mocks.writeCmsMediaFile.mockResolvedValue('/tmp/race-day.png');
+    mocks.writeCmsMediaFile.mockResolvedValue(storedRaceDayPngPath);
     mocks.create.mockRejectedValue(createError);
     mocks.deleteCmsMediaFile.mockRejectedValue(cleanupError);
 
@@ -352,7 +354,7 @@ describe('cms media route', () => {
     mocks.appEnv = 'local';
     stubAdminUser();
     mocks.findPageUnique.mockResolvedValue({ id: 'cms-home' });
-    mocks.writeCmsMediaFile.mockResolvedValue('/tmp/race-day.png');
+    mocks.writeCmsMediaFile.mockResolvedValue(storedRaceDayPngPath);
     mocks.create.mockResolvedValue({
       byteSize: BigInt(pngBytes.byteLength),
       createdAt,

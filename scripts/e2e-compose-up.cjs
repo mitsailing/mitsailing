@@ -10,6 +10,13 @@ const fallbackAppUrl = `http://localhost:${port}`;
 const appUrl = String(process.env.NEXT_PUBLIC_APP_URL ?? fallbackAppUrl);
 const startupTimeoutMs = 60_000;
 
+function configureLocalDockerUser() {
+  const uid = typeof process.getuid === 'function' ? process.getuid() : 1000;
+  const gid = typeof process.getgid === 'function' ? process.getgid() : 1000;
+  process.env.LOCAL_DOCKER_UID ??= String(uid);
+  process.env.LOCAL_DOCKER_GID ??= String(gid);
+}
+
 /**
  * @param {string} value - Candidate app URL.
  * @returns {string} App origin for CORS.
@@ -42,6 +49,7 @@ const hookUrl =
 process.env.MEDIA_UPLOAD_CORS_ALLOW_ORIGIN = origin;
 process.env.MEDIA_UPLOAD_HOOK_URL = hookUrl;
 process.env.NEXT_PUBLIC_APP_URL = origin;
+configureLocalDockerUser();
 
 function runDockerDiagnostics() {
   const commands = [

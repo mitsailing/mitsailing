@@ -28,6 +28,8 @@ type CmsMediaAssetRouteRecord = {
   publicPath: string;
 } | null;
 
+type ReadyCmsMediaAssetRouteRecord = NonNullable<CmsMediaAssetRouteRecord>;
+
 const CMS_MEDIA_RESPONSE_HEADERS = {
   'Cache-Control': 'public, max-age=31536000, immutable',
   'Content-Security-Policy':
@@ -53,13 +55,10 @@ function isMissingFileError(error: unknown): boolean {
 }
 
 async function readServerFolderCmsMediaFile(props: {
-  asset: CmsMediaAssetRouteRecord;
+  asset: ReadyCmsMediaAssetRouteRecord;
   filename: string;
   id: string;
 }): Promise<Buffer | null> {
-  if (!props.asset) {
-    return null;
-  }
   const expectedPath = buildCmsMediaReadyPath({
     assetId: props.id,
     filename: props.filename,

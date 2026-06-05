@@ -56,6 +56,7 @@ services:
 
   tusd:
     image: tusproject/tusd:v2.9.2
+    user: '${LOCAL_DOCKER_UID:-1000}:${LOCAL_DOCKER_GID:-1000}'
     restart: unless-stopped
     ports:
       - '127.0.0.1:${MEDIA_UPLOAD_PUBLISH_PORT:-1080}:1080'

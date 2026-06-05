@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET } from './route';
@@ -209,7 +209,9 @@ describe('cms media route', () => {
 
   it('returns server error when the ready file cannot be read', async () => {
     const filePath = readyFilePath();
-    await mkdir(filePath, { recursive: true });
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeFile(filePath, bytes);
+    await chmod(filePath, 0);
     mocks.findUnique.mockResolvedValue(readyAsset());
 
     const response = await GET(

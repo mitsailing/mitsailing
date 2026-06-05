@@ -528,10 +528,18 @@ async function importEventDates(props: {
     if (!eventId || !startDateTime || !endDateTime) {
       return [];
     }
-    if (endDateTime <= startDateTime) {
-      endDateTime.setUTCDate(endDateTime.getUTCDate() + 1);
+    const normalizedEndDateTime = new Date(endDateTime);
+    if (normalizedEndDateTime <= startDateTime) {
+      normalizedEndDateTime.setUTCDate(normalizedEndDateTime.getUTCDate() + 1);
     }
-    return [{ endDateTime, eventId, id: randomUUID(), startDateTime }];
+    return [
+      {
+        endDateTime: normalizedEndDateTime,
+        eventId,
+        id: randomUUID(),
+        startDateTime,
+      },
+    ];
   });
   await props.db.$executeRaw`
     CREATE TEMP TABLE legacy_import_event_dates (

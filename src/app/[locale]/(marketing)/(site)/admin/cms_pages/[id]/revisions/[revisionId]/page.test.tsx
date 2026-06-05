@@ -32,8 +32,8 @@ vi.mock(
       fieldLabels: Record<string, string>;
       text: {
         compareHeading: string;
-        moreChanges: (count: number) => string;
-        snapshotVersion: (version: number) => string;
+        moreChanges: (_count: number) => string;
+        snapshotVersion: (_version: number) => string;
       };
     }) => (
       <main
@@ -114,7 +114,7 @@ beforeEach(() => {
       ? `${key}:${JSON.stringify(values)}`
       : key
   );
-  mocks.requirePermission.mockImplementation(async () => {});
+  mocks.requirePermission.mockResolvedValue(null);
   mocks.getAdminCmsPageRevisionCompare.mockResolvedValue(compareFixture());
 });
 

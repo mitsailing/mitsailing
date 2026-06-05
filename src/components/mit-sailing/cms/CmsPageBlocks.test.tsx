@@ -28,11 +28,23 @@ vi.mock('@/libs/I18nNavigation', () => ({
   ),
 }));
 
-function block(
-  props: Partial<PublicCmsBlock> & Pick<PublicCmsBlock, 'id' | 'kind' | 'title'>
-): PublicCmsBlock {
+type CmsBlockFixtureProps = {
+  body?: PublicCmsBlock['body'];
+  ctaLabel?: PublicCmsBlock['ctaLabel'];
+  ctaUrl?: PublicCmsBlock['ctaUrl'];
+  id: PublicCmsBlock['id'];
+  imageAlt?: PublicCmsBlock['imageAlt'];
+  imageSrc?: PublicCmsBlock['imageSrc'];
+  kind: PublicCmsBlock['kind'];
+  subtitle?: PublicCmsBlock['subtitle'];
+  title: PublicCmsBlock['title'];
+};
+
+const defaultBlockBodyHtml = '<p>Block body</p>';
+
+function block(props: CmsBlockFixtureProps): PublicCmsBlock {
   return {
-    body: '<p>Block body</p>',
+    body: defaultBlockBodyHtml,
     ...props,
   };
 }

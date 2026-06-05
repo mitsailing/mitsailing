@@ -31,7 +31,7 @@ describe('CmsPricingBlock', () => {
     expect(screen.getByRole('heading', { name: 'Two' })).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Three' })).toBeVisible();
     expect(
-      view.container.querySelector('.lg\\:grid-cols-3')
+      view.container.querySelector(String.raw`.lg\:grid-cols-3`)
     ).toBeInTheDocument();
   });
 
@@ -51,7 +51,7 @@ describe('CmsPricingBlock', () => {
 
     expect(screen.getByRole('heading', { name: 'Four' })).toBeVisible();
     expect(
-      view.container.querySelector('.lg\\:grid-cols-4')
+      view.container.querySelector(String.raw`.lg\:grid-cols-4`)
     ).toBeInTheDocument();
   });
 
