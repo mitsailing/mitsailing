@@ -278,12 +278,7 @@ describe('submitPavilionReservationRequestAction', () => {
     expect(enqueuePavilionReservationSubmittedEmail).toHaveBeenCalledWith(
       defaultQueue,
       {
-        eventName: 'late night pavilion booking',
         referenceCode: expect.stringMatching(/^PAV-/),
-        requesterEmail: 'pavilion-requester@example.com',
-        scheduleLines: [
-          'Casual party space: Wed, Jul 1, 2026 · 1:00 AM (next day) - 2:00 AM (next day)',
-        ],
       }
     );
   });

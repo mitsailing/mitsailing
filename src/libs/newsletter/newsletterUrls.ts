@@ -6,6 +6,10 @@ type NewsletterUrlParams = {
   token: string;
 };
 
+type NewsletterManageUrlOptions = {
+  unsubscribedListId?: string;
+};
+
 function absoluteUrl(path: string): string {
   return `${getBaseUrl().replace(/\/$/, '')}${path}`;
 }
@@ -14,10 +18,17 @@ function absoluteUrl(path: string): string {
  * Builds the public manage-preferences URL for a subscriber token.
  *
  * @param token - Raw manage token
+ * @param options - Optional manage-page display state
  * @returns Absolute URL
  */
-export function newsletterManageUrl(token: string): string {
+export function newsletterManageUrl(
+  token: string,
+  options?: NewsletterManageUrlOptions
+): string {
   const search = new URLSearchParams({ token });
+  if (options?.unsubscribedListId) {
+    search.set('unsubscribedList', options.unsubscribedListId);
+  }
   return absoluteUrl(`/newsletter/manage?${search.toString()}`);
 }
 

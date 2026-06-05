@@ -267,9 +267,8 @@ export const Env = createEnv({
       .optional(),
     STRIPE_WEBHOOK_SECRET: z.string().startsWith('whsec_').optional(),
 
-    // Cloudflare Tunnel credential consumed by the cloudflared service in
-    // compose.staging.yaml / compose.prod.yaml. Required in staging+prod,
-    // unset locally.
+    // Cloudflare Tunnel credential consumed by the production Compose
+    // cloudflared service. Required in staging+prod, unset locally.
     CLOUDFLARE_TUNNEL_TOKEN: z.string().min(1).optional(),
     DEPLOYMENT_VERSION: z.string().min(1).optional(),
     NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: z.string().min(32).optional(),

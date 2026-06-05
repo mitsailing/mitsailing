@@ -14,6 +14,7 @@ type SignUpPageProps = {
   params: Promise<{ locale: string }>;
   searchParams: Promise<{
     callbackUrl?: string | string[];
+    email?: string | string[];
   }>;
 };
 
@@ -34,8 +35,10 @@ export default async function SignUpPage(props: SignUpPageProps) {
   setRequestLocale(locale);
   const searchParams = await props.searchParams;
   const rawCallbackUrl = searchParams.callbackUrl;
+  const rawEmail = searchParams.email;
   const normalizedCallbackUrl =
     typeof rawCallbackUrl === 'string' ? rawCallbackUrl : rawCallbackUrl?.[0];
+  const initialEmail = typeof rawEmail === 'string' ? rawEmail : rawEmail?.[0];
   const callbackUrl = authHrefWithCallback(
     getI18nPath('/onboarding', locale),
     safeAuthCallbackUrl(normalizedCallbackUrl, '')
@@ -50,7 +53,7 @@ export default async function SignUpPage(props: SignUpPageProps) {
         {t('heading')}
       </h1>
 
-      <SignUpForm callbackUrl={callbackUrl} />
+      <SignUpForm callbackUrl={callbackUrl} initialEmail={initialEmail} />
 
       <p className="text-center text-sm text-mit-text">
         {t('have_account')}{' '}

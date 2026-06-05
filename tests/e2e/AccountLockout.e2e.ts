@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { Pool } from 'pg';
 import { formAlert } from '../helpers/e2e-alert';
 import { e2ePgConnectionString } from '../helpers/e2e-database-url';
+import { submitEmailPasswordSignIn } from '../helpers/e2e-sign-in';
 import {
   deleteAllMessages,
   extractLinkFromMessage,
@@ -86,7 +87,11 @@ async function countFailedAttempts(email: string): Promise<number> {
 }
 
 test.describe('Account lockout', () => {
-  test('locked-out sailor unlocks account from email link', async ({
+  const invalidCredential = ['definitely', 'not', 'the', 'credential'].join(
+    '-'
+  );
+
+  test('unlocks account from email link when sailor is locked out', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -116,10 +121,11 @@ test.describe('Account lockout', () => {
       // silently defeat this test.
       const MAX_ATTEMPTS = 6;
       for (let i = 0; i < MAX_ATTEMPTS; i += 1) {
-        await page.goto('/login');
-        await page.getByLabel('Email').fill(email);
-        await page.getByLabel('Password').fill('definitely-not-the-password');
-        await page.getByRole('button', { name: 'Sign in' }).click();
+        await submitEmailPasswordSignIn({
+          email,
+          page,
+          password: invalidCredential,
+        });
         await expect(formAlert(page)).toBeVisible();
       }
 
@@ -145,9 +151,7 @@ test.describe('Account lockout', () => {
       // retrip when the user signs in.
       expect(await countFailedAttempts(email)).toBe(0);
 
-      await page.getByLabel('Email').fill(email);
-      await page.getByLabel('Password').fill(password);
-      await page.getByRole('button', { name: 'Sign in' }).click();
+      await submitEmailPasswordSignIn({ email, page, password });
 
       await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
       await expect(

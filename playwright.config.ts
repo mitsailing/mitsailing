@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import * as os from 'node:os';
+import path from 'node:path';
 import type { ChromaticConfig } from '@chromatic-com/playwright';
 import { defineConfig, devices } from '@playwright/test';
 import { playwrightE2eDatabaseUrl } from './tests/helpers/e2e-database-url';
@@ -10,6 +11,30 @@ const PORT = process.env.PLAYWRIGHT_E2E_PORT ?? '3008';
 const baseURL = `http://localhost:${PORT}`;
 
 const e2eDatabaseUrl = playwrightE2eDatabaseUrl();
+const e2eMediaStorageRoot = path.resolve(
+  process.env.MEDIA_STORAGE_ROOT ?? 'local/cms-media'
+);
+const e2eMediaUploadBaseUrl =
+  process.env.MEDIA_UPLOAD_BASE_URL ?? 'http://127.0.0.1:1080';
+const e2eMediaUploadSharedSecret =
+  process.env.MEDIA_UPLOAD_SHARED_SECRET ??
+  'e2e-media-upload-shared-secret-32-chars';
+const e2eRedisUrl = process.env.REDIS_URL ?? 'redis://127.0.0.1:6379';
+
+const e2eEnvDefaults: Record<string, string> = {
+  ADMIN_EMAIL: 'admin@example.com',
+  BETTER_AUTH_SECRET: 'e2e-auth-secret-placeholder-with-thirty-two-chars',
+  EMAIL_FROM: 'MIT Sailing <noreply@mitsailing.test>',
+  MAILPIT_API_URL: 'http://127.0.0.1:8025',
+  MAIL_TRANSPORT: 'smtp',
+  NEXT_PUBLIC_APP_URL: baseURL,
+  NEXT_PUBLIC_SENTRY_DISABLED: 'true',
+  SMTP_URL: 'smtp://127.0.0.1:1025',
+};
+
+for (const [key, value] of Object.entries(e2eEnvDefaults)) {
+  process.env[key] ??= value;
+}
 
 process.env.DATABASE_URL = e2eDatabaseUrl;
 
@@ -77,7 +102,7 @@ export default defineConfig<ChromaticConfig>({
   // Next's standalone production server matches the Docker runtime path and
   // keeps CI e2e on the same server entrypoint as deploys.
   webServer: {
-    command: 'node .next/standalone/server.js',
+    command: 'node scripts/e2e-start.cjs',
     // Prefer `url` over `port`: wait until HTTP returns a ready status, not only a listening socket.
     // See https://playwright.dev/docs/test-webserver
     url: baseURL,
@@ -92,6 +117,7 @@ export default defineConfig<ChromaticConfig>({
     reuseExistingServer: false,
     stdout: 'ignore',
     stderr: 'ignore',
+    gracefulShutdown: { signal: 'SIGTERM', timeout: 5000 },
     env: {
       ...process.env,
       NODE_ENV: 'production',
@@ -102,6 +128,11 @@ export default defineConfig<ChromaticConfig>({
       PORT: String(PORT),
       HOSTNAME: '0.0.0.0',
       DATABASE_URL: e2eDatabaseUrl,
+      CMS_MEDIA_ROOT: e2eMediaStorageRoot,
+      MEDIA_STORAGE_ROOT: e2eMediaStorageRoot,
+      MEDIA_UPLOAD_BASE_URL: e2eMediaUploadBaseUrl,
+      MEDIA_UPLOAD_SHARED_SECRET: e2eMediaUploadSharedSecret,
+      REDIS_URL: e2eRedisUrl,
     },
   },
   use: {

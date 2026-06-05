@@ -99,6 +99,7 @@ type TemplateBuilder = (params: RenderTemplateParams) => React.ReactElement;
 
 const eventCopy = enMessages.EventPaymentEmails;
 const membershipCopy = enMessages.MembershipPaymentEmails;
+const newsletterCopy = enMessages.NewsletterEmail;
 const pavilionCopy = enMessages.PavilionReservationEmails;
 
 function eventPaymentActionTemplateProps(params: RenderTemplateParams) {
@@ -177,6 +178,11 @@ const templateBuilders = {
     NewsletterBroadcastTemplate({
       body: params.bodyHtml,
       listName: valueFor(params.values, 'listName', 'General'),
+      managePreferencesLabel: valueFor(
+        params.values,
+        'managePreferencesLabel',
+        newsletterCopy.manage_preferences_label
+      ),
       manageUrl: valueFor(
         params.values,
         'manageUrl',

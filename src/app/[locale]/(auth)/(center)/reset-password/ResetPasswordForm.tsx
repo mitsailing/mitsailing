@@ -14,6 +14,7 @@ import {
   authHrefWithCallback,
   safeAuthCallbackUrl,
 } from '@/libs/auth/callbackUrl';
+import { reportPasswordResetIssueAction } from '@/libs/auth/passwordResetSupportActions';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 import {
@@ -25,6 +26,7 @@ type ResetPasswordFormProps = {
   callbackUrl: string;
   initialEmail: string;
   initialResendLocked?: boolean;
+  mode?: 'create-password' | 'reset-password';
   passwordHeading: string;
 };
 
@@ -73,6 +75,45 @@ function startResendLock(options: ResendLockControls) {
   }, 30_000);
 }
 
+function ResetPasswordCodeStepHeader(props: {
+  readonly email: string;
+  readonly hasInitialEmail: boolean;
+  readonly mode: ResetPasswordFormProps['mode'];
+}) {
+  const t = useTranslations('ResetPasswordPage');
+  let body: string;
+  if (props.hasInitialEmail) {
+    body =
+      props.mode === 'create-password'
+        ? t('pending_body_create_password', { email: props.email })
+        : t('pending_body', { email: props.email });
+  } else {
+    body =
+      props.mode === 'create-password'
+        ? t('pending_body_create_password_fallback')
+        : t('pending_body_fallback');
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <h1 className="text-center text-4xl font-normal tracking-normal text-foreground sm:text-5xl">
+        {t('heading')}
+      </h1>
+      <p className="max-w-md text-xl leading-relaxed text-pretty text-muted-foreground">
+        {body}
+      </p>
+    </div>
+  );
+}
+
+function shouldReturnToCodeStep(code: string | undefined): boolean {
+  return (
+    code === 'INVALID_OTP' ||
+    code === 'OTP_EXPIRED' ||
+    code === 'TOO_MANY_ATTEMPTS'
+  );
+}
+
 export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const tCommon = useTranslations('Common');
   const t = useTranslations('ResetPasswordPage');
@@ -90,6 +131,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [autoSignInFailed, setAutoSignInFailed] = useState(false);
   const [resending, setResending] = useState(false);
+  const [reportingIssue, setReportingIssue] = useState(false);
   const [resendLocked, setResendLocked] = useState(
     props.initialResendLocked ?? false
   );
@@ -233,6 +275,68 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     }
   }
 
+  async function onReportIssue() {
+    setError(null);
+    setStatus(null);
+    const normalizedEmail = normalizeEmailAddress(email);
+    setEmail(normalizedEmail);
+    if (!isValidEmailAddress(normalizedEmail)) {
+      setError(t('error_invalid_email'));
+      return;
+    }
+
+    setReportingIssue(true);
+    try {
+      const result = await reportPasswordResetIssueAction({
+        action:
+          props.mode === 'create-password'
+            ? 'create_password_email_not_received'
+            : 'password_reset_email_not_received',
+        email: normalizedEmail,
+      });
+      if (!result.ok) {
+        setError(t('error_invalid_email'));
+        return;
+      }
+      setStatus(t('support_sent'));
+    } catch {
+      setError(t('error_support_failed'));
+    } finally {
+      setReportingIssue(false);
+    }
+  }
+
+  async function signInAfterPasswordReset(options: {
+    readonly email: string;
+    readonly password: string;
+  }): Promise<boolean> {
+    try {
+      const signInRes = await authClient.signIn.email({
+        email: options.email,
+        password: options.password,
+        callbackURL: safeCallbackUrl,
+      });
+      if (signInRes.error) {
+        reportUnknownAuthClientError({
+          code: signInRes.error.code,
+          message: signInRes.error.message,
+          action: 'reset-password.auto-sign-in',
+        });
+        setAutoSignInFailed(true);
+        return false;
+      }
+      return true;
+    } catch (signInError) {
+      reportUnknownAuthClientError({
+        action: 'reset-password.auto-sign-in',
+        code: undefined,
+        message: signInError instanceof Error ? signInError.message : undefined,
+      });
+      setAutoSignInFailed(true);
+      return false;
+    }
+  }
+
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -251,11 +355,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
         password,
       });
       if (res.error) {
-        if (
-          res.error.code === 'INVALID_OTP' ||
-          res.error.code === 'OTP_EXPIRED' ||
-          res.error.code === 'TOO_MANY_ATTEMPTS'
-        ) {
+        if (shouldReturnToCodeStep(res.error.code)) {
           if (res.error.code === 'OTP_EXPIRED') {
             setResetCode('');
           }
@@ -274,34 +374,11 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       const passwordForSignIn = password;
       setPassword('');
       setPasswordConfirmation('');
-      const signInRes = await (async () => {
-        try {
-          return await authClient.signIn.email({
-            email: normalizedEmail,
-            password: passwordForSignIn,
-            callbackURL: safeCallbackUrl,
-          });
-        } catch (signInError) {
-          reportUnknownAuthClientError({
-            action: 'reset-password.auto-sign-in',
-            code: undefined,
-            message:
-              signInError instanceof Error ? signInError.message : undefined,
-          });
-          setAutoSignInFailed(true);
-          return null;
-        }
-      })();
-      if (!signInRes) {
-        return;
-      }
-      if (signInRes.error) {
-        reportUnknownAuthClientError({
-          code: signInRes.error.code,
-          message: signInRes.error.message,
-          action: 'reset-password.auto-sign-in',
-        });
-        setAutoSignInFailed(true);
+      const signedIn = await signInAfterPasswordReset({
+        email: normalizedEmail,
+        password: passwordForSignIn,
+      });
+      if (!signedIn) {
         return;
       }
       router.push(safeCallbackUrl);
@@ -334,16 +411,11 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       ) : null}
 
       {step === 'code' ? (
-        <div className="flex flex-col items-center gap-4">
-          <h1 className="text-center text-4xl font-normal tracking-normal text-foreground sm:text-5xl">
-            {t('heading')}
-          </h1>
-          <p className="max-w-md text-xl leading-relaxed text-pretty text-muted-foreground">
-            {hasInitialEmail
-              ? t('pending_body', { email })
-              : t('pending_body_fallback')}
-          </p>
-        </div>
+        <ResetPasswordCodeStepHeader
+          email={email}
+          hasInitialEmail={hasInitialEmail}
+          mode={props.mode}
+        />
       ) : (
         <div className="flex flex-col items-center gap-4">
           <h1 className="text-center text-3xl font-normal tracking-normal text-foreground sm:text-4xl">
@@ -421,6 +493,19 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
                       : `${resendSecondsLeft} seconds`,
                 })
               : t('resend_email')}
+          </Button>
+
+          <Button
+            className="h-auto min-h-0 px-0 py-0 text-sm font-normal text-muted-foreground underline shadow-none hover:bg-transparent hover:text-foreground hover:underline disabled:opacity-60"
+            disabled={reportingIssue}
+            onClick={() => {
+              // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the support-report promise.
+              void onReportIssue();
+            }}
+            type="button"
+            variant="link"
+          >
+            {t('support_button')}
           </Button>
         </>
       ) : (

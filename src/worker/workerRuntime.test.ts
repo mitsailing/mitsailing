@@ -13,7 +13,9 @@ type WorkerInstance = {
 
 type QueueInstance = {
   close: ReturnType<typeof vi.fn>;
+  handlers: Map<string, WorkerEventHandler>;
   name: string;
+  on: ReturnType<typeof vi.fn>;
   options: unknown;
 };
 
@@ -32,11 +34,20 @@ const mocks = vi.hoisted(() => {
     name: string,
     options: unknown
   ) {
-    const instance = {
+    const handlers = new Map<string, WorkerEventHandler>();
+    const instance: QueueInstance = {
       close: vi.fn(async () => {}),
+      handlers,
       name,
+      on: vi.fn(),
       options,
     };
+    instance.on.mockImplementation(
+      (event: string, handler: WorkerEventHandler) => {
+        handlers.set(event, handler);
+        return instance;
+      }
+    );
     queueInstances.push(instance);
     return instance;
   });
@@ -298,6 +309,30 @@ describe('worker runtime', () => {
     expect(mocks.loggerWarn).toHaveBeenCalledWith(
       'Newsletter broadcast job stalled',
       { jobId: 'job-3' }
+    );
+  });
+
+  it('logs default queue and worker errors', async () => {
+    const { startWorkerRuntime } = await import('@/worker/workerRuntime');
+    await startWorkerRuntime({
+      newsletterWorkerConcurrency: 2,
+      redisUrl: 'redis://localhost:6379',
+    });
+    const queue = firstQueueInstance();
+    const defaultWorker = workerInstanceAt(0);
+    const queueError = new Error('queue disconnected');
+    const workerError = new Error('worker disconnected');
+
+    callHandler(queue.handlers.get('error'), queueError);
+    callHandler(defaultWorker.handlers.get('error'), workerError);
+
+    expect(mocks.loggerError).toHaveBeenCalledWith(
+      'Default queue error: {error}',
+      { error: queueError }
+    );
+    expect(mocks.loggerError).toHaveBeenCalledWith(
+      'Default worker error: {error}',
+      { error: workerError }
     );
   });
 

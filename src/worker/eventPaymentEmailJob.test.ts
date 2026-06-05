@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   EventPaymentNotificationKind,
   PaymentStatus,
@@ -81,6 +81,8 @@ const paymentRow = {
 
 describe('event payment email job', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-01T12:00:00.000Z'));
     vi.clearAllMocks();
     mocks.eventPaymentFindUnique.mockResolvedValue(paymentRow);
     mocks.eventPaymentNotificationFindUnique.mockResolvedValue(null);
@@ -104,6 +106,10 @@ describe('event payment email job', () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('enqueues payment email jobs with stable dedupe ids', async () => {
     const { enqueueEventPaymentEmailJob } =
       await import('@/worker/eventPaymentEmailJob');
@@ -123,7 +129,7 @@ describe('event payment email job', () => {
         paymentId: 'payment-1',
       },
       expect.objectContaining({
-        jobId: 'event-payment-email:request:payment-1:2026-06-01',
+        jobId: 'event-payment-email-request-payment-1-2026-06-01',
       })
     );
   });

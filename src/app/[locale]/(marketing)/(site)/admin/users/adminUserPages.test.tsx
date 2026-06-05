@@ -3,6 +3,7 @@ import type * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   PaymentSource,
+  SailingAffiliation,
   SailingCardRequestStatus,
   SailingCardType,
 } from '@/generated/prisma/enums';
@@ -245,12 +246,16 @@ vi.mock(
     ),
     AdminSailingCardIssueForm: (props: {
       cardType?: SailingCardType;
+      needsRecreationVerification?: boolean;
       paymentAccess?: 'blocked' | 'none' | 'paid';
       suggestedCardNumber: number;
     }) => (
       <form
         aria-label="Issue sailing card"
         data-card-type={props.cardType}
+        data-needs-recreation-verification={String(
+          Boolean(props.needsRecreationVerification)
+        )}
         data-payment-access={props.paymentAccess}
         data-suggested-card-number={props.suggestedCardNumber}
       />
@@ -338,6 +343,8 @@ beforeEach(() => {
     emailDeliverabilityStatus: 'ok',
     emailSuppressionReason: null,
     emailVerified: true,
+    emergencyContactName: 'Emergency One',
+    emergencyContactPhone: '+15555550102',
     firstName: 'Sailor',
     id: 'user-1',
     lastName: 'One',
@@ -345,6 +352,7 @@ beforeEach(() => {
     mitDataWarehouseVerifiedAt: null,
     mitId: '123456789',
     name: 'Sailor One',
+    phone: '+15555550101',
     sailingAffiliation: 'OTHER_NON_STUDENT',
     sailingCardNumber: 61,
     appRole: 'user',
@@ -361,6 +369,7 @@ beforeEach(() => {
         agreementVersion: sailingCardAgreement.version,
       },
     ],
+    gymMembershipVerifiedAt: null,
     paymentBypassRequest: null,
     sailingCardRequests: [],
     sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
@@ -380,6 +389,8 @@ beforeEach(() => {
       emailSuppressedAt: null,
       emailSuppressionReason: null,
       emailVerified: true,
+      emergencyContactName: 'Emergency One',
+      emergencyContactPhone: '+15555550102',
       firstName: 'Sailor',
       id: 'user-1',
       lastName: 'One',
@@ -387,6 +398,7 @@ beforeEach(() => {
       mitDataWarehouseVerifiedAt: null,
       mitId: '123456789',
       name: 'Sailor One',
+      phone: '+15555550101',
       sailingAffiliation: 'OTHER_NON_STUDENT',
       sailingCardNumber: 61,
       sailingCardStatus: 'current',
@@ -418,6 +430,7 @@ function pendingCardSummary() {
         agreementVersion: sailingCardAgreement.version,
       },
     ],
+    gymMembershipVerifiedAt: null,
     paymentBypassRequest: null,
     sailingCardRequests: [
       {
@@ -429,7 +442,7 @@ function pendingCardSummary() {
         paymentBypassBy: null,
         paymentBypassNote: null,
         requestedAt: new Date('2026-05-21T16:00:00.000Z'),
-        sailingAffiliation: 'MIT_STUDENT',
+        sailingAffiliation: SailingAffiliation.MIT_STUDENT,
         status: SailingCardRequestStatus.pending,
       },
     ],
@@ -441,6 +454,20 @@ function pendingCardSummary() {
     sailingCardSwimAgreementInitialedAt: new Date('2026-06-01T16:00:00.000Z'),
     sailingCardSwimAgreementInitials: 'AK',
     sailingCardYear: null,
+  };
+}
+
+function pendingRecreationVerificationCardSummary() {
+  const summary = pendingCardSummary();
+
+  return {
+    ...summary,
+    sailingCardRequests: [
+      {
+        ...summary.sailingCardRequests[0],
+        sailingAffiliation: SailingAffiliation.MIT_ALUM,
+      },
+    ],
   };
 }
 
@@ -588,6 +615,16 @@ describe('admin user pages', () => {
       screen.getByText('affiliation_other_non_student')
     ).toBeInTheDocument();
     expect(screen.getByText('identity_source_manual')).toBeInTheDocument();
+    expect(screen.getByText('identity_phone')).toBeInTheDocument();
+    expect(screen.getByText('+15555550101')).toBeInTheDocument();
+    expect(
+      screen.getByText('identity_emergency_contact_name')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Emergency One')).toBeInTheDocument();
+    expect(
+      screen.getByText('identity_emergency_contact_phone')
+    ).toBeInTheDocument();
+    expect(screen.getByText('+15555550102')).toBeInTheDocument();
     expect(screen.getByText('123456789')).toBeInTheDocument();
     expect(screen.getAllByText('61').length).toBeGreaterThan(0);
     expect(screen.getByText('2026')).toBeInTheDocument();
@@ -625,6 +662,24 @@ describe('admin user pages', () => {
     expect(mocks.getNextAvailableSailingCardNumber).toHaveBeenCalledWith({
       cardYear: 2026,
     });
+  });
+
+  it('passes recreation verification requirement to normal card issue form', async () => {
+    mocks.getAdminUserSailingCardSummary.mockResolvedValue(
+      pendingRecreationVerificationCardSummary()
+    );
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(
+      screen.getByRole('form', { name: 'Issue sailing card' })
+    ).toHaveAttribute('data-needs-recreation-verification', 'true');
   });
 
   it('shows card number correction on the user detail page for issued cards', async () => {
@@ -1093,7 +1148,7 @@ describe('admin user pages', () => {
     );
     expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
       'data-search-fields',
-      'email,name,mitId,sailingCardNumber,appRole'
+      'email,name,phone,emergencyContactName,emergencyContactPhone,mitId,sailingCardNumber,appRole'
     );
     expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
       'data-filter-fields',

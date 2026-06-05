@@ -36,6 +36,7 @@ const emailTemplateRegistry = {
     allowedTokens: [
       'body',
       'listName',
+      'managePreferencesLabel',
       'manageUrl',
       'postalAddress',
       'subject',

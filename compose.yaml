@@ -1,6 +1,6 @@
-# Base Compose file — shared by dev, staging, and prod. Environment-specific
-# additions (bind-mounts, Mailpit, Cloudflare Tunnel) live in the matching
-# compose.override.yaml / compose.staging.yaml / compose.prod.yaml.
+# Base Compose file shared by local dev and production. Environment-specific
+# additions live in compose.override.yaml and compose.prod.yaml; staging uses
+# the same Compose files with staging env values.
 #
 # Design choices worth noting:
 # - No host port bindings at the base level. Each env decides whether to
@@ -70,7 +70,11 @@ services:
       --maxmemory 256mb
       --maxmemory-policy noeviction
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test:
+        [
+          'CMD-SHELL',
+          'redis-cli ping | grep -qx PONG && test "$$(redis-cli CONFIG GET appendonly | tail -n 1)" = yes && test "$$(redis-cli CONFIG GET maxmemory-policy | tail -n 1)" = noeviction',
+        ]
       interval: 2s
       timeout: 3s
       retries: 30

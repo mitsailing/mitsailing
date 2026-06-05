@@ -50,6 +50,13 @@ export async function startWorkerRuntime(
     { connection, concurrency: 1 }
   );
 
+  queue.on('error', (error) => {
+    logger.error('Default queue error: {error}', { error });
+  });
+  worker.on('error', (error) => {
+    logger.error('Default worker error: {error}', { error });
+  });
+
   const newsletterWorker = new Worker<NewsletterBroadcastJob>(
     NEWSLETTER_QUEUE_NAME,
     async (job) => {

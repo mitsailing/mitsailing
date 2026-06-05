@@ -197,6 +197,7 @@ vi.mock('./(center)/reset-password/ResetPasswordForm', () => ({
     callbackUrl: string;
     initialEmail: string;
     initialResendLocked: boolean;
+    mode: 'create-password' | 'reset-password';
     passwordHeading: string;
   }) => (
     <form
@@ -204,14 +205,19 @@ vi.mock('./(center)/reset-password/ResetPasswordForm', () => ({
       data-callback-url={props.callbackUrl}
       data-initial-email={props.initialEmail}
       data-initial-resend-locked={String(props.initialResendLocked)}
+      data-mode={props.mode}
       data-password-heading={props.passwordHeading}
     />
   ),
 }));
 
 vi.mock('./(center)/signup/SignUpForm', () => ({
-  SignUpForm: (props: { callbackUrl: string }) => (
-    <form aria-label="sign-up-form" data-callback-url={props.callbackUrl} />
+  SignUpForm: (props: { callbackUrl: string; initialEmail?: string }) => (
+    <form
+      aria-label="sign-up-form"
+      data-callback-url={props.callbackUrl}
+      data-initial-email={props.initialEmail ?? ''}
+    />
   ),
 }));
 
@@ -549,6 +555,28 @@ describe('auth route shells', () => {
     );
   });
 
+  it('sign-up page forwards inbound email', async () => {
+    render(await SignUpPage(routeProps({ email: 'sailor@example.com' })));
+
+    expect(screen.getByRole('form', { name: 'sign-up-form' })).toHaveAttribute(
+      'data-initial-email',
+      'sailor@example.com'
+    );
+  });
+
+  it('sign-up page uses the first duplicate inbound email', async () => {
+    render(
+      await SignUpPage(
+        routeProps({ email: ['first@example.com', 'second@example.com'] })
+      )
+    );
+
+    expect(screen.getByRole('form', { name: 'sign-up-form' })).toHaveAttribute(
+      'data-initial-email',
+      'first@example.com'
+    );
+  });
+
   it('sign-up page defaults new sailors to onboarding', async () => {
     render(await SignUpPage(routeProps()));
 
@@ -630,6 +658,21 @@ describe('auth route shells', () => {
     );
   });
 
+  it('reset-password page forwards create-password mode', async () => {
+    render(
+      await ResetPasswordPage(
+        routeProps({
+          email: 'legacy@example.com',
+          mode: 'create-password',
+        })
+      )
+    );
+
+    expect(
+      screen.getByRole('form', { name: 'reset-password-form' })
+    ).toHaveAttribute('data-mode', 'create-password');
+  });
+
   it('reset-password page defaults missing search params', async () => {
     render(await ResetPasswordPage(routeProps()));
 
@@ -639,6 +682,9 @@ describe('auth route shells', () => {
     expect(
       screen.getByRole('form', { name: 'reset-password-form' })
     ).toHaveAttribute('data-initial-resend-locked', 'false');
+    expect(
+      screen.getByRole('form', { name: 'reset-password-form' })
+    ).toHaveAttribute('data-mode', 'reset-password');
   });
 
   it('verify-email page forwards resend lock state', async () => {

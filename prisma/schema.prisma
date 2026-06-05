@@ -931,6 +931,7 @@ model EmailMessageEvent {
 
 model EventCategory {
     id String @id()
+    legacyEventType String? @unique() @map("legacy_event_type")
     name String
     displayOrder Int @map("display_order")
     isVisible Boolean @map("is_visible")
@@ -943,6 +944,7 @@ model EventCategory {
 
 model Event {
     id String @id()
+    legacyEventId String? @unique() @map("legacy_event_id")
     name String
     shortName String @map("short_name")
     eventCategoryId String @map("event_category_id")
@@ -1024,6 +1026,7 @@ model EventAdmin {
 
 model EventRegistration {
     id String @id()
+    legacySourceKey String? @unique() @map("legacy_source_key")
     eventId String @map("event_id")
     userId String @map("user_id")
     status EventRegistrationStatus
@@ -1058,6 +1061,7 @@ model EventRegistrationTeam {
 
 model EventRegistrationBoatMember {
     id String @id()
+    legacySourceKey String? @unique() @map("legacy_source_key")
     registrationId String @map("registration_id")
     boatNumber Int @map("boat_number")
     position Int
@@ -1103,6 +1107,7 @@ model EventRegistrationAnswer {
 /// avoiding floating-point dollar columns in PostgreSQL.
 model EventEntryFee {
     id String @id()
+    legacySourceKey String? @unique() @map("legacy_source_key")
     eventId String @map("event_id")
     description String
     /// USD minor units (integer cents). Same domain as Stripe `amount`; never persist `19.99` here.
@@ -1386,6 +1391,7 @@ model SailingClassUnlockedBoat {
 
 model SailingRating {
     id String @id()
+    legacyRatingType String? @unique() @map("legacy_rating_type")
     slug String @unique()
     name String
     shortName String? @map("short_name")
@@ -1474,6 +1480,7 @@ model FleetBoat {
 
 model SiteAlert {
     id String @id() @default(cuid())
+    legacyNewsId String? @unique() @map("legacy_news_id")
     body String @db.Text()
     isPublished Boolean @default(false) @map("is_published")
     startDate DateTime @map("start_date") @db.Date()

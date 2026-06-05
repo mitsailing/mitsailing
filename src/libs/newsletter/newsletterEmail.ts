@@ -29,6 +29,7 @@ type NewsletterEmailParams = {
 type NewsletterEmailRenderParams = {
   body: string;
   listName: string;
+  managePreferencesLabel: string;
   manageUrl: string;
   postalAddress: string;
   previewText: string;
@@ -44,17 +45,29 @@ type NewsletterTestEmailParams = {
   subject: string;
 };
 
-export async function getNewsletterPostalAddress(): Promise<string> {
+/**
+ * Loads localized footer copy shared by newsletter email renderers.
+ *
+ * @returns Manage-preferences label and postal address text
+ */
+export async function getNewsletterFooterCopy(): Promise<{
+  managePreferencesLabel: string;
+  postalAddress: string;
+}> {
   const t = await getTranslations({
     locale: routing.defaultLocale,
     namespace: 'NewsletterEmail',
   });
-  return t('postal_address');
+  return {
+    managePreferencesLabel: t('manage_preferences_label'),
+    postalAddress: t('postal_address'),
+  };
 }
 
 function bodyToText(params: {
   body: string;
   listName: string;
+  managePreferencesLabel: string;
   manageUrl: string;
   postalAddress: string;
   subject: string;
@@ -70,9 +83,42 @@ function bodyToText(params: {
     body,
     '',
     `Unsubscribe from ${params.listName}: ${params.unsubscribeUrl}`,
-    `Manage email newsletters: ${params.manageUrl}`,
+    `${params.managePreferencesLabel}: ${params.manageUrl}`,
     params.postalAddress,
   ].join('\n');
+}
+
+/**
+ * Converts the database-backed newsletter list id into a DNS-safe List-ID segment.
+ *
+ * @param listId - Unique newsletter list id from the database
+ * @returns DNS-safe List-ID segment, or a generic fallback for invalid input
+ */
+function newsletterListHeaderSegment(listId: string): string {
+  let segment = '';
+  let needsSeparator = false;
+
+  for (const char of listId.toLowerCase()) {
+    const isAsciiLetter = char >= 'a' && char <= 'z';
+    const isAsciiDigit = char >= '0' && char <= '9';
+    if (isAsciiLetter || isAsciiDigit) {
+      if (needsSeparator && segment.length > 0) {
+        segment += '-';
+      }
+      segment += char;
+      needsSeparator = false;
+    } else if (segment.length > 0) {
+      needsSeparator = true;
+    }
+  }
+
+  return segment || 'newsletter';
+}
+
+function newsletterListHeaderId(listId: string): string {
+  const listSegment = newsletterListHeaderSegment(listId);
+  const host = new URL(getBaseUrl()).hostname;
+  return `<${listSegment}.newsletter.${host}>`;
 }
 
 /**
@@ -88,6 +134,7 @@ export async function renderNewsletterBroadcastEmail(
     NewsletterBroadcastTemplate({
       body: params.body,
       listName: params.listName,
+      managePreferencesLabel: params.managePreferencesLabel,
       manageUrl: params.manageUrl,
       postalAddress: params.postalAddress,
       previewText: params.previewText,
@@ -117,11 +164,13 @@ export async function sendNewsletterBroadcastEmail(
     listId: params.listId,
     token,
   });
+  const footerCopy = await getNewsletterFooterCopy();
   const rendered = await renderNewsletterBroadcastEmail({
     body: params.body,
     listName: params.listName,
     manageUrl,
-    postalAddress: await getNewsletterPostalAddress(),
+    managePreferencesLabel: footerCopy.managePreferencesLabel,
+    postalAddress: footerCopy.postalAddress,
     subject: params.subject,
     unsubscribeUrl,
     previewText: params.previewText,
@@ -130,6 +179,7 @@ export async function sendNewsletterBroadcastEmail(
   return sendTransactionalEmail({
     category: 'newsletter',
     headers: {
+      'List-ID': newsletterListHeaderId(params.listId),
       'List-Unsubscribe': `<${unsubscribeUrl}>`,
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     },
@@ -160,11 +210,13 @@ export async function sendNewsletterBroadcastTestEmail(
   params: NewsletterTestEmailParams
 ) {
   const newsletterUrl = `${getBaseUrl().replace(/\/$/, '')}/newsletter`;
+  const footerCopy = await getNewsletterFooterCopy();
   const rendered = await renderNewsletterBroadcastEmail({
     body: params.body,
     listName: params.listName,
     manageUrl: newsletterUrl,
-    postalAddress: await getNewsletterPostalAddress(),
+    managePreferencesLabel: footerCopy.managePreferencesLabel,
+    postalAddress: footerCopy.postalAddress,
     previewText: params.previewText,
     subject: params.subject,
     unsubscribeUrl: newsletterUrl,

@@ -34,6 +34,11 @@ describe('sailingCardDateOfBirth', () => {
     ).toBe('03/24/1988');
   });
 
+  it('does not restore a trailing slash after deleting the birth year', () => {
+    expect(formatSailingCardDateOfBirthInput('03/24')).toBe('03/24');
+    expect(formatSailingCardDateOfBirthInput('0324')).toBe('03/24');
+  });
+
   it('keeps invalid structured birthdays unchanged', () => {
     expect(formatSailingCardDateOfBirthInput('2026-99-99')).toBe('2026-99-99');
     expect(normalizeSailingCardDateOfBirthInput({ value: '2026-99-99' })).toBe(

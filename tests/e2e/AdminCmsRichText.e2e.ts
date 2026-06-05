@@ -3,7 +3,7 @@ import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
 import { submitCatalogSave } from '../helpers/e2e-catalog-form';
 
 const PNG_BYTES = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lcK0nQAAAABJRU5ErkJggg==',
+  'iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAGElEQVR42mP8z8Dwn4EIwESJ5lEDRgYAtJIPFfGwq7wAAAAASUVORK5CYII=',
   'base64'
 );
 
@@ -69,7 +69,9 @@ test.describe('Admin CMS rich text', () => {
     await page
       .getByRole('button', { exact: true, name: mediaFilename })
       .click();
-    await editor.locator('img[src*="/cms-media/"]').last().click();
+    await expect(
+      preview.getByRole('img', { name: mediaFilename })
+    ).toBeVisible();
     await page.getByRole('button', { name: 'Align image right' }).click();
 
     await expect(page.locator('input[name="body"]')).toHaveValue(
@@ -88,6 +90,21 @@ test.describe('Admin CMS rich text', () => {
     );
     await expect(page.locator('input[name="body"]')).toHaveValue(
       new RegExp(`/cms-media/.+/${mediaFilename.replaceAll('.', '\\.')}`, 'u')
+    );
+
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
+    const savedEditor = page.locator('.ProseMirror[aria-label="Body"]');
+    await savedEditor.getByRole('img', { name: mediaFilename }).click();
+    await page.getByRole('button', { name: 'Align image center' }).click();
+    await page
+      .getByRole('combobox', { name: 'Image size' })
+      .selectOption('320');
+    await expect(page.locator('input[name="body"]')).toHaveValue(
+      /data-align="center"/u
+    );
+    await expect(page.locator('input[name="body"]')).toHaveValue(
+      /width="320"/u
     );
   });
 });

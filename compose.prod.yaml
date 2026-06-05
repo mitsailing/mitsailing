@@ -16,6 +16,8 @@ x-web: &web
   restart: unless-stopped
   networks:
     - internal
+  security_opt:
+    - no-new-privileges:true
   env_file:
     - path: .env.production
       required: false
@@ -80,6 +82,8 @@ services:
     restart: unless-stopped
     networks:
       - internal
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - type: bind
         source: ./.deploy/nginx
@@ -122,6 +126,8 @@ services:
     restart: unless-stopped
     networks:
       - internal
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ['CMD', 'node', 'worker-redis-healthcheck.cjs']
       interval: 30s
@@ -171,6 +177,8 @@ services:
     restart: unless-stopped
     networks:
       - internal
+    security_opt:
+      - no-new-privileges:true
     env_file:
       - path: .env.production
         required: false
@@ -205,6 +213,7 @@ services:
         ]
       interval: 30s
       timeout: 5s
+      start_period: 30s
       retries: 3
     logging:
       driver: json-file
@@ -217,6 +226,8 @@ services:
     restart: unless-stopped
     networks:
       - internal
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - type: bind
         source: ./docker/nginx/media.conf
@@ -248,6 +259,8 @@ services:
     restart: unless-stopped
     networks:
       - internal
+    security_opt:
+      - no-new-privileges:true
     command:
       - tunnel
       - --no-autoupdate

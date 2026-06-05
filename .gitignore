@@ -38,6 +38,12 @@
 *.pem
 Thumbs.db
 /.superpowers/
+/.impeccable/
+
+# local skill installs
+/.agents/skills/impeccable/
+/.cursor/skills/impeccable/
+/.github/skills/impeccable/
 
 # debug
 npm-debug.log*

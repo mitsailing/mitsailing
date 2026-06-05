@@ -78,6 +78,52 @@ describe('production docker compose', () => {
     );
   });
 
+  it('checks Redis queue-safety settings in the container healthcheck', () => {
+    const baseCompose = readRepoFile('compose.yaml');
+
+    expect(baseCompose).toContain('--appendonly yes');
+    expect(baseCompose).toContain('--maxmemory-policy noeviction');
+    expect(baseCompose).toContain('redis-cli ping | grep -qx PONG');
+    expect(baseCompose).toContain('CONFIG GET appendonly');
+    expect(baseCompose).toContain('CONFIG GET maxmemory-policy');
+  });
+
+  it('prevents privilege escalation for public production services', () => {
+    const servicesStart = productionCompose.indexOf('services:');
+    expect(servicesStart).toBeGreaterThanOrEqual(0);
+    const webDefaultsStart = productionCompose.indexOf('x-web: &web');
+    expect(webDefaultsStart).toBeGreaterThanOrEqual(0);
+    const webDefaultsBlock = productionCompose.slice(
+      webDefaultsStart,
+      servicesStart
+    );
+    const webBlueBlock = readYamlServiceBlock(productionCompose, 'web_blue');
+    const webGreenBlock = readYamlServiceBlock(productionCompose, 'web_green');
+    const appBlock = readYamlServiceBlock(productionCompose, 'app');
+    const workerBlock = readYamlServiceBlock(productionCompose, 'worker');
+    const tusdBlock = readYamlServiceBlock(productionCompose, 'tusd');
+    const mediaBlock = readYamlServiceBlock(productionCompose, 'media');
+    const cloudflaredBlock = readYamlServiceBlock(
+      productionCompose,
+      'cloudflared'
+    );
+
+    expect(webBlueBlock).toContain('<<: *web');
+    expect(webGreenBlock).toContain('<<: *web');
+
+    for (const serviceBlock of [
+      webDefaultsBlock,
+      appBlock,
+      workerBlock,
+      tusdBlock,
+      mediaBlock,
+      cloudflaredBlock,
+    ]) {
+      expect(serviceBlock).toContain('security_opt:');
+      expect(serviceBlock).toContain('- no-new-privileges:true');
+    }
+  });
+
   it('runs tusd with local disk storage and upload hardening', () => {
     expect(productionCompose).toContain('tusd:');
     expect(productionCompose).toContain('-port=1080');
@@ -106,6 +152,9 @@ describe('production docker compose', () => {
       '-cors-expose-headers=location,tus-resumable,upload-offset,upload-length,upload-metadata,upload-expires'
     );
     expect(productionCompose).toContain('http://127.0.0.1:1080/metrics');
+    expect(productionCompose).toMatch(
+      /tusd:[\s\S]*healthcheck:[\s\S]*start_period: 30s/u
+    );
   });
 
   it('routes the MIT Sailing tunnel to in-stack docker services', () => {
@@ -281,6 +330,71 @@ describe('production docker compose', () => {
   });
 });
 
+describe('local Mailpit capture', () => {
+  const localCompose = readRepoFile('compose.override.yaml');
+  const envExample = readRepoFile('.env.example');
+  const stagingEnvExample = readRepoFile('.env.staging.example');
+  const productionEnvExample = readRepoFile('.env.production.example');
+  const playwrightConfig = readRepoFile('playwright.config.ts');
+  const mailpitHelper = readRepoFile('tests/helpers/mailpit.ts');
+
+  it('runs Mailpit as loopback-only bounded SMTP capture', () => {
+    expect(localCompose).toContain('mailpit:');
+    expect(localCompose).toContain('image: axllent/mailpit:v1.30.0');
+    expect(localCompose).toContain(
+      `'127.0.0.1:${composeVariable('MAILPIT_SMTP_PUBLISH_PORT:-1025')}:1025'`
+    );
+    expect(localCompose).toContain(
+      `'127.0.0.1:${composeVariable('MAILPIT_HTTP_PUBLISH_PORT:-8025')}:8025'`
+    );
+    expect(localCompose).toContain("MP_MAX_MESSAGES: '5000'");
+    expect(localCompose).toContain('MP_MAX_AGE: 7d');
+    expect(localCompose).toContain('MP_DATABASE: /data/mailpit.db');
+    expect(localCompose).toContain("MP_SMTP_AUTH_ACCEPT_ANY: '1'");
+    expect(localCompose).toContain("MP_SMTP_AUTH_ALLOW_INSECURE: '1'");
+    expect(localCompose).toContain('http://localhost:8025/readyz');
+    expect(localCompose).toContain('mailpit_data:/data');
+    expect(localCompose).not.toContain('MP_API_CORS');
+  });
+
+  it('documents matching Mailpit SMTP and API ports', () => {
+    expect(envExample).toContain('MAILPIT_SMTP_PUBLISH_PORT=1025');
+    expect(envExample).toContain('MAILPIT_HTTP_PUBLISH_PORT=8025');
+    expect(envExample).toContain('SMTP_URL=smtp://127.0.0.1:1025');
+    expect(envExample).toContain('MAILPIT_API_URL=http://127.0.0.1:8025');
+    expect(envExample).toContain('EMAIL_FROM="');
+  });
+
+  it('starts Playwright with complete Mailpit SMTP settings', () => {
+    expect(playwrightConfig).toContain("MAIL_TRANSPORT: 'smtp'");
+    expect(playwrightConfig).toContain("SMTP_URL: 'smtp://127.0.0.1:1025'");
+    expect(playwrightConfig).toContain(
+      "MAILPIT_API_URL: 'http://127.0.0.1:8025'"
+    );
+    expect(playwrightConfig).toContain(
+      "EMAIL_FROM: 'MIT Sailing <noreply@mitsailing.test>'"
+    );
+    expect(playwrightConfig).toContain('process.env[key] ??= value');
+    expect(playwrightConfig).toContain('...process.env,');
+  });
+
+  it('uses the Mailpit API for isolated email assertions', () => {
+    expect(mailpitHelper).toContain('/api/v1/messages');
+    expect(mailpitHelper).toContain("method: 'DELETE'");
+    expect(mailpitHelper).toContain('/api/v1/search?query=');
+    expect(mailpitHelper).toMatch(/to:\$\{params\.email\}/u);
+    expect(mailpitHelper).toMatch(/\/api\/v1\/message\/\$\{summary\.ID\}/u);
+  });
+
+  it('keeps unauthenticated Mailpit out of shared and production env examples', () => {
+    expect(stagingEnvExample).toContain('MAIL_TRANSPORT=smtp');
+    expect(stagingEnvExample).toContain('MAILPIT_UI_AUTH=');
+    expect(productionEnvExample).toContain('MAIL_TRANSPORT=resend');
+    expect(productionEnvExample).not.toContain('MAILPIT_API_URL');
+    expect(productionEnvExample).not.toContain('SMTP_URL=smtp://mailpit:1025');
+  });
+});
+
 describe('production deploy script', () => {
   const deployScript = readRepoFile('bin/deploy.sh');
   const defaultProductionDataRoot = composeVariable(
@@ -351,10 +465,14 @@ describe('production deploy script', () => {
 
 describe('local docker compose', () => {
   const localCompose = readRepoFile('compose.override.yaml');
+  const e2eComposeScript = readRepoFile('scripts/e2e-compose-up.cjs');
 
   it('starts local upload and media services on loopback ports', () => {
     expect(localCompose).toContain('tusd:');
     expect(localCompose).toContain('image: tusproject/tusd:v2.9.2');
+    expect(localCompose).toContain(
+      `user: '${composeVariable('LOCAL_DOCKER_UID:-1000')}:${composeVariable('LOCAL_DOCKER_GID:-1000')}'`
+    );
     expect(localCompose).toContain(
       `'127.0.0.1:${composeVariable('MEDIA_UPLOAD_PUBLISH_PORT:-1080')}:1080'`
     );
@@ -363,9 +481,25 @@ describe('local docker compose', () => {
       '-upload-dir=/var/lib/mitsailing/cms-media/uploads'
     );
     expect(localCompose).toContain(
-      '-hooks-http=http://host.docker.internal:3000/api/internal/cms-media/tusd/hooks'
+      `-hooks-http=${composeVariable('MEDIA_UPLOAD_HOOK_URL:-http://host.docker.internal:3000/api/internal/cms-media/tusd/hooks')}`
+    );
+    const defaultLocalAppUrl = composeVariable(
+      'NEXT_PUBLIC_APP_URL:-http://localhost:3000'
+    );
+    const defaultCorsOrigin = composeVariable(
+      'MEDIA_UPLOAD_CORS_ALLOW_ORIGIN:-'.concat(defaultLocalAppUrl)
+    );
+    expect(localCompose).toContain(`-cors-allow-origin=${defaultCorsOrigin}`);
+    expect(localCompose).toContain(
+      '-cors-allow-headers=authorization,content-type,tus-resumable,upload-length,upload-metadata,upload-offset,x-mitsailing-upload-token'
+    );
+    expect(localCompose).toContain(
+      '-cors-expose-headers=location,tus-resumable,upload-offset,upload-length,upload-metadata,upload-expires'
     );
     expect(localCompose).toContain('http://127.0.0.1:1080/metrics');
+    expect(localCompose).toMatch(
+      /tusd:[\s\S]*healthcheck:[\s\S]*start_period: 30s/u
+    );
     expect(localCompose).toContain('media:');
     expect(localCompose).toContain('image: nginx:1.29-alpine');
     expect(localCompose).toContain(
@@ -376,7 +510,52 @@ describe('local docker compose', () => {
   it('uses the gitignored local media tree for upload processing and serving', () => {
     expect(localCompose).toContain('source: ./local/cms-media');
     expect(localCompose).toContain('target: /var/lib/mitsailing/cms-media');
+    expect(localCompose).toMatch(
+      /source: \.\/local\/cms-media[\s\S]*target: \/var\/lib\/mitsailing\/cms-media[\s\S]*bind:[\s\S]*create_host_path: false/u
+    );
     expect(localCompose).toContain('source: ./docker/nginx/media.conf');
+  });
+
+  it('starts local E2E tusd with the runner host user', () => {
+    expect(e2eComposeScript).toContain('prepareLocalMediaStorage');
+    expect(e2eComposeScript).toMatch(
+      /prepareLocalMediaStorage\(\);[\s\S]*docker[\s\S]*compose[\s\S]*up/u
+    );
+    expect(e2eComposeScript).toContain('configureLocalDockerUser');
+    expect(e2eComposeScript).toContain('process.getuid');
+    expect(e2eComposeScript).toContain('process.getgid');
+    expect(e2eComposeScript).toContain(
+      'process.env.LOCAL_DOCKER_UID ??= String(uid)'
+    );
+    expect(e2eComposeScript).toContain(
+      'process.env.LOCAL_DOCKER_GID ??= String(gid)'
+    );
+  });
+
+  it('discovers the tusd service container for E2E diagnostics', () => {
+    expect(e2eComposeScript).toContain('discoverTusdContainerIdentifier');
+    expect(e2eComposeScript).toContain(
+      "['compose', 'ps', '--format', 'json', 'tusd']"
+    );
+    expect(e2eComposeScript).toContain(
+      "stringRecordValue(record, 'Service') === 'tusd'"
+    );
+    expect(e2eComposeScript).not.toContain('mitsailing-tusd-1');
+  });
+
+  it('prepares local media storage before generic compose startup', () => {
+    const packageJson = readRepoFile('package.json');
+    const prepareScript = readRepoFile(
+      'scripts/prepare-local-media-storage.cjs'
+    );
+
+    expect(packageJson).toContain(
+      'node scripts/prepare-local-media-storage.cjs && docker compose up'
+    );
+    expect(prepareScript).toContain(
+      "prepareWritableDirectory(path.join(root, 'uploads'))"
+    );
+    expect(prepareScript).toContain('constants.W_OK');
   });
 });
 

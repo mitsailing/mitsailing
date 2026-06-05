@@ -19,6 +19,7 @@ export type EmailLayoutProps = Readonly<{
 export type MarketingEmailLayoutProps = Readonly<{
   children: React.ReactNode;
   listName: string;
+  managePreferencesLabel: string;
   manageUrl: string;
   postalAddress: string;
   previewText: string;
@@ -138,7 +139,7 @@ export function MarketingEmailLayout(props: MarketingEmailLayoutProps) {
               </Link>
               {' · '}
               <Link href={props.manageUrl} style={link}>
-                Manage email newsletters
+                {props.managePreferencesLabel}
               </Link>
             </Text>
             <Text style={muted}>{props.postalAddress}</Text>

@@ -358,6 +358,9 @@ export function detectCmsMediaKind(
   if (detectCmsMediaMimeType(bytes)) {
     return 'image';
   }
+  if (isCmsMediaMimeType(declaredMimeType)) {
+    return null;
+  }
   if (declaredMimeType === 'application/pdf') {
     return bytesStartWith(bytes, [37, 80, 68, 70]) ? 'file' : null;
   }

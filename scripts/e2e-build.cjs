@@ -10,6 +10,7 @@
  * in playwright.config.ts). Next.js replaces `process.env.NEXT_PUBLIC_*` at build time
  * (see https://nextjs.org/docs/app/guides/environment-variables).
  */
+const esbuild = require('esbuild');
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -180,12 +181,35 @@ function prepareStandaloneAssets() {
   }
 }
 
+function buildWorkerOrExit() {
+  try {
+    esbuild.buildSync({
+      absWorkingDir: repoRoot,
+      alias: { 'server-only': './src/worker/serverOnlyShim.ts' },
+      banner: {
+        js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
+      },
+      bundle: true,
+      entryPoints: ['src/worker/index.ts'],
+      format: 'esm',
+      logLevel: 'warning',
+      outfile: 'worker.mjs',
+      platform: 'node',
+      target: 'node24',
+    });
+  } catch (error) {
+    console.error('[e2e-build] Worker build failed:', error);
+    process.exit(1);
+  }
+}
+
 if (process.env.E2E_SKIP_BUILD === '1') {
   console.log(
     '[e2e-build] E2E_SKIP_BUILD=1 — using existing .next (e.g. CI cache).'
   );
   assertE2eReadyMarkerOrExit();
   prepareStandaloneAssets();
+  buildWorkerOrExit();
   process.exit(0);
 }
 
@@ -210,6 +234,9 @@ try {
 }
 const buildEnv = {
   ...process.env,
+  BETTER_AUTH_SECRET:
+    process.env.BETTER_AUTH_SECRET ??
+    'e2e-auth-secret-placeholder-with-thirty-two-chars',
   DATABASE_URL: e2eDb,
   TEST_DATABASE_URL: '',
   IS_E2E: '1',
@@ -227,6 +254,7 @@ const result = spawnSync('npx', ['next', 'build'], {
 if (result.status === 0) {
   writeE2eReadyMarker(e2eAppUrl);
   prepareStandaloneAssets();
+  buildWorkerOrExit();
 }
 
 process.exit(result.status ?? 1);

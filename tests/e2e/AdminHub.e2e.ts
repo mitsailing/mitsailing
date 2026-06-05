@@ -2,9 +2,10 @@ import { faker } from '@faker-js/faker';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { Pool } from 'pg';
-import { Env } from '@/libs/Env';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
+import { e2ePgConnectionString } from '../helpers/e2e-database-url';
 import { insertCurrentSailingCardOnboardingAcceptance } from '../helpers/e2e-sailing-card-onboarding';
+import { submitEmailPasswordSignIn } from '../helpers/e2e-sign-in';
 import {
   extractCodeFromMessage,
   findLatestMessageTo,
@@ -13,16 +14,12 @@ import {
 let cleanupPool: Pool | undefined;
 
 /**
- * Lazily creates a pool when `Env.TEST_DATABASE_URL` is set (avoids import-time failure).
+ * Lazily creates a pool against the same database the Playwright app server uses.
  *
- * @returns A Postgres pool, or `null` when no test database URL is configured.
+ * @returns A Postgres pool for direct E2E setup and cleanup.
  */
-function getCleanupPool(): Pool | null {
-  const url = Env.TEST_DATABASE_URL;
-  if (!url) {
-    return null;
-  }
-  cleanupPool ??= new Pool({ connectionString: url });
+function getCleanupPool(): Pool {
+  cleanupPool ??= new Pool({ connectionString: e2ePgConnectionString() });
   return cleanupPool;
 }
 
@@ -37,16 +34,13 @@ test.afterAll(async () => {
 });
 
 const swallow = (error: unknown): void => {
-  if (Env.DEBUG_CLEANUP) {
+  if (process.env.DEBUG_CLEANUP) {
     console.warn(error);
   }
 };
 
 async function cleanupByEmail(email: string) {
   const pool = getCleanupPool();
-  if (!pool) {
-    return;
-  }
   try {
     await pool.query('DELETE FROM "failed_login_attempts" WHERE "email" = $1', [
       email,
@@ -82,9 +76,6 @@ async function cleanupByEmail(email: string) {
 
 async function markOnboardingCompleteByEmail(email: string) {
   const pool = getCleanupPool();
-  if (!pool) {
-    return;
-  }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -258,10 +249,7 @@ test.describe('Admin hub and users', () => {
       await expectSignInCallback(page, '/profile');
 
       await page.context().clearCookies();
-      await page.goto('/login');
-      await page.getByLabel('Email').fill(email);
-      await page.getByLabel('Password').fill(password);
-      await page.getByRole('button', { name: 'Sign in' }).click();
+      await submitEmailPasswordSignIn({ email, page, password });
       await expect(
         page.getByRole('alert').filter({
           hasText: 'Your account has been disabled. Contact support.',
@@ -313,10 +301,7 @@ test.describe('Admin hub and users', () => {
         .toBe(restoredUserShowPath);
 
       await page.context().clearCookies();
-      await page.goto('/login');
-      await page.getByLabel('Email').fill(email);
-      await page.getByLabel('Password').fill(password);
-      await page.getByRole('button', { name: 'Sign in' }).click();
+      await submitEmailPasswordSignIn({ email, page, password });
       await expect.poll(() => new URL(page.url()).pathname).toBe('/');
     } finally {
       await cleanupByEmail(email);

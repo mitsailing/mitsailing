@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@/generated/prisma/client';
 import {
   PaymentPurpose,
@@ -6,6 +6,7 @@ import {
   PaymentStatus,
   SailingCardType,
 } from '@/generated/prisma/enums';
+import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 
 export type LegacyMemberRow = {
@@ -49,9 +50,12 @@ type CanonicalLegacyUser = {
   readonly key: string;
   readonly lastName: string | null;
   readonly legacySailingCard: LegacySailingCardSnapshot | null;
+  readonly legacyMemberIds: readonly string[];
+  readonly legacyMemberRows: readonly LegacyMemberRow[];
   readonly mitId: string | null;
   readonly name: string;
   readonly phone: string | null;
+  readonly role: Role;
 };
 
 export type LegacyMemberPaymentMap = {
@@ -61,10 +65,16 @@ export type LegacyMemberPaymentMap = {
   readonly memberUserKeyByUsername: ReadonlyMap<string, string>;
 };
 
+export type LegacyUserIdentityMaps = {
+  readonly legacyMemberIdToUserId: ReadonlyMap<string, string>;
+  readonly usernameToUserId: ReadonlyMap<string, string>;
+};
+
 type LegacyPaymentImportDb = Pick<
   Prisma.TransactionClient,
-  '$executeRaw' | 'payment' | 'user'
+  '$executeRaw' | '$queryRaw' | 'payment'
 >;
+type LegacyUserIdentityDb = Pick<Prisma.TransactionClient, 'user'>;
 
 type LegacySailingCardSnapshot = {
   readonly expiresOn: Date;
@@ -73,13 +83,18 @@ type LegacySailingCardSnapshot = {
   readonly year: number;
 };
 
-type LegacyPaymentImportResult = {
+export type LegacyPaymentImportResult = {
   readonly cardRecordsMerged: number;
   readonly paymentsImported: number;
   readonly paymentsNeedingReview: number;
   readonly usersCreated: number;
   readonly usersMatched: number;
 };
+
+export type LegacyUserImportResult = Pick<
+  LegacyPaymentImportResult,
+  'cardRecordsMerged' | 'usersCreated' | 'usersMatched'
+>;
 
 function stringValue(value: string | null | undefined): string {
   return value?.trim() ?? '';
@@ -92,11 +107,6 @@ function nullableString(value: string | null | undefined): string | null {
 
 function normalizeLegacyEmail(value: string | null | undefined): string {
   return stringValue(value).toLowerCase();
-}
-
-function stableLegacyUserId(email: string): string {
-  const digest = createHash('sha256').update(email).digest('hex').slice(0, 32);
-  return `legacy-user-${digest}`;
 }
 
 function stableLegacyPaymentId(orderNumber: string): string {
@@ -186,12 +196,38 @@ function legacySailingCardFromMembers(
   };
 }
 
+function roleFromLegacyMemberType(value: string | null | undefined): Role {
+  const normalized = stringValue(value);
+  if (normalized === '4') {
+    return Role.VOLUNTEER;
+  }
+  if (normalized === '12') {
+    return Role.VOLUNTEER_INSTRUCTOR;
+  }
+  if (normalized === '6') {
+    return Role.DOCK_STAFF;
+  }
+  return Role.USER;
+}
+
 function canonicalUserFromMembers(
   key: string,
   members: readonly LegacyMemberRow[]
 ): CanonicalLegacyUser {
   const sorted = members.toSorted(compareLegacyMemberRecency);
   const profile = sorted[0] ?? members[0];
+  const fallbackEmail = sorted
+    .map((row) => normalizeLegacyEmail(row.email))
+    .find((email) => email !== '');
+  const profileEmail = normalizeLegacyEmail(profile?.email);
+  const email = profileEmail === '' ? (fallbackEmail ?? key) : profileEmail;
+  const legacyMemberIds = [
+    ...new Set(
+      sorted
+        .map((row) => stringValue(row.id))
+        .filter((legacyMemberId) => legacyMemberId !== '')
+    ),
+  ];
   const mitIds = new Set(
     sorted
       .map((row) => stringValue(row.id))
@@ -199,60 +235,236 @@ function canonicalUserFromMembers(
   );
   const mitId = mitIds.size === 1 ? ([...mitIds].at(0) ?? null) : null;
   return {
-    email: key,
+    email,
     emergencyContactName: nullableString(profile?.emer_name),
     emergencyContactPhone: nullableString(profile?.emer_phone),
     firstName: nullableString(profile?.first),
     key,
     lastName: nullableString(profile?.last),
     legacySailingCard: legacySailingCardFromMembers(sorted),
+    legacyMemberIds,
+    legacyMemberRows: sorted,
     mitId,
     name: profile ? displayName(profile) : key,
     phone: nullableString(profile?.phone),
+    role: roleFromLegacyMemberType(profile?.memb_type),
   };
+}
+
+class LegacyIdentityGroups {
+  private readonly parent = new Map<string, string>();
+
+  private add(key: string): void {
+    if (!this.parent.has(key)) {
+      this.parent.set(key, key);
+    }
+  }
+
+  find(key: string): string {
+    this.add(key);
+    const parent = this.parent.get(key);
+    if (parent === undefined || parent === key) {
+      return key;
+    }
+    const root = this.find(parent);
+    this.parent.set(key, root);
+    return root;
+  }
+
+  union(left: string, right: string): void {
+    const leftRoot = this.find(left);
+    const rightRoot = this.find(right);
+    if (leftRoot !== rightRoot) {
+      this.parent.set(rightRoot, leftRoot);
+    }
+  }
+}
+
+function legacyIdentityKeys(row: LegacyMemberRow): string[] {
+  const keys: string[] = [];
+  const legacyMemberId = stringValue(row.id);
+  const email = normalizeLegacyEmail(row.email);
+  if (legacyMemberId !== '') {
+    keys.push(`id:${legacyMemberId}`);
+  }
+  if (email !== '') {
+    keys.push(`email:${email}`);
+  }
+  return keys;
+}
+
+function activeLegacyMemberRowsWithIdentity(
+  members: readonly LegacyMemberRow[]
+): LegacyMemberRow[] {
+  return members.filter(
+    (row) => isActiveMember(row) && legacyIdentityKeys(row).length > 0
+  );
+}
+
+function unionLegacyIdentityKeys(
+  groups: LegacyIdentityGroups,
+  keys: readonly string[]
+) {
+  const [firstKey] = keys;
+  if (!firstKey) {
+    return;
+  }
+
+  for (const key of keys) {
+    groups.union(firstKey, key);
+  }
+}
+
+function legacyIdentityGroupsForRows(rows: readonly LegacyMemberRow[]) {
+  const groups = new LegacyIdentityGroups();
+  for (const row of rows) {
+    unionLegacyIdentityKeys(groups, legacyIdentityKeys(row));
+  }
+  return groups;
+}
+
+function appendLegacyMemberRow(
+  rowsByRoot: Map<string, LegacyMemberRow[]>,
+  root: string,
+  row: LegacyMemberRow
+) {
+  const rows = rowsByRoot.get(root) ?? [];
+  rows.push(row);
+  rowsByRoot.set(root, rows);
+}
+
+function legacyMemberRowsByIdentityRoot(
+  rows: readonly LegacyMemberRow[],
+  groups: LegacyIdentityGroups
+) {
+  const rowsByRoot = new Map<string, LegacyMemberRow[]>();
+  for (const row of rows) {
+    const [firstKey] = legacyIdentityKeys(row);
+    if (firstKey) {
+      appendLegacyMemberRow(rowsByRoot, groups.find(firstKey), row);
+    }
+  }
+  return rowsByRoot;
+}
+
+function canonicalLegacyUsersByIdentityRoot(
+  rowsByRoot: ReadonlyMap<string, readonly LegacyMemberRow[]>
+) {
+  return [...rowsByRoot.entries()]
+    .map(([key, rows]) => canonicalUserFromMembers(key, rows))
+    .filter((user) => user.email !== '');
+}
+
+function addLegacyMemberLookupKeys(
+  props: {
+    readonly memberUserKeyByEmail: Map<string, string>;
+    readonly memberUserKeyByLegacyId: Map<string, string>;
+    readonly memberUserKeyByUsername: Map<string, string>;
+  },
+  user: CanonicalLegacyUser,
+  row: LegacyMemberRow
+) {
+  const email = normalizeLegacyEmail(row.email);
+  if (email) {
+    props.memberUserKeyByEmail.set(email, user.key);
+  }
+  const id = stringValue(row.id);
+  if (id) {
+    props.memberUserKeyByLegacyId.set(id, user.key);
+  }
+  const username = stringValue(row.username).toLowerCase();
+  if (username) {
+    props.memberUserKeyByUsername.set(username, user.key);
+  }
+}
+
+function legacyMemberPaymentLookups(
+  canonicalUsers: readonly CanonicalLegacyUser[]
+): Omit<LegacyMemberPaymentMap, 'canonicalUsers'> {
+  const memberUserKeyByEmail = new Map<string, string>();
+  const memberUserKeyByLegacyId = new Map<string, string>();
+  const memberUserKeyByUsername = new Map<string, string>();
+  const props = {
+    memberUserKeyByEmail,
+    memberUserKeyByLegacyId,
+    memberUserKeyByUsername,
+  };
+
+  for (const user of canonicalUsers) {
+    for (const row of user.legacyMemberRows) {
+      addLegacyMemberLookupKeys(props, user, row);
+    }
+  }
+
+  return props;
 }
 
 export function buildLegacyMemberPaymentMap(
   members: readonly LegacyMemberRow[]
 ): LegacyMemberPaymentMap {
-  const activeByEmail = new Map<string, LegacyMemberRow[]>();
-  for (const row of members) {
-    const email = normalizeLegacyEmail(row.email);
-    if (!isActiveMember(row) || email === '') {
-      continue;
-    }
-    const rows = activeByEmail.get(email) ?? [];
-    rows.push(row);
-    activeByEmail.set(email, rows);
-  }
-
-  const canonicalUsers: CanonicalLegacyUser[] = [];
-  const memberUserKeyByEmail = new Map<string, string>();
-  const memberUserKeyByLegacyId = new Map<string, string>();
-  const memberUserKeyByUsername = new Map<string, string>();
-
-  for (const [email, rows] of activeByEmail) {
-    const user = canonicalUserFromMembers(email, rows);
-    canonicalUsers.push(user);
-    memberUserKeyByEmail.set(email, user.key);
-    for (const row of rows) {
-      const id = stringValue(row.id);
-      if (id) {
-        memberUserKeyByLegacyId.set(id, user.key);
-      }
-      const username = stringValue(row.username).toLowerCase();
-      if (username) {
-        memberUserKeyByUsername.set(username, user.key);
-      }
-    }
-  }
+  const activeRows = activeLegacyMemberRowsWithIdentity(members);
+  const groups = legacyIdentityGroupsForRows(activeRows);
+  const rowsByRoot = legacyMemberRowsByIdentityRoot(activeRows, groups);
+  const canonicalUsers = canonicalLegacyUsersByIdentityRoot(rowsByRoot);
+  const lookups = legacyMemberPaymentLookups(canonicalUsers);
 
   return {
     canonicalUsers,
-    memberUserKeyByEmail,
-    memberUserKeyByLegacyId,
-    memberUserKeyByUsername,
+    memberUserKeyByEmail: lookups.memberUserKeyByEmail,
+    memberUserKeyByLegacyId: lookups.memberUserKeyByLegacyId,
+    memberUserKeyByUsername: lookups.memberUserKeyByUsername,
   };
+}
+
+export async function loadLegacyUserIdentityMaps(props: {
+  readonly db: LegacyUserIdentityDb;
+  readonly members: readonly LegacyMemberRow[];
+}): Promise<LegacyUserIdentityMaps> {
+  const memberMap = buildLegacyMemberPaymentMap(props.members);
+  const userKeyByEmail = new Map<string, string>();
+  const emails = [
+    ...new Set(
+      memberMap.canonicalUsers.flatMap((user) => {
+        const legacyEmails = user.legacyMemberRows
+          .map((row) => normalizeLegacyEmail(row.email))
+          .filter((email) => email !== '');
+        for (const email of legacyEmails) {
+          userKeyByEmail.set(email, user.key);
+        }
+        return legacyEmails;
+      })
+    ),
+  ];
+  const users =
+    emails.length === 0
+      ? []
+      : await props.db.user.findMany({
+          select: { email: true, id: true },
+          where: { email: { in: emails } },
+        });
+  const appUserIdByKey = new Map<string, string>();
+  for (const user of users) {
+    const userKey = userKeyByEmail.get(user.email.toLowerCase());
+    if (userKey && !appUserIdByKey.has(userKey)) {
+      appUserIdByKey.set(userKey, user.id);
+    }
+  }
+
+  const legacyMemberIdToUserId = new Map<string, string>();
+  for (const [legacyMemberId, userKey] of memberMap.memberUserKeyByLegacyId) {
+    const userId = appUserIdByKey.get(userKey);
+    if (userId) {
+      legacyMemberIdToUserId.set(legacyMemberId, userId);
+    }
+  }
+  const usernameToUserId = new Map<string, string>();
+  for (const [username, userKey] of memberMap.memberUserKeyByUsername) {
+    const userId = appUserIdByKey.get(userKey);
+    if (userId) {
+      usernameToUserId.set(username, userId);
+    }
+  }
+  return { legacyMemberIdToUserId, usernameToUserId };
 }
 
 export function legacyPaymentAmountCents(amount: string | null): number {
@@ -329,80 +541,59 @@ export function legacyPaymentUserId(props: {
   return userKey ? (props.appUserIdByKey.get(userKey) ?? null) : null;
 }
 
-function legacySailingCardUserData(card: LegacySailingCardSnapshot) {
-  return {
-    sailingCardExpiresOn: card.expiresOn,
-    sailingCardIssuedAt: card.issuedAt,
-    sailingCardNumber: card.number,
-    sailingCardYear: card.year,
-  };
-}
-
-type LegacySailingCardMerge = Readonly<{
+type LegacyUpdatedUserRow = Readonly<{
   id: string;
-  legacySailingCard: LegacySailingCardSnapshot;
 }>;
 
-function legacySailingCardMergeSql(merges: readonly LegacySailingCardMerge[]) {
-  return Prisma.join(
-    merges.map(
-      (merge) =>
-        Prisma.sql`(${merge.id}, ${merge.legacySailingCard.expiresOn}, ${merge.legacySailingCard.issuedAt}, ${merge.legacySailingCard.number}, ${merge.legacySailingCard.year})`
-    ),
-    ', '
-  );
+type LegacyUserStageRow = Readonly<{
+  appRole: Role;
+  email: string;
+  emailVerified: boolean;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  firstName: string | null;
+  id: string;
+  lastName: string | null;
+  mitId: string | null;
+  name: string;
+  phone: string | null;
+  role: Role;
+  sailingCardExpiresOn: Date | null;
+  sailingCardIssuedAt: Date | null;
+  sailingCardNumber: number | null;
+  sailingCardYear: number | null;
+  userKey: string;
+}>;
+
+type LegacyUserIdRow = Readonly<{
+  id: string;
+  user_key: string;
+}>;
+
+type LegacyInsertedUserRow = LegacyUserIdRow &
+  Readonly<{
+    sailing_card_number: number | null;
+  }>;
+
+function stageRows<T extends object>(rows: readonly T[]): T[][] {
+  const firstRow = rows.at(0);
+  if (!firstRow) {
+    return [];
+  }
+  const maxParameters = 65_535;
+  const columnCount = Object.keys(firstRow).length;
+  const size = Math.max(1, Math.floor(maxParameters / columnCount));
+  const chunks: T[][] = [];
+  for (let index = 0; index < rows.length; index += size) {
+    chunks.push(rows.slice(index, index + size));
+  }
+  return chunks;
 }
 
-async function mergeLegacySailingCards(props: {
-  readonly db: LegacyPaymentImportDb;
-  readonly merges: readonly LegacySailingCardMerge[];
-}) {
-  if (props.merges.length === 0) {
-    return;
-  }
-  await props.db.$executeRaw`
-    UPDATE "user" AS target
-    SET "sailing_card_expires_on" = source.expires_on::date,
-        "sailing_card_issued_at" = source.issued_at::timestamp,
-        "sailing_card_number" = source.card_number::integer,
-        "sailing_card_year" = source.card_year::integer
-    FROM (
-      VALUES ${legacySailingCardMergeSql(props.merges)}
-    ) AS source(id, expires_on, issued_at, card_number, card_year)
-    WHERE target."id" = source.id
-      AND (
-        target."sailing_card_number" IS NULL
-        OR target."sailing_card_year" IS NULL
-      )
-  `;
-}
-
-function maybeLegacyCardMerge(props: {
-  readonly existing: Pick<
-    Awaited<ReturnType<LegacyPaymentImportDb['user']['findMany']>>[number],
-    'id' | 'sailingCardNumber' | 'sailingCardYear'
-  >;
-  readonly user: CanonicalLegacyUser;
-}): LegacySailingCardMerge | null {
-  if (!props.user.legacySailingCard) {
-    return null;
-  }
-  if (
-    props.existing.sailingCardNumber !== null &&
-    props.existing.sailingCardYear !== null
-  ) {
-    return null;
-  }
+function legacyUserStageRow(user: CanonicalLegacyUser): LegacyUserStageRow {
   return {
-    id: props.existing.id,
-    legacySailingCard: props.user.legacySailingCard,
-  };
-}
-
-function legacyUserCreateInput(user: CanonicalLegacyUser) {
-  return {
-    id: stableLegacyUserId(user.email),
-    appRole: 'user',
+    id: randomUUID(),
+    appRole: user.role,
     email: user.email,
     emailVerified: false,
     emergencyContactName: user.emergencyContactName,
@@ -412,39 +603,275 @@ function legacyUserCreateInput(user: CanonicalLegacyUser) {
     mitId: user.mitId,
     name: user.name,
     phone: user.phone,
-    role: 'user',
-    ...(user.legacySailingCard
-      ? legacySailingCardUserData(user.legacySailingCard)
-      : {}),
-  } satisfies Prisma.UserCreateManyInput;
+    role: user.role,
+    sailingCardExpiresOn: user.legacySailingCard?.expiresOn ?? null,
+    sailingCardIssuedAt: user.legacySailingCard?.issuedAt ?? null,
+    sailingCardNumber: user.legacySailingCard?.number ?? null,
+    sailingCardYear: user.legacySailingCard?.year ?? null,
+    userKey: user.key,
+  };
 }
 
-async function refreshCreatedLegacyUserIds(props: {
-  readonly appUserIdByKey: Map<string, string>;
+function legacyUserStageSql(row: LegacyUserStageRow) {
+  return Prisma.sql`(
+    ${row.userKey},
+    ${row.id},
+    ${row.email},
+    ${row.name},
+    ${row.emailVerified},
+    ${row.phone},
+    ${row.emergencyContactName},
+    ${row.emergencyContactPhone},
+    ${row.firstName},
+    ${row.lastName},
+    ${row.mitId},
+    ${row.sailingCardNumber},
+    ${row.sailingCardYear},
+    ${row.sailingCardExpiresOn},
+    ${row.sailingCardIssuedAt},
+    ${row.appRole},
+    ${row.role}
+  )`;
+}
+
+async function createLegacyUserStage(props: {
   readonly db: LegacyPaymentImportDb;
-  readonly userKeyByCreatedEmail: ReadonlyMap<string, string>;
-  readonly usersToCreate: readonly Prisma.UserCreateManyInput[];
+  readonly users: readonly CanonicalLegacyUser[];
 }) {
-  if (props.usersToCreate.length === 0) {
-    return;
+  await props.db.$executeRaw`
+    CREATE TEMP TABLE legacy_import_users (
+      user_key text PRIMARY KEY,
+      id text NOT NULL,
+      email text NOT NULL,
+      name text NOT NULL,
+      email_verified boolean NOT NULL,
+      phone text,
+      emergency_contact_name text,
+      emergency_contact_phone text,
+      first_name text,
+      last_name text,
+      mit_id text,
+      sailing_card_number integer,
+      sailing_card_year integer,
+      sailing_card_expires_on timestamp,
+      sailing_card_issued_at timestamp,
+      app_role text NOT NULL,
+      role text NOT NULL
+    ) ON COMMIT DROP
+  `;
+  const rows = props.users.map(legacyUserStageRow);
+  for (const chunk of stageRows(rows)) {
+    await props.db.$executeRaw`
+      INSERT INTO legacy_import_users (
+        user_key,
+        id,
+        email,
+        name,
+        email_verified,
+        phone,
+        emergency_contact_name,
+        emergency_contact_phone,
+        first_name,
+        last_name,
+        mit_id,
+        sailing_card_number,
+        sailing_card_year,
+        sailing_card_expires_on,
+        sailing_card_issued_at,
+        app_role,
+        role
+      )
+      VALUES ${Prisma.join(chunk.map(legacyUserStageSql), ', ')}
+    `;
   }
-  const persistedUsers = await props.db.user.findMany({
-    where: {
-      email: { in: props.usersToCreate.map((user) => user.email) },
-    },
-    select: {
-      email: true,
-      id: true,
-    },
-  });
-  for (const persistedUser of persistedUsers) {
-    const userKey = props.userKeyByCreatedEmail.get(
-      persistedUser.email.toLowerCase()
-    );
-    if (userKey) {
-      props.appUserIdByKey.set(userKey, persistedUser.id);
-    }
-  }
+}
+
+async function legacyUserIdRowsForStage(props: {
+  readonly db: LegacyPaymentImportDb;
+}) {
+  const rows = await props.db.$queryRaw<LegacyUserIdRow[]>`
+    SELECT DISTINCT ON (source.user_key)
+      source.user_key,
+      target."id"
+    FROM legacy_import_users AS source
+    INNER JOIN "user" AS target
+      ON lower(target."email") = source.email
+    ORDER BY source.user_key, target."created_at" ASC
+  `;
+  return rows;
+}
+
+function preparedLegacyUsersSql() {
+  return Prisma.sql`
+    SELECT
+      source.*,
+      CASE
+        WHEN source.mit_id IS NULL THEN 0
+        ELSE count(*) OVER (PARTITION BY source.mit_id)
+      END AS mit_id_stage_count,
+      CASE
+        WHEN source.sailing_card_number IS NULL OR source.sailing_card_year IS NULL THEN 0
+        ELSE count(*) OVER (
+          PARTITION BY source.sailing_card_year, source.sailing_card_number
+        )
+      END AS sailing_card_stage_count
+    FROM legacy_import_users AS source
+  `;
+}
+
+async function mergeExistingLegacySailingCards(props: {
+  readonly db: LegacyPaymentImportDb;
+}) {
+  const rows = await props.db.$queryRaw<LegacyUpdatedUserRow[]>`
+    WITH prepared AS (${preparedLegacyUsersSql()})
+    UPDATE "user" AS target
+    SET "sailing_card_expires_on" = prepared.sailing_card_expires_on::date,
+        "sailing_card_issued_at" = prepared.sailing_card_issued_at::timestamp,
+        "sailing_card_number" = prepared.sailing_card_number::integer,
+        "sailing_card_year" = prepared.sailing_card_year::integer
+    FROM prepared
+    WHERE lower(target."email") = prepared.email
+      AND prepared.sailing_card_number IS NOT NULL
+      AND prepared.sailing_card_year IS NOT NULL
+      AND prepared.sailing_card_stage_count = 1
+      AND (
+        target."sailing_card_number" IS NULL
+        OR target."sailing_card_year" IS NULL
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM "user" AS card_owner
+        WHERE card_owner."id" <> target."id"
+          AND card_owner."sailing_card_number" = prepared.sailing_card_number
+          AND card_owner."sailing_card_year" = prepared.sailing_card_year
+      )
+    RETURNING target."id"
+  `;
+  return rows.length;
+}
+
+async function insertStagedLegacyUsers(props: {
+  readonly db: LegacyPaymentImportDb;
+}) {
+  const rows = await props.db.$queryRaw<LegacyInsertedUserRow[]>`
+    WITH prepared AS (${preparedLegacyUsersSql()}),
+    inserted AS (
+      INSERT INTO "user" (
+        "id",
+        "app_role",
+        "name",
+        "email",
+        "email_verified",
+        "phone",
+        "emergency_contact_name",
+        "emergency_contact_phone",
+        "first_name",
+        "last_name",
+        "mit_id",
+        "sailing_card_number",
+        "sailing_card_year",
+        "sailing_card_expires_on",
+        "sailing_card_issued_at",
+        "role",
+        "created_at",
+        "updated_at"
+      )
+      SELECT
+        prepared.id,
+        prepared.app_role::"AppRole",
+        prepared.name,
+        prepared.email,
+        prepared.email_verified,
+        prepared.phone,
+        prepared.emergency_contact_name,
+        prepared.emergency_contact_phone,
+        prepared.first_name,
+        prepared.last_name,
+        -- Assign mit_id only when unique in prepared and unclaimed in users.
+        CASE
+          WHEN prepared.mit_id IS NOT NULL
+            AND prepared.mit_id_stage_count = 1
+            AND NOT EXISTS (
+              SELECT 1
+              FROM "user" AS mit_owner
+              WHERE mit_owner."mit_id" = prepared.mit_id
+            )
+          THEN prepared.mit_id
+          ELSE NULL
+        END,
+        -- Assign sailing_card_* only when unique in prepared and unclaimed in users.
+        CASE
+          WHEN prepared.sailing_card_number IS NOT NULL
+            AND prepared.sailing_card_year IS NOT NULL
+            AND prepared.sailing_card_stage_count = 1
+            AND NOT EXISTS (
+              SELECT 1
+              FROM "user" AS card_owner
+              WHERE card_owner."sailing_card_number" = prepared.sailing_card_number
+                AND card_owner."sailing_card_year" = prepared.sailing_card_year
+            )
+          THEN prepared.sailing_card_number
+          ELSE NULL
+        END,
+        CASE
+          WHEN prepared.sailing_card_number IS NOT NULL
+            AND prepared.sailing_card_year IS NOT NULL
+            AND prepared.sailing_card_stage_count = 1
+            AND NOT EXISTS (
+              SELECT 1
+              FROM "user" AS card_owner
+              WHERE card_owner."sailing_card_number" = prepared.sailing_card_number
+                AND card_owner."sailing_card_year" = prepared.sailing_card_year
+            )
+          THEN prepared.sailing_card_year
+          ELSE NULL
+        END,
+        CASE
+          WHEN prepared.sailing_card_number IS NOT NULL
+            AND prepared.sailing_card_year IS NOT NULL
+            AND prepared.sailing_card_stage_count = 1
+            AND NOT EXISTS (
+              SELECT 1
+              FROM "user" AS card_owner
+              WHERE card_owner."sailing_card_number" = prepared.sailing_card_number
+                AND card_owner."sailing_card_year" = prepared.sailing_card_year
+            )
+          THEN prepared.sailing_card_expires_on::date
+          ELSE NULL
+        END,
+        CASE
+          WHEN prepared.sailing_card_number IS NOT NULL
+            AND prepared.sailing_card_year IS NOT NULL
+            AND prepared.sailing_card_stage_count = 1
+            AND NOT EXISTS (
+              SELECT 1
+              FROM "user" AS card_owner
+              WHERE card_owner."sailing_card_number" = prepared.sailing_card_number
+                AND card_owner."sailing_card_year" = prepared.sailing_card_year
+            )
+          THEN prepared.sailing_card_issued_at::timestamp
+          ELSE NULL
+        END,
+        prepared.role,
+        NOW(),
+        NOW()
+      FROM prepared
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM "user" AS existing_user
+        WHERE lower(existing_user."email") = prepared.email
+      )
+      RETURNING "id", lower("email") AS email, "sailing_card_number"
+    )
+    SELECT
+      source.user_key,
+      inserted.id,
+      inserted.sailing_card_number
+    FROM inserted
+    INNER JOIN legacy_import_users AS source
+      ON source.email = inserted.email
+  `;
+  return rows;
 }
 
 async function ensureLegacyUsers(props: {
@@ -456,64 +883,52 @@ async function ensureLegacyUsers(props: {
   readonly usersCreated: number;
   readonly usersMatched: number;
 }> {
-  const appUserIdByKey = new Map<string, string>();
-  let cardRecordsMerged = 0;
-  let usersCreated = 0;
-  let usersMatched = 0;
-  const cardMerges: LegacySailingCardMerge[] = [];
-  const existingUsers = await props.db.user.findMany({
-    where: {
-      email: { in: props.map.canonicalUsers.map((user) => user.email) },
-    },
-    select: {
-      email: true,
-      id: true,
-      sailingCardNumber: true,
-      sailingCardYear: true,
-    },
+  if (props.map.canonicalUsers.length === 0) {
+    return {
+      appUserIdByKey: new Map(),
+      cardRecordsMerged: 0,
+      usersCreated: 0,
+      usersMatched: 0,
+    };
+  }
+  await createLegacyUserStage({
+    db: props.db,
+    users: props.map.canonicalUsers,
   });
-  const existingUserByEmail = new Map(
-    existingUsers.map((user) => [user.email.toLowerCase(), user])
+  const existingRows = await legacyUserIdRowsForStage({ db: props.db });
+  const existingUserKeys = new Set(existingRows.map((row) => row.user_key));
+  const existingCardMerges = await mergeExistingLegacySailingCards({
+    db: props.db,
+  });
+  const insertedRows = await insertStagedLegacyUsers({ db: props.db });
+  const appUserRows = await legacyUserIdRowsForStage({ db: props.db });
+  const appUserIdByKey = new Map(
+    appUserRows.map((row) => [row.user_key, row.id])
   );
-  const usersToCreate: Prisma.UserCreateManyInput[] = [];
-  const userKeyByCreatedEmail = new Map<string, string>();
+  return {
+    appUserIdByKey,
+    cardRecordsMerged:
+      existingCardMerges +
+      insertedRows.filter((row) => row.sailing_card_number !== null).length,
+    usersCreated: insertedRows.length,
+    usersMatched: existingUserKeys.size,
+  };
+}
 
-  for (const user of props.map.canonicalUsers) {
-    const existing = existingUserByEmail.get(user.email);
-    if (existing) {
-      const cardMerge = maybeLegacyCardMerge({ existing, user });
-      if (cardMerge) {
-        cardMerges.push(cardMerge);
-        cardRecordsMerged += 1;
-      }
-      appUserIdByKey.set(user.key, existing.id);
-      usersMatched += 1;
-      continue;
-    }
-    const createInput = legacyUserCreateInput(user);
-    usersToCreate.push(createInput);
-    userKeyByCreatedEmail.set(user.email, user.key);
-    appUserIdByKey.set(user.key, createInput.id);
-    if (user.legacySailingCard) {
-      cardRecordsMerged += 1;
-    }
-    usersCreated += 1;
-  }
-  if (usersToCreate.length > 0) {
-    await props.db.user.createMany({
-      data: usersToCreate,
-      skipDuplicates: true,
-    });
-    await refreshCreatedLegacyUserIds({
-      appUserIdByKey,
-      db: props.db,
-      userKeyByCreatedEmail,
-      usersToCreate,
-    });
-  }
-  await mergeLegacySailingCards({ db: props.db, merges: cardMerges });
-
-  return { appUserIdByKey, cardRecordsMerged, usersCreated, usersMatched };
+async function importLegacyUserRows(props: {
+  readonly members: readonly LegacyMemberRow[];
+}): Promise<LegacyUserImportResult> {
+  const map = buildLegacyMemberPaymentMap(props.members);
+  const result = await prisma.$transaction(async (tx) => {
+    const db: LegacyPaymentImportDb = tx;
+    const users = await ensureLegacyUsers({ db, map });
+    return {
+      cardRecordsMerged: users.cardRecordsMerged,
+      usersCreated: users.usersCreated,
+      usersMatched: users.usersMatched,
+    };
+  });
+  return result;
 }
 
 function payerName(payment: LegacyPaymentRow): string | null {
@@ -728,4 +1143,14 @@ export async function importLegacyPaymentsFromSchema(): Promise<LegacyPaymentImp
     `,
   ]);
   return importLegacyPaymentRows({ members, payments });
+}
+
+export async function importLegacyUsersFromSchema(): Promise<LegacyUserImportResult> {
+  const members = await prisma.$queryRaw<LegacyMemberRow[]>`
+    SELECT *
+    FROM legacy.members
+    WHERE active = '1'
+    ORDER BY lower(trim(email)), record_date DESC, record DESC
+  `;
+  return importLegacyUserRows({ members });
 }

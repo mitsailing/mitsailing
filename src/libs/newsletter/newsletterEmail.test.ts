@@ -76,6 +76,7 @@ describe('newsletter email', () => {
     const rendered = await renderNewsletterBroadcastEmail({
       body: 'The pavilion is open.\n\nRacing starts Friday.',
       listName: 'General',
+      managePreferencesLabel: 'Manage all newsletter preferences',
       manageUrl: 'https://example.test/manage',
       postalAddress: 'MIT Sailing Pavilion, Cambridge, MA',
       previewText: 'News from the pavilion',
@@ -89,7 +90,7 @@ describe('newsletter email', () => {
       'Unsubscribe from General: https://example.test/unsubscribe'
     );
     expect(rendered.text).toContain(
-      'Manage email newsletters: https://example.test/manage'
+      'Manage all newsletter preferences: https://example.test/manage'
     );
   });
 
@@ -100,6 +101,7 @@ describe('newsletter email', () => {
     const rendered = await renderNewsletterBroadcastEmail({
       body: '<p>Hello sailors</p><script>alert("bad")</script>',
       listName: 'General',
+      managePreferencesLabel: 'Manage all newsletter preferences',
       manageUrl: 'https://example.test/manage',
       postalAddress: 'MIT Sailing Pavilion, Cambridge, MA',
       previewText: 'News from the pavilion',
@@ -157,6 +159,7 @@ describe('newsletter email', () => {
     const payload = sentPayload();
     expect(payload.headers).toEqual(
       expect.objectContaining({
+        'List-ID': '<list-123.newsletter.mitsailing.test>',
         'List-Unsubscribe': expect.stringContaining(
           '/api/newsletter/unsubscribe?'
         ),
@@ -179,5 +182,30 @@ describe('newsletter email', () => {
     expect(payload.idempotencyKey).toBe('newsletter-delivery/delivery_123');
     expect(payload.topicId).toBe('topic_123');
     expect(payload.text).toContain('134 Memorial Drive');
+  });
+
+  it('uses a safe List-ID fallback for invalid list ids', async () => {
+    const { sendNewsletterBroadcastEmail } =
+      await import('@/libs/newsletter/newsletterEmail');
+
+    await sendNewsletterBroadcastEmail({
+      body: 'The pavilion is open.',
+      broadcastId: 'broadcast_123',
+      deliveryId: 'delivery_123',
+      email: 'sailor@example.com',
+      listId: '!!!',
+      listName: 'General',
+      manageTokenHash: 'stored-token-hash',
+      previewText: 'News from the pavilion',
+      subject: 'Spring sailing',
+      subscriberId: 'subscriber_123',
+      topicId: null,
+    });
+
+    expect(sentPayload().headers).toEqual(
+      expect.objectContaining({
+        'List-ID': '<newsletter.newsletter.mitsailing.test>',
+      })
+    );
   });
 });

@@ -11,6 +11,7 @@ type ResetPasswordPageProps = {
     callbackUrl?: string;
     email?: string;
     codeSent?: string;
+    mode?: string;
   }>;
 };
 
@@ -43,6 +44,11 @@ export default async function ResetPasswordPage(props: ResetPasswordPageProps) {
       callbackUrl={callbackUrl}
       initialEmail={searchParams.email ?? ''}
       initialResendLocked={searchParams.codeSent === '1'}
+      mode={
+        searchParams.mode === 'create-password'
+          ? 'create-password'
+          : 'reset-password'
+      }
       passwordHeading={t('password_heading')}
     />
   );

@@ -6,12 +6,22 @@ import { uploadCmsMediaWithTus } from './cmsMediaTusUpload';
 const ADMIN_CMS_MEDIA_PATH = '/api/admin/cms-media';
 const ADMIN_CMS_MEDIA_UPLOADS_PATH = '/api/admin/cms-media/uploads';
 const CMS_MEDIA_UPLOAD_ASSET_ID_PATTERN = /^[a-z0-9_-]+$/iu;
+const CMS_MEDIA_READY_TIMEOUT_MS = 30_000;
+const CMS_MEDIA_READY_POLL_MS = 500;
+
+type CmsMediaAssetStatus =
+  | 'failed'
+  | 'processing'
+  | 'queued'
+  | 'ready'
+  | 'uploading';
 
 export type CmsMediaAsset = {
   id: string;
   originalFilename: string;
   publicPath: string;
   createdAt: string;
+  status?: CmsMediaAssetStatus;
 };
 
 export function isCmsMediaPath(value: string | undefined): value is string {
@@ -62,6 +72,21 @@ function numberField(value: unknown, field: string) {
     : undefined;
 }
 
+function cmsMediaAssetStatusFromUnknown(
+  value: string | undefined
+): CmsMediaAssetStatus | undefined {
+  if (
+    value === 'failed' ||
+    value === 'processing' ||
+    value === 'queued' ||
+    value === 'ready' ||
+    value === 'uploading'
+  ) {
+    return value;
+  }
+  return undefined;
+}
+
 export function cmsMediaAssetFromUnknown(value: unknown): CmsMediaAsset | null {
   const id = stringField(value, 'id');
   const originalFilename = stringField(value, 'originalFilename');
@@ -70,7 +95,9 @@ export function cmsMediaAssetFromUnknown(value: unknown): CmsMediaAsset | null {
   if (!id || !originalFilename || !isCmsMediaPath(publicPath) || !createdAt) {
     return null;
   }
-  return { createdAt, id, originalFilename, publicPath };
+  const status = cmsMediaAssetStatusFromUnknown(stringField(value, 'status'));
+  const asset = { createdAt, id, originalFilename, publicPath };
+  return status ? { ...asset, status } : asset;
 }
 
 export function cmsMediaAssetsFromUnknown(value: unknown): CmsMediaAsset[] {
@@ -304,6 +331,43 @@ async function finalizeCmsMediaUpload(
   return cmsMediaAssetFromApiResponse(data);
 }
 
+async function delay(ms: number): Promise<void> {
+  const deferred = Promise.withResolvers<boolean>();
+  globalThis.setTimeout(() => {
+    deferred.resolve(true);
+  }, ms);
+  await deferred.promise;
+}
+
+async function waitForCmsMediaReady(
+  assetId: string
+): Promise<CmsMediaAsset | null> {
+  const path = cmsMediaUploadPath(assetId);
+  if (!path) {
+    return null;
+  }
+  const deadline = Date.now() + CMS_MEDIA_READY_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf -- path is a same-origin upload API route built from an allowlisted asset id.
+    const response = await fetch(path);
+    if (!response.ok) {
+      return null;
+    }
+    const asset = cmsMediaAssetFromApiResponse(await response.json());
+    if (!asset) {
+      return null;
+    }
+    if (asset.status === 'ready') {
+      return asset;
+    }
+    if (asset.status === 'failed') {
+      return null;
+    }
+    await delay(CMS_MEDIA_READY_POLL_MS);
+  }
+  return null;
+}
+
 async function cancelCmsMediaUpload(assetId: string): Promise<void> {
   const path = cmsMediaUploadPath(assetId);
   if (!path) {
@@ -359,7 +423,10 @@ export async function uploadCmsMediaFile(props: {
   }
   const finalized = await finalizeCmsMediaUpload(upload.assetId);
   if (finalized) {
-    return finalized;
+    if (finalized.status === 'ready' || !finalized.status) {
+      return finalized;
+    }
+    return waitForCmsMediaReady(upload.assetId);
   }
   logger.warn('CMS media upload finalize failed', {
     sessionAssetId: session.asset.id,

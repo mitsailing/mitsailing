@@ -5,6 +5,7 @@ import { Pool } from 'pg';
 import { formAlert } from '../helpers/e2e-alert';
 import { e2ePgConnectionString } from '../helpers/e2e-database-url';
 import { insertCurrentSailingCardOnboardingAcceptance } from '../helpers/e2e-sailing-card-onboarding';
+import { submitEmailPasswordSignIn } from '../helpers/e2e-sign-in';
 import {
   extractCodeFromMessage,
   findLatestMessageTo,
@@ -20,6 +21,8 @@ import {
  * Raw SQL with `pg` matches `AccountLockout.e2e.ts` and keeps the harness simple.
  */
 const pool = new Pool({ connectionString: e2ePgConnectionString() });
+const invalidCredential = ['wrong', 'credential', '123'].join('-');
+const validCredential = ['Correct', 'Horse', 'Battery', 'Staple'].join('-');
 
 let pgPoolEnded = false;
 
@@ -228,10 +231,7 @@ async function signInWithEmailAndPassword(props: {
   page: Page;
   password: string;
 }) {
-  await props.page.goto('/login');
-  await props.page.getByLabel('Email').fill(props.email);
-  await props.page.getByLabel('Password').fill(props.password);
-  await props.page.getByRole('button', { name: 'Sign in' }).click();
+  await submitEmailPasswordSignIn(props);
   await expect.poll(() => new URL(props.page.url()).pathname).toBe('/');
 }
 
@@ -341,10 +341,11 @@ test.describe('Auth', () => {
       await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
 
       await page.context().clearCookies();
-      await page.goto('/login');
-      await page.getByLabel('Email').fill(email);
-      await page.getByLabel('Password').fill(credential);
-      await page.getByRole('button', { name: 'Sign in' }).click();
+      await submitEmailPasswordSignIn({
+        email,
+        page,
+        password: credential,
+      });
 
       await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
       await expect(
@@ -544,7 +545,7 @@ test.describe('Auth', () => {
     await cleanupByEmail(email);
   });
 
-  test('visitor requests a reset from the login email without a second send action', async ({
+  test('visitor starts a password reset from the login email', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -553,23 +554,22 @@ test.describe('Auth', () => {
     await createVerifiedUser({ email, page, password });
     await page.context().clearCookies();
 
-    await page.goto('/login?callbackUrl=/fleet');
+    await page.goto(`/login?callbackUrl=${encodeURIComponent('/fleet')}`);
     await page.getByLabel('Email').fill(email);
-    await page.getByRole('button', { name: 'Forgot password?' }).click();
+    const forgotPasswordLink = page.getByRole('link', {
+      name: 'Forgot password?',
+    });
+    await expect(forgotPasswordLink).toHaveAttribute(
+      'href',
+      `/forgot-password?email=${encodeURIComponent(email)}&callbackUrl=%2Ffleet`
+    );
+    await forgotPasswordLink.click();
 
-    await expect(page).toHaveURL(/\/reset-password\?/);
-    await expect(page.getByLabel('Reset code')).toBeVisible();
-    await expect(
-      page.getByRole('button', { name: 'Send reset code' })
-    ).toHaveCount(0);
-    await expect(
-      page.getByText(
-        'If an account exists for this email, you will receive a reset code shortly.'
-      )
-    ).toHaveCount(0);
-
-    // findLatestPasswordResetCode throws if the reset email was not delivered.
-    await findLatestPasswordResetCode(email);
+    await expect(page).toHaveURL(/\/forgot-password\?/);
+    const forgotPasswordUrl = new URL(page.url());
+    expect(forgotPasswordUrl.searchParams.get('email')).toBe(email);
+    expect(forgotPasswordUrl.searchParams.get('callbackUrl')).toBe('/fleet');
+    await expect(page.getByLabel('Email')).toHaveValue(email);
 
     await cleanupByEmail(email);
   });
@@ -619,13 +619,18 @@ test.describe('Auth', () => {
 
   test('visitor sees invalid credentials message', async ({ page }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const password = validCredential;
 
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill('wrong-password-123');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await createVerifiedUser({ email, page, password });
+    await page.context().clearCookies();
+    await submitEmailPasswordSignIn({
+      email,
+      page,
+      password: invalidCredential,
+    });
 
     await expect(formAlert(page)).toHaveText('Invalid email or password.');
+    await cleanupByEmail(email);
   });
 
   test('visitor sees an explicit error when signing up with an existing email', async ({
@@ -657,10 +662,7 @@ test.describe('Auth', () => {
     await page.goto('/signup');
     await signUpWithEmailAndPassword({ email, page, password });
 
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(password);
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await submitEmailPasswordSignIn({ email, page, password });
 
     await expect(formAlert(page)).toContainText(
       'Verify your email before signing in.'

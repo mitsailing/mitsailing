@@ -2,7 +2,10 @@ import { render, screen } from '@testing-library/react';
 import type * as ReactModule from 'react';
 import type * as ReactDomModule from 'react-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NewsletterPreferenceForm } from '@/components/mit-sailing/newsletter/NewsletterPreferenceForm';
+import {
+  NewsletterOneClickResubscribeForm,
+  NewsletterPreferenceForm,
+} from '@/components/mit-sailing/newsletter/NewsletterPreferenceForm';
 import { NewsletterSignupForm } from '@/components/mit-sailing/newsletter/NewsletterSignupForm';
 
 type MockActionState = {
@@ -11,9 +14,14 @@ type MockActionState = {
   formError?: string;
   ok: boolean | null;
 };
+type MockActionReducer = (
+  previousState: MockActionState,
+  formData: FormData
+) => Promise<MockActionState>;
 
 const actionStateMock = vi.hoisted(() => ({
   formAction: vi.fn(),
+  reducer: null as MockActionReducer | null,
   state: { ok: false } as MockActionState,
 }));
 
@@ -21,10 +29,10 @@ vi.mock('react', async (importOriginal) => {
   const actual = await importOriginal<typeof ReactModule>();
   return {
     ...actual,
-    useActionState: vi.fn(() => [
-      actionStateMock.state,
-      actionStateMock.formAction,
-    ]),
+    useActionState: vi.fn((reducer: MockActionReducer) => {
+      actionStateMock.reducer = reducer;
+      return [actionStateMock.state, actionStateMock.formAction];
+    }),
   };
 });
 
@@ -80,6 +88,7 @@ const preferenceLists = [
 
 beforeEach(() => {
   vi.clearAllMocks();
+  actionStateMock.reducer = null;
   actionStateMock.state = { ok: false };
 });
 
@@ -155,6 +164,146 @@ describe('NewsletterPreferenceForm', () => {
     expect(screen.getByRole('alert')).toHaveAttribute(
       'id',
       'newsletter-preference-error'
+    );
+  });
+
+  it('renders checked lists with accessible descriptions', () => {
+    actionStateMock.state = { ok: null };
+    const action = vi.fn().mockResolvedValue({ ok: true });
+
+    render(
+      <NewsletterPreferenceForm
+        action={action}
+        errorLabel="Could not save newsletter preferences."
+        legendLabel="Newsletter lists"
+        lists={preferenceLists}
+        submitLabel="Save preferences"
+        successLabel="Newsletter preferences saved."
+      />
+    );
+
+    expect(screen.getByLabelText('General')).toBeChecked();
+    expect(screen.getByLabelText('General')).toHaveAccessibleDescription(
+      'General updates'
+    );
+    expect(
+      screen.getByRole('button', { name: 'Save preferences' })
+    ).toBeEnabled();
+  });
+
+  it('passes preference submissions to the provided action', async () => {
+    actionStateMock.state = { ok: null };
+    const action = vi.fn().mockResolvedValue({ ok: true });
+    const formData = new FormData();
+
+    render(
+      <NewsletterPreferenceForm
+        action={action}
+        errorLabel="Could not save newsletter preferences."
+        legendLabel="Newsletter lists"
+        lists={preferenceLists}
+        submitLabel="Save preferences"
+        successLabel="Newsletter preferences saved."
+      />
+    );
+
+    await expect(
+      actionStateMock.reducer?.({ ok: null }, formData)
+    ).resolves.toEqual({ ok: true });
+    expect(action).toHaveBeenCalledWith(formData);
+  });
+
+  it('shows the saved message after preference updates succeed', () => {
+    actionStateMock.state = { ok: true };
+
+    render(
+      <NewsletterPreferenceForm
+        action={vi.fn()}
+        errorLabel="Could not save newsletter preferences."
+        legendLabel="Newsletter lists"
+        lists={preferenceLists}
+        submitLabel="Save preferences"
+        successLabel="Newsletter preferences saved."
+      />
+    );
+
+    expect(
+      screen.getByText('Newsletter preferences saved.')
+    ).toBeInTheDocument();
+  });
+});
+
+describe('NewsletterOneClickResubscribeForm', () => {
+  it('posts every selected list id for one-click resubscribe', () => {
+    actionStateMock.state = { ok: null };
+
+    const view = render(
+      <NewsletterOneClickResubscribeForm
+        action={vi.fn()}
+        errorLabel="Could not resubscribe."
+        listIds={['general', 'racing']}
+        submitLabel="Resubscribe"
+        successLabel="Resubscribed."
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Resubscribe' })).toBeEnabled();
+    expect(
+      [...view.container.querySelectorAll('input[name="listId"]')].map(
+        (input) => input.getAttribute('value')
+      )
+    ).toEqual(['general', 'racing']);
+  });
+
+  it('passes one-click resubscribe submissions to the provided action', async () => {
+    actionStateMock.state = { ok: null };
+    const action = vi.fn().mockResolvedValue({ ok: true });
+    const formData = new FormData();
+
+    render(
+      <NewsletterOneClickResubscribeForm
+        action={action}
+        errorLabel="Could not resubscribe."
+        listIds={['general']}
+        submitLabel="Resubscribe"
+        successLabel="Resubscribed."
+      />
+    );
+
+    await expect(
+      actionStateMock.reducer?.({ ok: null }, formData)
+    ).resolves.toEqual({ ok: true });
+    expect(action).toHaveBeenCalledWith(formData);
+  });
+
+  it('shows resubscribe success and error states', () => {
+    actionStateMock.state = { ok: true };
+
+    const view = render(
+      <NewsletterOneClickResubscribeForm
+        action={vi.fn()}
+        errorLabel="Could not resubscribe."
+        listIds={['general']}
+        submitLabel="Resubscribe"
+        successLabel="Resubscribed."
+      />
+    );
+
+    expect(screen.getByText('Resubscribed.')).toBeInTheDocument();
+
+    actionStateMock.state = { ok: false };
+    view.rerender(
+      <NewsletterOneClickResubscribeForm
+        action={vi.fn()}
+        errorLabel="Could not resubscribe."
+        listIds={['general']}
+        submitLabel="Resubscribe"
+        successLabel="Resubscribed."
+      />
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Could not resubscribe.'
     );
   });
 });

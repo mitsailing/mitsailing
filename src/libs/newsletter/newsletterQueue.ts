@@ -30,7 +30,8 @@ function getNewsletterQueueConnection(redisUrl: string): IORedis {
     return cachedConnection;
   }
   cachedConnection = new IORedis(redisUrl, {
-    maxRetriesPerRequest: null,
+    enableOfflineQueue: false,
+    maxRetriesPerRequest: 1,
   });
   return cachedConnection;
 }
@@ -41,6 +42,9 @@ function getNewsletterQueue(redisUrl: string): Queue<NewsletterBroadcastJob> {
   }
   cachedQueue = new Queue<NewsletterBroadcastJob>(NEWSLETTER_QUEUE_NAME, {
     connection: getNewsletterQueueConnection(redisUrl),
+  });
+  cachedQueue.on('error', (error) => {
+    logger.error('Newsletter queue error: {error}', { error });
   });
   return cachedQueue;
 }

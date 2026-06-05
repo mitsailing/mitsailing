@@ -6,9 +6,16 @@ const mocks = vi.hoisted(() => {
   };
   const add = vi.fn();
   const close = vi.fn();
+  const handlers = new Map<string, (...args: readonly unknown[]) => void>();
+  const loggerError = vi.fn();
+  const on = vi.fn(
+    (event: string, handler: (...args: readonly unknown[]) => void) => {
+      handlers.set(event, handler);
+    }
+  );
   const quit = vi.fn();
   const queueConstructor = vi.fn(function Queue() {
-    return { add, close };
+    return { add, close, on };
   });
   const redisConstructor = vi.fn(function IORedis() {
     return { quit };
@@ -18,6 +25,9 @@ const mocks = vi.hoisted(() => {
     add,
     close,
     env,
+    handlers,
+    loggerError,
+    on,
     queueConstructor,
     quit,
     redisConstructor,
@@ -36,26 +46,50 @@ vi.mock('@/libs/Env', () => ({
   Env: mocks.env,
 }));
 
+vi.mock('@/libs/Logger', () => ({
+  logger: {
+    error: mocks.loggerError,
+  },
+}));
+
 describe('getDefaultQueue', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
+    mocks.handlers.clear();
     mocks.env.REDIS_URL = 'redis://localhost:6379';
   });
 
-  it('creates the default queue with the worker-safe redis option', async () => {
+  it('creates the default queue with producer fail-fast redis options', async () => {
     const { getDefaultQueue } = await import('@/worker/defaultQueue');
 
     const queue = getDefaultQueue();
 
     expect(mocks.redisConstructor).toHaveBeenCalledWith(
       'redis://localhost:6379',
-      { maxRetriesPerRequest: null }
+      { enableOfflineQueue: false, maxRetriesPerRequest: 1 }
     );
     expect(mocks.queueConstructor).toHaveBeenCalledWith('default', {
       connection: { quit: mocks.quit },
     });
-    expect(queue).toEqual({ add: mocks.add, close: mocks.close });
+    expect(queue).toEqual({
+      add: mocks.add,
+      close: mocks.close,
+      on: mocks.on,
+    });
+  });
+
+  it('logs BullMQ queue errors', async () => {
+    const { getDefaultQueue } = await import('@/worker/defaultQueue');
+    const error = new Error('redis unavailable');
+
+    getDefaultQueue();
+    mocks.handlers.get('error')?.(error);
+
+    expect(mocks.loggerError).toHaveBeenCalledWith(
+      'Default queue error: {error}',
+      { error }
+    );
   });
 
   it('reuses the queue and redis connection across calls', async () => {

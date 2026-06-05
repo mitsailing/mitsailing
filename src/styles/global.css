@@ -157,6 +157,7 @@
 
   .cms-rich-text [data-resize-wrapper] > img {
     margin-block: 0;
+    min-width: 7.5rem;
   }
 
   .cms-rich-text [data-resize-handle] {

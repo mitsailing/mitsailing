@@ -23,6 +23,13 @@ async function unsubscribeParamsFromPost(request: Request): Promise<{
 }> {
   const urlParams = unsubscribeParamsFromUrl(request);
   const contentType = request.headers.get('content-type') ?? '';
+  if (contentType.includes('text/plain')) {
+    const rawBody = await request.text();
+    if (rawBody !== 'List-Unsubscribe=One-Click') {
+      throw new TypeError('Unsupported newsletter unsubscribe semantics');
+    }
+    return urlParams;
+  }
   if (
     !contentType.includes('application/x-www-form-urlencoded') &&
     !contentType.includes('multipart/form-data')
@@ -83,11 +90,11 @@ export async function POST(request: Request) {
  * Browser fallback for unsubscribe links.
  *
  * @param request - Incoming unsubscribe request
- * @returns Redirect to manage preferences without mutating subscriptions
+ * @returns Redirect to manage preferences without mutating state
  */
 export function GET(request: Request) {
   const params = unsubscribeParamsFromUrl(request);
-  if (params.token.length === 0) {
+  if (params.token.length === 0 || params.listId.length === 0) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
   return NextResponse.redirect(newsletterManageUrl(params.token));

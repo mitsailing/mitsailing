@@ -23,6 +23,7 @@ type ErrorState = {
 
 type SignUpFormProps = {
   callbackUrl: string;
+  initialEmail?: string;
 };
 
 // Client-side sign-up form. Calls `authClient.signUp.email` and maps the
@@ -32,7 +33,9 @@ export function SignUpForm(props: SignUpFormProps) {
   const t = useTranslations('SignUpPage');
   const tCommon = useTranslations('Common');
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(
+    normalizeEmailAddress(props.initialEmail ?? '')
+  );
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [error, setError] = useState<ErrorState>(null);

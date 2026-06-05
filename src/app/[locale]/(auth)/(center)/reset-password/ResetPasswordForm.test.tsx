@@ -19,9 +19,17 @@ const authClientMock = vi.hoisted(() => ({
 const sentryMock = vi.hoisted(() => ({
   captureMessage: vi.fn(),
 }));
+const supportActionMock = vi.hoisted(() => ({
+  reportPasswordResetIssueAction: vi.fn(),
+}));
 
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
+}));
+
+vi.mock('@/libs/auth/passwordResetSupportActions', () => ({
+  reportPasswordResetIssueAction:
+    supportActionMock.reportPasswordResetIssueAction,
 }));
 
 vi.mock('@sentry/nextjs', () => sentryMock);
@@ -32,6 +40,9 @@ beforeEach(() => {
   authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({});
   authClientMock.emailOtp.resetPassword.mockResolvedValue({});
   authClientMock.signIn.email.mockResolvedValue({});
+  supportActionMock.reportPasswordResetIssueAction.mockResolvedValue({
+    ok: true,
+  });
 });
 
 afterEach(() => {
@@ -80,6 +91,107 @@ async function fillNewPassword(props: {
 }
 
 describe('ResetPasswordForm', () => {
+  it('report reset email delivery trouble for current email', async () => {
+    const user = userEvent.setup();
+    renderResetPasswordForm();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Not getting email?' })
+    );
+
+    expect(
+      supportActionMock.reportPasswordResetIssueAction
+    ).toHaveBeenCalledWith({
+      action: 'password_reset_email_not_received',
+      email: 'reset@mit.edu',
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'We sent a message to support.'
+    );
+  });
+
+  it('reports create-password delivery trouble with the create-password action', async () => {
+    const user = userEvent.setup();
+    renderResetPasswordForm({ mode: 'create-password' });
+
+    await user.click(
+      screen.getByRole('button', { name: 'Not getting email?' })
+    );
+
+    expect(
+      supportActionMock.reportPasswordResetIssueAction
+    ).toHaveBeenCalledWith({
+      action: 'create_password_email_not_received',
+      email: 'reset@mit.edu',
+    });
+  });
+
+  it('shows invalid email before reporting delivery trouble without email', async () => {
+    const user = userEvent.setup();
+    renderResetPasswordForm({ initialEmail: '' });
+
+    await user.type(screen.getByLabelText('Email'), 'reset@mit');
+    await user.click(
+      screen.getByRole('button', { name: 'Not getting email?' })
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Enter a valid email address with a domain'
+    );
+    expect(
+      supportActionMock.reportPasswordResetIssueAction
+    ).not.toHaveBeenCalled();
+  });
+
+  it('shows invalid email when support report rejects normalized email', async () => {
+    const user = userEvent.setup();
+    supportActionMock.reportPasswordResetIssueAction.mockResolvedValue({
+      error: 'invalid_email',
+      ok: false,
+    });
+    renderResetPasswordForm();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Not getting email?' })
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Enter a valid email address with a domain'
+    );
+  });
+
+  it('shows support failure when delivery trouble report throws', async () => {
+    const user = userEvent.setup();
+    supportActionMock.reportPasswordResetIssueAction.mockRejectedValue(
+      new Error('network')
+    );
+    renderResetPasswordForm();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Not getting email?' })
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not send that message right now.'
+    );
+  });
+
+  it('uses create-password copy for legacy users', () => {
+    renderResetPasswordForm({ mode: 'create-password' });
+
+    expect(screen.getByText(/create your MIT Sailing password/i)).toBeVisible();
+  });
+
+  it('uses create-password fallback copy without email', () => {
+    renderResetPasswordForm({ initialEmail: '', mode: 'create-password' });
+
+    expect(
+      screen.getByText(
+        'Enter the code we sent, then create your MIT Sailing password.'
+      )
+    ).toBeVisible();
+  });
+
   describe('Code verification', () => {
     it('verify reset code before choosing new password', async () => {
       renderResetPasswordForm();
@@ -254,7 +366,17 @@ describe('ResetPasswordForm', () => {
       ).not.toHaveBeenCalled();
 
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(30_000);
+        await vi.advanceTimersByTimeAsync(29_000);
+      });
+
+      expect(
+        screen.getByRole('button', {
+          name: 'You can request a new code in 1 second',
+        })
+      ).toBeDisabled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
       });
 
       expect(screen.getByRole('button', { name: 'Resend code' })).toBeEnabled();

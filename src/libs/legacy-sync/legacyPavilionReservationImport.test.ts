@@ -10,9 +10,27 @@ import {
 } from '@/libs/legacy-sync/legacyPavilionReservationImport';
 import type { LegacyReservationDbRow } from '@/libs/legacy-sync/legacyPavilionReservationImport';
 
+type FakeReservationTransaction = {
+  pavilionReservationRequest: {
+    upsert: (params: unknown) => Promise<{ id: string }>;
+  };
+  pavilionReservationSlot: {
+    createMany: (params: unknown) => Promise<{ count: number }>;
+    deleteMany: (params: unknown) => Promise<{ count: number }>;
+  };
+};
+
+type FakeReservationTransactionCallback = (
+  tx: FakeReservationTransaction
+) => Promise<unknown>;
+
+type FakeTransaction = (
+  callback: FakeReservationTransactionCallback
+) => Promise<unknown>;
+
 const { prisma } = vi.hoisted(() => ({
   prisma: {
-    $transaction: vi.fn(async () => {
+    $transaction: vi.fn<FakeTransaction>(async () => {
       await Promise.resolve();
     }),
     pavilionReservableItem: {
@@ -232,6 +250,79 @@ describe('legacyPavilionReservationImport', () => {
 
     expect(result).toEqual({ imported: 1, skipped: 0 });
     expect(prisma.$transaction).toHaveBeenCalled();
+  });
+
+  it('decodes legacy text fields once before import', async () => {
+    prisma.$transaction.mockClear();
+
+    const result = await importLegacyPavilionReservationRows([
+      {
+        resid: '2026-07-01:10:00:00-decode',
+        first: 'First',
+        last: 'Last',
+        mitid: null,
+        email: 'decode@example.com',
+        phone: '555',
+        affil: 'student',
+        groupname: 'Group &amp; crew',
+        title: 'Roof deck &lt;launch&gt; &amp;lt;literal&amp;gt;',
+        acadfac: 'Advisor &#39;Name&#39;',
+        acadfacemail: null,
+        acct: null,
+        date1: '2026-07-01',
+        start1: '10:00:00',
+        end1: '12:00:00',
+        date2: null,
+        start2: null,
+        end2: null,
+        datesel: 1,
+        comments: 'Use roof deck &quot;today&quot;',
+        infotent: 0,
+        infoalcohol: 0,
+        groupsize: '10',
+        active: 1,
+        tentative: 0,
+        confirmed: 0,
+        paid: 0,
+        contacted: 1,
+      },
+    ]);
+
+    expect(result).toEqual({ imported: 1, skipped: 0 });
+
+    const transactionCallback = prisma.$transaction.mock.calls.at(-1)?.[0];
+    if (!transactionCallback) {
+      throw new Error('Expected reservation import to start a transaction.');
+    }
+
+    const upsert = vi.fn(async () => {
+      await Promise.resolve();
+      return { id: 'reservation-1' };
+    });
+    await transactionCallback({
+      pavilionReservationRequest: { upsert },
+      pavilionReservationSlot: {
+        createMany: vi.fn(async () => {
+          await Promise.resolve();
+          return { count: 1 };
+        }),
+        deleteMany: vi.fn(async () => {
+          await Promise.resolve();
+          return { count: 0 };
+        }),
+      },
+    });
+
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          advisorName: "Advisor 'Name'",
+          description: 'Use roof deck "today"',
+          eventName: 'Roof deck <launch> &lt;literal&gt;',
+          groupName: 'Group & crew',
+        }),
+      })
+    );
   });
 
   it('parses mysql time strings to minutes', () => {

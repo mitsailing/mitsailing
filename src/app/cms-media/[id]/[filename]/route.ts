@@ -1,8 +1,12 @@
+import { readFile } from 'node:fs/promises';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
-import { buildCmsMediaReadyUrl } from '@/libs/mit-sailing/cmsMediaFileStorage';
+import {
+  buildCmsMediaReadyPath,
+  buildCmsMediaReadyUrl,
+} from '@/libs/mit-sailing/cmsMediaFileStorage';
 import { readCmsMediaFile } from '@/libs/mit-sailing/cmsMediaStorage';
 import {
   buildCmsMediaPublicPath,
@@ -16,12 +20,15 @@ type CmsMediaRouteProps = {
 };
 
 type CmsMediaAssetRouteRecord = {
+  readyFilePath: string | null;
   status: 'failed' | 'processing' | 'queued' | 'ready' | 'uploading';
   storedFilename: string;
   storageProvider: 'local' | 'server_folder';
   mimeType: string;
   publicPath: string;
 } | null;
+
+type ReadyCmsMediaAssetRouteRecord = NonNullable<CmsMediaAssetRouteRecord>;
 
 const CMS_MEDIA_RESPONSE_HEADERS = {
   'Cache-Control': 'public, max-age=31536000, immutable',
@@ -36,6 +43,38 @@ function cmsMediaContentType(mimeType: string): string {
   return cmsMediaAllowedMimeTypes.has(mimeType)
     ? mimeType
     : 'application/octet-stream';
+}
+
+function isMissingFileError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    error.code === 'ENOENT'
+  );
+}
+
+async function readServerFolderCmsMediaFile(props: {
+  asset: ReadyCmsMediaAssetRouteRecord;
+  filename: string;
+  id: string;
+}): Promise<Buffer | null> {
+  const expectedPath = buildCmsMediaReadyPath({
+    assetId: props.id,
+    filename: props.filename,
+    root: Env.MEDIA_STORAGE_ROOT,
+  });
+  if (!expectedPath || props.asset.readyFilePath !== expectedPath) {
+    return null;
+  }
+  try {
+    return await readFile(expectedPath);
+  } catch (error: unknown) {
+    if (isMissingFileError(error)) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -54,6 +93,7 @@ export async function GET(_request: Request, props: CmsMediaRouteProps) {
       select: {
         mimeType: true,
         publicPath: true,
+        readyFilePath: true,
         status: true,
         storageProvider: true,
         storedFilename: true,
@@ -84,7 +124,10 @@ export async function GET(_request: Request, props: CmsMediaRouteProps) {
 
   let bytes: Awaited<ReturnType<typeof readCmsMediaFile>>;
   try {
-    bytes = await readCmsMediaFile({ id, filename });
+    bytes =
+      asset.storageProvider === 'server_folder'
+        ? await readServerFolderCmsMediaFile({ asset, filename, id })
+        : await readCmsMediaFile({ id, filename });
   } catch (error: unknown) {
     logger.error('Failed to read CMS media file: {error}', { error });
     return new NextResponse(null, { status: 500 });

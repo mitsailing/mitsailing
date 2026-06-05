@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { SubmitButton } from '@/components/ui/submit-button';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
+import { resolveSignInEmailAction } from '@/libs/auth/signInEmailActions';
 import {
   isValidEmailAddress,
   normalizeEmailAddress,
@@ -24,22 +25,21 @@ type ErrorState =
   | { kind: 'unverified'; email: string }
   | null;
 type MappedErrorState = Exclude<ErrorState, null>;
+type SignInStep = 'email' | 'password';
 
-// Client-side sign-in form wired directly to `authClient.signIn.email`.
-// Known Better Auth error codes are mapped to translated page copy; unknown
-// codes use the generic credentials string so raw backend text never renders.
-// The unverified path sends an email code and moves the user to the
-// verification screen without losing their original callback.
+// Email-first sign-in form. The email gate determines whether to show the
+// password field, send a create-password reset code, or hand unknown emails to
+// sign-up. Known Better Auth error codes still map to translated page copy so
+// raw backend text never renders.
 export function SignInForm(props: SignInFormProps) {
   const t = useTranslations('SignInPage');
   const tCommon = useTranslations('Common');
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [step, setStep] = useState<SignInStep>('email');
   const [error, setError] = useState<ErrorState>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [requestingReset, setRequestingReset] = useState(false);
-  const requestingResetRef = useRef(false);
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
 
@@ -74,14 +74,63 @@ export function SignInForm(props: SignInFormProps) {
     return t('error_credentials');
   }
 
-  async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function onEmailSubmit() {
     setError(null);
     setResent(false);
     const normalizedEmail = normalizeEmailAddress(email);
     setEmail(normalizedEmail);
     if (!isValidEmailAddress(normalizedEmail)) {
       setError({ kind: 'generic', message: t('error_invalid_email') });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await resolveSignInEmailAction({ email: normalizedEmail });
+      if (res.state === 'invalid_email') {
+        setError({ kind: 'generic', message: t('error_invalid_email') });
+        return;
+      }
+      setEmail(res.email);
+      if (res.state === 'password') {
+        setStep('password');
+        return;
+      }
+      if (res.state === 'sign_up') {
+        router.push(
+          authHrefWithCallback(
+            `/signup?email=${encodeURIComponent(res.email)}`,
+            props.callbackUrl
+          )
+        );
+        return;
+      }
+      if (res.state === 'reset_required') {
+        router.push(
+          authHrefWithCallback(
+            `/reset-password?email=${encodeURIComponent(
+              res.email
+            )}&codeSent=1&mode=create-password`,
+            props.callbackUrl
+          )
+        );
+        return;
+      }
+      setError({ kind: 'generic', message: t('error_reset_failed') });
+    } catch {
+      setError({ kind: 'generic', message: t('error_request_failed') });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function onPasswordSubmit() {
+    setError(null);
+    setResent(false);
+    const normalizedEmail = normalizeEmailAddress(email);
+    setEmail(normalizedEmail);
+    if (!isValidEmailAddress(normalizedEmail)) {
+      setError({ kind: 'generic', message: t('error_invalid_email') });
+      setStep('email');
       return;
     }
     setSubmitting(true);
@@ -107,6 +156,15 @@ export function SignInForm(props: SignInFormProps) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (step === 'email') {
+      await onEmailSubmit();
+      return;
+    }
+    await onPasswordSubmit();
   }
 
   async function onSendVerificationCode(unverifiedEmail: string) {
@@ -139,49 +197,14 @@ export function SignInForm(props: SignInFormProps) {
     }
   }
 
-  async function onForgotPassword() {
-    if (requestingResetRef.current) {
-      return;
-    }
-
-    const normalizedEmail = normalizeEmailAddress(email);
-    if (!isValidEmailAddress(normalizedEmail)) {
-      setError({ kind: 'generic', message: t('error_invalid_email') });
-      return;
-    }
-
-    setError(null);
-    setResent(false);
-    setEmail(normalizedEmail);
-    requestingResetRef.current = true;
-    setRequestingReset(true);
-    try {
-      const res = await authClient.emailOtp.requestPasswordReset({
-        email: normalizedEmail,
-      });
-
-      if (res.error) {
-        setError({ kind: 'generic', message: t('error_reset_failed') });
-        return;
-      }
-
-      router.push(
-        authHrefWithCallback(
-          `/reset-password?email=${encodeURIComponent(
-            normalizedEmail
-          )}&codeSent=1`,
-          props.callbackUrl
-        )
-      );
-    } catch {
-      setError({ kind: 'generic', message: t('error_reset_failed') });
-    } finally {
-      requestingResetRef.current = false;
-      setRequestingReset(false);
-    }
-  }
-
   const normalizedForgotPasswordEmail = normalizeEmailAddress(email);
+  const forgotPasswordPath = isValidEmailAddress(normalizedForgotPasswordEmail)
+    ? `/forgot-password?email=${encodeURIComponent(normalizedForgotPasswordEmail)}`
+    : '/forgot-password';
+  const forgotPasswordHref = authHrefWithCallback(
+    forgotPasswordPath,
+    props.callbackUrl
+  );
 
   return (
     <>
@@ -245,6 +268,10 @@ export function SignInForm(props: SignInFormProps) {
             name="email"
             onChange={(e) => {
               setEmail(e.target.value);
+              if (step === 'password') {
+                setPassword('');
+                setStep('email');
+              }
             }}
             required
             type="email"
@@ -252,23 +279,25 @@ export function SignInForm(props: SignInFormProps) {
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-foreground" htmlFor="password">
-            {t('password_label')}
-          </Label>
-          <Input
-            autoComplete="current-password"
-            id="password"
-            minLength={8}
-            name="password"
-            onChange={(e) => {
-              setPassword(e.target.value);
-            }}
-            required
-            type="password"
-            value={password}
-          />
-        </div>
+        {step === 'password' ? (
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-foreground" htmlFor="password">
+              {t('password_label')}
+            </Label>
+            <Input
+              autoComplete="current-password"
+              id="password"
+              minLength={8}
+              name="password"
+              onChange={(e) => {
+                setPassword(e.target.value);
+              }}
+              required
+              type="password"
+              value={password}
+            />
+          </div>
+        ) : null}
 
         <SubmitButton
           className="w-full"
@@ -276,31 +305,14 @@ export function SignInForm(props: SignInFormProps) {
           pendingLabel={tCommon('pending_submitting')}
           variant="mit"
         >
-          {t('submit')}
+          {step === 'password' ? t('submit') : t('continue_submit')}
         </SubmitButton>
       </form>
 
       <p className="text-center text-sm text-mit-text">
-        {normalizedForgotPasswordEmail.length === 0 ? (
-          <a
-            className={authInlineLinkClassName}
-            href={authHrefWithCallback('/forgot-password', props.callbackUrl)}
-          >
-            {t('forgot_password')}
-          </a>
-        ) : (
-          <button
-            className={`${authInlineLinkClassName} border-0 bg-transparent p-0 disabled:opacity-60`}
-            disabled={requestingReset}
-            onClick={() => {
-              // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the reset promise.
-              void onForgotPassword();
-            }}
-            type="button"
-          >
-            {t('forgot_password')}
-          </button>
-        )}
+        <a className={authInlineLinkClassName} href={forgotPasswordHref}>
+          {t('forgot_password')}
+        </a>
       </p>
     </>
   );

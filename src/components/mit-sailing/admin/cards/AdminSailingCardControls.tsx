@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Printer, Zap } from 'lucide-react';
+import { CheckCircle2, Printer } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ type AdminSailingCardIssueFormProps = {
   ) => Promise<AdminSailingCardActionState>;
   readonly cardType?: SailingCardType;
   readonly locale: string;
+  readonly needsRecreationVerification?: boolean;
   readonly paymentAccess?: AdminSailingCardPaymentAccess;
   readonly suggestedCardNumber: number;
   readonly userId: string;
@@ -68,6 +69,7 @@ type AdminSailingCardIssueFormModel = {
   readonly formError: AdminSailingCardActionState['formError'];
   readonly needsPaymentBypassNote: boolean;
   readonly paymentBypassNoteId: string;
+  readonly recreationVerificationId: string;
 };
 
 function issueFormNeedsPaymentBypassNote(props: {
@@ -180,7 +182,38 @@ function useAdminSailingCardIssueFormModel(
       paymentAccess: props.paymentAccess,
     }),
     paymentBypassNoteId: `${props.userId}-paymentBypassNote`,
+    recreationVerificationId: `${props.userId}-gymMembershipVerified`,
   };
+}
+
+function AdminSailingCardRecreationVerification(props: {
+  readonly id: string;
+  readonly visible: boolean;
+}) {
+  const t = useTranslations('AdminCards');
+
+  if (!props.visible) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-lg border border-border p-3">
+      <div className="flex items-start gap-2">
+        <input
+          className="mt-0.5 size-4"
+          id={props.id}
+          name="gymMembershipVerified"
+          required
+          type="checkbox"
+          value="true"
+        />
+        <Label htmlFor={props.id}>{t('fitness_membership_verify_label')}</Label>
+      </div>
+      <p className="m-0 pt-1 pl-6 text-xs text-muted-foreground">
+        {t('fitness_membership_verify_help')}
+      </p>
+    </div>
+  );
 }
 
 export function AdminSailingCardIssueForm(
@@ -212,6 +245,10 @@ export function AdminSailingCardIssueForm(
         error={model.cardNumberError}
         id={model.cardNumberErrorId}
       />
+      <AdminSailingCardRecreationVerification
+        id={model.recreationVerificationId}
+        visible={props.needsRecreationVerification === true}
+      />
       {/* eslint-disable-next-line no-use-before-define -- Lizard mis-parses this TSX helper when it sits above the form. */}
       <AdminSailingCardPaymentBypassNote
         id={model.paymentBypassNoteId}
@@ -232,22 +269,12 @@ export function AdminSailingCardPrintActions(props: {
     <div className="flex flex-wrap gap-2">
       <Button asChild className="gap-2" size="sm" variant="outline">
         <a
-          href={`/admin/users/${encodedUserId}/sailing-card/print`}
-          rel="noreferrer"
+          href={`/api/admin/users/${encodedUserId}/sailing-card/pdf`}
+          rel="noopener noreferrer"
           target="_blank"
         >
           <Printer aria-hidden className="size-4" />
           {t('action_print_card')}
-        </a>
-      </Button>
-      <Button asChild className="gap-2" size="sm" variant="outline">
-        <a
-          href={`/admin/users/${encodedUserId}/sailing-card/quick-print`}
-          rel="noreferrer"
-          target="_blank"
-        >
-          <Zap aria-hidden className="size-4" />
-          {t('action_quick_print')}
         </a>
       </Button>
     </div>

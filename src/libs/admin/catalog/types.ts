@@ -111,11 +111,14 @@ export type AdminUserRow = {
   emailDeliverabilityStatus: AdminEmailDeliverabilityStatus;
   emailSuppressedAt: string | null;
   emailSuppressionReason: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
   firstName: string | null;
   lastName: string | null;
   mitClassYear: string | null;
   mitDataWarehouseVerifiedAt: string | null;
   mitId: string | null;
+  phone: string | null;
   sailingAffiliation: SailingAffiliation | null;
   sailingCardNumber: number | null;
   sailingCardStatus: 'current' | 'expired' | 'none' | 'pending';

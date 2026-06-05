@@ -85,6 +85,42 @@ describe('cms media upload route', () => {
     expect(mocks.updateMany).not.toHaveBeenCalled();
   });
 
+  it('returns upload status for admins', async () => {
+    stubAdminUser();
+    mocks.findUnique.mockResolvedValue(asset('processing'));
+
+    const response = await GET(cancelRequest(), routeProps());
+
+    await expect(response.json()).resolves.toMatchObject({
+      asset: {
+        id: 'asset-1',
+        status: 'processing',
+      },
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it('returns not found when upload status asset is missing', async () => {
+    stubAdminUser();
+    mocks.findUnique.mockResolvedValue(null);
+
+    const response = await GET(cancelRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({ error: 'not_found' });
+    expect(response.status).toBe(404);
+  });
+
+  it('returns not found when upload cancellation asset is missing', async () => {
+    stubAdminUser();
+    mocks.findUnique.mockResolvedValue(null);
+
+    const response = await DELETE(cancelRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({ error: 'not_found' });
+    expect(response.status).toBe(404);
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+
   it('marks uploading assets as cancelled', async () => {
     stubAdminUser();
     mocks.findUnique
@@ -173,5 +209,18 @@ describe('cms media upload route', () => {
       error: 'upload_not_cancellable',
     });
     expect(response.status).toBe(409);
+  });
+
+  it('returns not found when the asset is deleted during cancellation', async () => {
+    stubAdminUser();
+    mocks.findUnique
+      .mockResolvedValueOnce(asset('uploading'))
+      .mockResolvedValue(null);
+    mocks.updateMany.mockResolvedValue({ count: 0 });
+
+    const response = await DELETE(cancelRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({ error: 'not_found' });
+    expect(response.status).toBe(404);
   });
 });
