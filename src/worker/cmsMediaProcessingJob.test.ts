@@ -72,20 +72,27 @@ function processingAsset(props: {
 }
 
 describe('cms media processing job', () => {
-  it('enqueues processing jobs with stable asset ids', async () => {
+  it('enqueues processing jobs with BullMQ deduplication ids', async () => {
     const { enqueueCmsMediaProcessingJob } =
       await import('@/worker/cmsMediaProcessingJob');
     const add = vi.fn<CmsMediaProcessingQueue['add']>().mockResolvedValue(null);
 
     await enqueueCmsMediaProcessingJob({ add }, { assetId: 'asset-1' });
 
+    const options = add.mock.calls[0]?.[2];
     expect(add).toHaveBeenCalledWith(
       'cms-media-processing',
-      { assetId: 'asset-1' },
+      {
+        assetId: 'asset-1',
+      },
+      expect.any(Object)
+    );
+    expect(options).toEqual(
       expect.objectContaining({
-        jobId: 'cms-media-processing:asset-1',
+        deduplication: { id: 'cms-media-processing-asset-1' },
       })
     );
+    expect(options).not.toHaveProperty('jobId');
   });
 
   it('moves uploaded image bytes into the ready folder', async () => {
@@ -398,7 +405,7 @@ describe('cms media processing job', () => {
       'cms-media-processing',
       { assetId: 'queued-1' },
       expect.objectContaining({
-        jobId: 'cms-media-processing:queued-1',
+        deduplication: { id: 'cms-media-processing-queued-1' },
       })
     );
     expect(add).toHaveBeenNthCalledWith(
@@ -406,7 +413,7 @@ describe('cms media processing job', () => {
       'cms-media-processing',
       { assetId: 'stale-1' },
       expect.objectContaining({
-        jobId: 'cms-media-processing:stale-1',
+        deduplication: { id: 'cms-media-processing-stale-1' },
       })
     );
   });

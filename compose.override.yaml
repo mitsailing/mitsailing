@@ -24,17 +24,18 @@ services:
       - '127.0.0.1:${REDIS_PUBLISH_PORT:-6379}:6379'
 
   mailpit:
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:v1.30.0
     restart: unless-stopped
     ports:
       # Container keeps 1025/8025; host side overridable when 1025/8025 are taken.
-      - '${MAILPIT_SMTP_PUBLISH_PORT:-1025}:1025'
-      - '${MAILPIT_HTTP_PUBLISH_PORT:-8025}:8025'
+      - '127.0.0.1:${MAILPIT_SMTP_PUBLISH_PORT:-1025}:1025'
+      - '127.0.0.1:${MAILPIT_HTTP_PUBLISH_PORT:-8025}:8025'
     environment:
       MP_MAX_MESSAGES: '5000'
+      MP_MAX_AGE: 7d
       MP_DATABASE: /data/mailpit.db
       # Local dev binds Mailpit to loopback only and accepts anything
-      # — never do either in a shared environment (see compose.staging.yaml).
+      # — never do either in a shared environment (see .env.staging.example).
       MP_SMTP_AUTH_ACCEPT_ANY: '1'
       MP_SMTP_AUTH_ALLOW_INSECURE: '1'
     volumes:
@@ -67,9 +68,9 @@ services:
       - -disable-download
       - -behind-proxy
       - -max-size=${MEDIA_UPLOAD_MAX_BYTES:-104857600}
-      - -hooks-http=http://host.docker.internal:3000/api/internal/cms-media/tusd/hooks
+      - -hooks-http=${MEDIA_UPLOAD_HOOK_URL:-http://host.docker.internal:3000/api/internal/cms-media/tusd/hooks}
       - -hooks-http-forward-headers=x-mitsailing-upload-token
-      - -cors-allow-origin=${MEDIA_UPLOAD_CORS_ALLOW_ORIGIN:-http://localhost:3000}
+      - -cors-allow-origin=${MEDIA_UPLOAD_CORS_ALLOW_ORIGIN:-${NEXT_PUBLIC_APP_URL:-http://localhost:3000}}
       - -cors-allow-headers=authorization,content-type,tus-resumable,upload-length,upload-metadata,upload-offset,x-mitsailing-upload-token
       - -cors-expose-headers=location,tus-resumable,upload-offset,upload-length,upload-metadata,upload-expires
     volumes:

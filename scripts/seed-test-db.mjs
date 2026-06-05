@@ -9,6 +9,7 @@ import { config as loadEnv } from 'dotenv';
 
 loadEnv({ path: '.env.local', override: false, quiet: true });
 loadEnv({ path: '.env', override: false, quiet: true });
+loadEnv({ path: '.env.example', override: false, quiet: true });
 
 const testDatabaseUrl =
   process.env.TEST_DATABASE_URL ??

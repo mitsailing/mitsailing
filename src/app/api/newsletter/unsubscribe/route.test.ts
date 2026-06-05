@@ -70,6 +70,27 @@ describe('newsletter one-click unsubscribe route', () => {
     );
   });
 
+  it('returns internal errors when browser unsubscribe links fail', async () => {
+    mocks.unsubscribeNewsletterTokenFromList.mockRejectedValueOnce(
+      new Error('db down')
+    );
+
+    const response = await GET(unsubscribeRequest());
+
+    await expect(response.json()).resolves.toEqual({
+      error: 'internal',
+      ok: false,
+    });
+    expect(response.status).toBe(500);
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      'Failed to unsubscribe newsletter token: {error}',
+      expect.objectContaining({
+        error: expect.any(Error),
+        listId: 'list_123',
+      })
+    );
+  });
+
   it('unsubscribes post requests using url identity', async () => {
     const response = await POST(
       unsubscribeRequest({

@@ -129,7 +129,7 @@ describe('event payment email job', () => {
         paymentId: 'payment-1',
       },
       expect.objectContaining({
-        jobId: 'event-payment-email:request:payment-1:2026-06-01',
+        jobId: 'event-payment-email-request-payment-1-2026-06-01',
       })
     );
   });

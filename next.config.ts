@@ -21,6 +21,22 @@ const baseConfig: NextConfig = {
   output: 'standalone',
   outputFileTracingIncludes: {
     '/': ['./prisma/migrations/**/*'],
+    '/*': [
+      './node_modules/@ioredis/commands/**/*',
+      './node_modules/bullmq/**/*',
+      './node_modules/cluster-key-slot/**/*',
+      './node_modules/denque/**/*',
+      './node_modules/ioredis/**/*',
+      './node_modules/lodash.defaults/**/*',
+      './node_modules/lodash.isarguments/**/*',
+      './node_modules/msgpackr/**/*',
+      './node_modules/node-abort-controller/**/*',
+      './node_modules/redis-errors/**/*',
+      './node_modules/redis-parser/**/*',
+      './node_modules/semver/**/*',
+      './node_modules/standard-as-callback/**/*',
+      './node_modules/tslib/**/*',
+    ],
   },
   images: {
     // Playwright navigations wait for the browser load event by default. In the

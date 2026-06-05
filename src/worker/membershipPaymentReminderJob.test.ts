@@ -89,7 +89,7 @@ describe('membership payment reminder job', () => {
         paymentId: 'payment-1',
       },
       expect.objectContaining({
-        jobId: 'membership-payment-reminder:payment-1:2026-05-01',
+        jobId: 'membership-payment-reminder-payment-1-2026-05-01',
       })
     );
   });

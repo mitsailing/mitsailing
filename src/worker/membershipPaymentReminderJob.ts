@@ -123,7 +123,7 @@ export async function enqueueMembershipPaymentReminderJob(
 ): Promise<void> {
   await queue.add(MEMBERSHIP_PAYMENT_REMINDER_JOB_NAME, data, {
     ...MEMBERSHIP_PAYMENT_REMINDER_JOB_OPTS,
-    jobId: `${MEMBERSHIP_PAYMENT_REMINDER_JOB_NAME}:${data.paymentId}:${data.dateKey}`,
+    jobId: `${MEMBERSHIP_PAYMENT_REMINDER_JOB_NAME}-${data.paymentId}-${data.dateKey}`,
   });
 }
 

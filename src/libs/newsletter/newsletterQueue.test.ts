@@ -3,9 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => {
   const add = vi.fn();
   const close = vi.fn();
+  const handlers = new Map<string, (...args: readonly unknown[]) => void>();
+  const loggerError = vi.fn();
+  const on = vi.fn(
+    (event: string, handler: (...args: readonly unknown[]) => void) => {
+      handlers.set(event, handler);
+    }
+  );
   const quit = vi.fn();
   const queueConstructor = vi.fn(function Queue() {
-    return { add, close };
+    return { add, close, on };
   });
   const redisConstructor = vi.fn(function IORedis() {
     return { quit };
@@ -14,6 +21,9 @@ const mocks = vi.hoisted(() => {
   return {
     add,
     close,
+    handlers,
+    loggerError,
+    on,
     queueConstructor,
     quit,
     redisConstructor,
@@ -38,13 +48,14 @@ vi.mock('@/libs/Env', () => ({
 
 vi.mock('@/libs/Logger', () => ({
   logger: {
-    error: vi.fn(),
+    error: mocks.loggerError,
   },
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  mocks.handlers.clear();
   mocks.add.mockResolvedValue({});
 });
 
@@ -57,10 +68,28 @@ describe('enqueueNewsletterBroadcast', () => {
     await enqueueNewsletterBroadcast('broadcast_2');
 
     expect(mocks.redisConstructor).toHaveBeenCalledTimes(1);
+    expect(mocks.redisConstructor).toHaveBeenCalledWith(
+      'redis://localhost:6379',
+      { enableOfflineQueue: false, maxRetriesPerRequest: 1 }
+    );
     expect(mocks.queueConstructor).toHaveBeenCalledTimes(1);
     expect(mocks.add).toHaveBeenCalledTimes(2);
     expect(mocks.close).not.toHaveBeenCalled();
     expect(mocks.quit).not.toHaveBeenCalled();
+  });
+
+  it('logs BullMQ queue errors', async () => {
+    const { enqueueNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterQueue');
+    const error = new Error('redis unavailable');
+
+    await enqueueNewsletterBroadcast('broadcast_1');
+    mocks.handlers.get('error')?.(error);
+
+    expect(mocks.loggerError).toHaveBeenCalledWith(
+      'Newsletter queue error: {error}',
+      { error }
+    );
   });
 
   it('sets retry backoff and stable job ids', async () => {
@@ -82,7 +111,7 @@ describe('enqueueNewsletterBroadcast', () => {
       expect.objectContaining({
         attempts: 3,
         backoff: { delay: 30_000, type: 'exponential' },
-        jobId: 'newsletter-broadcast:broadcast_1:1778769000000:delivery_1',
+        jobId: 'newsletter-broadcast-broadcast_1-1778769000000-delivery_1',
         removeOnComplete: 100,
         removeOnFail: 500,
       })

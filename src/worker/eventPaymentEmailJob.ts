@@ -96,9 +96,9 @@ export type EventPaymentEmailQueue = Pick<
 
 function jobId(data: EventPaymentQueueData): string {
   if (data.kind === 'admin_digest') {
-    return `${EVENT_PAYMENT_EMAIL_JOB_NAME}:${data.kind}:${data.eventId}:${data.dateKey}`;
+    return `${EVENT_PAYMENT_EMAIL_JOB_NAME}-${data.kind}-${data.eventId}-${data.dateKey}`;
   }
-  return `${EVENT_PAYMENT_EMAIL_JOB_NAME}:${data.kind}:${data.paymentId}:${data.dateKey}`;
+  return `${EVENT_PAYMENT_EMAIL_JOB_NAME}-${data.kind}-${data.paymentId}-${data.dateKey}`;
 }
 
 async function findPayment(paymentId: string): Promise<PaymentEmailRow | null> {

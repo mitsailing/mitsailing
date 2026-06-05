@@ -12,7 +12,6 @@ import {
 import { adminPavilionReservationIndexPath } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminPaths';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
-import { formatEasternShortDateFromIsoCalendar } from '@/libs/mit-sailing/easternTimeFormat';
 import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
 import {
   estimatedServiceAmountCents,
@@ -20,7 +19,6 @@ import {
 } from '@/libs/mit-sailing/pavilionReservationPricing';
 import { listVisiblePavilionReservableItems } from '@/libs/mit-sailing/pavilionReservationQueries';
 import { parsePavilionReservationFormData } from '@/libs/mit-sailing/pavilionReservationSchemas';
-import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionReservationTimeLabel';
 import type {
   PavilionReservationErrorKey,
   PavilionReservableItemDto,
@@ -145,16 +143,6 @@ async function hasRecentMatchingReservationRequest(props: {
     select: { id: true },
   });
   return recentRequest !== null;
-}
-
-function scheduleLinesForEmail(props: {
-  itemById: Map<string, PavilionReservableItemDto>;
-  slots: PavilionReservationSlotInput[];
-}): string[] {
-  return props.slots.map((slot) => {
-    const itemName = props.itemById.get(slot.itemId)?.name ?? 'Pavilion space';
-    return `${itemName}: ${formatEasternShortDateFromIsoCalendar(slot.date)} · ${formatPavilionReservationTimeLabel(slot.startMinutes)} - ${formatPavilionReservationTimeLabel(slot.endMinutes)}`;
-  });
 }
 
 /**
@@ -326,10 +314,7 @@ export async function submitPavilionReservationRequestAction(
   after(async () => {
     try {
       await enqueuePavilionReservationSubmittedEmail(getDefaultQueue(), {
-        eventName: parsed.data.eventName,
         referenceCode,
-        requesterEmail: parsed.data.requesterEmail,
-        scheduleLines: scheduleLinesForEmail({ itemById, slots }),
       });
     } catch (error) {
       logger.error(

@@ -205,7 +205,9 @@ export async function enqueueCmsMediaProcessingJob(
 ): Promise<void> {
   await queue.add(CMS_MEDIA_PROCESSING_JOB_NAME, data, {
     ...CMS_MEDIA_PROCESSING_JOB_OPTS,
-    jobId: `${CMS_MEDIA_PROCESSING_JOB_NAME}:${data.assetId}`,
+    deduplication: {
+      id: `${CMS_MEDIA_PROCESSING_JOB_NAME}-${data.assetId}`,
+    },
   });
 }
 

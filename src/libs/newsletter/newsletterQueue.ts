@@ -30,7 +30,8 @@ function getNewsletterQueueConnection(redisUrl: string): IORedis {
     return cachedConnection;
   }
   cachedConnection = new IORedis(redisUrl, {
-    maxRetriesPerRequest: null,
+    enableOfflineQueue: false,
+    maxRetriesPerRequest: 1,
   });
   return cachedConnection;
 }
@@ -41,6 +42,9 @@ function getNewsletterQueue(redisUrl: string): Queue<NewsletterBroadcastJob> {
   }
   cachedQueue = new Queue<NewsletterBroadcastJob>(NEWSLETTER_QUEUE_NAME, {
     connection: getNewsletterQueueConnection(redisUrl),
+  });
+  cachedQueue.on('error', (error) => {
+    logger.error('Newsletter queue error: {error}', { error });
   });
   return cachedQueue;
 }
@@ -79,7 +83,7 @@ export async function enqueueNewsletterBroadcast(
         attempts: 3,
         backoff: { delay: NEWSLETTER_QUEUE_BACKOFF_MS, type: 'exponential' },
         delay,
-        jobId: `newsletter-broadcast:${enqueueParams.broadcastId}:${scheduleKey}:${continuationKey}`,
+        jobId: `newsletter-broadcast-${enqueueParams.broadcastId}-${scheduleKey}-${continuationKey}`,
         removeOnComplete: 100,
         removeOnFail: 500,
       }

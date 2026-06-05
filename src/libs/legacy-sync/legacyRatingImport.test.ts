@@ -4,6 +4,7 @@ import { importLegacyRatingRows } from '@/libs/legacy-sync/legacyRatingImport';
 
 const mocks = vi.hoisted(() => ({
   createMany: vi.fn(),
+  queryRaw: vi.fn(),
   sailingRatingUpsert: vi.fn(),
   transaction: vi.fn(),
   userFindMany: vi.fn(),
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/libs/DB', () => ({
   prisma: {
+    $queryRaw: mocks.queryRaw,
     $transaction: mocks.transaction,
   },
 }));
@@ -45,6 +47,7 @@ describe('importLegacyRatingRows', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.createMany.mockResolvedValue({ count: 0 });
+    mocks.queryRaw.mockResolvedValue([]);
     mocks.sailingRatingUpsert.mockResolvedValue({ id: 'rating-1' });
     mocks.userFindMany.mockResolvedValue([]);
     mocks.transaction.mockImplementation(
@@ -167,5 +170,47 @@ describe('importLegacyRatingRows', () => {
       ],
       skipDuplicates: true,
     });
+  });
+
+  it('imports rating types ratings and members from the legacy schema query', async () => {
+    mocks.queryRaw
+      .mockResolvedValueOnce([
+        {
+          basic_opt: null,
+          name: 'Provisional',
+          rank: '1',
+          status: '1',
+          type: '2',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          basic: null,
+          eval_date: '',
+          eval_id: 'instructor',
+          id: 'sailor',
+          rating_type: '2',
+        },
+      ])
+      .mockResolvedValueOnce([
+        activeMember({
+          email: 'sailor@example.com',
+          first: 'Sally',
+          id: 'sailor',
+          last: 'Sailor',
+        }),
+      ]);
+    const { importLegacyRatingsFromSchema } =
+      await import('@/libs/legacy-sync/legacyRatingImport');
+
+    await expect(importLegacyRatingsFromSchema()).resolves.toEqual({
+      ratingTypesImported: 1,
+      userRatingsImported: 0,
+      userRatingsSkipped: 1,
+    });
+
+    expect(mocks.queryRaw).toHaveBeenCalledTimes(3);
+    expect(mocks.sailingRatingUpsert).toHaveBeenCalledOnce();
+    expect(mocks.createMany).not.toHaveBeenCalled();
   });
 });

@@ -15,6 +15,13 @@ const mocks = vi.hoisted(() => {
     enqueueNewsletterBroadcast: vi.fn(),
     fetch: vi.fn(),
     logger: { error: vi.fn(), warn: vi.fn() },
+    getNewsletterFooterCopy: vi.fn(async () => {
+      await Promise.resolve();
+      return {
+        managePreferencesLabel: 'Manage preferences',
+        postalAddress: 'MIT Sailing Pavilion',
+      };
+    }),
     getNewsletterPostalAddress: vi.fn(async () => {
       await Promise.resolve();
       return 'MIT Sailing Pavilion';
@@ -66,6 +73,7 @@ vi.mock('@/libs/Logger', () => ({
 }));
 
 vi.mock('@/libs/newsletter/newsletterEmail', () => ({
+  getNewsletterFooterCopy: mocks.getNewsletterFooterCopy,
   getNewsletterPostalAddress: mocks.getNewsletterPostalAddress,
   renderNewsletterBroadcastEmail: mocks.renderNewsletterBroadcastEmail,
   sendNewsletterBroadcastEmail: mocks.sendNewsletterBroadcastEmail,
@@ -282,6 +290,36 @@ describe('newsletter broadcasts', () => {
         broadcastId: 'broadcast_1',
         type: 'broadcast_queued',
       },
+    });
+  });
+
+  it('renders admin broadcast previews with footer links', async () => {
+    mocks.renderNewsletterBroadcastEmail.mockResolvedValueOnce({
+      html: '<p>Preview</p>',
+      text: 'Preview',
+    });
+
+    const { renderAdminNewsletterBroadcastPreviewHtml } =
+      await import('@/libs/newsletter/newsletterBroadcasts');
+    await expect(
+      renderAdminNewsletterBroadcastPreviewHtml({
+        body: 'The pavilion is open.',
+        previewText: 'News from the pavilion',
+        primaryList: { name: 'General' },
+        subject: 'Spring sailing',
+      })
+    ).resolves.toBe('<p>Preview</p>');
+
+    expect(mocks.getNewsletterFooterCopy).toHaveBeenCalledOnce();
+    expect(mocks.renderNewsletterBroadcastEmail).toHaveBeenCalledWith({
+      body: 'The pavilion is open.',
+      listName: 'General',
+      managePreferencesLabel: 'Manage preferences',
+      manageUrl: 'https://mitsailing.test/newsletter',
+      postalAddress: 'MIT Sailing Pavilion',
+      previewText: 'News from the pavilion',
+      subject: 'Spring sailing',
+      unsubscribeUrl: 'https://mitsailing.test/newsletter',
     });
   });
 

@@ -1,6 +1,7 @@
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import { Env } from '@/libs/Env';
+import { logger } from '@/libs/Logger';
 
 export const DEFAULT_QUEUE_NAME = 'default';
 
@@ -15,7 +16,8 @@ function getDefaultQueueConnection(): IORedis {
     throw new Error('REDIS_URL is required to enqueue background jobs');
   }
   cachedConnection = new IORedis(Env.REDIS_URL, {
-    maxRetriesPerRequest: null,
+    enableOfflineQueue: false,
+    maxRetriesPerRequest: 1,
   });
   return cachedConnection;
 }
@@ -26,6 +28,9 @@ export function getDefaultQueue(): Queue {
   }
   cachedQueue = new Queue(DEFAULT_QUEUE_NAME, {
     connection: getDefaultQueueConnection(),
+  });
+  cachedQueue.on('error', (error) => {
+    logger.error('Default queue error: {error}', { error });
   });
   return cachedQueue;
 }

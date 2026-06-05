@@ -98,6 +98,14 @@ beforeEach(() => {
 });
 
 describe('NewsletterManagePage', () => {
+  it('sets manage preferences metadata', async () => {
+    const pageModule = await import('./page');
+
+    await expect(pageModule.generateMetadata(pageProps())).resolves.toEqual({
+      title: 'manage_meta_title',
+    });
+  });
+
   it('binds the single token to preference updates', async () => {
     const pageModule = await import('./page');
     mocks.getSubscriberPreferenceStateByToken.mockResolvedValue({
@@ -154,6 +162,36 @@ describe('NewsletterManagePage', () => {
     );
   });
 
+  it('accepts single array token and unsubscribed list params', async () => {
+    const pageModule = await import('./page');
+    mocks.getSubscriberPreferenceStateByToken.mockResolvedValue({
+      email: 'sailor@example.com',
+      id: 'subscriber_123',
+    });
+    mocks.newsletterPreferenceRows.mockReturnValue([
+      {
+        description: null,
+        id: 'racing',
+        name: 'Racing updates',
+        subscribed: false,
+      },
+    ]);
+
+    renderToStaticMarkup(
+      await pageModule.default(
+        pageProps({
+          token: [' token_123 '],
+          unsubscribedList: [' racing '],
+        })
+      )
+    );
+
+    expect(mocks.getSubscriberPreferenceStateByToken).toHaveBeenCalledWith(
+      'token_123'
+    );
+    expect(mocks.resubscribeFormProps?.listIds).toEqual(['racing']);
+  });
+
   it('skips public list lookup without token', async () => {
     const pageModule = await import('./page');
 
@@ -176,6 +214,62 @@ describe('NewsletterManagePage', () => {
     );
     expect(mocks.getPublicNewsletterLists).not.toHaveBeenCalled();
     expect(mocks.preferenceFormProps).toBeNull();
+  });
+
+  it('rejects repeated unsubscribed list params', async () => {
+    const pageModule = await import('./page');
+    mocks.getSubscriberPreferenceStateByToken.mockResolvedValue({
+      email: 'sailor@example.com',
+      id: 'subscriber_123',
+    });
+    mocks.newsletterPreferenceRows.mockReturnValue([
+      {
+        description: null,
+        id: 'racing',
+        name: 'Racing updates',
+        subscribed: false,
+      },
+    ]);
+
+    renderToStaticMarkup(
+      await pageModule.default(
+        pageProps({
+          token: 'token_123',
+          unsubscribedList: ['racing', 'general'],
+        })
+      )
+    );
+
+    expect(mocks.resubscribeFormProps).toBeNull();
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      'Rejected newsletter manage request with repeated unsubscribed list params',
+      { listCount: 2 }
+    );
+  });
+
+  it('hides resubscribe when the referenced list is already subscribed', async () => {
+    const pageModule = await import('./page');
+    mocks.getSubscriberPreferenceStateByToken.mockResolvedValue({
+      email: 'sailor@example.com',
+      id: 'subscriber_123',
+    });
+    mocks.newsletterPreferenceRows.mockReturnValue([
+      {
+        description: null,
+        id: 'racing',
+        name: 'Racing updates',
+        subscribed: true,
+      },
+    ]);
+
+    renderToStaticMarkup(
+      await pageModule.default(
+        pageProps({ token: 'token_123', unsubscribedList: ' racing ' })
+      )
+    );
+
+    expect(mocks.resubscribeFormProps).toBeNull();
+    expect(mocks.preferenceFormProps).not.toBeNull();
   });
 
   it('shows one-click resubscribe for the just-unsubscribed list', async () => {
