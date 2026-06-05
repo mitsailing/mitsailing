@@ -14,6 +14,7 @@ import type { EventCalendarDate } from '@/libs/mit-sailing/eventCalendar';
 const event = {
   id: 'event-1',
   name: 'Spring regatta',
+  shortName: 'Regatta',
   slug: 'spring-regatta',
   eventCategoryId: 'cat-racing',
   learnToSailManagedClassKind: LearnToSailManagedClassKind.none,

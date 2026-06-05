@@ -211,9 +211,7 @@ test.describe('MIT Sailing catalog', () => {
       })
     ).toBeVisible();
     await expect(
-      page
-        .getByRole('link', { name: 'Learn to Sail — Weekday (Apr 7–9)' })
-        .first()
+      page.getByRole('link', { name: 'Learn-to-Sail Class 1-2-3' }).first()
     ).toBeVisible();
     const categoryFilters = page.getByLabel('Event category filters');
     await expect(
@@ -424,7 +422,7 @@ test.describe('MIT Sailing catalog', () => {
     await page.goto('/events?month=2026-06');
 
     await expect(
-      page.getByRole('link', { name: 'Boston Dinghy Cup' }).first()
+      page.getByRole('link', { name: 'Dinghy Cup' }).first()
     ).toBeVisible();
     await expect(page.getByText('9:00 AM – 5:00 PM').first()).toBeVisible();
     await expect(page.getByText(/ ET\b/)).toHaveCount(0);

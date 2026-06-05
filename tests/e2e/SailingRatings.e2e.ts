@@ -115,6 +115,21 @@ test.describe('Sailing ratings', () => {
     await expect(
       page.getByRole('rowheader', { name: /Tech Rating/ })
     ).toBeVisible();
+    const techRatingRow = page.getByRole('row').filter({
+      has: page.getByRole('rowheader', { name: /Tech Rating/ }),
+    });
+    await expect(
+      techRatingRow.getByRole('link', { name: 'Intro Sailing 101' })
+    ).toHaveAttribute('href', '/classes/intro-sailing-101');
+    await expect(
+      techRatingRow.getByRole('link', { name: 'Tech dinghy' })
+    ).toHaveAttribute('href', '/fleet/tech-dinghy');
+    const guideLink = techRatingRow.getByRole('link', { name: 'Guide' });
+    await expect(guideLink).toHaveAttribute(
+      'href',
+      'https://sailing.mit.edu/card/ratings.php'
+    );
+    await expect(guideLink).toHaveAttribute('target', '_blank');
     await expect(
       page.getByRole('columnheader', { name: 'Rating' })
     ).toBeVisible();

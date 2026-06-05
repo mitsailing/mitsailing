@@ -55,9 +55,9 @@ export function EventCalendarOccurrenceRow(
             textFocusRingClassName,
             '[overflow-wrap:anywhere] whitespace-normal'
           )}
-          href={`/events/${props.row.event.slug}/`}
+          href={`/events/${props.row.event.slug}`}
         >
-          {props.row.event.name}
+          {props.row.event.shortName}
         </Link>
         <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[0.6875rem] leading-tight font-semibold text-muted-foreground">
           <span>{props.row.category.name}</span>

@@ -36,6 +36,7 @@ export type EventCalendarCategory = {
 export type EventCalendarEvent = {
   id: string;
   name: string;
+  shortName: string;
   slug: string;
   eventCategoryId: string;
   learnToSailManagedClassKind: LearnToSailManagedClassKind | null;

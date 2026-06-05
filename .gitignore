@@ -101,5 +101,5 @@ build-archive.log
 # outside the repo and should not be linted or vendored here.
 .agents/skills/impeccable/
 .cursor/skills/impeccable/
-.github/skills/
+.github/skills/impeccable/
 .impeccable/

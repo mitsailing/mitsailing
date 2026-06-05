@@ -2,8 +2,14 @@ import { render, screen, within } from '@testing-library/react';
 import { createTranslator } from 'next-intl';
 import type * as React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { LearnToSailManagedClassKind } from '@/generated/prisma/enums';
-import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
+import {
+  EventRegistrationStatus,
+  LearnToSailManagedClassKind,
+} from '@/generated/prisma/enums';
+import type {
+  PublicEventDetail,
+  PublicEventRegistrationState,
+} from '@/libs/mit-sailing/eventQueries';
 import messages from '@/locales/en.json';
 import { EventDetailView } from './EventDetailView';
 
@@ -87,6 +93,63 @@ function eventFixture(
 }
 
 describe('EventDetailView', () => {
+  it.each<{
+    currentRegistration?: PublicEventRegistrationState | null;
+    eventOverrides?: Partial<PublicEventDetail>;
+    heading: string;
+  }>([
+    {
+      currentRegistration: {
+        id: 'registration-approved',
+        payment: null,
+        status: EventRegistrationStatus.approved,
+      },
+      heading: 'Your registration',
+    },
+    {
+      currentRegistration: {
+        id: 'registration-pending',
+        payment: null,
+        status: EventRegistrationStatus.pending,
+      },
+      heading: 'Your registration',
+    },
+    {
+      eventOverrides: {
+        registrationStart: new Date('2099-06-01T14:00:00.000Z'),
+      },
+      heading: 'Registration opens Jun 1, 2099',
+    },
+    {
+      eventOverrides: {
+        registrationEnd: new Date('2020-06-01T14:00:00.000Z'),
+      },
+      heading: 'Registration closed',
+    },
+    {
+      eventOverrides: {
+        approvedRegistrationCount: 2,
+        maxParticipants: 2,
+        requiresApproval: false,
+      },
+      heading: 'Event is full',
+    },
+  ])('renders the $heading registration panel heading', async (scenario) => {
+    render(
+      await EventDetailView({
+        currentRegistration: scenario.currentRegistration ?? null,
+        errorCode: null,
+        event: eventFixture(scenario.eventOverrides),
+        isSignedIn: true,
+        locale: 'en',
+      })
+    );
+
+    expect(
+      screen.getByRole('region', { name: scenario.heading })
+    ).toBeVisible();
+  });
+
   it('renders public content sections as rich text', async () => {
     const eventWithSections = eventFixture({
       publicContentSections: [

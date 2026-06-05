@@ -83,6 +83,64 @@ function StateFrame(props: { children: React.ReactNode; title: string }) {
   );
 }
 
+type ActionStateExample = {
+  readonly props: Partial<React.ComponentProps<typeof EventRegistrationCta>>;
+  readonly title: string;
+};
+
+const actionStateExamples = [
+  {
+    props: { isSignedIn: false, reservationState: 'available' },
+    title: 'Signed out',
+  },
+  { props: { reservationState: 'available' }, title: 'Request review' },
+  {
+    props: { reservationState: 'opening_later' },
+    title: 'Registration opens later',
+  },
+  { props: { reservationState: 'pending' }, title: 'Pending request' },
+  {
+    props: {
+      currentRegistration: {
+        id: 'registration-1',
+        payment: null,
+        status: EventRegistrationStatus.approved,
+      },
+      reservationState: 'approved',
+    },
+    title: 'Accepted',
+  },
+  {
+    props: {
+      currentRegistration: {
+        id: 'registration-2',
+        payment: {
+          amountCents: 4500,
+          receiptUrl: null,
+          status: PaymentStatus.past_due,
+        },
+        status: EventRegistrationStatus.approved,
+      },
+      reservationState: 'approved',
+    },
+    title: 'Payment due',
+  },
+  { props: { reservationState: 'full' }, title: 'Full' },
+  { props: { reservationState: 'closed' }, title: 'Closed' },
+] satisfies readonly ActionStateExample[];
+
+function ActionStateGrid() {
+  return (
+    <div className="grid w-[720px] max-w-[calc(100vw-2rem)] gap-4 md:grid-cols-2">
+      {actionStateExamples.map((example) => (
+        <StateFrame key={example.title} title={example.title}>
+          <EventRegistrationCta {...baseProps} {...example.props} />
+        </StateFrame>
+      ))}
+    </div>
+  );
+}
+
 const meta = {
   title: 'MIT Sailing/Events/EventRegistrationCta',
   component: EventRegistrationCta,
@@ -109,56 +167,5 @@ export const DirectRegistration: Story = {
 };
 
 export const ActionStates: Story = {
-  render: () => (
-    <div className="grid w-[720px] max-w-[calc(100vw-2rem)] gap-4 md:grid-cols-2">
-      <StateFrame title="Signed out">
-        <EventRegistrationCta
-          {...baseProps}
-          isSignedIn={false}
-          reservationState="available"
-        />
-      </StateFrame>
-      <StateFrame title="Request review">
-        <EventRegistrationCta {...baseProps} reservationState="available" />
-      </StateFrame>
-      <StateFrame title="Registration opens later">
-        <EventRegistrationCta {...baseProps} reservationState="opening_later" />
-      </StateFrame>
-      <StateFrame title="Pending request">
-        <EventRegistrationCta {...baseProps} reservationState="pending" />
-      </StateFrame>
-      <StateFrame title="Accepted">
-        <EventRegistrationCta
-          {...baseProps}
-          currentRegistration={{
-            id: 'registration-1',
-            payment: null,
-            status: EventRegistrationStatus.approved,
-          }}
-          reservationState="approved"
-        />
-      </StateFrame>
-      <StateFrame title="Payment due">
-        <EventRegistrationCta
-          {...baseProps}
-          currentRegistration={{
-            id: 'registration-2',
-            payment: {
-              amountCents: 4500,
-              receiptUrl: null,
-              status: PaymentStatus.past_due,
-            },
-            status: EventRegistrationStatus.approved,
-          }}
-          reservationState="approved"
-        />
-      </StateFrame>
-      <StateFrame title="Full">
-        <EventRegistrationCta {...baseProps} reservationState="full" />
-      </StateFrame>
-      <StateFrame title="Closed">
-        <EventRegistrationCta {...baseProps} reservationState="closed" />
-      </StateFrame>
-    </div>
-  ),
+  render: () => <ActionStateGrid />,
 };

@@ -136,7 +136,7 @@ The palette is MIT red plus high-contrast neutrals, with semantic green, amber, 
 - **Warning Amber** (`#b45309`): pending, not open yet, selection not announced, or attention without failure.
 - **Danger Red** (`#ef4444`): destructive actions and blocking validation errors.
 
-### Named Rules
+### Typography Rules
 
 **The MIT Red Rule.** MIT red is the primary identity and action color. Do not make "Sailing" blue, and do not let blue become the brand wordmark color.
 
@@ -162,7 +162,7 @@ The palette is MIT red plus high-contrast neutrals, with semantic green, amber, 
 - **Body** (400, `1rem`, 1.55): prose, requirements, event descriptions. Keep prose to 65-75ch.
 - **Label** (650, `0.875rem`, 1.25): form labels, compact metadata, status labels, table headers.
 
-### Named Rules
+### Elevation Rules
 
 **The Product Type Rule.** Do not use display typography for form labels, admin labels, buttons, dense data, or status chips.
 

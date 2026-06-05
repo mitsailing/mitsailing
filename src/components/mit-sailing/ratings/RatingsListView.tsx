@@ -9,11 +9,7 @@ type RatingsListViewProps = {
   ratings: PublicSailingRating[];
 };
 
-function RatingGuideLink(props: { guideUrl: string | null; label: string }) {
-  if (!props.guideUrl) {
-    return null;
-  }
-
+function RatingGuideLink(props: { guideUrl: string; label: string }) {
   return (
     <a
       className={`inline-flex items-center gap-1 font-semibold text-mit-red hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`}

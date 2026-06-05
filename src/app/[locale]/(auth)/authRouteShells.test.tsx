@@ -445,8 +445,7 @@ describe('auth route shells', () => {
     expect(screen.getByText('Center child')).toBeVisible();
     expect(screen.getByRole('main').parentElement).toHaveClass(
       'justify-start',
-      'pt-8',
-      'pb-8',
+      'py-8',
       'sm:justify-center'
     );
   });

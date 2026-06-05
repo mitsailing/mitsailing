@@ -53,7 +53,7 @@ export const BusyAccessibleName: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const button = canvas.getByRole('button', { name: 'Submit' });
+    const button = canvas.getByRole('button', { name: 'Submitting...' });
     await expect(button).toBeDisabled();
     await expect(button).toHaveAttribute('aria-busy', 'true');
     await expect(button).toHaveAccessibleDescription('Submitting...');

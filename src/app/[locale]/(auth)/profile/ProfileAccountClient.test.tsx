@@ -131,7 +131,10 @@ async function expectContactUpdateError(options: {
     ok: false,
     error: options.error,
   });
-  renderAccountClient();
+  renderAccountClient({
+    initialEmergencyContactName: 'Jane Sailor',
+    initialEmergencyContactPhone: '+16175550100',
+  });
 
   await user.type(screen.getByLabelText('Phone'), '(617) 555-0100');
   if (options.emergencyContactName) {
@@ -293,9 +296,21 @@ describe('ProfileAccountClient', () => {
     expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
   });
 
+  it('requires emergency contact details on profile updates', () => {
+    renderAccountClient();
+
+    expect(
+      screen.getByText('Emergency contact name and phone are required.')
+    ).toBeVisible();
+    expect(screen.getByLabelText('Emergency contact name')).toBeRequired();
+    expect(screen.getByLabelText('Emergency contact phone')).toBeRequired();
+  });
+
   it('profile owner adds member names when the profile has none', async () => {
     const user = userEvent.setup();
     renderAccountClient({
+      initialEmergencyContactName: 'Jane Sailor',
+      initialEmergencyContactPhone: '+16175550100',
       initialFirstName: '',
       initialLastName: '',
       initialName: null,
@@ -310,8 +325,8 @@ describe('ProfileAccountClient', () => {
 
     expect(updateProfileDetailsActionMock).toHaveBeenCalledWith('en', {
       affiliation: SailingAffiliation.OTHER_NON_STUDENT,
-      emergencyContactName: '',
-      emergencyContactPhone: '',
+      emergencyContactName: 'Jane Sailor',
+      emergencyContactPhone: '(617) 555-0100',
       firstName: 'New',
       lastName: 'Name',
       mitId: '',
@@ -351,7 +366,11 @@ describe('ProfileAccountClient', () => {
       ok: false,
       error: 'first_name_required',
     });
-    renderAccountClient({ initialPhone: '+16175550100' });
+    renderAccountClient({
+      initialEmergencyContactName: 'Jane Sailor',
+      initialEmergencyContactPhone: '+16175550100',
+      initialPhone: '+16175550100',
+    });
 
     await user.click(
       screen.getByRole('button', { name: 'Save profile details' })
@@ -365,7 +384,11 @@ describe('ProfileAccountClient', () => {
   it('profile owner sees request failed when member information update throws', async () => {
     const user = userEvent.setup();
     updateProfileDetailsActionMock.mockRejectedValue(new Error('network'));
-    renderAccountClient({ initialPhone: '+16175550100' });
+    renderAccountClient({
+      initialEmergencyContactName: 'Jane Sailor',
+      initialEmergencyContactPhone: '+16175550100',
+      initialPhone: '+16175550100',
+    });
 
     await user.click(
       screen.getByRole('button', { name: 'Save profile details' })
@@ -413,7 +436,10 @@ describe('ProfileAccountClient', () => {
       ok: false,
       error: 'invalid_phone',
     });
-    renderAccountClient();
+    renderAccountClient({
+      initialEmergencyContactName: 'Jane Sailor',
+      initialEmergencyContactPhone: '+16175550100',
+    });
 
     await user.type(screen.getByLabelText('Phone'), '+44 20 7946 0958');
     await user.click(
@@ -451,7 +477,10 @@ describe('ProfileAccountClient', () => {
   it('profile owner sees fallback when contact update throws', async () => {
     const user = userEvent.setup();
     updateProfileDetailsActionMock.mockRejectedValue(new Error('network'));
-    renderAccountClient();
+    renderAccountClient({
+      initialEmergencyContactName: 'Jane Sailor',
+      initialEmergencyContactPhone: '+16175550100',
+    });
 
     await user.type(screen.getByLabelText('Phone'), '(617) 555-0100');
     await user.click(

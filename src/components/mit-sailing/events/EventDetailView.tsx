@@ -71,10 +71,12 @@ function MetaRow(props: { label: string; children: React.ReactNode }) {
   );
 }
 
-function ExperiencedSailorPathCard(props: {
-  locale: string;
-  t: Awaited<ReturnType<typeof getTranslations<'MitSailingEvents'>>>;
-}) {
+function ExperiencedSailorPathCard(
+  props: Readonly<{
+    locale: string;
+    t: Awaited<ReturnType<typeof getTranslations<'MitSailingEvents'>>>;
+  }>
+) {
   return (
     <section className="rounded-xl border border-mit-line bg-muted/30 p-4">
       <h2 className="font-mit-serif text-base font-semibold tracking-tight text-mit-text">

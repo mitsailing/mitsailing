@@ -193,6 +193,30 @@ describe('updateProfileIdentityAction', () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
+  it('rejects missing profile emergency contact fields before persistence', async () => {
+    const { updateProfileDetailsAction } =
+      await import('@/libs/auth/profileIdentityActions');
+
+    await expect(
+      updateProfileDetailsAction('en', {
+        affiliation: SailingAffiliation.WELLESLEY,
+        emergencyContactName: '',
+        emergencyContactPhone: '',
+        firstName: 'Grace',
+        lastName: 'Hopper',
+        mitId: '',
+        phone: '(617) 555-0100',
+      })
+    ).resolves.toEqual({
+      ok: false,
+      error: 'incomplete_emergency_contact',
+    });
+
+    expect(userUpdate).not.toHaveBeenCalled();
+    expect(sailingCardRequestUpdateMany).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it('stores manual member information and pending sailing-card snapshots', async () => {
     const { updateProfileIdentityAction } =
       await import('@/libs/auth/profileIdentityActions');

@@ -2,8 +2,6 @@
 
 ## Register
 
-product
-
 ## Users
 
 MIT Sailing serves several overlapping groups:

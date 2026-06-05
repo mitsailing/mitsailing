@@ -391,6 +391,7 @@ export function ProfileMemberInformationSection(props: {
               onChange={(event) => {
                 props.onEmergencyContactNameChange(event.currentTarget.value);
               }}
+              required
               type="text"
               value={props.emergencyContactName}
             />
@@ -407,10 +408,14 @@ export function ProfileMemberInformationSection(props: {
               onChange={(event) => {
                 props.onEmergencyContactPhoneChange(event.currentTarget.value);
               }}
+              required
               type="tel"
               value={props.emergencyContactPhone}
             />
           </div>
+          <p className="text-xs leading-relaxed text-muted-foreground md:col-span-2">
+            {t('emergency_contact_help')}
+          </p>
         </div>
         <SubmitButton
           className="mt-2 min-h-11 w-full sm:w-fit"

@@ -1,11 +1,16 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createTranslator } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
-import { EventRegistrationForm } from '@/components/mit-sailing/events/EventRegistrationForm';
+import {
+  EventRegistrationForm,
+  eventRegistrationFormLabels,
+} from '@/components/mit-sailing/events/EventRegistrationForm';
 import type { EventRegistrationFormLabels } from '@/components/mit-sailing/events/EventRegistrationForm';
 import { LearnToSailManagedClassKind } from '@/generated/prisma/enums';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
 import type { PublicEventRegistrationFormState } from '@/libs/mit-sailing/eventRegistrationActions';
+import messages from '@/locales/en.json';
 
 const labels: EventRegistrationFormLabels = {
   autoApprovalNote: 'Your spot is confirmed immediately after you submit.',
@@ -254,6 +259,23 @@ function expectElementBefore(first: Element, second: Element): void {
 }
 
 describe('EventRegistrationForm', () => {
+  it('maps translated labels used by the register page', () => {
+    const t = createTranslator({
+      locale: 'en',
+      messages,
+      namespace: 'MitSailingEvents',
+    });
+
+    const translatedLabels = eventRegistrationFormLabels(t);
+
+    expect(translatedLabels.confirmButton).toBe('Confirm registration');
+    expect(translatedLabels.errorMessages.waitlist_required).toBe(
+      'Join the annual Learn-to-Sail waitlist before requesting this class.'
+    );
+    expect(translatedLabels.teamBoatHeading).toBe('Boat {number} information');
+    expect(translatedLabels.teamCrewNumberLabel).toBe('Crew {number}');
+  });
+
   it('renders required phone input with preserved validation state', async () => {
     const user = userEvent.setup();
     window.HTMLElement.prototype.scrollIntoView = vi.fn();

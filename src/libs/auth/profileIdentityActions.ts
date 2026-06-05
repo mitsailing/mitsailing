@@ -152,6 +152,25 @@ const isLockedIdentityChange = (props: {
   props.currentUser.sailingAffiliation !== null &&
   props.affiliation !== props.currentUser.sailingAffiliation;
 
+type ProfileIdentityValidationResult =
+  | {
+      ok: true;
+      identity: ProfileIdentity;
+      userId: string;
+    }
+  | Exclude<UpdateProfileIdentityResult, { ok: true }>;
+
+async function currentProfileIdentityUserId(): Promise<
+  | { ok: true; userId: string }
+  | Exclude<UpdateProfileIdentityResult, { ok: true }>
+> {
+  const session = await getSession();
+  if (!session?.user?.id) {
+    return { ok: false, error: 'unauthorized' };
+  }
+  return { ok: true, userId: session.user.id };
+}
+
 function manualProfileIdentity(props: {
   readonly affiliation: SailingAffiliation;
   readonly input: ProfileIdentityInput;
@@ -251,6 +270,62 @@ function profileIdentityForInput(props: {
   });
 }
 
+async function validateProfileIdentity(props: {
+  readonly input: ProfileIdentityInput;
+  readonly userId: string;
+}): Promise<ProfileIdentityValidationResult> {
+  const currentUser = await prisma.user.findUnique({
+    select: {
+      email: true,
+      emailVerified: true,
+      mitDataWarehouseVerifiedAt: true,
+      mitId: true,
+      sailingAffiliation: true,
+    },
+    where: { id: props.userId },
+  });
+  if (!currentUser) {
+    return { ok: false, error: 'unauthorized' };
+  }
+
+  const affiliation = parseProfileAffiliation(props.input.affiliation);
+  if (affiliation === null) {
+    return { ok: false, error: 'affiliation_required' };
+  }
+
+  const rule = getSailingAffiliationRule(affiliation);
+  const linkedMitIdentity = hasLinkedMitIdentity(currentUser);
+  if (
+    isLockedIdentityChange({
+      affiliation,
+      currentUser,
+      linkedMitIdentity,
+    })
+  ) {
+    return { ok: false, error: 'identity_locked' };
+  }
+  if (linkedMitIdentity && rule.mitIdMode === 'hidden') {
+    return { ok: false, error: 'identity_locked' };
+  }
+
+  const identityResult = await profileIdentityForInput({
+    affiliation,
+    currentUser,
+    input: props.input,
+    linkedMitIdentity,
+    rule,
+  });
+  if (!identityResult.ok) {
+    return identityResult;
+  }
+
+  return {
+    identity: identityResult.identity,
+    ok: true,
+    userId: props.userId,
+  };
+}
+
 function profileContactForInput(
   input: ProfileContactInput
 ):
@@ -264,26 +339,23 @@ function profileContactForInput(
   const emergencyContactName = input.emergencyContactName.trim();
   const rawEmergencyContactPhone = input.emergencyContactPhone.trim();
   if (
-    (emergencyContactName.length > 0 &&
-      rawEmergencyContactPhone.length === 0) ||
-    (emergencyContactName.length === 0 && rawEmergencyContactPhone.length > 0)
+    emergencyContactName.length === 0 ||
+    rawEmergencyContactPhone.length === 0
   ) {
     return { ok: false, error: 'incomplete_emergency_contact' };
   }
 
-  const emergencyContactPhone =
-    rawEmergencyContactPhone.length > 0
-      ? normalizeInternationalPhone(rawEmergencyContactPhone)
-      : null;
-  if (emergencyContactPhone && !emergencyContactPhone.ok) {
+  const emergencyContactPhone = normalizeInternationalPhone(
+    rawEmergencyContactPhone
+  );
+  if (!emergencyContactPhone.ok) {
     return { ok: false, error: 'invalid_emergency_phone' };
   }
 
   return {
     contact: {
-      emergencyContactName:
-        emergencyContactName.length > 0 ? emergencyContactName : null,
-      emergencyContactPhone: emergencyContactPhone?.phone ?? null,
+      emergencyContactName,
+      emergencyContactPhone: emergencyContactPhone.phone,
       phone: phone.phone,
     },
     ok: true,
@@ -338,51 +410,13 @@ export async function updateProfileIdentityAction(
   locale: string,
   input: ProfileIdentityInput
 ): Promise<UpdateProfileIdentityResult> {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    return { ok: false, error: 'unauthorized' };
+  const sessionResult = await currentProfileIdentityUserId();
+  if (!sessionResult.ok) {
+    return sessionResult;
   }
-
-  const currentUser = await prisma.user.findUnique({
-    select: {
-      email: true,
-      emailVerified: true,
-      mitDataWarehouseVerifiedAt: true,
-      mitId: true,
-      sailingAffiliation: true,
-    },
-    where: { id: session.user.id },
-  });
-  if (!currentUser) {
-    return { ok: false, error: 'unauthorized' };
-  }
-
-  const affiliation = parseProfileAffiliation(input.affiliation);
-  if (affiliation === null) {
-    return { ok: false, error: 'affiliation_required' };
-  }
-
-  const rule = getSailingAffiliationRule(affiliation);
-  const linkedMitIdentity = hasLinkedMitIdentity(currentUser);
-  if (
-    isLockedIdentityChange({
-      affiliation,
-      currentUser,
-      linkedMitIdentity,
-    })
-  ) {
-    return { ok: false, error: 'identity_locked' };
-  }
-  if (linkedMitIdentity && rule.mitIdMode === 'hidden') {
-    return { ok: false, error: 'identity_locked' };
-  }
-
-  const identityResult = await profileIdentityForInput({
-    affiliation,
-    currentUser,
+  const identityResult = await validateProfileIdentity({
     input,
-    linkedMitIdentity,
-    rule,
+    userId: sessionResult.userId,
   });
   if (!identityResult.ok) {
     return identityResult;
@@ -391,7 +425,7 @@ export async function updateProfileIdentityAction(
   try {
     await persistProfileIdentity({
       identity: identityResult.identity,
-      userId: session.user.id,
+      userId: identityResult.userId,
     });
   } catch (error) {
     if (isUniqueMitIdConflict(error)) {
@@ -408,9 +442,9 @@ export async function updateProfileDetailsAction(
   locale: string,
   input: ProfileDetailsInput
 ): Promise<UpdateProfileDetailsResult> {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    return { ok: false, error: 'unauthorized' };
+  const sessionResult = await currentProfileIdentityUserId();
+  if (!sessionResult.ok) {
+    return sessionResult;
   }
 
   const contactResult = profileContactForInput(input);
@@ -418,46 +452,9 @@ export async function updateProfileDetailsAction(
     return contactResult;
   }
 
-  const currentUser = await prisma.user.findUnique({
-    select: {
-      email: true,
-      emailVerified: true,
-      mitDataWarehouseVerifiedAt: true,
-      mitId: true,
-      sailingAffiliation: true,
-    },
-    where: { id: session.user.id },
-  });
-  if (!currentUser) {
-    return { ok: false, error: 'unauthorized' };
-  }
-
-  const affiliation = parseProfileAffiliation(input.affiliation);
-  if (affiliation === null) {
-    return { ok: false, error: 'affiliation_required' };
-  }
-
-  const rule = getSailingAffiliationRule(affiliation);
-  const linkedMitIdentity = hasLinkedMitIdentity(currentUser);
-  if (
-    isLockedIdentityChange({
-      affiliation,
-      currentUser,
-      linkedMitIdentity,
-    })
-  ) {
-    return { ok: false, error: 'identity_locked' };
-  }
-  if (linkedMitIdentity && rule.mitIdMode === 'hidden') {
-    return { ok: false, error: 'identity_locked' };
-  }
-
-  const identityResult = await profileIdentityForInput({
-    affiliation,
-    currentUser,
+  const identityResult = await validateProfileIdentity({
     input,
-    linkedMitIdentity,
-    rule,
+    userId: sessionResult.userId,
   });
   if (!identityResult.ok) {
     return identityResult;
@@ -467,7 +464,7 @@ export async function updateProfileDetailsAction(
     await persistProfileIdentity({
       contact: contactResult.contact,
       identity: identityResult.identity,
-      userId: session.user.id,
+      userId: identityResult.userId,
     });
   } catch (error) {
     if (isUniqueMitIdConflict(error)) {

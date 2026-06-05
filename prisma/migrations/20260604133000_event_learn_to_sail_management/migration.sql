@@ -44,6 +44,10 @@ CHECK (
 CREATE UNIQUE INDEX "learn_to_sail_waitlist_entries_active_entry_key_key"
 ON "learn_to_sail_waitlist_entries"("active_entry_key");
 
+CREATE UNIQUE INDEX "learn_to_sail_waitlist_entries_one_active_user_season_key"
+ON "learn_to_sail_waitlist_entries"("user_id", "season_year")
+WHERE "status" = 'active';
+
 CREATE UNIQUE INDEX "learn_to_sail_waitlist_entries_season_year_sequence_key"
 ON "learn_to_sail_waitlist_entries"("season_year", "sequence");
 

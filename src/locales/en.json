@@ -816,6 +816,7 @@
     "phone": "Phone",
     "emergency_contact_name": "Emergency contact name",
     "emergency_contact_phone": "Emergency contact phone",
+    "emergency_contact_help": "Emergency contact name and phone are required.",
     "contact_save": "Save contact",
     "contact_updated": "Contact information saved.",
     "contact_update_error": "Could not update contact information.",
