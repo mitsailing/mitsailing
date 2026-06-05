@@ -184,7 +184,6 @@ function buildWorkerOrExit() {
   const result = spawnSync('npm', ['run', 'build:worker'], {
     stdio: 'inherit',
     cwd: repoRoot,
-    env: process.env,
   });
   if (result.status !== 0) {
     process.exit(result.status ?? 1);

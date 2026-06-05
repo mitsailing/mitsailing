@@ -23,7 +23,6 @@ const e2eRedisUrl = process.env.REDIS_URL ?? 'redis://127.0.0.1:6379';
 
 const e2eEnvDefaults: Record<string, string> = {
   ADMIN_EMAIL: 'admin@example.com',
-  ADMIN_PASSWORD: 'dev-local-change-me',
   BETTER_AUTH_SECRET: 'e2e-auth-secret-placeholder-with-thirty-two-chars',
   EMAIL_FROM: 'MIT Sailing <noreply@mitsailing.test>',
   MAILPIT_API_URL: 'http://127.0.0.1:8025',

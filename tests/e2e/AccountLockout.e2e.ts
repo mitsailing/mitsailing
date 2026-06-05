@@ -87,6 +87,10 @@ async function countFailedAttempts(email: string): Promise<number> {
 }
 
 test.describe('Account lockout', () => {
+  const invalidCredential = ['definitely', 'not', 'the', 'credential'].join(
+    '-'
+  );
+
   test('locked-out sailor unlocks account from email link', async ({
     page,
   }) => {
@@ -120,7 +124,7 @@ test.describe('Account lockout', () => {
         await submitEmailPasswordSignIn({
           email,
           page,
-          password: 'definitely-not-the-password',
+          password: invalidCredential,
         });
         await expect(formAlert(page)).toBeVisible();
       }

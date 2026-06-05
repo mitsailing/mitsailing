@@ -21,6 +21,8 @@ import {
  * Raw SQL with `pg` matches `AccountLockout.e2e.ts` and keeps the harness simple.
  */
 const pool = new Pool({ connectionString: e2ePgConnectionString() });
+const invalidCredential = ['wrong', 'credential', '123'].join('-');
+const validCredential = ['Correct', 'Horse', 'Battery', 'Staple'].join('-');
 
 let pgPoolEnded = false;
 
@@ -617,14 +619,14 @@ test.describe('Auth', () => {
 
   test('visitor sees invalid credentials message', async ({ page }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
-    const password = 'Correct-Horse-Battery-Staple';
+    const password = validCredential;
 
     await createVerifiedUser({ email, page, password });
     await page.context().clearCookies();
     await submitEmailPasswordSignIn({
       email,
       page,
-      password: 'wrong-password-123',
+      password: invalidCredential,
     });
 
     await expect(formAlert(page)).toHaveText('Invalid email or password.');

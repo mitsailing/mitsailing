@@ -37,16 +37,14 @@ const hookUrl =
   process.env.MEDIA_UPLOAD_HOOK_URL ??
   `http://host.docker.internal:${appPort(origin)}/api/internal/cms-media/tusd/hooks`;
 
+process.env.MEDIA_UPLOAD_CORS_ALLOW_ORIGIN = origin;
+process.env.MEDIA_UPLOAD_HOOK_URL = hookUrl;
+process.env.NEXT_PUBLIC_APP_URL = origin;
+
 const result = spawnSync(
   'docker',
   ['compose', 'up', '-d', 'postgres', 'mailpit', 'redis', 'tusd', 'media'],
   {
-    env: {
-      ...process.env,
-      MEDIA_UPLOAD_CORS_ALLOW_ORIGIN: origin,
-      MEDIA_UPLOAD_HOOK_URL: hookUrl,
-      NEXT_PUBLIC_APP_URL: origin,
-    },
     stdio: 'inherit',
   }
 );
