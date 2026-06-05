@@ -44,6 +44,7 @@ async function getSailingCardPdfLabels(cardNumber: number) {
     email: t('sailing_card_pdf_email'),
     expires: t('sailing_card_pdf_expires'),
     membership: t('sailing_card_pdf_membership'),
+    noRatings: t('sailing_card_pdf_no_ratings'),
     notTransferable: t('sailing_card_pdf_not_transferable'),
     pavilionName: t('sailing_card_pdf_pavilion_name'),
     phone: t('sailing_card_pdf_phone'),
