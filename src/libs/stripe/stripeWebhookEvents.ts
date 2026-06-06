@@ -58,6 +58,8 @@ type StripeWebhookDbPayment = {
   status: PaymentStatusType;
   lastStripePaymentEventCreatedAt?: Date | null;
   lastStripePaymentEventId?: string | null;
+  lastStripeInvoiceEventCreatedAt?: Date | null;
+  lastStripeInvoiceEventId?: string | null;
   stripeChargeId?: string | null;
   stripeCheckoutSessionId?: string | null;
   stripeCustomerId?: string | null;

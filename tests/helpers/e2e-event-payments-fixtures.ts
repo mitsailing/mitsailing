@@ -19,6 +19,7 @@ type EventFixture = {
 
 type PaymentRow = {
   id: string;
+  registrationId: string | null;
   status: string;
 };
 
@@ -317,7 +318,7 @@ export async function createRegistrationWithPayment(options: {
 export async function paymentRowsForEvent(slug: string): Promise<PaymentRow[]> {
   const result = await pool.query<PaymentRow>(
     `
-      SELECT ep."id", ep."status"
+      SELECT ep."id", ep."registration_id" AS "registrationId", ep."status"
       FROM "payments" ep
       JOIN "events" e ON e."id" = ep."event_id"
       WHERE e."slug" = $1

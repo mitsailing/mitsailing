@@ -1,3 +1,4 @@
+import { Prisma } from '@/generated/prisma/client';
 import {
   MembershipPaymentIssueKind,
   MembershipPaymentKind,
@@ -13,7 +14,8 @@ import type {
   SailingCardSubscriptionStatus as SailingCardSubscriptionStatusType,
   SailingCardType as SailingCardTypeType,
 } from '@/generated/prisma/enums';
-import { logger } from '@/libs/Logger';
+import { nyYmd } from '@/lib/mit-sailing/nyTime';
+import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
 import type {
   ProcessableStripeEvent,
   StripeWebhookDb,
@@ -74,6 +76,8 @@ type StripeSubscriptionShape = {
   readonly trial_end?: number | null;
 };
 
+type MembershipInvoicePurpose = 'initial' | 'renewal' | 'ignored';
+
 const membershipDomain = 'sailing_card_membership';
 const activeCanonicalSubscriptionStatuses: readonly SailingCardSubscriptionStatusType[] =
   [
@@ -85,6 +89,13 @@ const terminalMembershipPaymentStatuses: ReadonlySet<PaymentStatusType> =
   new Set([
     PaymentStatus.disputed,
     PaymentStatus.handled,
+    PaymentStatus.refunded,
+  ]);
+const terminalFailedInvoicePaymentStatuses: ReadonlySet<PaymentStatusType> =
+  new Set([
+    PaymentStatus.disputed,
+    PaymentStatus.handled,
+    PaymentStatus.paid,
     PaymentStatus.refunded,
   ]);
 
@@ -100,6 +111,17 @@ function stringValue(value: unknown): string | null {
 
 function numberValue(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function integerValue(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    return value;
+  }
+  if (typeof value !== 'string' || value.trim() === '') {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : null;
 }
 
 function stripeExpandableId(value: unknown): string | null {
@@ -246,6 +268,49 @@ function subscriptionPriceId(subscription: StripeSubscriptionShape | null) {
   return stringValue(subscriptionItem(subscription)?.price?.id);
 }
 
+function cardYearFromDate(value: Date | null) {
+  return value ? Number(nyYmd(value).slice(0, 4)) : null;
+}
+
+function invoiceLinePeriodEnd(object: Record<string, unknown>) {
+  const lines = objectValue(object.lines);
+  const data = Array.isArray(lines?.data) ? lines.data : [];
+  for (const line of data) {
+    const periodEnd = stripeDate(objectValue(objectValue(line)?.period)?.end);
+    if (periodEnd) {
+      return periodEnd;
+    }
+  }
+  return null;
+}
+
+function invoiceBillingPurpose(
+  object: Record<string, unknown>
+): MembershipInvoicePurpose {
+  const billingReason = stringValue(object.billing_reason);
+  if (billingReason === 'subscription_create') {
+    return 'initial';
+  }
+  if (billingReason === 'subscription_cycle') {
+    return 'renewal';
+  }
+  return 'ignored';
+}
+
+function renewalInvoiceCardYear(options: {
+  readonly event: ProcessableStripeEvent;
+  readonly metadata: Record<string, unknown>;
+  readonly object: Record<string, unknown>;
+  readonly subscription: StripeSubscriptionShape | null;
+}) {
+  return (
+    cardYearFromDate(invoiceLinePeriodEnd(options.object)) ??
+    cardYearFromDate(stripeDate(options.subscription?.current_period_end)) ??
+    integerValue(options.metadata.cardYear) ??
+    getCurrentSailingCardYear(stripeEventCreatedAtDate(options.event))
+  );
+}
+
 function hasMembershipSubscriptionClient(
   value: unknown
 ): value is MembershipWebhookSubscriptionClient {
@@ -271,6 +336,31 @@ function canApplyPaidPaymentTransition(payment: {
   return !terminalMembershipPaymentStatuses.has(payment.status);
 }
 
+function canApplyFailedInvoiceTransition(payment: {
+  readonly status: PaymentStatusType;
+}) {
+  return !terminalFailedInvoicePaymentStatuses.has(payment.status);
+}
+
+function isStripeInvoiceUniqueError(error: unknown) {
+  if (
+    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+    error.code !== 'P2002'
+  ) {
+    return false;
+  }
+  const target = error.meta?.target;
+  if (Array.isArray(target)) {
+    return (
+      target.includes('stripeInvoiceId') || target.includes('stripe_invoice_id')
+    );
+  }
+  return (
+    typeof target === 'string' &&
+    (target.includes('stripeInvoiceId') || target.includes('stripe_invoice_id'))
+  );
+}
+
 async function findMembershipPayment(options: {
   readonly chargeId?: string | null;
   readonly db: MembershipWebhookDbWithWrites;
@@ -278,7 +368,6 @@ async function findMembershipPayment(options: {
   readonly paymentId?: string | null;
   readonly paymentIntentId?: string | null;
   readonly sessionId?: string | null;
-  readonly subscriptionId?: string | null;
 }) {
   const OR: Record<string, unknown>[] = [];
   if (options.chargeId) {
@@ -296,12 +385,6 @@ async function findMembershipPayment(options: {
   if (options.invoiceId) {
     OR.push({ stripeInvoiceId: options.invoiceId });
   }
-  if (options.subscriptionId) {
-    OR.push({
-      membershipPaymentKind: MembershipPaymentKind.initial,
-      stripeSubscriptionId: options.subscriptionId,
-    });
-  }
   if (OR.length === 0) {
     return null;
   }
@@ -310,6 +393,62 @@ async function findMembershipPayment(options: {
     where: { OR, purpose: PaymentPurpose.membership },
   });
   return payment;
+}
+
+async function findMembershipSubscription(options: {
+  readonly db: MembershipWebhookDbWithWrites;
+  readonly stripeSubscriptionId: string;
+}) {
+  const subscription = await options.db.sailingCardSubscription.findFirst({
+    where: { stripeSubscriptionId: options.stripeSubscriptionId },
+  });
+  return subscription;
+}
+
+type MembershipWebhookPaymentRecord = Awaited<
+  ReturnType<typeof findMembershipPayment>
+>;
+
+type MembershipLocalContext = {
+  readonly cardType: SailingCardTypeType;
+  readonly customerId: string;
+  readonly userId: string;
+};
+
+function membershipLocalContext(options: {
+  readonly metadata: Record<string, unknown>;
+  readonly object: Record<string, unknown>;
+  readonly payment: MembershipWebhookPaymentRecord;
+  readonly subscription: MembershipWebhookSubscriptionRecord | null;
+}): MembershipLocalContext | null {
+  const userId =
+    stringValue(options.metadata.userId) ??
+    options.payment?.userId ??
+    options.subscription?.userId;
+  const cardType =
+    membershipCardType(options.metadata.cardType) ??
+    options.payment?.cardType ??
+    options.subscription?.cardType ??
+    null;
+  const customerId =
+    stripeExpandableId(options.object.customer) ??
+    options.payment?.stripeCustomerId ??
+    options.subscription?.stripeCustomerId;
+  if (!userId || !cardType || !customerId) {
+    return null;
+  }
+  return { cardType, customerId, userId };
+}
+
+function renewalPriceIdFromContext(options: {
+  readonly metadata: Record<string, unknown>;
+  readonly payment: MembershipWebhookPaymentRecord;
+}) {
+  return (
+    stringValue(options.metadata.renewalMembershipPriceId) ??
+    options.payment?.membershipRenewalPriceId ??
+    null
+  );
 }
 
 async function existingCanonicalSubscription(options: {
@@ -336,6 +475,7 @@ async function upsertMembershipSubscription(options: {
   readonly customerId: string;
   readonly db: MembershipWebhookDbWithWrites;
   readonly event: ProcessableStripeEvent;
+  readonly existingSubscription?: MembershipWebhookSubscriptionRecord | null;
   readonly localRenewalPriceId: string | null;
   readonly subscription: StripeSubscriptionShape | null;
   readonly subscriptionId: string;
@@ -343,9 +483,10 @@ async function upsertMembershipSubscription(options: {
 }) {
   const eventCreatedAt = stripeEventCreatedAtDate(options.event);
   const existingSubscription =
-    await options.db.sailingCardSubscription.findFirst({
+    options.existingSubscription ??
+    (await options.db.sailingCardSubscription.findFirst({
       where: { stripeSubscriptionId: options.subscriptionId },
-    });
+    }));
   if (
     existingSubscription?.lastStripeSubscriptionEventCreatedAt &&
     existingSubscription.lastStripeSubscriptionEventCreatedAt > eventCreatedAt
@@ -428,6 +569,7 @@ async function handleCheckoutCompleted(options: {
     customerId,
     db: options.db,
     event: options.event,
+    existingSubscription: null,
     localRenewalPriceId: payment.membershipRenewalPriceId ?? null,
     subscription,
     subscriptionId,
@@ -490,34 +632,38 @@ async function handleSubscriptionChanged(options: {
   const payment = await findMembershipPayment({
     db: options.db,
     paymentId: stringValue(metadata.localPaymentId),
-    subscriptionId,
   });
-  const userId = stringValue(metadata.userId) ?? payment?.userId;
-  const cardType =
-    membershipCardType(metadata.cardType) ?? payment?.cardType ?? null;
-  const customerId =
-    stripeExpandableId(options.object.customer) ?? payment?.stripeCustomerId;
-  if (!subscriptionId || !userId || !cardType || !customerId) {
+  const existingSubscription = subscriptionId
+    ? await findMembershipSubscription({
+        db: options.db,
+        stripeSubscriptionId: subscriptionId,
+      })
+    : null;
+  const context = membershipLocalContext({
+    metadata,
+    object: options.object,
+    payment,
+    subscription: existingSubscription,
+  });
+  if (!subscriptionId || !context) {
     return { handled: false };
   }
   const localSubscription = await upsertMembershipSubscription({
-    cardType,
-    customerId,
+    cardType: context.cardType,
+    customerId: context.customerId,
     db: options.db,
     event: options.event,
-    localRenewalPriceId:
-      stringValue(metadata.renewalMembershipPriceId) ??
-      payment?.membershipRenewalPriceId ??
-      null,
+    existingSubscription,
+    localRenewalPriceId: renewalPriceIdFromContext({ metadata, payment }),
     subscription,
     subscriptionId,
-    userId,
+    userId: context.userId,
   });
   if (payment) {
     await options.db.payment.updateMany({
       data: {
         membershipSubscriptionId: localSubscription.id,
-        stripeCustomerId: customerId,
+        stripeCustomerId: context.customerId,
         stripeSubscriptionId: subscriptionId,
       },
       where: { id: payment.id, status: payment.status },
@@ -542,13 +688,7 @@ function invoiceAmountCents(object: Record<string, unknown>) {
   if (amountDue !== null) {
     return amountDue;
   }
-  logger.warn(
-    '[membership-webhook] missing_invoice_amount invoice_id={invoiceId}',
-    {
-      invoiceId: stringValue(object.id) ?? 'unknown',
-    }
-  );
-  return 0;
+  throw new Error('Membership invoice is missing amount.');
 }
 
 function invoiceCurrency(object: Record<string, unknown>) {
@@ -610,6 +750,163 @@ function isStalePaymentIssueEvent(options: {
   );
 }
 
+function isStaleInvoiceEvent(options: {
+  readonly event: ProcessableStripeEvent;
+  readonly payment: {
+    readonly lastStripeInvoiceEventCreatedAt?: Date | null;
+  };
+}) {
+  const lastEventCreatedAt = options.payment.lastStripeInvoiceEventCreatedAt;
+  return (
+    lastEventCreatedAt instanceof Date &&
+    lastEventCreatedAt > stripeEventCreatedAtDate(options.event)
+  );
+}
+
+function initialInvoicePaymentId(options: {
+  readonly invoicePurpose: MembershipInvoicePurpose;
+  readonly metadata: Record<string, unknown>;
+}) {
+  return options.invoicePurpose === 'initial'
+    ? stringValue(options.metadata.localPaymentId)
+    : null;
+}
+
+function paidInvoiceData(options: {
+  readonly customerId: string;
+  readonly event: ProcessableStripeEvent;
+  readonly invoiceId: string;
+  readonly localSubscriptionId: string;
+  readonly object: Record<string, unknown>;
+  readonly subscriptionId: string;
+}) {
+  const chargeId = objectChargeId(options.object);
+  return {
+    lastStripeInvoiceEventCreatedAt: stripeEventCreatedAtDate(options.event),
+    lastStripeInvoiceEventId: options.event.id,
+    membershipSubscriptionId: options.localSubscriptionId,
+    stripeCustomerId: options.customerId,
+    stripeHostedInvoiceUrl: stringValue(options.object.hosted_invoice_url),
+    stripeInvoiceId: options.invoiceId,
+    stripeInvoicePdfUrl: stringValue(options.object.invoice_pdf),
+    ...(chargeId ? { stripeChargeId: chargeId } : {}),
+    stripePaymentIntentId: stripeExpandableId(options.object.payment_intent),
+    stripeReceiptUrl: stringValue(options.object.hosted_invoice_url),
+    stripeSubscriptionId: options.subscriptionId,
+  };
+}
+
+function failedInvoiceData(options: {
+  readonly event: ProcessableStripeEvent;
+  readonly invoiceId: string | null;
+  readonly object: Record<string, unknown>;
+  readonly subscriptionId: string | null;
+}) {
+  return {
+    issueKind: MembershipPaymentIssueKind.failed_payment,
+    lastStripeInvoiceEventCreatedAt: stripeEventCreatedAtDate(options.event),
+    lastStripeInvoiceEventId: options.event.id,
+    status: PaymentStatus.past_due,
+    stripeHostedInvoiceUrl: stringValue(options.object.hosted_invoice_url),
+    stripeInvoiceId: options.invoiceId,
+    stripeInvoicePdfUrl: stringValue(options.object.invoice_pdf),
+    stripeSubscriptionId: options.subscriptionId,
+  };
+}
+
+async function updatePaidInvoicePayment(options: {
+  readonly data: Record<string, unknown>;
+  readonly db: MembershipWebhookDbWithWrites;
+  readonly event: ProcessableStripeEvent;
+  readonly payment: NonNullable<MembershipWebhookPaymentRecord>;
+}) {
+  if (isStaleInvoiceEvent({ event: options.event, payment: options.payment })) {
+    return;
+  }
+  await options.db.payment.updateMany({
+    data: {
+      ...options.data,
+      ...(canApplyPaidPaymentTransition(options.payment)
+        ? { status: PaymentStatus.paid }
+        : {}),
+    },
+    where: { id: options.payment.id, status: options.payment.status },
+  });
+}
+
+async function updateFailedInvoicePayment(options: {
+  readonly data: Record<string, unknown>;
+  readonly db: MembershipWebhookDbWithWrites;
+  readonly event: ProcessableStripeEvent;
+  readonly payment: NonNullable<MembershipWebhookPaymentRecord>;
+}) {
+  if (
+    isStaleInvoiceEvent({ event: options.event, payment: options.payment }) ||
+    !canApplyFailedInvoiceTransition(options.payment)
+  ) {
+    return;
+  }
+  await options.db.payment.updateMany({
+    data: options.data,
+    where: { id: options.payment.id, status: options.payment.status },
+  });
+}
+
+async function updateConcurrentRenewalInvoicePayment(options: {
+  readonly data: Record<string, unknown>;
+  readonly db: MembershipWebhookDbWithWrites;
+  readonly event: ProcessableStripeEvent;
+  readonly invoiceId: string;
+  readonly transition: 'failed' | 'paid';
+}) {
+  const payment = await findMembershipPayment({
+    db: options.db,
+    invoiceId: options.invoiceId,
+  });
+  if (!payment) {
+    throw new Error('Membership renewal invoice row not found after conflict.');
+  }
+  if (options.transition === 'paid') {
+    await updatePaidInvoicePayment({
+      data: options.data,
+      db: options.db,
+      event: options.event,
+      payment,
+    });
+    return;
+  }
+  await updateFailedInvoicePayment({
+    data: options.data,
+    db: options.db,
+    event: options.event,
+    payment,
+  });
+}
+
+async function createRenewalInvoicePayment(options: {
+  readonly createData: Record<string, unknown>;
+  readonly db: MembershipWebhookDbWithWrites;
+  readonly duplicateUpdateData: Record<string, unknown>;
+  readonly event: ProcessableStripeEvent;
+  readonly invoiceId: string;
+  readonly transition: 'failed' | 'paid';
+}) {
+  try {
+    await options.db.payment.create({ data: options.createData });
+  } catch (error) {
+    if (!isStripeInvoiceUniqueError(error)) {
+      throw error;
+    }
+    await updateConcurrentRenewalInvoicePayment({
+      data: options.duplicateUpdateData,
+      db: options.db,
+      event: options.event,
+      invoiceId: options.invoiceId,
+      transition: options.transition,
+    });
+  }
+}
+
 async function handleInvoicePaid(options: {
   readonly db: MembershipWebhookDbWithWrites;
   readonly event: ProcessableStripeEvent;
@@ -619,73 +916,83 @@ async function handleInvoicePaid(options: {
   const subscriptionId = invoiceSubscriptionId(options.object);
   const subscription = subscriptionFromValue(options.object.subscription);
   const metadata = eventMembershipMetadata(options.object);
+  const invoicePurpose = invoiceBillingPurpose(options.object);
+  if (invoicePurpose === 'ignored') {
+    return { handled: true };
+  }
   const payment = await findMembershipPayment({
     db: options.db,
     invoiceId,
-    paymentId: stringValue(metadata.localPaymentId),
-    subscriptionId,
+    paymentId: initialInvoicePaymentId({ invoicePurpose, metadata }),
   });
-  const userId = stringValue(metadata.userId) ?? payment?.userId;
-  const cardType =
-    membershipCardType(metadata.cardType) ?? payment?.cardType ?? null;
-  const customerId =
-    stripeExpandableId(options.object.customer) ?? payment?.stripeCustomerId;
-  if (!invoiceId || !subscriptionId || !userId || !cardType || !customerId) {
+  const existingSubscription = subscriptionId
+    ? await findMembershipSubscription({
+        db: options.db,
+        stripeSubscriptionId: subscriptionId,
+      })
+    : null;
+  const context = membershipLocalContext({
+    metadata,
+    object: options.object,
+    payment,
+    subscription: existingSubscription,
+  });
+  if (!invoiceId || !subscriptionId || !context) {
     throw new Error('Membership invoice is missing local context.');
   }
   const localSubscription = await upsertMembershipSubscription({
-    cardType,
-    customerId,
+    cardType: context.cardType,
+    customerId: context.customerId,
     db: options.db,
     event: options.event,
-    localRenewalPriceId:
-      stringValue(metadata.renewalMembershipPriceId) ??
-      payment?.membershipRenewalPriceId ??
-      null,
+    existingSubscription,
+    localRenewalPriceId: renewalPriceIdFromContext({ metadata, payment }),
     subscription,
     subscriptionId,
-    userId,
+    userId: context.userId,
   });
-  const chargeId = objectChargeId(options.object);
-  const invoiceData = {
-    lastStripeInvoiceEventCreatedAt: stripeEventCreatedAtDate(options.event),
-    lastStripeInvoiceEventId: options.event.id,
-    membershipSubscriptionId: localSubscription.id,
-    stripeCustomerId: customerId,
-    stripeHostedInvoiceUrl: stringValue(options.object.hosted_invoice_url),
-    stripeInvoiceId: invoiceId,
-    stripeInvoicePdfUrl: stringValue(options.object.invoice_pdf),
-    ...(chargeId ? { stripeChargeId: chargeId } : {}),
-    stripePaymentIntentId: stripeExpandableId(options.object.payment_intent),
-    stripeReceiptUrl: stringValue(options.object.hosted_invoice_url),
-    stripeSubscriptionId: subscriptionId,
-  };
+  const invoiceData = paidInvoiceData({
+    customerId: context.customerId,
+    event: options.event,
+    invoiceId,
+    localSubscriptionId: localSubscription.id,
+    object: options.object,
+    subscriptionId,
+  });
   if (payment) {
-    await options.db.payment.updateMany({
-      data: {
-        ...invoiceData,
-        ...(canApplyPaidPaymentTransition(payment)
-          ? { status: PaymentStatus.paid }
-          : {}),
-      },
-      where: { id: payment.id, status: payment.status },
+    await updatePaidInvoicePayment({
+      data: invoiceData,
+      db: options.db,
+      event: options.event,
+      payment,
     });
     return { handled: true };
   }
-  await options.db.payment.create({
-    data: {
+  const cardYear = renewalInvoiceCardYear({
+    event: options.event,
+    metadata,
+    object: options.object,
+    subscription,
+  });
+  await createRenewalInvoicePayment({
+    createData: {
       ...invoiceData,
       amountCents: invoiceAmountCents(options.object),
-      cardType,
-      cardYear: null,
+      cardType: context.cardType,
+      cardYear,
       currency: invoiceCurrency(options.object),
       membershipPaymentKind: MembershipPaymentKind.renewal,
       membershipRenewalPriceId: stringValue(metadata.renewalMembershipPriceId),
       purpose: PaymentPurpose.membership,
       source: PaymentSource.stripe,
       status: PaymentStatus.paid,
-      userId,
+      userId: context.userId,
     },
+    db: options.db,
+    duplicateUpdateData: invoiceData,
+    event: options.event,
+    invoiceId,
+    transition: 'paid',
   });
   return { handled: true };
 }
@@ -732,51 +1039,91 @@ async function handleInvoicePaymentFailed(options: {
   const invoiceId = stringValue(options.object.id);
   const subscriptionId = invoiceSubscriptionId(options.object);
   const subscription = subscriptionFromValue(options.object.subscription);
+  const metadata = eventMembershipMetadata(options.object);
+  const invoicePurpose = invoiceBillingPurpose(options.object);
   const payment = await findMembershipPayment({
     db: options.db,
     invoiceId,
-    subscriptionId,
+    paymentId: initialInvoicePaymentId({ invoicePurpose, metadata }),
   });
   const existingSubscription = subscriptionId
-    ? await options.db.sailingCardSubscription.findFirst({
-        where: { stripeSubscriptionId: subscriptionId },
+    ? await findMembershipSubscription({
+        db: options.db,
+        stripeSubscriptionId: subscriptionId,
       })
     : null;
-  if (subscriptionId) {
-    const userId = payment?.userId ?? existingSubscription?.userId;
-    const cardType = payment?.cardType ?? existingSubscription?.cardType;
-    const customerId =
-      stripeExpandableId(options.object.customer) ??
-      payment?.stripeCustomerId ??
-      existingSubscription?.stripeCustomerId;
-    if (userId && cardType && customerId) {
-      await upsertMembershipSubscription({
-        cardType,
-        customerId,
-        db: options.db,
-        event: options.event,
-        localRenewalPriceId: payment?.membershipRenewalPriceId ?? null,
-        subscription,
-        subscriptionId,
-        userId,
-      });
-    }
-  }
+  const context = membershipLocalContext({
+    metadata,
+    object: options.object,
+    payment,
+    subscription: existingSubscription,
+  });
+  const localSubscription =
+    subscriptionId && context
+      ? await upsertMembershipSubscription({
+          cardType: context.cardType,
+          customerId: context.customerId,
+          db: options.db,
+          event: options.event,
+          existingSubscription,
+          localRenewalPriceId: renewalPriceIdFromContext({
+            metadata,
+            payment,
+          }),
+          subscription,
+          subscriptionId,
+          userId: context.userId,
+        })
+      : null;
+  const invoiceData = failedInvoiceData({
+    event: options.event,
+    invoiceId,
+    object: options.object,
+    subscriptionId,
+  });
   if (payment) {
-    await options.db.payment.updateMany({
-      data: {
-        issueKind: MembershipPaymentIssueKind.failed_payment,
-        lastStripeInvoiceEventCreatedAt: stripeEventCreatedAtDate(
-          options.event
+    await updateFailedInvoicePayment({
+      data: invoiceData,
+      db: options.db,
+      event: options.event,
+      payment,
+    });
+    return { handled: true };
+  }
+  if (
+    invoicePurpose === 'renewal' &&
+    invoiceId &&
+    subscriptionId &&
+    localSubscription &&
+    context
+  ) {
+    const cardYear = renewalInvoiceCardYear({
+      event: options.event,
+      metadata,
+      object: options.object,
+      subscription,
+    });
+    await createRenewalInvoicePayment({
+      createData: {
+        ...invoiceData,
+        amountCents: invoiceAmountCents(options.object),
+        cardType: context.cardType,
+        cardYear,
+        currency: invoiceCurrency(options.object),
+        membershipPaymentKind: MembershipPaymentKind.renewal,
+        membershipRenewalPriceId: stringValue(
+          metadata.renewalMembershipPriceId
         ),
-        lastStripeInvoiceEventId: options.event.id,
-        status: PaymentStatus.past_due,
-        stripeHostedInvoiceUrl: stringValue(options.object.hosted_invoice_url),
-        stripeInvoiceId: invoiceId,
-        stripeInvoicePdfUrl: stringValue(options.object.invoice_pdf),
-        stripeSubscriptionId: subscriptionId,
+        membershipSubscriptionId: localSubscription.id,
+        purpose: PaymentPurpose.membership,
+        source: PaymentSource.stripe,
+        userId: context.userId,
       },
-      where: { id: payment.id, status: payment.status },
+      db: options.db,
+      duplicateUpdateData: invoiceData,
+      event: options.event,
+      invoiceId,
+      transition: 'failed',
     });
   }
   return { handled: true };
@@ -791,7 +1138,6 @@ async function markMembershipPaymentIssue(options: {
     | typeof PaymentStatus.disputed
     | typeof PaymentStatus.refunded;
 }) {
-  const subscriptionId = stripeExpandableId(options.object.subscription);
   const chargeId =
     options.status === PaymentStatus.refunded
       ? refundedChargeId(options.object)
@@ -805,7 +1151,6 @@ async function markMembershipPaymentIssue(options: {
     db: options.db,
     paymentId: stringValue(objectMetadata(options.object).localPaymentId),
     paymentIntentId: stripeExpandableId(options.object.payment_intent),
-    subscriptionId,
   });
   if (!payment) {
     return { handled: isMembershipStripeObject(options.object) };
@@ -844,16 +1189,61 @@ async function markMembershipPaymentIssue(options: {
   return { handled: true };
 }
 
+const refundedEventTypes = new Set([
+  'charge.refunded',
+  'refund.created',
+  'refund.updated',
+]);
+const disputedEventTypes = new Set([
+  'charge.dispute.created',
+  'charge.dispute.updated',
+]);
+const subscriptionEventTypes = new Set([
+  'customer.subscription.created',
+  'customer.subscription.updated',
+  'customer.subscription.deleted',
+  'customer.subscription.paused',
+  'customer.subscription.resumed',
+]);
+const invoiceNoticeEventTypes = new Set([
+  'invoice.finalization_failed',
+  'invoice.payment_action_required',
+  'invoice.upcoming',
+]);
+const paidInvoiceEventTypes = new Set([
+  'invoice.paid',
+  'invoice.payment_succeeded',
+]);
+const paymentReferenceSucceededEventTypes = new Set([
+  'payment_intent.succeeded',
+  'charge.succeeded',
+]);
+
+function membershipPaymentIssueTransition(eventType: string) {
+  if (refundedEventTypes.has(eventType)) {
+    return {
+      issueKind: MembershipPaymentIssueKind.refunded_current_season,
+      status: PaymentStatus.refunded,
+    };
+  }
+  if (disputedEventTypes.has(eventType)) {
+    return {
+      issueKind: MembershipPaymentIssueKind.disputed_current_season,
+      status: PaymentStatus.disputed,
+    };
+  }
+  return null;
+}
+
 export async function handleMembershipStripeWebhookEvent(options: {
   readonly db: StripeWebhookDb;
   readonly event: ProcessableStripeEvent;
 }): Promise<StripeWebhookDispatchHandlerResult> {
   const object = eventObject(options.event);
-  if (
-    options.event.type === 'charge.refunded' ||
-    options.event.type === 'refund.created' ||
-    options.event.type === 'refund.updated'
-  ) {
+  const paymentIssueTransition = membershipPaymentIssueTransition(
+    options.event.type
+  );
+  if (paymentIssueTransition) {
     if (!hasMembershipWebhookDbWrites(options.db)) {
       throw new Error(
         'Membership Stripe webhooks require membership db access.'
@@ -862,27 +1252,9 @@ export async function handleMembershipStripeWebhookEvent(options: {
     const result = await markMembershipPaymentIssue({
       db: options.db,
       event: options.event,
-      issueKind: MembershipPaymentIssueKind.refunded_current_season,
+      issueKind: paymentIssueTransition.issueKind,
       object,
-      status: PaymentStatus.refunded,
-    });
-    return result;
-  }
-  if (
-    options.event.type === 'charge.dispute.created' ||
-    options.event.type === 'charge.dispute.updated'
-  ) {
-    if (!hasMembershipWebhookDbWrites(options.db)) {
-      throw new Error(
-        'Membership Stripe webhooks require membership db access.'
-      );
-    }
-    const result = await markMembershipPaymentIssue({
-      db: options.db,
-      event: options.event,
-      issueKind: MembershipPaymentIssueKind.disputed_current_season,
-      object,
-      status: PaymentStatus.disputed,
+      status: paymentIssueTransition.status,
     });
     return result;
   }
@@ -906,11 +1278,7 @@ export async function handleMembershipStripeWebhookEvent(options: {
     const result = await handleCheckoutExpired({ db, object });
     return result;
   }
-  if (
-    options.event.type === 'customer.subscription.created' ||
-    options.event.type === 'customer.subscription.updated' ||
-    options.event.type === 'customer.subscription.deleted'
-  ) {
+  if (subscriptionEventTypes.has(options.event.type)) {
     const result = await handleSubscriptionChanged({
       db,
       event: options.event,
@@ -918,10 +1286,10 @@ export async function handleMembershipStripeWebhookEvent(options: {
     });
     return result;
   }
-  if (
-    options.event.type === 'invoice.paid' ||
-    options.event.type === 'invoice.payment_succeeded'
-  ) {
+  if (invoiceNoticeEventTypes.has(options.event.type)) {
+    return { handled: true };
+  }
+  if (paidInvoiceEventTypes.has(options.event.type)) {
     const result = await handleInvoicePaid({
       db,
       event: options.event,
@@ -937,10 +1305,7 @@ export async function handleMembershipStripeWebhookEvent(options: {
     });
     return result;
   }
-  if (
-    options.event.type === 'payment_intent.succeeded' ||
-    options.event.type === 'charge.succeeded'
-  ) {
+  if (paymentReferenceSucceededEventTypes.has(options.event.type)) {
     const result = await handlePaymentReferenceSucceeded({
       db,
       event: options.event,

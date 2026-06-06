@@ -90,16 +90,7 @@ const membershipPriceLabelKey = (props: {
   readonly priceCents: number | null;
 }) => {
   if (props.cardType === SailingCardType.normal) {
-    if (!needsFitnessMembershipQuestion(props.affiliation)) {
-      return 'card_type_price_included';
-    }
-    if (props.hasFitnessMembershipValue === 'yes') {
-      return 'card_type_price_included_with_recreation';
-    }
     return 'card_type_price_needs_recreation';
-  }
-  if (props.priceCents === 0) {
-    return 'card_type_price_included';
   }
   if (props.priceCents === null) {
     return 'card_type_price_needs_dob';

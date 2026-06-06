@@ -7,7 +7,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   eventFindFirst: vi.fn(),
-  eventRegistrationFindFirst: vi.fn(),
+  paymentFindFirst: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -21,8 +21,8 @@ vi.mock('@/libs/DB', () => ({
     event: {
       findFirst: mocks.eventFindFirst,
     },
-    eventRegistration: {
-      findFirst: mocks.eventRegistrationFindFirst,
+    payment: {
+      findFirst: mocks.paymentFindFirst,
     },
   },
 }));
@@ -35,18 +35,15 @@ describe('getEventPaymentCheckoutPageData', () => {
       name: 'Intro Sail',
       slug: 'intro-sail',
     });
+    mocks.paymentFindFirst.mockResolvedValue({
+      amountCents: 1500,
+      id: 'payment-1',
+      status: PaymentStatus.pending,
+      stripeReceiptUrl: null,
+    });
   });
 
-  it('loads payment from the latest approved registration', async () => {
-    mocks.eventRegistrationFindFirst.mockResolvedValue({
-      payment: {
-        amountCents: 1500,
-        id: 'payment-new',
-        purpose: PaymentPurpose.event_payment,
-        status: PaymentStatus.pending,
-        stripeReceiptUrl: null,
-      },
-    });
+  it('loads the latest event payment from pending or approved registrations', async () => {
     const { getEventPaymentCheckoutPageData } =
       await import('@/libs/mit-sailing/eventPaymentCheckoutQueries');
 
@@ -60,47 +57,37 @@ describe('getEventPaymentCheckoutPageData', () => {
       },
       payment: {
         amountCents: 1500,
-        id: 'payment-new',
+        id: 'payment-1',
         receiptUrl: null,
         status: PaymentStatus.pending,
       },
     });
-    expect(mocks.eventRegistrationFindFirst).toHaveBeenCalledWith({
+    expect(mocks.paymentFindFirst).toHaveBeenCalledWith({
       orderBy: { createdAt: 'desc' },
       select: {
-        payment: {
-          select: {
-            amountCents: true,
-            id: true,
-            purpose: true,
-            status: true,
-            stripeReceiptUrl: true,
-          },
-        },
+        amountCents: true,
+        id: true,
+        status: true,
+        stripeReceiptUrl: true,
       },
       where: {
-        eventId: 'event-1',
-        status: {
-          in: [
-            EventRegistrationStatus.approved,
-            EventRegistrationStatus.pending,
-          ],
+        purpose: PaymentPurpose.event_payment,
+        registration: {
+          eventId: 'event-1',
+          status: {
+            in: [
+              EventRegistrationStatus.approved,
+              EventRegistrationStatus.pending,
+            ],
+          },
         },
         userId: 'user-1',
       },
     });
   });
 
-  it('loads payment from the latest pending registration', async () => {
-    mocks.eventRegistrationFindFirst.mockResolvedValue({
-      payment: {
-        amountCents: 1500,
-        id: 'payment-pending',
-        purpose: PaymentPurpose.event_payment,
-        status: PaymentStatus.pending,
-        stripeReceiptUrl: null,
-      },
-    });
+  it('returns the event shell when no payment exists for payable registrations', async () => {
+    mocks.paymentFindFirst.mockResolvedValue(null);
     const { getEventPaymentCheckoutPageData } =
       await import('@/libs/mit-sailing/eventPaymentCheckoutQueries');
 
@@ -112,36 +99,34 @@ describe('getEventPaymentCheckoutPageData', () => {
         name: 'Intro Sail',
         slug: 'intro-sail',
       },
-      payment: {
-        amountCents: 1500,
-        id: 'payment-pending',
-        receiptUrl: null,
-        status: PaymentStatus.pending,
-      },
+      payment: null,
     });
-    expect(mocks.eventRegistrationFindFirst).toHaveBeenCalledWith({
-      orderBy: { createdAt: 'desc' },
-      select: {
-        payment: {
-          select: {
-            amountCents: true,
-            id: true,
-            purpose: true,
-            status: true,
-            stripeReceiptUrl: true,
-          },
-        },
-      },
-      where: {
-        eventId: 'event-1',
-        status: {
-          in: [
-            EventRegistrationStatus.approved,
-            EventRegistrationStatus.pending,
-          ],
-        },
-        userId: 'user-1',
-      },
-    });
+  });
+
+  it('returns null when the event is not public', async () => {
+    mocks.eventFindFirst.mockResolvedValue(null);
+    const { getEventPaymentCheckoutPageData } =
+      await import('@/libs/mit-sailing/eventPaymentCheckoutQueries');
+
+    await expect(
+      getEventPaymentCheckoutPageData('private-event', 'user-1')
+    ).resolves.toBeNull();
+
+    expect(mocks.paymentFindFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe('eventPaymentCheckoutIsPayable', () => {
+  it('identifies checkout statuses that can open Stripe', async () => {
+    const { eventPaymentCheckoutIsPayable } =
+      await import('@/libs/mit-sailing/eventPaymentCheckoutQueries');
+
+    expect(eventPaymentCheckoutIsPayable(PaymentStatus.checkout_created)).toBe(
+      true
+    );
+    expect(eventPaymentCheckoutIsPayable(PaymentStatus.past_due)).toBe(true);
+    expect(eventPaymentCheckoutIsPayable(PaymentStatus.pending)).toBe(true);
+    expect(eventPaymentCheckoutIsPayable(PaymentStatus.paid)).toBe(false);
+    expect(eventPaymentCheckoutIsPayable(PaymentStatus.handled)).toBe(false);
   });
 });

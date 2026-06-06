@@ -57,6 +57,22 @@ describe('SailingCardOnboardingForm', () => {
     ).toHaveAttribute('autocomplete', 'on');
   });
 
+  it('hides unsafe Stripe resume links', () => {
+    renderForm({
+      initialMembershipCheckoutUrl: 'https://evil.example/checkout',
+    });
+
+    expect(
+      screen.queryByRole('heading', { name: 'Pay for your sailing card' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Continue to Stripe' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('combobox', { name: 'Affiliation' })
+    ).toBeInTheDocument();
+  });
+
   it('shows a translated error when paid checkout cannot be started', () => {
     setOnboardingFormActionState({
       fieldErrors: {},
@@ -469,6 +485,28 @@ describe('SailingCardOnboardingForm', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('shows server date of birth errors on the contact step', () => {
+    setOnboardingFormActionState({
+      fieldErrors: { dateOfBirth: 'invalid' },
+      status: 'error',
+      values: {
+        ...emptyValues,
+        affiliation: SailingAffiliation.WELLESLEY,
+        dateOfBirth: '02/30/2000',
+        firstName: 'Grace',
+        lastName: 'Hopper',
+      },
+    });
+
+    renderForm();
+
+    const dateOfBirth = screen.getByLabelText('Date of birth');
+    expect(dateOfBirth).toHaveAttribute('aria-invalid', 'true');
+    expect(
+      screen.getByText('Enter a valid date of birth as MM/DD/YYYY.')
+    ).toHaveAttribute('id', 'sailing-card-onboarding-dateOfBirth-error');
+  });
+
   it('normalizes short date of birth years when leaving the field', async () => {
     renderForm();
     const user = userEvent.setup();
@@ -719,6 +757,29 @@ describe('SailingCardOnboardingForm', () => {
     expect(
       cardTypeControls.getByRole('radio', { name: /Thursday team racing/u })
     ).toBeEnabled();
+  });
+
+  it('asks other non-student racing users for date of birth before showing price', async () => {
+    renderForm();
+    const user = userEvent.setup();
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Affiliation' }),
+      SailingAffiliation.OTHER_NON_STUDENT
+    );
+    await user.type(screen.getByLabelText('First name'), 'Grace');
+    await user.type(screen.getByLabelText('Last name'), 'Hopper');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('radio', { name: /^No/u }));
+
+    expect(
+      screen.getAllByText('Enter date of birth for price').length
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getByText(
+        'Enter date of birth above to see the Pavilion racing price. Charles River evening racing and race classes at the Pavilion. No Mashnee.'
+      )
+    ).toBeInTheDocument();
   });
 
   it('does not ask mit students about fitness membership', async () => {

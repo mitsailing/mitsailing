@@ -110,6 +110,7 @@ describe('membershipStripeCheckout', () => {
     );
     const params = create.mock.calls[0]?.[0];
     expect(params).toBeDefined();
+    expect(params).not.toHaveProperty('payment_method_types');
     expect(params).not.toHaveProperty('return_url');
     expect(params.subscription_data).not.toHaveProperty('trial_end');
     expect(params.metadata).toMatchObject({
@@ -132,6 +133,26 @@ describe('membershipStripeCheckout', () => {
     expect(
       membershipCheckoutAvailability(new Date('2026-07-15T04:00:00.000Z'))
     ).toBe('available');
+  });
+
+  it('returns rollover blocked without calling Stripe during the final 48 hours', async () => {
+    const create = vi.fn();
+
+    await expect(
+      createStripeMembershipCheckoutSession({
+        cancelUrl: 'https://sailing.mit.edu/onboarding?checkout=cancelled',
+        customerId: 'cus_test',
+        initialPrice: springPrice,
+        now: new Date('2026-07-13T04:00:00.000Z'),
+        payment: checkoutPayment,
+        renewalPrice: annualPrice,
+        stripe: { checkout: { sessions: { create } } },
+        successUrl:
+          'https://sailing.mit.edu/onboarding/success?session_id={CHECKOUT_SESSION_ID}',
+      })
+    ).resolves.toEqual({ status: 'rollover_blocked' });
+
+    expect(create).not.toHaveBeenCalled();
   });
 
   it('uses the following July 15 as the renewal billing anchor after rollover', async () => {
@@ -161,5 +182,137 @@ describe('membershipStripeCheckout', () => {
     expect(
       create.mock.calls[0]?.[0].subscription_data.billing_cycle_anchor
     ).toBe(1_815_624_000);
+  });
+
+  it('returns expandable Stripe customer ids from object payloads', async () => {
+    const create = vi.fn().mockResolvedValue({
+      customer: { id: 'cus_object' },
+      expires_at: 1_780_000_000,
+      id: 'cs_test',
+      url: 'https://checkout.stripe.com/c/pay/cs_test',
+    });
+
+    await expect(
+      createStripeMembershipCheckoutSession({
+        cancelUrl: 'https://sailing.mit.edu/onboarding?checkout=cancelled',
+        customerId: 'cus_test',
+        initialPrice: springPrice,
+        now: new Date('2026-05-31T12:00:00.000Z'),
+        payment: checkoutPayment,
+        renewalPrice: annualPrice,
+        stripe: { checkout: { sessions: { create } } },
+        successUrl:
+          'https://sailing.mit.edu/onboarding/success?session_id={CHECKOUT_SESSION_ID}',
+      })
+    ).resolves.toMatchObject({
+      customerId: 'cus_object',
+      status: 'created',
+    });
+  });
+
+  it('rejects checkout when a membership Price is not synced to Stripe', async () => {
+    const create = vi.fn();
+
+    await expect(
+      createStripeMembershipCheckoutSession({
+        cancelUrl: 'https://sailing.mit.edu/onboarding?checkout=cancelled',
+        customerId: 'cus_test',
+        initialPrice: { ...springPrice, stripePriceId: '' },
+        now: new Date('2026-05-31T12:00:00.000Z'),
+        payment: checkoutPayment,
+        renewalPrice: annualPrice,
+        stripe: { checkout: { sessions: { create } } },
+        successUrl:
+          'https://sailing.mit.edu/onboarding/success?session_id={CHECKOUT_SESSION_ID}',
+      })
+    ).rejects.toThrow('Membership checkout requires Stripe-synced Prices.');
+
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('rejects checkout when a membership Price is not usd', async () => {
+    const create = vi.fn();
+
+    await expect(
+      createStripeMembershipCheckoutSession({
+        cancelUrl: 'https://sailing.mit.edu/onboarding?checkout=cancelled',
+        customerId: 'cus_test',
+        initialPrice: { ...springPrice, currency: 'cad' },
+        now: new Date('2026-05-31T12:00:00.000Z'),
+        payment: checkoutPayment,
+        renewalPrice: annualPrice,
+        stripe: { checkout: { sessions: { create } } },
+        successUrl:
+          'https://sailing.mit.edu/onboarding/success?session_id={CHECKOUT_SESSION_ID}',
+      })
+    ).rejects.toThrow('Membership checkout only supports usd prices.');
+
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('rejects checkout when a membership Price cannot be charged', async () => {
+    const create = vi.fn();
+
+    await expect(
+      createStripeMembershipCheckoutSession({
+        cancelUrl: 'https://sailing.mit.edu/onboarding?checkout=cancelled',
+        customerId: 'cus_test',
+        initialPrice: { ...springPrice, amountCents: 0 },
+        now: new Date('2026-05-31T12:00:00.000Z'),
+        payment: checkoutPayment,
+        renewalPrice: annualPrice,
+        stripe: { checkout: { sessions: { create } } },
+        successUrl:
+          'https://sailing.mit.edu/onboarding/success?session_id={CHECKOUT_SESSION_ID}',
+      })
+    ).rejects.toThrow('Membership checkout requires positive price amounts.');
+
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when Stripe omits the membership Checkout URL', async () => {
+    const create = vi.fn().mockResolvedValue({
+      customer: 'cus_test',
+      expires_at: 1_780_000_000,
+      id: 'cs_test',
+      url: null,
+    });
+
+    await expect(
+      createStripeMembershipCheckoutSession({
+        cancelUrl: 'https://sailing.mit.edu/onboarding?checkout=cancelled',
+        customerId: 'cus_test',
+        initialPrice: springPrice,
+        now: new Date('2026-05-31T12:00:00.000Z'),
+        payment: checkoutPayment,
+        renewalPrice: annualPrice,
+        stripe: { checkout: { sessions: { create } } },
+        successUrl:
+          'https://sailing.mit.edu/onboarding/success?session_id={CHECKOUT_SESSION_ID}',
+      })
+    ).rejects.toThrow('Stripe did not return a membership Checkout URL.');
+  });
+
+  it('fails closed when Stripe omits the membership customer id', async () => {
+    const create = vi.fn().mockResolvedValue({
+      customer: null,
+      expires_at: 1_780_000_000,
+      id: 'cs_test',
+      url: 'https://checkout.stripe.com/c/pay/cs_test',
+    });
+
+    await expect(
+      createStripeMembershipCheckoutSession({
+        cancelUrl: 'https://sailing.mit.edu/onboarding?checkout=cancelled',
+        customerId: 'cus_test',
+        initialPrice: springPrice,
+        now: new Date('2026-05-31T12:00:00.000Z'),
+        payment: checkoutPayment,
+        renewalPrice: annualPrice,
+        stripe: { checkout: { sessions: { create } } },
+        successUrl:
+          'https://sailing.mit.edu/onboarding/success?session_id={CHECKOUT_SESSION_ID}',
+      })
+    ).rejects.toThrow('Stripe did not return a membership customer ID.');
   });
 });

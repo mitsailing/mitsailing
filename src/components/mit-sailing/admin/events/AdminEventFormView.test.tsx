@@ -425,7 +425,7 @@ describe('AdminEventFormView', () => {
     }
     expect(
       screen.getByRole('checkbox', {
-        name: /Collect payment for approved registrations/,
+        name: /Collect payment for registrations/,
       })
     ).not.toBeChecked();
     expect(screen.getByLabelText('Event address')).toHaveTextContent(

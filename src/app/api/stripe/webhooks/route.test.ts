@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   enqueueMembershipPaymentReminderJob: vi.fn(),
   enqueueEventPaymentEmailJob: vi.fn(),
   env: {
-    STRIPE_WEBHOOK_SECRET: 'stripe_webhook_secret',
+    STRIPE_WEBHOOK_SECRET: 'stripe_webhook_secret' as string | undefined,
   },
   getDefaultQueue: vi.fn(() => ({ queue: true })),
   getStripeClient: vi.fn(),
@@ -237,6 +237,58 @@ describe('stripe webhook route', () => {
     expect(mocks.tx.payment.updateMany).not.toHaveBeenCalled();
   });
 
+  it('rejects requests when the webhook secret is not configured', async () => {
+    mocks.env.STRIPE_WEBHOOK_SECRET = undefined;
+
+    const response = await POST(stripeRequest({}));
+
+    await expect(response.json()).resolves.toEqual({ ok: false });
+    expect(response.status).toBe(503);
+    expect(mocks.constructEvent).not.toHaveBeenCalled();
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('passes an empty raw body to Stripe for empty signed requests', async () => {
+    mockPaymentIntentSucceededEvent();
+    const headers = new Headers({
+      'stripe-signature': 't=1,v1=sig',
+    });
+
+    const response = await POST(
+      new Request('https://mitsailing.test/api/stripe/webhooks', {
+        headers,
+        method: 'POST',
+      })
+    );
+
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(mocks.constructEvent).toHaveBeenCalledWith(
+      '',
+      't=1,v1=sig',
+      'stripe_webhook_secret'
+    );
+  });
+
+  it('rejects oversized declared content length before reading the body', async () => {
+    const headers = new Headers({
+      'content-length': String(256 * 1024 + 1),
+      'stripe-signature': 't=1,v1=sig',
+    });
+
+    const response = await POST(
+      new Request('https://mitsailing.test/api/stripe/webhooks', {
+        body: '{}',
+        headers,
+        method: 'POST',
+      })
+    );
+
+    await expect(response.json()).resolves.toEqual({ ok: false });
+    expect(response.status).toBe(413);
+    expect(mocks.constructEvent).not.toHaveBeenCalled();
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('rejects oversized payloads before constructing events or mutating data', async () => {
     const response = await POST(
       stripeRequest({ body: 'x'.repeat(256 * 1024 + 1) })
@@ -379,6 +431,76 @@ describe('stripe webhook route', () => {
         dateKey: '2026-05-01',
         paymentId: 'payment-1',
       }
+    );
+  });
+
+  it('does not queue membership reminders when expired Checkout lacks a recovery URL', async () => {
+    mockStripeEvent('checkout.session.expired', {
+      id: 'cs_test',
+      metadata: {
+        domain: 'sailing_card_membership',
+        localPaymentId: 'payment-1',
+      },
+    });
+    mocks.tx.payment.findFirst.mockResolvedValue({
+      amountCents: 7000,
+      cardType: 'racing',
+      cardYear: 2026,
+      currency: 'usd',
+      id: 'payment-1',
+      purpose: 'membership',
+      status: PaymentStatus.checkout_created,
+      stripeCheckoutSessionId: 'cs_test',
+      userId: 'user-1',
+    });
+
+    const response = await POST(stripeRequest({}));
+
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(mocks.enqueueMembershipPaymentReminderJob).not.toHaveBeenCalled();
+    expect(mocks.tx.payment.updateMany).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        status: PaymentStatus.cancelled,
+        stripeCheckoutSessionUrl: null,
+      }),
+      where: { id: 'payment-1', status: PaymentStatus.checkout_created },
+    });
+  });
+
+  it('returns server error when membership reminder queueing fails', async () => {
+    mockStripeEvent('checkout.session.expired', {
+      after_expiration: {
+        recovery: {
+          url: 'https://checkout.stripe.com/c/pay/cs_recover',
+        },
+      },
+      id: 'cs_test',
+      metadata: {
+        domain: 'sailing_card_membership',
+        localPaymentId: 'payment-1',
+      },
+    });
+    mocks.tx.payment.findFirst.mockResolvedValue({
+      amountCents: 7000,
+      cardType: 'racing',
+      cardYear: 2026,
+      currency: 'usd',
+      id: 'payment-1',
+      purpose: 'membership',
+      status: PaymentStatus.checkout_created,
+      stripeCheckoutSessionId: 'cs_test',
+      userId: 'user-1',
+    });
+    const error = new Error('queue down');
+    mocks.enqueueMembershipPaymentReminderJob.mockRejectedValueOnce(error);
+
+    const response = await POST(stripeRequest({}));
+
+    await expect(response.json()).resolves.toEqual({ ok: false });
+    expect(response.status).toBe(500);
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      'Failed to enqueue membership payment reminder job: {error}',
+      { error }
     );
   });
 
@@ -552,7 +674,7 @@ describe('stripe webhook route', () => {
     });
   });
 
-  it('returns ok for future membership events without marking them processed', async () => {
+  it('keeps contextless membership subscription events pending for future handling', async () => {
     mocks.constructEvent.mockReturnValueOnce(
       stripeEvent('customer.subscription.updated', {
         id: 'sub_test',
@@ -564,18 +686,11 @@ describe('stripe webhook route', () => {
 
     await expect(response.json()).resolves.toEqual({ ok: true });
     expect(response.status).toBe(200);
-    expect(mocks.tx.payment.findFirst).toHaveBeenCalledWith({
-      orderBy: { createdAt: 'desc' },
-      where: {
-        OR: [
-          {
-            membershipPaymentKind: 'initial',
-            stripeSubscriptionId: 'sub_test',
-          },
-        ],
-        purpose: 'membership',
-      },
+    expect(mocks.tx.sailingCardSubscription.findFirst).toHaveBeenCalledWith({
+      where: { stripeSubscriptionId: 'sub_test' },
     });
+    expect(mocks.tx.payment.findFirst).not.toHaveBeenCalled();
+    expect(mocks.tx.sailingCardSubscription.upsert).not.toHaveBeenCalled();
     expect(mocks.tx.stripeWebhookEvent.update).toHaveBeenCalledWith({
       data: {
         processingError:
@@ -586,6 +701,22 @@ describe('stripe webhook route', () => {
     expect(
       mocks.tx.stripeWebhookEvent.update.mock.calls[0]?.[0].data
     ).not.toHaveProperty('processedAt');
+  });
+
+  it('marks generic unrelated Stripe events processed as no-ops', async () => {
+    mockStripeEvent('customer.created', {
+      id: 'cus_test',
+    });
+
+    const response = await POST(stripeRequest({}));
+
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(response.status).toBe(200);
+    expect(mocks.tx.payment.findFirst).not.toHaveBeenCalled();
+    expect(mocks.tx.stripeWebhookEvent.update).toHaveBeenCalledWith({
+      data: { processedAt: expect.any(Date), processingError: null },
+      where: { id: 'stored-event-1' },
+    });
   });
 
   it('returns server error when the processing transaction fails', async () => {

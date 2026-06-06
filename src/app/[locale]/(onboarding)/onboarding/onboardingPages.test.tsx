@@ -351,8 +351,8 @@ describe('onboarding pages', () => {
 
   it('renders the Stripe checkout resume link after checkout cancellation', async () => {
     mocks.findPayment.mockResolvedValue({
-      status: PaymentStatus.checkout_created,
-      stripeCheckoutSessionExpiresAt: new Date('2026-08-01T18:00:00.000Z'),
+      status: PaymentStatus.pending,
+      stripeCheckoutSessionExpiresAt: null,
       stripeCheckoutSessionUrl: 'https://checkout.stripe.com/c/pay/cs_test',
     });
     mocks.findUser.mockResolvedValue({
@@ -372,6 +372,28 @@ describe('onboarding pages', () => {
       'data-initial-membership-checkout-url',
       'https://checkout.stripe.com/c/pay/cs_test'
     );
+  });
+
+  it('redirects paid racing onboarding requests to success', async () => {
+    mocks.findPayment.mockResolvedValue({
+      status: PaymentStatus.paid,
+      stripeCheckoutSessionExpiresAt: null,
+      stripeCheckoutSessionUrl: null,
+    });
+    mocks.findUser.mockResolvedValue({
+      ...onboardingUser(),
+      sailingCardRequests: [completedRequest('user-1', SailingCardType.racing)],
+    });
+    const { default: OnboardingPage } = await import('./page');
+
+    await expect(
+      OnboardingPage({
+        params: Promise.resolve({ locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+
+    expect(mocks.redirect).toHaveBeenCalledWith('/onboarding/success');
   });
 
   it('redirects success page back to onboarding without a completed request', async () => {
@@ -438,6 +460,32 @@ describe('onboarding pages', () => {
     expect(
       screen.queryByRole('link', { name: 'events_link' })
     ).not.toBeInTheDocument();
+  });
+
+  it('links back to onboarding when pending paid onboarding has no active checkout', async () => {
+    mocks.findUser.mockResolvedValue({
+      sailingCardRequests: [completedRequest('user-1', SailingCardType.racing)],
+    });
+    mocks.findPayment.mockResolvedValue({
+      status: PaymentStatus.checkout_created,
+      stripeCheckoutSessionExpiresAt: new Date('2026-08-01T11:00:00.000Z'),
+      stripeCheckoutSessionId: 'cs_expired',
+      stripeCheckoutSessionUrl: 'https://checkout.stripe.com/c/pay/cs_expired',
+    });
+    const { default: OnboardingSuccessPage } = await import('./success/page');
+
+    render(
+      await OnboardingSuccessPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    );
+
+    expect(
+      screen.getByRole('heading', { name: 'payment_required_title' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'finish_payment_link' })
+    ).toHaveAttribute('href', '/onboarding');
   });
 
   it('does not show payment required for completed normal card requests', async () => {
@@ -511,6 +559,32 @@ describe('onboarding pages', () => {
       'href',
       '/events/regatta/register'
     );
+  });
+
+  it('keeps payment required when Stripe cannot confirm the returned session', async () => {
+    mockPaidCompletedRequest();
+    mocks.stripeCheckoutSessionRetrieve.mockRejectedValue(
+      new Error('Stripe unavailable')
+    );
+    const { default: OnboardingSuccessPage } = await import('./success/page');
+
+    render(
+      await OnboardingSuccessPage({
+        params: Promise.resolve({ locale: 'en' }),
+        searchParams: Promise.resolve({
+          callbackUrl: '/events/regatta/register',
+          session_id: 'cs_paid',
+        }),
+      })
+    );
+
+    expect(mocks.stripeCheckoutSessionRetrieve).toHaveBeenCalledWith('cs_paid');
+    expect(
+      screen.getByRole('heading', { name: 'payment_required_title' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'finish_payment_link' })
+    ).toHaveAttribute('href', 'https://checkout.stripe.com/c/pay/cs_paid');
   });
 
   it('falls back from unsafe paid success callbacks', async () => {

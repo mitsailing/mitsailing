@@ -16,6 +16,8 @@ import { getDefaultQueue } from '@/worker/defaultQueue';
 import { enqueueEventPaymentEmailJob } from '@/worker/eventPaymentEmailJob';
 import { enqueueMembershipPaymentReminderJob } from '@/worker/membershipPaymentReminderJob';
 
+export const runtime = 'nodejs';
+
 const stripeWebhookMaxBodyBytes = 256 * 1024;
 
 function signatureHeader(request: Request): string | null {

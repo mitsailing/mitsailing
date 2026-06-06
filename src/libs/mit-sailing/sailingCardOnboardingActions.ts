@@ -148,7 +148,12 @@ type PaidMembershipPaymentClient = {
         readonly cardType: SailingCardType;
         readonly cardYear: number;
         readonly purpose: typeof PaymentPurpose.membership;
-        readonly status: typeof PaymentStatus.paid;
+        readonly status: {
+          readonly in: [
+            typeof PaymentStatus.handled,
+            typeof PaymentStatus.paid,
+          ];
+        };
         readonly userId: string;
       };
     }) => Promise<{ readonly id: string } | null>;
@@ -199,7 +204,7 @@ async function currentYearRequestShouldFinishOnboarding(props: {
       cardType: request.cardType,
       cardYear,
       purpose: PaymentPurpose.membership,
-      status: PaymentStatus.paid,
+      status: { in: [PaymentStatus.handled, PaymentStatus.paid] },
       userId,
     },
   });

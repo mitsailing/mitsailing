@@ -41,7 +41,7 @@ test.describe('Event payments', () => {
     await signInAsAdmin(page);
 
     await page.goto(`/admin/events/${event.slug}/edit`);
-    await page.getByLabel('Collect payment for approved registrations').check();
+    await page.getByLabel('Collect payment for registrations').check();
     await page
       .getByLabel('Payment deadline')
       .fill(`${paymentDeadlineYear}-01-15T12:00`);
@@ -115,13 +115,14 @@ test.describe('Event payments', () => {
       .toMatchObject([{ status: 'checkout_created' }]);
   });
 
-  test('approval-required registration creates payment request after approval', async ({
+  test('approval-required registration opens checkout before approval', async ({
     page,
   }) => {
     const event = await createPaymentEvent({
       name: 'E2E approval paid clinic',
       requiresApproval: true,
     });
+    await mountMockStripeCheckout(page);
     await signInAsAdmin(page);
 
     await submitRegistration({
@@ -132,35 +133,32 @@ test.describe('Event payments', () => {
     });
     await expect
       .poll(() => new URL(page.url()).pathname)
-      .toBe(`/events/${event.slug}`);
-
-    await page.goto(`/admin/events/${event.slug}#registrations`);
-    await page.getByLabel(/Actions for/u).click();
-    await page.getByText('Approve', { exact: true }).click();
-    await page.getByRole('button', { name: 'Confirm approve' }).click();
+      .toBe(`/events/${event.slug}/checkout`);
     await expect(
-      page
-        .locator('span')
-        .filter({ hasText: /^Pending$/ })
-        .first()
+      page.getByRole('region', { name: 'Secure Stripe checkout' })
     ).toBeVisible();
+    await expect(page.getByRole('status')).toHaveText(
+      'Embedded checkout ready'
+    );
 
     await expect
       .poll(async () => {
         const rows = await paymentRowsForEvent(event.slug);
         return rows;
       })
-      .toMatchObject([{ status: 'pending' }]);
+      .toMatchObject([
+        { registrationId: expect.any(String), status: 'checkout_created' },
+      ]);
     const [payment] = await paymentRowsForEvent(event.slug);
     if (!payment) {
-      throw new Error('Approval did not create an event payment.');
+      throw new Error('Registration did not create an event payment.');
     }
     await expect
       .poll(async () => {
         const count = await paymentRequestCount(payment.id);
         return count;
       })
-      .toBe(1);
+      .toBe(0);
   });
 
   test('admin resends payment request and marks payment handled', async ({

@@ -38,34 +38,28 @@ export const getEventPaymentCheckoutPageData = cache(
     if (!event) {
       return null;
     }
-    const registration = await prisma.eventRegistration.findFirst({
+    const payment = await prisma.payment.findFirst({
       where: {
-        eventId: event.id,
-        status: {
-          in: [
-            EventRegistrationStatus.approved,
-            EventRegistrationStatus.pending,
-          ],
+        purpose: PaymentPurpose.event_payment,
+        registration: {
+          eventId: event.id,
+          status: {
+            in: [
+              EventRegistrationStatus.approved,
+              EventRegistrationStatus.pending,
+            ],
+          },
         },
         userId,
       },
       orderBy: { createdAt: 'desc' },
       select: {
-        payment: {
-          select: {
-            amountCents: true,
-            id: true,
-            purpose: true,
-            status: true,
-            stripeReceiptUrl: true,
-          },
-        },
+        amountCents: true,
+        id: true,
+        status: true,
+        stripeReceiptUrl: true,
       },
     });
-    const payment =
-      registration?.payment?.purpose === PaymentPurpose.event_payment
-        ? registration.payment
-        : null;
 
     return {
       event,
