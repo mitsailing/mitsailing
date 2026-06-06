@@ -7,6 +7,8 @@ import { redirect } from 'next/navigation';
 import {
   LegalAgreementAcceptanceSource,
   MitDataWarehousePersonType,
+  PaymentPurpose,
+  PaymentStatus,
   SailingAffiliation,
   SailingCardRequestStatus,
   SailingCardType,
@@ -30,6 +32,7 @@ import {
   sailingCardAgreementHash,
 } from '@/libs/mit-sailing/sailingCardAgreement';
 import { needsFitnessMembershipQuestion } from '@/libs/mit-sailing/sailingCardMembership';
+import { sailingCardRequestNeedsMembershipPayment } from '@/libs/mit-sailing/sailingCardMembershipPaymentRequirement';
 import {
   buildSailingCardOnboardingUpdate,
   SailingCardOnboardingValidationError,
@@ -118,6 +121,7 @@ const currentYearSailingCardRequestSelect = {
     select: {
       emergencyContactName: true,
       emergencyContactPhone: true,
+      gymMembershipVerifiedAt: true,
       phone: true,
     },
   },
@@ -125,7 +129,31 @@ const currentYearSailingCardRequestSelect = {
 
 type CurrentYearSailingCardRequest = NonNullable<
   Parameters<typeof hasCompletedCurrentYearSailingCardRequest>[0]
->;
+> & {
+  readonly cardType: SailingCardType;
+  readonly hasFitnessMembership: boolean | null;
+  readonly sailingAffiliation: SailingAffiliation | null;
+  readonly user: NonNullable<
+    Parameters<typeof hasCompletedCurrentYearSailingCardRequest>[0]
+  >['user'] & {
+    readonly gymMembershipVerifiedAt: Date | null;
+  };
+};
+
+type PaidMembershipPaymentClient = {
+  readonly payment: {
+    readonly findFirst: (args: {
+      readonly select: { readonly id: true };
+      readonly where: {
+        readonly cardType: SailingCardType;
+        readonly cardYear: number;
+        readonly purpose: typeof PaymentPurpose.membership;
+        readonly status: typeof PaymentStatus.paid;
+        readonly userId: string;
+      };
+    }) => Promise<{ readonly id: string } | null>;
+  };
+};
 
 const canUpdatePendingNormalFitnessVerification = (request: {
   readonly cardType?: SailingCardType | null;
@@ -141,12 +169,42 @@ const canUpdatePendingNormalFitnessVerification = (request: {
   needsFitnessMembershipQuestion(request.sailingAffiliation);
 
 const shouldRedirectCompletedCurrentYearRequest = (
-  request: Parameters<typeof hasCompletedCurrentYearSailingCardRequest>[0]
+  request: CurrentYearSailingCardRequest | null
 ) =>
   request !== null &&
   request.status !== SailingCardRequestStatus.cancelled &&
   hasCompletedCurrentYearSailingCardRequest(request) &&
   !canUpdatePendingNormalFitnessVerification(request);
+
+async function currentYearRequestShouldFinishOnboarding(props: {
+  readonly cardYear: number;
+  readonly client: PaidMembershipPaymentClient;
+  readonly request: CurrentYearSailingCardRequest | null;
+  readonly userId: string;
+}) {
+  const { request } = props;
+  if (request === null) {
+    return false;
+  }
+  if (!shouldRedirectCompletedCurrentYearRequest(request)) {
+    return false;
+  }
+  if (!sailingCardRequestNeedsMembershipPayment(request)) {
+    return true;
+  }
+  const { cardYear, client, userId } = props;
+  const payment = await client.payment.findFirst({
+    select: { id: true },
+    where: {
+      cardType: request.cardType,
+      cardYear,
+      purpose: PaymentPurpose.membership,
+      status: PaymentStatus.paid,
+      userId,
+    },
+  });
+  return payment !== null;
+}
 
 const sailingCardRequestUpdateData = (props: {
   readonly acceptedAt: Date;
@@ -509,8 +567,16 @@ export const submitSailingCardOnboardingAction = async (
     );
   }
 
+  const cardYear = getCurrentSailingCardYear();
   const latestRequest = currentUser.sailingCardRequests.at(0) ?? null;
-  if (shouldRedirectCompletedCurrentYearRequest(latestRequest)) {
+  if (
+    await currentYearRequestShouldFinishOnboarding({
+      cardYear,
+      client: prisma,
+      request: latestRequest,
+      userId: session.user.id,
+    })
+  ) {
     redirect(successDestination);
   }
 
@@ -550,7 +616,6 @@ export const submitSailingCardOnboardingAction = async (
     null;
   const userAgent = truncateMetadata(headerList.get('user-agent'));
   const acceptedAt = new Date();
-  const cardYear = getCurrentSailingCardYear(acceptedAt);
   const { cardType, dateOfBirth } = update;
   const userUpdate = {
     emergencyContactName: update.emergencyContactName,
@@ -576,7 +641,14 @@ export const submitSailingCardOnboardingAction = async (
       },
       select: currentYearSailingCardRequestSelect,
     });
-    if (shouldRedirectCompletedCurrentYearRequest(currentYearRequest)) {
+    if (
+      await currentYearRequestShouldFinishOnboarding({
+        cardYear,
+        client: tx,
+        request: currentYearRequest,
+        userId: session.user.id,
+      })
+    ) {
       return { status: 'alreadyCompleted' } as const;
     }
 
