@@ -3,29 +3,58 @@ import { describe, expect, it } from 'vitest';
 import { readRepoFile } from '@/libs/test/readRepoFile';
 
 function readYamlServiceBlock(source: string, service: string): string {
-  const marker = `  ${service}:`;
+  const marker = `\n  ${service}:`;
   const start = source.indexOf(marker);
   expect(start).toBeGreaterThanOrEqual(0);
-  const nextService = source.slice(start + marker.length).search(/\n {2}\w/u);
+  const blockStart = start + 1;
+  const nextService = source
+    .slice(blockStart + marker.length - 1)
+    .search(/\n {2}\w/u);
   if (nextService === -1) {
-    return source.slice(start);
+    return source.slice(blockStart);
   }
-  return source.slice(start, start + marker.length + nextService);
+  return source.slice(blockStart, blockStart + marker.length - 1 + nextService);
 }
 
 function composeVariable(value: string): string {
   return `\${${value}}`;
 }
 
+function expectMailpitRelayEnvExample(envExample: string): void {
+  for (const fragment of [
+    'MAIL_TRANSPORT=smtp',
+    'MAILPIT_UI_AUTH=',
+    'MAILPIT_SMTP_RELAY_MATCHING=(?i)^',
+    String.raw`ak(\+[^@]+)?@callred\.com`,
+    String.raw`delivered(\+[^@]+)?@resend\.dev`,
+    String.raw`suppressed@resend\.dev`,
+    String.raw`)\z`,
+  ]) {
+    expect(envExample).toContain(fragment);
+  }
+  expect(envExample).not.toContain('EMAIL_REAL_DELIVERY_ALLOWLIST');
+}
+
+function expectContainsFragments(source: string, fragments: string[]): void {
+  for (const fragment of fragments) {
+    expect(source).toContain(fragment);
+  }
+}
+
 describe('production docker compose', () => {
   const productionCompose = readRepoFile('compose.prod.yaml');
+  const productionDockerfile = readRepoFile('Dockerfile');
   const deployRunbook = readRepoFile('docs/deploy.md');
   const deployWorkflow = readRepoFile('.github/workflows/deploy.yml');
+  const dependabotConfig = readRepoFile('.github/dependabot.yml');
   const remoteAppDirValidationScript = readRepoFile(
     '.github/scripts/validate_remote_app_dir.sh'
   );
   const localDevelopmentRunbook = readRepoFile('docs/local-development.md');
   const mediaMaintenanceRunbook = readRepoFile('docs/media-maintenance.md');
+  const productionReadinessChecklist = readRepoFile(
+    'docs/production-readiness-checklists.md'
+  );
   const mediaNginx = readRepoFile('docker/nginx/media.conf');
   const productionDataRoot = composeVariable(
     'PRODUCTION_DATA_ROOT:-/srv/mitsailing-data'
@@ -39,6 +68,10 @@ describe('production docker compose', () => {
     expect(productionCompose).toContain('web_green:');
     expect(productionCompose).toContain('worker:');
     expect(productionCompose).toContain("command: ['node', 'worker.mjs']");
+    expect(productionCompose).toContain('mailpit:');
+    expect(productionCompose).toContain('image: axllent/mailpit:v1.30.1');
+    expect(productionCompose).toContain('pghero:');
+    expect(productionCompose).toContain('image: ankane/pghero:v3.8.0');
     expect(productionCompose).toContain('tusd:');
     expect(productionCompose).toContain('image: tusproject/tusd:v2.9.2');
     expect(productionCompose).toContain("user: '1001:1001'");
@@ -47,6 +80,7 @@ describe('production docker compose', () => {
     expect(productionCompose).toContain(`${productionDataRoot}/postgres`);
     expect(productionCompose).toContain(`${productionDataRoot}/redis`);
     expect(productionCompose).toContain(`${productionDataRoot}/cms-media`);
+    expect(productionCompose).toContain(`${productionDataRoot}/mailpit`);
     expect(productionCompose).not.toContain('PRODUCTION_RUNTIME_UID');
     expect(productionCompose).not.toContain('upload-service:');
     expect(productionCompose).not.toContain('media-worker:');
@@ -76,6 +110,9 @@ describe('production docker compose', () => {
     expect(productionCompose).toMatch(
       /source: \$\{PRODUCTION_DATA_ROOT:-\/srv\/mitsailing-data\}\/cms-media\s+target: \/var\/lib\/mitsailing\/cms-media\s+bind:\s+create_host_path: false/u
     );
+    expect(productionCompose).toMatch(
+      /source: \$\{PRODUCTION_DATA_ROOT:-\/srv\/mitsailing-data\}\/mailpit\s+target: \/data\s+bind:\s+create_host_path: false/u
+    );
   });
 
   it('checks Redis queue-safety settings in the container healthcheck', () => {
@@ -86,6 +123,19 @@ describe('production docker compose', () => {
     expect(baseCompose).toContain('redis-cli ping | grep -qx PONG');
     expect(baseCompose).toContain('CONFIG GET appendonly');
     expect(baseCompose).toContain('CONFIG GET maxmemory-policy');
+  });
+
+  it('loads pg_stat_statements for PgHero query stats', () => {
+    const baseCompose = readRepoFile('compose.yaml');
+    const postgresBlock = readYamlServiceBlock(baseCompose, 'postgres');
+
+    expectContainsFragments(postgresBlock, [
+      '- postgres',
+      '- shared_preload_libraries=pg_stat_statements',
+      '- pg_stat_statements.track=all',
+      '- pg_stat_statements.max=10000',
+      '- track_activity_query_size=2048',
+    ]);
   });
 
   it('prevents privilege escalation for public production services', () => {
@@ -101,6 +151,8 @@ describe('production docker compose', () => {
     const webGreenBlock = readYamlServiceBlock(productionCompose, 'web_green');
     const appBlock = readYamlServiceBlock(productionCompose, 'app');
     const workerBlock = readYamlServiceBlock(productionCompose, 'worker');
+    const mailpitBlock = readYamlServiceBlock(productionCompose, 'mailpit');
+    const pgheroBlock = readYamlServiceBlock(productionCompose, 'pghero');
     const tusdBlock = readYamlServiceBlock(productionCompose, 'tusd');
     const mediaBlock = readYamlServiceBlock(productionCompose, 'media');
     const cloudflaredBlock = readYamlServiceBlock(
@@ -115,6 +167,8 @@ describe('production docker compose', () => {
       webDefaultsBlock,
       appBlock,
       workerBlock,
+      mailpitBlock,
+      pgheroBlock,
       tusdBlock,
       mediaBlock,
       cloudflaredBlock,
@@ -162,8 +216,14 @@ describe('production docker compose', () => {
       productionCompose,
       'cloudflared'
     );
-    expect(productionCompose).toContain('cloudflare/cloudflared');
+    expect(productionCompose).toContain(
+      'image: cloudflare/cloudflared:2026.5.2'
+    );
+    expect(productionCompose).not.toContain('cloudflare/cloudflared:latest');
     expect(productionCompose).toContain('CLOUDFLARE_TUNNEL_TOKEN');
+    expect(cloudflaredBlock).toContain('--autoupdate-freq');
+    expect(cloudflaredBlock).toContain('- 24h');
+    expect(cloudflaredBlock).not.toContain('--no-autoupdate');
     expect(cloudflaredBlock).toContain('depends_on:');
     expect(cloudflaredBlock).toContain('app:');
     expect(cloudflaredBlock).toContain('tusd:');
@@ -173,6 +233,96 @@ describe('production docker compose', () => {
     expect(deployRunbook).toContain('service: http://tusd:1080');
     expect(deployRunbook).toContain('service: http://media:8080');
     expect(deployRunbook).toContain('service: http://app:3000');
+  });
+
+  it('automates container image update PRs', () => {
+    expect(dependabotConfig).toContain('package-ecosystem: docker');
+    expect(dependabotConfig).toContain('package-ecosystem: docker-compose');
+    expect(dependabotConfig).toContain('directory: /');
+    expect(dependabotConfig).toContain("time: '06:15'");
+    expect(productionDockerfile).toContain(
+      `FROM node:${composeVariable('NODE_VERSION')} AS deps`
+    );
+    expect(productionCompose).not.toContain(':latest');
+    expect(productionReadinessChecklist).toContain(
+      'Dependabot monitors Dockerfile and Docker Compose images.'
+    );
+    expect(productionReadinessChecklist).toContain(
+      'uses `--autoupdate-freq 24h` as a security override'
+    );
+    expect(productionReadinessChecklist).toContain(
+      'PgHero is top-admin gated by app auth and has CPU/memory limits.'
+    );
+  });
+
+  it('runs production Mailpit behind authenticated app nginx', () => {
+    const appBlock = readYamlServiceBlock(productionCompose, 'app');
+    const webDefaultsBlock = productionCompose.slice(
+      productionCompose.indexOf('x-web: &web'),
+      productionCompose.indexOf('services:')
+    );
+    const workerBlock = readYamlServiceBlock(productionCompose, 'worker');
+    const mailpitBlock = readYamlServiceBlock(productionCompose, 'mailpit');
+
+    expectContainsFragments(mailpitBlock, [
+      'image: axllent/mailpit:v1.30.1',
+      `MP_MAX_MESSAGES: ${composeVariable('MAILPIT_MAX_MESSAGES:-10000')}`,
+      `MP_MAX_AGE: ${composeVariable('MAILPIT_MAX_AGE:-30d')}`,
+      'MP_DATABASE: /data/mailpit.db',
+      'MP_WEBROOT: /mail/',
+      `MP_UI_AUTH: ${composeVariable('MAILPIT_UI_AUTH:?set MAILPIT_UI_AUTH')}`,
+      `MP_SMTP_RELAY_HOST: ${composeVariable('MAILPIT_SMTP_RELAY_HOST:-smtp.resend.com')}`,
+      `MP_SMTP_RELAY_PORT: ${composeVariable('MAILPIT_SMTP_RELAY_PORT:-587')}`,
+      `MP_SMTP_RELAY_STARTTLS: ${composeVariable('MAILPIT_SMTP_RELAY_STARTTLS:-true')}`,
+      `MP_SMTP_RELAY_AUTH: ${composeVariable('MAILPIT_SMTP_RELAY_AUTH:-plain')}`,
+      `MP_SMTP_RELAY_USERNAME: ${composeVariable('MAILPIT_SMTP_RELAY_USERNAME:-resend')}`,
+      `MP_SMTP_RELAY_PASSWORD: ${composeVariable('RESEND_API_KEY:?set RESEND_API_KEY')}`,
+      `MP_SMTP_RELAY_MATCHING: ${composeVariable('MAILPIT_SMTP_RELAY_MATCHING:?set MAILPIT_SMTP_RELAY_MATCHING')}`,
+      `${productionDataRoot}/mailpit`,
+      'target: /data',
+      'create_host_path: false',
+      'http://127.0.0.1:8025/readyz',
+    ]);
+    expect(mailpitBlock).not.toContain('ports:');
+    expect(appBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
+    expect(webDefaultsBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
+    expect(workerBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
+  });
+
+  it('runs PgHero as a private admin-gated operations service', () => {
+    const appBlock = readYamlServiceBlock(productionCompose, 'app');
+    const pgheroBlock = readYamlServiceBlock(productionCompose, 'pghero');
+
+    expectContainsFragments(pgheroBlock, [
+      'image: ankane/pghero:v3.8.0',
+      `DATABASE_URL: ${composeVariable('PGHERO_DATABASE_URL:?set PGHERO_DATABASE_URL')}`,
+      'RAILS_RELATIVE_URL_ROOT: /_ops/harbor-watch',
+      'http://127.0.0.1:8080/health',
+      "cpus: '0.25'",
+      'memory: 512M',
+      "cpus: '0.05'",
+      'memory: 128M',
+    ]);
+    expect(pgheroBlock).not.toContain('ports:');
+    expect(appBlock).toMatch(/pghero:\s+condition: service_healthy/u);
+    expect(deployRunbook).toContain(
+      'PgHero is served at `/_ops/harbor-watch/`'
+    );
+    expect(deployRunbook).toContain('top-level app admins');
+    expect(deployRunbook).toContain('https://pgtune.leopard.in.ua/');
+  });
+
+  it('documents protected Mailpit UI verification', () => {
+    expect(deployRunbook).toContain(
+      'mail_status="$(curl -sS -o /dev/null -w \'%{http_code}\' -I https://mitsailing.com/mail/)"'
+    );
+    expect(deployRunbook).toContain('302|401|403) ;;');
+    expect(deployRunbook).toContain(
+      'ERROR: /mail/ accepted an unauthenticated request'
+    );
+    expect(deployRunbook).not.toContain(
+      'curl -fsSI https://mitsailing.com/mail/'
+    );
   });
 
   it('documents the CI-first production deploy flow', () => {
@@ -340,7 +490,7 @@ describe('local Mailpit capture', () => {
 
   it('runs Mailpit as loopback-only bounded SMTP capture', () => {
     expect(localCompose).toContain('mailpit:');
-    expect(localCompose).toContain('image: axllent/mailpit:v1.30.0');
+    expect(localCompose).toContain('image: axllent/mailpit:v1.30.1');
     expect(localCompose).toContain(
       `'127.0.0.1:${composeVariable('MAILPIT_SMTP_PUBLISH_PORT:-1025')}:1025'`
     );
@@ -386,12 +536,13 @@ describe('local Mailpit capture', () => {
     expect(mailpitHelper).toMatch(/\/api\/v1\/message\/\$\{summary\.ID\}/u);
   });
 
-  it('keeps unauthenticated Mailpit out of shared and production env examples', () => {
-    expect(stagingEnvExample).toContain('MAIL_TRANSPORT=smtp');
-    expect(stagingEnvExample).toContain('MAILPIT_UI_AUTH=');
-    expect(productionEnvExample).toContain('MAIL_TRANSPORT=resend');
-    expect(productionEnvExample).not.toContain('MAILPIT_API_URL');
-    expect(productionEnvExample).not.toContain('SMTP_URL=smtp://mailpit:1025');
+  it('keeps shared and production Mailpit capture authenticated', () => {
+    expectMailpitRelayEnvExample(stagingEnvExample);
+    expectMailpitRelayEnvExample(productionEnvExample);
+    expect(productionEnvExample).toContain('SMTP_URL=smtp://mailpit:1025');
+    expect(productionEnvExample).toContain(
+      'MAILPIT_API_URL=http://mailpit:8025'
+    );
   });
 });
 
@@ -425,6 +576,9 @@ describe('production deploy script', () => {
     expect(deployScript).toContain(
       `readonly PRODUCTION_CMS_MEDIA_DIR="${productionDataRoot}/cms-media"`
     );
+    expect(deployScript).toContain(
+      `readonly PRODUCTION_MAILPIT_DIR="${productionDataRoot}/mailpit"`
+    );
     expect(deployScript).toContain('validate_production_data_root');
     expect(deployScript).toContain(
       'PRODUCTION_DATA_ROOT must be an absolute path'
@@ -454,6 +608,9 @@ describe('production deploy script', () => {
     );
     expect(deployScript).toContain(
       'verify_bind_mount redis /data "$PRODUCTION_REDIS_DIR"'
+    );
+    expect(deployScript).toContain(
+      'verify_bind_mount mailpit /data "$PRODUCTION_MAILPIT_DIR"'
     );
     expect(deployScript).toContain('PG_VERSION');
     expect(deployScript).toContain('appendonlydir');

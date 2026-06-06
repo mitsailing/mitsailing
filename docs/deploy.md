@@ -57,9 +57,10 @@ mkdir -p "$PRODUCTION_DATA_ROOT"
 docker run --rm --user 0:0 \
   --mount "type=bind,src=${PRODUCTION_DATA_ROOT},dst=/data" \
   alpine:3.20 sh -euxc '
-    mkdir -p /data/postgres /data/redis /data/cms-media/uploads /data/cms-media/ready
+    mkdir -p /data/postgres /data/redis /data/mailpit /data/cms-media/uploads /data/cms-media/ready
     chown 70:70 /data/postgres && chmod 700 /data/postgres
     chown 999:1000 /data/redis && chmod 700 /data/redis
+    chmod 700 /data/mailpit
     chown -R 1001:1001 /data/cms-media
     chmod 755 /data/cms-media /data/cms-media/ready
     chmod 700 /data/cms-media/uploads
@@ -84,7 +85,11 @@ switching the GitHub variable back to the default.
 
 The host also needs `apps/mitsailing/.env.production`. Start from
 `.env.production.example`, fill real secrets, and use the MIT Sailing
-Cloudflare tunnel token.
+Cloudflare tunnel token. For the current staging-on-production posture,
+`MAIL_TRANSPORT=smtp` sends app mail to Mailpit. Mailpit owns selective
+pass-through with `MP_SMTP_RELAY_MATCHING`, so matching recipients such as
+`ak@callred.com` and its plus aliases are relayed through Resend SMTP while all
+other recipients stay captured.
 
 Permission checks have two surfaces: persistent data under
 `PRODUCTION_DATA_ROOT`, and non-secret deploy files that are bind-mounted into
@@ -100,6 +105,46 @@ Keep WordPress separate. MIT Sailing route order:
 - `/cms-media/uploads/*` -> `service: http://tusd:1080`
 - `/cms-media/*` -> `service: http://media:8080`
 - everything else -> `service: http://app:3000`
+
+Mailpit UI is served by app nginx at `/mail/` and proxied to the in-stack
+`mailpit:8025` service. Keep the tunnel route as `everything else -> app:3000`;
+do not expose Mailpit as its own public Cloudflare origin.
+
+Production pins the `cloudflare/cloudflared` container tag so base deploys stay
+reviewable through Dependabot PRs, CI, image scanning, and production approval.
+As a security override, the running tunnel also enables Cloudflare's
+`cloudflared` runtime auto-update check with `--autoupdate-freq 24h`. Cloudflare
+documents that updates restart `cloudflared` and can affect traffic currently
+being served; accept that risk so tunnel security fixes are not delayed until the
+next app deploy.
+
+Mailpit also owns outbound pass-through. `compose.prod.yaml` wires
+`MP_SMTP_RELAY_*` to Resend SMTP and `MAILPIT_SMTP_RELAY_MATCHING` controls the
+matching recipients. The app must stay configured as plain SMTP to Mailpit; do
+not add recipient matching logic to the website.
+
+PgHero is served at `/_ops/harbor-watch/` by app nginx and proxied to the
+in-stack `pghero:8080` service. It is not exposed as its own public origin or
+host port. Nginx uses `auth_request` against
+`/api/internal/pghero-auth`, and that endpoint allows only top-level app admins
+(`Role.ADMIN`), not staff roles with partial admin access. Sign in to the app
+first, then open `https://mitsailing.com/_ops/harbor-watch/`.
+
+PgHero uses a dedicated `PGHERO_DATABASE_URL`; do not point it at the app
+superuser URL. Follow PgHero's permissions guide for the exact monitoring role
+setup, then set `PGHERO_DATABASE_URL` in `.env.production`. Query stats use
+PgHero's documented `pg_stat_statements` settings in Compose plus the
+`CREATE EXTENSION IF NOT EXISTS pg_stat_statements` migration. The built-in
+PgHero Tune page links to `https://pgtune.leopard.in.ua/`; use that with the
+actual host RAM/CPU and PostgreSQL version before changing Postgres tuning in a
+reviewed Compose PR. Do not hand-edit production-only Postgres settings.
+
+Protect `/mail/*` in Cloudflare in addition to Mailpit basic auth:
+
+- Create a Cloudflare Access application for `mitsailing.com/mail/*`.
+- Allow only the operator identity that should inspect captured mail, currently
+  `ak@callred.com`.
+- Add a Cloudflare WAF rate-limit rule for URI path starting with `/mail/`.
 
 ## GitHub Environment
 
@@ -131,6 +176,18 @@ Then check the site:
 
 ```bash
 curl -fsSI https://mitsailing.com/api/health/live
+mail_status="$(curl -sS -o /dev/null -w '%{http_code}' -I https://mitsailing.com/mail/)"
+case "$mail_status" in
+  302|401|403) ;;
+  2*) echo "ERROR: /mail/ accepted an unauthenticated request" >&2; exit 1 ;;
+  *) echo "ERROR: unexpected /mail/ status $mail_status" >&2; exit 1 ;;
+esac
+pghero_status="$(curl -sS -o /dev/null -w '%{http_code}' -I https://mitsailing.com/_ops/harbor-watch/)"
+case "$pghero_status" in
+  401|403) ;;
+  2*) echo "ERROR: PgHero accepted an unauthenticated request" >&2; exit 1 ;;
+  *) echo "ERROR: unexpected PgHero status $pghero_status" >&2; exit 1 ;;
+esac
 curl -fsSI -X OPTIONS https://mitsailing.com/cms-media/uploads/
 curl -fsSI https://mitsailing.com/cms-media/healthz
 ```

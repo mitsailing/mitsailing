@@ -23,6 +23,7 @@ this app to that tunnel or compose network.
 | `web_blue`, `web_green` | Next.js standalone app containers |
 | `postgres` | Production database |
 | `redis` | BullMQ queue |
+| `mailpit` | SMTP capture and authenticated `/mail/` review UI |
 | `tusd` | Resumable upload server |
 | `worker` | BullMQ worker/media processor |
 | `media` | nginx for ready CMS files |
@@ -45,6 +46,17 @@ ingress:
 ```
 
 Postgres and Redis are never public Cloudflare origins.
+
+Mailpit is also not a public Cloudflare origin. It listens only on the Docker
+network, app nginx proxies `/mail/` to `mailpit:8025` with Mailpit
+`MP_WEBROOT=/mail/`, and the app sends all staging mail to Mailpit over SMTP.
+
+Mailpit owns selective pass-through with `MP_SMTP_RELAY_MATCHING` and Resend
+SMTP relay settings. The website does not inspect recipients or decide whether a
+message leaves Mailpit.
+
+Protect `/mail/*` with Cloudflare Access and a WAF rate-limit rule. Mailpit
+basic auth remains enabled inside the stack with `MAILPIT_UI_AUTH`.
 
 ## Deploy Model
 

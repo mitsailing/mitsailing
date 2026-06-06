@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-06-05.
 
-These checklists capture the production expectations for Redis, BullMQ, the CMS rich text editor, Mailpit email capture, and Docker/Compose. Keep this file focused on operationally meaningful checks: configuration, runtime behavior, security boundaries, and verification evidence.
+These checklists capture the production expectations for Redis, BullMQ, the CMS rich text editor, Mailpit email capture, PgHero database visibility, and Docker/Compose. Keep this file focused on operationally meaningful checks: configuration, runtime behavior, security boundaries, and verification evidence.
 
 ## Official references
 
@@ -21,6 +21,10 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 - [Mailpit integration testing](https://mailpit.axllent.org/docs/integration/)
 - [Mailpit healthchecks](https://mailpit.axllent.org/docs/integration/healthcheck/)
 - [Mailpit search filters](https://mailpit.axllent.org/docs/usage/search-filters/)
+- [PgHero Docker guide](https://github.com/ankane/pghero/blob/master/guides/Docker.md)
+- [PgHero permissions guide](https://github.com/ankane/pghero/blob/master/guides/Permissions.md)
+- [PgHero query stats guide](https://github.com/ankane/pghero/blob/master/guides/Query-Stats.md)
+- [PgTune](https://pgtune.leopard.in.ua/)
 - [Docker Compose services reference](https://docs.docker.com/reference/compose-file/services/)
 - [Docker build best practices](https://docs.docker.com/build/building/best-practices/)
 - [Docker multi-stage builds](https://docs.docker.com/build/building/multi-stage/)
@@ -82,15 +86,27 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | Check | Status | Current evidence |
 | --- | --- | --- |
 | Local and E2E email flows use real SMTP capture instead of mocking the app mail driver. | Pass | `.env.example` and `playwright.config.ts` set `MAIL_TRANSPORT=smtp`, `SMTP_URL=smtp://127.0.0.1:1025`, and `MAILPIT_API_URL=http://127.0.0.1:8025`; E2E tests read captured messages through `tests/helpers/mailpit.ts`. |
-| The local Mailpit image is pinned to a current v1 release, not `latest`. | Pass | `compose.override.yaml` uses `axllent/mailpit:v1.30.0`, the current security release reviewed for this checklist. |
+| The local Mailpit image is pinned to a current v1 release, not `latest`. | Pass | Compose uses `axllent/mailpit:v1.30.1`, the current security release reviewed for this checklist. Dependabot monitors Dockerfile and Docker Compose images. |
 | Mailpit SMTP and HTTP/API ports are loopback-only in local development. | Pass | `compose.override.yaml` publishes both `1025` and `8025` on `127.0.0.1`, so unauthenticated local capture is not exposed on the LAN. |
 | Mailpit readiness uses the official healthcheck endpoint. | Pass | The Mailpit service healthcheck calls `http://localhost:8025/readyz`. |
 | Stored test mail is bounded and pruned. | Pass | `MP_DATABASE=/data/mailpit.db` persists local messages for debugging, while `MP_MAX_MESSAGES=5000` and `MP_MAX_AGE=7d` cap retention. |
+| Selective real delivery is owned by Mailpit, not app code. | Pass | Production Mailpit config uses `MP_SMTP_RELAY_*` with `MP_SMTP_RELAY_MATCHING`, so the app sends SMTP to Mailpit and Mailpit decides which recipients are relayed through Resend. |
 | E2E standalone runtime has a complete SMTP sender config. | Pass | `playwright.config.ts` defaults `EMAIL_FROM` to `MIT Sailing <noreply@mitsailing.test>` before starting the standalone server. |
 | Tests isolate reads through recipient-scoped API queries. | Pass | `findLatestMessageToMatching` searches Mailpit with `to:<email>` and fetches full messages by ID before assertions. |
 | Test cleanup uses Mailpit API deletion. | Pass | `deleteAllMessages()` calls `DELETE /api/v1/messages`; individual tests also use unique recipient addresses to avoid parallel-worker collisions. |
-| Unauthenticated Mailpit is limited to local development. | Pass | Local Compose accepts any SMTP credentials only on loopback. `.env.staging.example` documents UI basic auth for shared QA, and `.env.production.example` uses Resend instead of Mailpit. |
+| Unauthenticated Mailpit is limited to local development. | Pass | Local Compose accepts any SMTP credentials only on loopback. Shared staging/production capture uses `MAILPIT_UI_AUTH`, app nginx proxies Mailpit at `/mail/`, and Cloudflare Access/rate limiting protects the path. |
 | Mailpit CORS is not opened broadly. | Pass | No `MP_API_CORS=*` or browser cross-origin Mailpit API access is configured; tests call the API server-side from Playwright helpers. |
+
+## PgHero
+
+| Check | Status | Current evidence |
+| --- | --- | --- |
+| PgHero stays in its own container and is not published externally. | Pass | `compose.prod.yaml` runs `ankane/pghero:v3.8.0` on the internal network with no `ports:` mapping. |
+| PgHero is top-admin gated by app auth and has CPU/memory limits. | Pass | app nginx proxies `/_ops/harbor-watch/` only after `auth_request /api/internal/pghero-auth`; the endpoint allows only `Role.ADMIN`. Compose limits PgHero to `0.25` CPU and `512M` memory with `0.05` CPU and `128M` reservations. |
+| PgHero uses a dedicated database URL. | Pass | `PGHERO_DATABASE_URL` is required separately from `DATABASE_URL`; the env examples use a `pghero` role. |
+| Query stats can be enabled without production-only drift. | Pass | Compose preloads `pg_stat_statements` with PgHero's documented settings, and the Prisma migration creates the extension. |
+| PostgreSQL tuning changes stay reviewable. | Watch | PgHero's Tune page links PgTune; operators should use `https://pgtune.leopard.in.ua/` with actual host RAM/CPU and PostgreSQL version, then commit reviewed Compose/Postgres config changes instead of hand-editing production. |
+| PgHero image updates are automated. | Pass | Dependabot monitors Docker Compose service images, so `ankane/pghero` updates arrive as PRs with CI and image scanning. |
 
 ## Docker and Compose
 
@@ -106,5 +122,6 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | Container logs are bounded. | Pass | Production services use json-file log rotation options. |
 | Docker images are built, smoke-tested, and scanned in CI. | Pass | `.github/workflows/docker-pr.yml` builds the production image, tests server and worker startup, and runs Trivy scans. |
 | Supply-chain provenance is attached during deploy. | Pass | `.github/workflows/deploy.yml` builds/pushes the image and publishes provenance/SBOM attestations. |
-| Base and service images are tag-pinned but not digest-pinned. | Watch | Tags are explicit and CI scans images. Docker docs recommend digest pinning when reproducibility is more important than automatic patch pickup. |
+| Base and service images are tag-pinned but not digest-pinned. | Watch | Tags are explicit, CI scans images, and Dependabot monitors both Dockerfile and Docker Compose image tags. Docker docs recommend digest pinning when reproducibility is more important than automatic patch pickup. |
+| The Cloudflare tunnel can self-update at runtime. | Watch | `compose.prod.yaml` pins `cloudflare/cloudflared` for reviewed base deploys, but uses `--autoupdate-freq 24h` as a security override. Cloudflare documents that updates restart `cloudflared` and can affect active traffic. |
 | Single-host `.env` files are used instead of Docker secrets. | Watch | Current deployment is a single-host Compose setup. Docker secrets are stronger for swarm/managed platforms, but would add operational scope beyond this slice. |
