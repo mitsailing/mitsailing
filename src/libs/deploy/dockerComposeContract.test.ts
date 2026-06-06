@@ -45,11 +45,15 @@ describe('production docker compose', () => {
   const productionCompose = readRepoFile('compose.prod.yaml');
   const deployRunbook = readRepoFile('docs/deploy.md');
   const deployWorkflow = readRepoFile('.github/workflows/deploy.yml');
+  const dependabotConfig = readRepoFile('.github/dependabot.yml');
   const remoteAppDirValidationScript = readRepoFile(
     '.github/scripts/validate_remote_app_dir.sh'
   );
   const localDevelopmentRunbook = readRepoFile('docs/local-development.md');
   const mediaMaintenanceRunbook = readRepoFile('docs/media-maintenance.md');
+  const productionReadinessChecklist = readRepoFile(
+    'docs/production-readiness-checklists.md'
+  );
   const mediaNginx = readRepoFile('docker/nginx/media.conf');
   const productionDataRoot = composeVariable(
     'PRODUCTION_DATA_ROOT:-/srv/mitsailing-data'
@@ -64,7 +68,7 @@ describe('production docker compose', () => {
     expect(productionCompose).toContain('worker:');
     expect(productionCompose).toContain("command: ['node', 'worker.mjs']");
     expect(productionCompose).toContain('mailpit:');
-    expect(productionCompose).toContain('image: axllent/mailpit:v1.30.0');
+    expect(productionCompose).toContain('image: axllent/mailpit:v1.30.1');
     expect(productionCompose).toContain('tusd:');
     expect(productionCompose).toContain('image: tusproject/tusd:v2.9.2');
     expect(productionCompose).toContain("user: '1001:1001'");
@@ -207,6 +211,15 @@ describe('production docker compose', () => {
     expect(deployRunbook).toContain('service: http://app:3000');
   });
 
+  it('automates Docker Compose image update PRs', () => {
+    expect(dependabotConfig).toContain('package-ecosystem: docker-compose');
+    expect(dependabotConfig).toContain('directory: /');
+    expect(dependabotConfig).toContain("time: '06:10'");
+    expect(productionReadinessChecklist).toContain(
+      'Dependabot monitors Docker Compose images.'
+    );
+  });
+
   it('runs production Mailpit behind authenticated app nginx', () => {
     const appBlock = readYamlServiceBlock(productionCompose, 'app');
     const webDefaultsBlock = productionCompose.slice(
@@ -217,7 +230,7 @@ describe('production docker compose', () => {
     const mailpitBlock = readYamlServiceBlock(productionCompose, 'mailpit');
 
     expectContainsFragments(mailpitBlock, [
-      'image: axllent/mailpit:v1.30.0',
+      'image: axllent/mailpit:v1.30.1',
       `MP_MAX_MESSAGES: ${composeVariable('MAILPIT_MAX_MESSAGES:-10000')}`,
       `MP_MAX_AGE: ${composeVariable('MAILPIT_MAX_AGE:-30d')}`,
       'MP_DATABASE: /data/mailpit.db',
@@ -239,6 +252,19 @@ describe('production docker compose', () => {
     expect(appBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
     expect(webDefaultsBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
     expect(workerBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
+  });
+
+  it('documents protected Mailpit UI verification', () => {
+    expect(deployRunbook).toContain(
+      'mail_status="$(curl -sS -o /dev/null -w \'%{http_code}\' -I https://mitsailing.com/mail/)"'
+    );
+    expect(deployRunbook).toContain('302|401|403) ;;');
+    expect(deployRunbook).toContain(
+      'ERROR: /mail/ accepted an unauthenticated request'
+    );
+    expect(deployRunbook).not.toContain(
+      'curl -fsSI https://mitsailing.com/mail/'
+    );
   });
 
   it('documents the CI-first production deploy flow', () => {
@@ -406,7 +432,7 @@ describe('local Mailpit capture', () => {
 
   it('runs Mailpit as loopback-only bounded SMTP capture', () => {
     expect(localCompose).toContain('mailpit:');
-    expect(localCompose).toContain('image: axllent/mailpit:v1.30.0');
+    expect(localCompose).toContain('image: axllent/mailpit:v1.30.1');
     expect(localCompose).toContain(
       `'127.0.0.1:${composeVariable('MAILPIT_SMTP_PUBLISH_PORT:-1025')}:1025'`
     );

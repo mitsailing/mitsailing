@@ -152,7 +152,12 @@ Then check the site:
 
 ```bash
 curl -fsSI https://mitsailing.com/api/health/live
-curl -fsSI https://mitsailing.com/mail/
+mail_status="$(curl -sS -o /dev/null -w '%{http_code}' -I https://mitsailing.com/mail/)"
+case "$mail_status" in
+  302|401|403) ;;
+  2*) echo "ERROR: /mail/ accepted an unauthenticated request" >&2; exit 1 ;;
+  *) echo "ERROR: unexpected /mail/ status $mail_status" >&2; exit 1 ;;
+esac
 curl -fsSI -X OPTIONS https://mitsailing.com/cms-media/uploads/
 curl -fsSI https://mitsailing.com/cms-media/healthz
 ```

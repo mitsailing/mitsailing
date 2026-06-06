@@ -82,7 +82,7 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | Check | Status | Current evidence |
 | --- | --- | --- |
 | Local and E2E email flows use real SMTP capture instead of mocking the app mail driver. | Pass | `.env.example` and `playwright.config.ts` set `MAIL_TRANSPORT=smtp`, `SMTP_URL=smtp://127.0.0.1:1025`, and `MAILPIT_API_URL=http://127.0.0.1:8025`; E2E tests read captured messages through `tests/helpers/mailpit.ts`. |
-| The local Mailpit image is pinned to a current v1 release, not `latest`. | Pass | `compose.override.yaml` uses `axllent/mailpit:v1.30.0`, the current security release reviewed for this checklist. |
+| The local Mailpit image is pinned to a current v1 release, not `latest`. | Pass | Compose uses `axllent/mailpit:v1.30.1`, the current security release reviewed for this checklist. Dependabot monitors Docker Compose images. |
 | Mailpit SMTP and HTTP/API ports are loopback-only in local development. | Pass | `compose.override.yaml` publishes both `1025` and `8025` on `127.0.0.1`, so unauthenticated local capture is not exposed on the LAN. |
 | Mailpit readiness uses the official healthcheck endpoint. | Pass | The Mailpit service healthcheck calls `http://localhost:8025/readyz`. |
 | Stored test mail is bounded and pruned. | Pass | `MP_DATABASE=/data/mailpit.db` persists local messages for debugging, while `MP_MAX_MESSAGES=5000` and `MP_MAX_AGE=7d` cap retention. |
