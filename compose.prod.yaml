@@ -80,7 +80,7 @@ services:
           create_host_path: false
 
   app:
-    image: nginx:1.29-alpine
+    image: nginx:1.31-alpine
     restart: unless-stopped
     networks:
       - internal
@@ -321,7 +321,7 @@ services:
         max-file: '5'
 
   media:
-    image: nginx:1.29-alpine
+    image: nginx:1.31-alpine
     restart: unless-stopped
     networks:
       - internal
