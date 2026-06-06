@@ -39,12 +39,22 @@ updates:
       # Prefix all commit messages and pull request titles with "chore"
       prefix: chore
 
+  # Enable version updates for Dockerfile base images
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+      time: '06:10'
+    open-pull-requests-limit: 1
+    commit-message:
+      prefix: chore
+
   # Enable version updates for Docker Compose service images
   - package-ecosystem: docker-compose
     directory: /
     schedule:
       interval: monthly
-      time: '06:10'
+      time: '06:15'
     open-pull-requests-limit: 1
     commit-message:
       prefix: chore

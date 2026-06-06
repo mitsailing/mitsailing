@@ -315,7 +315,7 @@ services:
         max-file: '5'
 
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2026.5.2
     restart: unless-stopped
     networks:
       - internal

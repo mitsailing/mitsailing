@@ -82,7 +82,7 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | Check | Status | Current evidence |
 | --- | --- | --- |
 | Local and E2E email flows use real SMTP capture instead of mocking the app mail driver. | Pass | `.env.example` and `playwright.config.ts` set `MAIL_TRANSPORT=smtp`, `SMTP_URL=smtp://127.0.0.1:1025`, and `MAILPIT_API_URL=http://127.0.0.1:8025`; E2E tests read captured messages through `tests/helpers/mailpit.ts`. |
-| The local Mailpit image is pinned to a current v1 release, not `latest`. | Pass | Compose uses `axllent/mailpit:v1.30.1`, the current security release reviewed for this checklist. Dependabot monitors Docker Compose images. |
+| The local Mailpit image is pinned to a current v1 release, not `latest`. | Pass | Compose uses `axllent/mailpit:v1.30.1`, the current security release reviewed for this checklist. Dependabot monitors Dockerfile and Docker Compose images. |
 | Mailpit SMTP and HTTP/API ports are loopback-only in local development. | Pass | `compose.override.yaml` publishes both `1025` and `8025` on `127.0.0.1`, so unauthenticated local capture is not exposed on the LAN. |
 | Mailpit readiness uses the official healthcheck endpoint. | Pass | The Mailpit service healthcheck calls `http://localhost:8025/readyz`. |
 | Stored test mail is bounded and pruned. | Pass | `MP_DATABASE=/data/mailpit.db` persists local messages for debugging, while `MP_MAX_MESSAGES=5000` and `MP_MAX_AGE=7d` cap retention. |
@@ -107,5 +107,6 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | Container logs are bounded. | Pass | Production services use json-file log rotation options. |
 | Docker images are built, smoke-tested, and scanned in CI. | Pass | `.github/workflows/docker-pr.yml` builds the production image, tests server and worker startup, and runs Trivy scans. |
 | Supply-chain provenance is attached during deploy. | Pass | `.github/workflows/deploy.yml` builds/pushes the image and publishes provenance/SBOM attestations. |
-| Base and service images are tag-pinned but not digest-pinned. | Watch | Tags are explicit and CI scans images. Docker docs recommend digest pinning when reproducibility is more important than automatic patch pickup. |
+| Base and service images are tag-pinned but not digest-pinned. | Watch | Tags are explicit, CI scans images, and Dependabot monitors both Dockerfile and Docker Compose image tags. Docker docs recommend digest pinning when reproducibility is more important than automatic patch pickup. |
+| The Cloudflare tunnel container does not self-update at runtime. | Pass | `compose.prod.yaml` pins `cloudflare/cloudflared` and runs `--no-autoupdate`; Dependabot opens image update PRs so CI and production approval run before tunnel changes. |
 | Single-host `.env` files are used instead of Docker secrets. | Watch | Current deployment is a single-host Compose setup. Docker secrets are stronger for swarm/managed platforms, but would add operational scope beyond this slice. |

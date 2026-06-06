@@ -43,6 +43,7 @@ function expectContainsFragments(source: string, fragments: string[]): void {
 
 describe('production docker compose', () => {
   const productionCompose = readRepoFile('compose.prod.yaml');
+  const productionDockerfile = readRepoFile('Dockerfile');
   const deployRunbook = readRepoFile('docs/deploy.md');
   const deployWorkflow = readRepoFile('.github/workflows/deploy.yml');
   const dependabotConfig = readRepoFile('.github/dependabot.yml');
@@ -198,8 +199,12 @@ describe('production docker compose', () => {
       productionCompose,
       'cloudflared'
     );
-    expect(productionCompose).toContain('cloudflare/cloudflared');
+    expect(productionCompose).toContain(
+      'image: cloudflare/cloudflared:2026.5.2'
+    );
+    expect(productionCompose).not.toContain('cloudflare/cloudflared:latest');
     expect(productionCompose).toContain('CLOUDFLARE_TUNNEL_TOKEN');
+    expect(cloudflaredBlock).toContain('--no-autoupdate');
     expect(cloudflaredBlock).toContain('depends_on:');
     expect(cloudflaredBlock).toContain('app:');
     expect(cloudflaredBlock).toContain('tusd:');
@@ -211,12 +216,20 @@ describe('production docker compose', () => {
     expect(deployRunbook).toContain('service: http://app:3000');
   });
 
-  it('automates Docker Compose image update PRs', () => {
+  it('automates container image update PRs', () => {
+    expect(dependabotConfig).toContain('package-ecosystem: docker');
     expect(dependabotConfig).toContain('package-ecosystem: docker-compose');
     expect(dependabotConfig).toContain('directory: /');
-    expect(dependabotConfig).toContain("time: '06:10'");
+    expect(dependabotConfig).toContain("time: '06:15'");
+    expect(productionDockerfile).toContain(
+      `FROM node:${composeVariable('NODE_VERSION')} AS deps`
+    );
+    expect(productionCompose).not.toContain(':latest');
     expect(productionReadinessChecklist).toContain(
-      'Dependabot monitors Docker Compose images.'
+      'Dependabot monitors Dockerfile and Docker Compose images.'
+    );
+    expect(productionReadinessChecklist).toContain(
+      'does not self-update at runtime'
     );
   });
 
