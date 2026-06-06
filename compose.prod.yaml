@@ -209,12 +209,8 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          'wget',
-          '--quiet',
-          '--tries=1',
-          '--spider',
-          'http://127.0.0.1:8025/readyz',
+          'CMD-SHELL',
+          'wget --quiet --tries=1 --spider "http://127.0.0.1:8025$${MP_WEBROOT:-/}readyz"',
         ]
       interval: 10s
       timeout: 5s
@@ -242,7 +238,9 @@ services:
       - no-new-privileges:true
     environment:
       DATABASE_URL: ${PGHERO_DATABASE_URL:?set PGHERO_DATABASE_URL}
-      RAILS_RELATIVE_URL_ROOT: /_ops/harbor-watch
+      PGHERO_USERNAME: ${PGHERO_USERNAME:?set PGHERO_USERNAME}
+      PGHERO_PASSWORD: ${PGHERO_PASSWORD:?set PGHERO_PASSWORD}
+      RAILS_RELATIVE_URL_ROOT: /pghero
     depends_on:
       postgres:
         condition: service_healthy
@@ -250,7 +248,7 @@ services:
       test:
         [
           'CMD-SHELL',
-          'ruby -rnet/http -e ''exit Net::HTTP.get_response(URI("http://127.0.0.1:8080/health")).code == "200" ? 0 : 1''',
+          'ruby -rnet/http -e ''exit Net::HTTP.get_response(URI("http://127.0.0.1:8080#{ENV.fetch("RAILS_RELATIVE_URL_ROOT", "")}/health")).code == "200" ? 0 : 1''',
         ]
       interval: 30s
       timeout: 5s

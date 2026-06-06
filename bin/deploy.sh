@@ -43,6 +43,8 @@ readonly DEPLOY_HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
 # The app release drain is intentionally short: tusd/media keep handling uploads
 # outside the blue/green web cutover, and nginx upload timeouts track this value.
 readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-120}"
+readonly MAILPIT_ROUTE="/mail"
+readonly PGHERO_ROUTE="/pghero"
 # A server admin must create the default root-owned tree before deploy. Rootless
 # hosts may set PRODUCTION_DATA_ROOT to a prepared deploy-user-owned path.
 readonly PRODUCTION_DATA_ROOT_WAS_SET="${PRODUCTION_DATA_ROOT+x}"
@@ -273,11 +275,11 @@ server {
   send_timeout ${DEPLOY_DRAIN_SECONDS}s;
   keepalive_timeout 75s;
 
-  location = /mail {
-    return 308 /mail/;
+  location = ${MAILPIT_ROUTE} {
+    return 308 ${MAILPIT_ROUTE}/;
   }
 
-  location /mail/ {
+  location ${MAILPIT_ROUTE}/ {
     proxy_pass http://mailpit:8025;
     proxy_http_version 1.1;
     proxy_request_buffering off;
@@ -295,12 +297,11 @@ server {
     proxy_set_header Connection \$connection_upgrade;
   }
 
-  location = /_ops/harbor-watch {
-    return 308 /_ops/harbor-watch/;
+  location = ${PGHERO_ROUTE} {
+    return 308 ${PGHERO_ROUTE}/;
   }
 
-  location /_ops/harbor-watch/ {
-    auth_request /api/internal/pghero-auth;
+  location ${PGHERO_ROUTE}/ {
     proxy_pass http://pghero:8080;
     proxy_http_version 1.1;
     proxy_request_buffering off;
@@ -314,23 +315,9 @@ server {
     proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Host \$host;
     proxy_set_header X-Forwarded-Proto \$forwarded_proto;
-    proxy_set_header X-Forwarded-Prefix /_ops/harbor-watch;
+    proxy_set_header X-Forwarded-Prefix ${PGHERO_ROUTE};
     proxy_set_header Upgrade \$http_upgrade;
     proxy_set_header Connection \$connection_upgrade;
-  }
-
-  location = /api/internal/pghero-auth {
-    internal;
-    proxy_pass http://mitsailing_next;
-    proxy_pass_request_body off;
-    proxy_set_header Content-Length "";
-    proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Host \$host;
-    proxy_set_header X-Forwarded-Proto \$forwarded_proto;
-    proxy_set_header X-Original-URI \$request_uri;
-    proxy_set_header Cookie \$http_cookie;
   }
 
   location / {

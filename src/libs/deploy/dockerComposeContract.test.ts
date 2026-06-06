@@ -20,6 +20,15 @@ function composeVariable(value: string): string {
   return `\${${value}}`;
 }
 
+const mailpitRoute = '/mail';
+const mailpitWebroot = `${mailpitRoute}/`;
+const mailpitRouteVariable = composeVariable('MAILPIT_ROUTE');
+const mailpitWebrootVariable = `${String.fromCodePoint(36)}${composeVariable(
+  'MP_WEBROOT:-/'
+)}`;
+const pgheroRoute = '/pghero';
+const pgheroRouteVariable = composeVariable('PGHERO_ROUTE');
+
 function expectMailpitRelayEnvExample(envExample: string): void {
   for (const fragment of [
     'MAIL_TRANSPORT=smtp',
@@ -251,7 +260,7 @@ describe('production docker compose', () => {
       'uses `--autoupdate-freq 24h` as a security override'
     );
     expect(productionReadinessChecklist).toContain(
-      'PgHero is top-admin gated by app auth and has CPU/memory limits.'
+      'PgHero is protected by PgHero basic auth and has CPU/memory limits.'
     );
   });
 
@@ -269,7 +278,7 @@ describe('production docker compose', () => {
       `MP_MAX_MESSAGES: ${composeVariable('MAILPIT_MAX_MESSAGES:-10000')}`,
       `MP_MAX_AGE: ${composeVariable('MAILPIT_MAX_AGE:-30d')}`,
       'MP_DATABASE: /data/mailpit.db',
-      'MP_WEBROOT: /mail/',
+      `MP_WEBROOT: ${mailpitWebroot}`,
       `MP_UI_AUTH: ${composeVariable('MAILPIT_UI_AUTH:?set MAILPIT_UI_AUTH')}`,
       `MP_SMTP_RELAY_HOST: ${composeVariable('MAILPIT_SMTP_RELAY_HOST:-smtp.resend.com')}`,
       `MP_SMTP_RELAY_PORT: ${composeVariable('MAILPIT_SMTP_RELAY_PORT:-587')}`,
@@ -281,7 +290,7 @@ describe('production docker compose', () => {
       `${productionDataRoot}/mailpit`,
       'target: /data',
       'create_host_path: false',
-      'http://127.0.0.1:8025/readyz',
+      `http://127.0.0.1:8025${mailpitWebrootVariable}readyz`,
     ]);
     expect(mailpitBlock).not.toContain('ports:');
     expect(appBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
@@ -289,15 +298,18 @@ describe('production docker compose', () => {
     expect(workerBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
   });
 
-  it('runs PgHero as a private admin-gated operations service', () => {
+  it('runs PgHero as a private basic-auth operations service', () => {
     const appBlock = readYamlServiceBlock(productionCompose, 'app');
     const pgheroBlock = readYamlServiceBlock(productionCompose, 'pghero');
 
     expectContainsFragments(pgheroBlock, [
       'image: ankane/pghero:v3.8.0',
       `DATABASE_URL: ${composeVariable('PGHERO_DATABASE_URL:?set PGHERO_DATABASE_URL')}`,
-      'RAILS_RELATIVE_URL_ROOT: /_ops/harbor-watch',
-      'http://127.0.0.1:8080/health',
+      `PGHERO_USERNAME: ${composeVariable('PGHERO_USERNAME:?set PGHERO_USERNAME')}`,
+      `PGHERO_PASSWORD: ${composeVariable('PGHERO_PASSWORD:?set PGHERO_PASSWORD')}`,
+      `RAILS_RELATIVE_URL_ROOT: ${pgheroRoute}`,
+      'ENV.fetch("RAILS_RELATIVE_URL_ROOT", "")',
+      '/health',
       "cpus: '0.25'",
       'memory: 512M',
       "cpus: '0.05'",
@@ -305,10 +317,9 @@ describe('production docker compose', () => {
     ]);
     expect(pgheroBlock).not.toContain('ports:');
     expect(appBlock).toMatch(/pghero:\s+condition: service_healthy/u);
-    expect(deployRunbook).toContain(
-      'PgHero is served at `/_ops/harbor-watch/`'
-    );
-    expect(deployRunbook).toContain('top-level app admins');
+    expect(deployRunbook).toContain(`PgHero is served at \`${pgheroRoute}/\``);
+    expect(deployRunbook).toContain('PGHERO_USERNAME');
+    expect(deployRunbook).toContain('PGHERO_PASSWORD');
     expect(deployRunbook).toContain('https://pgtune.leopard.in.ua/');
   });
 
@@ -599,6 +610,27 @@ describe('production deploy script', () => {
     expect(deployScript).toContain('NGINX_STATE_DIR');
     expect(deployScript).toContain('chmod 700 "$DEPLOY_STATE_DIR"');
     expect(deployScript).toContain('chmod 700 "$NGINX_STATE_DIR"');
+  });
+
+  it('generates subpath routes for production operations services', () => {
+    expect(deployScript).toContain(`readonly MAILPIT_ROUTE="${mailpitRoute}"`);
+    expect(deployScript).toContain(`readonly PGHERO_ROUTE="${pgheroRoute}"`);
+    expect(deployScript).toContain(`location = ${mailpitRouteVariable}`);
+    expect(deployScript).toContain(`return 308 ${mailpitRouteVariable}/;`);
+    expect(deployScript).toContain(`location ${mailpitRouteVariable}/`);
+    expect(deployScript).toContain('proxy_pass http://mailpit:8025;');
+    expect(deployScript).toContain(`location = ${pgheroRouteVariable}`);
+    expect(deployScript).toContain(`return 308 ${pgheroRouteVariable}/;`);
+    expect(deployScript).toContain(`location ${pgheroRouteVariable}/`);
+    expect(deployScript).toContain('proxy_pass http://pghero:8080;');
+    expect(deployScript).toContain(
+      `proxy_set_header X-Forwarded-Prefix ${pgheroRouteVariable};`
+    );
+    expect(deployScript).not.toContain(
+      'auth_request /api/internal/pghero-auth'
+    );
+    expect(deployScript).not.toContain('location = /api/internal/pghero-auth');
+    expect(deployScript).not.toContain('/_ops/harbor-watch');
   });
 
   it('verifies production data mounts before running migrations', () => {

@@ -10,6 +10,9 @@ function shellVariable(value: string): string {
   return `${String.fromCodePoint(36)}{${value}}`;
 }
 
+const mailpitRoute = shellVariable('MAILPIT_ROUTE');
+const pgheroRoute = shellVariable('PGHERO_ROUTE');
+
 const mailpitProxyHeaders = [
   String.raw`proxy_set_header Host \$host;`,
   String.raw`proxy_set_header X-Forwarded-Proto \$forwarded_proto;`,
@@ -20,7 +23,7 @@ const mailpitProxyHeaders = [
 const pgheroProxyHeaders = [
   String.raw`proxy_set_header Host \$host;`,
   String.raw`proxy_set_header X-Forwarded-Proto \$forwarded_proto;`,
-  String.raw`proxy_set_header X-Forwarded-Prefix /_ops/harbor-watch;`,
+  `proxy_set_header X-Forwarded-Prefix ${pgheroRoute};`,
   String.raw`proxy_set_header Upgrade \$http_upgrade;`,
   String.raw`proxy_set_header Connection \$connection_upgrade;`,
 ];
@@ -148,9 +151,10 @@ describe('single host deploy script', () => {
   });
 
   it('proxies authenticated Mailpit UI at /mail', () => {
-    expect(script).toContain('location = /mail');
-    expect(script).toContain('return 308 /mail/;');
-    expect(script).toContain('location /mail/');
+    expect(script).toContain('readonly MAILPIT_ROUTE="/mail"');
+    expect(script).toContain(`location = ${mailpitRoute}`);
+    expect(script).toContain(`return 308 ${mailpitRoute}/;`);
+    expect(script).toContain(`location ${mailpitRoute}/`);
     expect(script).toContain('proxy_pass http://mailpit:8025;');
     expect(script).toContain(`proxy_send_timeout ${deployDrainSeconds};`);
     expect(script).toContain(`proxy_read_timeout ${deployDrainSeconds};`);
@@ -159,20 +163,14 @@ describe('single host deploy script', () => {
     }
   });
 
-  it('proxies PgHero behind top-admin app auth at a non-product-name ops path', () => {
-    expect(script).toContain('location = /_ops/harbor-watch');
-    expect(script).toContain('return 308 /_ops/harbor-watch/;');
-    expect(script).toContain('location /_ops/harbor-watch/');
-    expect(script).toContain('auth_request /api/internal/pghero-auth;');
+  it('proxies PgHero behind PgHero basic auth at /pghero', () => {
+    expect(script).toContain('readonly PGHERO_ROUTE="/pghero"');
+    expect(script).toContain(`location = ${pgheroRoute}`);
+    expect(script).toContain(`return 308 ${pgheroRoute}/;`);
+    expect(script).toContain(`location ${pgheroRoute}/`);
     expect(script).toContain('proxy_pass http://pghero:8080;');
-    expect(script).toContain('location = /api/internal/pghero-auth');
-    expect(script).toContain('internal;');
-    expect(script).toContain('proxy_pass http://mitsailing_next;');
-    expect(script).toContain('proxy_pass_request_body off;');
-    expect(script).toContain('proxy_set_header Content-Length "";');
-    expect(script).toContain(
-      String.raw`proxy_set_header Cookie \$http_cookie;`
-    );
+    expect(script).not.toContain('auth_request /api/internal/pghero-auth;');
+    expect(script).not.toContain('location = /api/internal/pghero-auth');
     for (const header of pgheroProxyHeaders) {
       expect(script).toContain(header);
     }
