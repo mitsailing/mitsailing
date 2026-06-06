@@ -31,6 +31,8 @@ x-web: &web
       condition: service_healthy
     redis:
       condition: service_healthy
+    mailpit:
+      condition: service_healthy
   volumes:
     - type: bind
       source: ${PRODUCTION_DATA_ROOT:-/srv/mitsailing-data}/cms-media
@@ -84,6 +86,9 @@ services:
       - internal
     security_opt:
       - no-new-privileges:true
+    depends_on:
+      mailpit:
+        condition: service_healthy
     volumes:
       - type: bind
         source: ./.deploy/nginx
@@ -149,6 +154,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mailpit:
+        condition: service_healthy
     volumes:
       - type: bind
         source: ${PRODUCTION_DATA_ROOT:-/srv/mitsailing-data}/cms-media
@@ -165,6 +172,59 @@ services:
         reservations:
           cpus: '0.25'
           memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  mailpit:
+    image: axllent/mailpit:v1.30.0
+    restart: unless-stopped
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      MP_MAX_MESSAGES: ${MAILPIT_MAX_MESSAGES:-10000}
+      MP_MAX_AGE: ${MAILPIT_MAX_AGE:-30d}
+      MP_DATABASE: /data/mailpit.db
+      MP_WEBROOT: /mail/
+      MP_UI_AUTH: ${MAILPIT_UI_AUTH:?set MAILPIT_UI_AUTH}
+      MP_SMTP_RELAY_HOST: ${MAILPIT_SMTP_RELAY_HOST:-smtp.resend.com}
+      MP_SMTP_RELAY_PORT: ${MAILPIT_SMTP_RELAY_PORT:-587}
+      MP_SMTP_RELAY_STARTTLS: ${MAILPIT_SMTP_RELAY_STARTTLS:-true}
+      MP_SMTP_RELAY_AUTH: ${MAILPIT_SMTP_RELAY_AUTH:-plain}
+      MP_SMTP_RELAY_USERNAME: ${MAILPIT_SMTP_RELAY_USERNAME:-resend}
+      MP_SMTP_RELAY_PASSWORD: ${RESEND_API_KEY:?set RESEND_API_KEY}
+      MP_SMTP_RELAY_MATCHING: ${MAILPIT_SMTP_RELAY_MATCHING:?set MAILPIT_SMTP_RELAY_MATCHING}
+    volumes:
+      - type: bind
+        source: ${PRODUCTION_DATA_ROOT:-/srv/mitsailing-data}/mailpit
+        target: /data
+        bind:
+          create_host_path: false
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--quiet',
+          '--tries=1',
+          '--spider',
+          'http://127.0.0.1:8025/readyz',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
     logging:
       driver: json-file
       options:

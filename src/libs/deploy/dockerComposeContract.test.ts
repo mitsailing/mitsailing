@@ -3,14 +3,17 @@ import { describe, expect, it } from 'vitest';
 import { readRepoFile } from '@/libs/test/readRepoFile';
 
 function readYamlServiceBlock(source: string, service: string): string {
-  const marker = `  ${service}:`;
+  const marker = `\n  ${service}:`;
   const start = source.indexOf(marker);
   expect(start).toBeGreaterThanOrEqual(0);
-  const nextService = source.slice(start + marker.length).search(/\n {2}\w/u);
+  const blockStart = start + 1;
+  const nextService = source
+    .slice(blockStart + marker.length - 1)
+    .search(/\n {2}\w/u);
   if (nextService === -1) {
-    return source.slice(start);
+    return source.slice(blockStart);
   }
-  return source.slice(start, start + marker.length + nextService);
+  return source.slice(blockStart, blockStart + marker.length - 1 + nextService);
 }
 
 function composeVariable(value: string): string {
@@ -39,6 +42,8 @@ describe('production docker compose', () => {
     expect(productionCompose).toContain('web_green:');
     expect(productionCompose).toContain('worker:');
     expect(productionCompose).toContain("command: ['node', 'worker.mjs']");
+    expect(productionCompose).toContain('mailpit:');
+    expect(productionCompose).toContain('image: axllent/mailpit:v1.30.0');
     expect(productionCompose).toContain('tusd:');
     expect(productionCompose).toContain('image: tusproject/tusd:v2.9.2');
     expect(productionCompose).toContain("user: '1001:1001'");
@@ -47,6 +52,7 @@ describe('production docker compose', () => {
     expect(productionCompose).toContain(`${productionDataRoot}/postgres`);
     expect(productionCompose).toContain(`${productionDataRoot}/redis`);
     expect(productionCompose).toContain(`${productionDataRoot}/cms-media`);
+    expect(productionCompose).toContain(`${productionDataRoot}/mailpit`);
     expect(productionCompose).not.toContain('PRODUCTION_RUNTIME_UID');
     expect(productionCompose).not.toContain('upload-service:');
     expect(productionCompose).not.toContain('media-worker:');
@@ -76,6 +82,9 @@ describe('production docker compose', () => {
     expect(productionCompose).toMatch(
       /source: \$\{PRODUCTION_DATA_ROOT:-\/srv\/mitsailing-data\}\/cms-media\s+target: \/var\/lib\/mitsailing\/cms-media\s+bind:\s+create_host_path: false/u
     );
+    expect(productionCompose).toMatch(
+      /source: \$\{PRODUCTION_DATA_ROOT:-\/srv\/mitsailing-data\}\/mailpit\s+target: \/data\s+bind:\s+create_host_path: false/u
+    );
   });
 
   it('checks Redis queue-safety settings in the container healthcheck', () => {
@@ -101,6 +110,7 @@ describe('production docker compose', () => {
     const webGreenBlock = readYamlServiceBlock(productionCompose, 'web_green');
     const appBlock = readYamlServiceBlock(productionCompose, 'app');
     const workerBlock = readYamlServiceBlock(productionCompose, 'worker');
+    const mailpitBlock = readYamlServiceBlock(productionCompose, 'mailpit');
     const tusdBlock = readYamlServiceBlock(productionCompose, 'tusd');
     const mediaBlock = readYamlServiceBlock(productionCompose, 'media');
     const cloudflaredBlock = readYamlServiceBlock(
@@ -115,6 +125,7 @@ describe('production docker compose', () => {
       webDefaultsBlock,
       appBlock,
       workerBlock,
+      mailpitBlock,
       tusdBlock,
       mediaBlock,
       cloudflaredBlock,
@@ -173,6 +184,58 @@ describe('production docker compose', () => {
     expect(deployRunbook).toContain('service: http://tusd:1080');
     expect(deployRunbook).toContain('service: http://media:8080');
     expect(deployRunbook).toContain('service: http://app:3000');
+  });
+
+  it('runs production Mailpit behind authenticated app nginx', () => {
+    const appBlock = readYamlServiceBlock(productionCompose, 'app');
+    const webDefaultsBlock = productionCompose.slice(
+      productionCompose.indexOf('x-web: &web'),
+      productionCompose.indexOf('services:')
+    );
+    const workerBlock = readYamlServiceBlock(productionCompose, 'worker');
+    const mailpitBlock = readYamlServiceBlock(productionCompose, 'mailpit');
+
+    expect(mailpitBlock).toContain('image: axllent/mailpit:v1.30.0');
+    expect(mailpitBlock).toContain(
+      `MP_MAX_MESSAGES: ${composeVariable('MAILPIT_MAX_MESSAGES:-10000')}`
+    );
+    expect(mailpitBlock).toContain(
+      `MP_MAX_AGE: ${composeVariable('MAILPIT_MAX_AGE:-30d')}`
+    );
+    expect(mailpitBlock).toContain('MP_DATABASE: /data/mailpit.db');
+    expect(mailpitBlock).toContain('MP_WEBROOT: /mail/');
+    expect(mailpitBlock).toContain(
+      `MP_UI_AUTH: ${composeVariable('MAILPIT_UI_AUTH:?set MAILPIT_UI_AUTH')}`
+    );
+    expect(mailpitBlock).toContain(
+      `MP_SMTP_RELAY_HOST: ${composeVariable('MAILPIT_SMTP_RELAY_HOST:-smtp.resend.com')}`
+    );
+    expect(mailpitBlock).toContain(
+      `MP_SMTP_RELAY_PORT: ${composeVariable('MAILPIT_SMTP_RELAY_PORT:-587')}`
+    );
+    expect(mailpitBlock).toContain(
+      `MP_SMTP_RELAY_STARTTLS: ${composeVariable('MAILPIT_SMTP_RELAY_STARTTLS:-true')}`
+    );
+    expect(mailpitBlock).toContain(
+      `MP_SMTP_RELAY_AUTH: ${composeVariable('MAILPIT_SMTP_RELAY_AUTH:-plain')}`
+    );
+    expect(mailpitBlock).toContain(
+      `MP_SMTP_RELAY_USERNAME: ${composeVariable('MAILPIT_SMTP_RELAY_USERNAME:-resend')}`
+    );
+    expect(mailpitBlock).toContain(
+      `MP_SMTP_RELAY_PASSWORD: ${composeVariable('RESEND_API_KEY:?set RESEND_API_KEY')}`
+    );
+    expect(mailpitBlock).toContain(
+      `MP_SMTP_RELAY_MATCHING: ${composeVariable('MAILPIT_SMTP_RELAY_MATCHING:?set MAILPIT_SMTP_RELAY_MATCHING')}`
+    );
+    expect(mailpitBlock).toContain(`${productionDataRoot}/mailpit`);
+    expect(mailpitBlock).toContain('target: /data');
+    expect(mailpitBlock).toContain('create_host_path: false');
+    expect(mailpitBlock).toContain('http://127.0.0.1:8025/readyz');
+    expect(mailpitBlock).not.toContain('ports:');
+    expect(appBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
+    expect(webDefaultsBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
+    expect(workerBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
   });
 
   it('documents the CI-first production deploy flow', () => {
@@ -386,12 +449,27 @@ describe('local Mailpit capture', () => {
     expect(mailpitHelper).toMatch(/\/api\/v1\/message\/\$\{summary\.ID\}/u);
   });
 
-  it('keeps unauthenticated Mailpit out of shared and production env examples', () => {
+  it('keeps shared and production Mailpit capture authenticated', () => {
     expect(stagingEnvExample).toContain('MAIL_TRANSPORT=smtp');
     expect(stagingEnvExample).toContain('MAILPIT_UI_AUTH=');
-    expect(productionEnvExample).toContain('MAIL_TRANSPORT=resend');
-    expect(productionEnvExample).not.toContain('MAILPIT_API_URL');
-    expect(productionEnvExample).not.toContain('SMTP_URL=smtp://mailpit:1025');
+    expect(stagingEnvExample).toContain('MAILPIT_SMTP_RELAY_MATCHING=(?i)^');
+    expect(stagingEnvExample).toContain('ak(\\+[^@]+)?@callred\\.com');
+    expect(stagingEnvExample).toContain('delivered(\\+[^@]+)?@resend\\.dev');
+    expect(stagingEnvExample).toContain('suppressed@resend\\.dev');
+    expect(stagingEnvExample).toContain(')\\z');
+    expect(stagingEnvExample).not.toContain('EMAIL_REAL_DELIVERY_ALLOWLIST');
+    expect(productionEnvExample).toContain('MAIL_TRANSPORT=smtp');
+    expect(productionEnvExample).toContain('SMTP_URL=smtp://mailpit:1025');
+    expect(productionEnvExample).toContain(
+      'MAILPIT_API_URL=http://mailpit:8025'
+    );
+    expect(productionEnvExample).toContain('MAILPIT_SMTP_RELAY_MATCHING=(?i)^');
+    expect(productionEnvExample).toContain('ak(\\+[^@]+)?@callred\\.com');
+    expect(productionEnvExample).toContain('delivered(\\+[^@]+)?@resend\\.dev');
+    expect(productionEnvExample).toContain('suppressed@resend\\.dev');
+    expect(productionEnvExample).toContain(')\\z');
+    expect(productionEnvExample).not.toContain('EMAIL_REAL_DELIVERY_ALLOWLIST');
+    expect(productionEnvExample).toContain('MAILPIT_UI_AUTH=');
   });
 });
 
@@ -425,6 +503,9 @@ describe('production deploy script', () => {
     expect(deployScript).toContain(
       `readonly PRODUCTION_CMS_MEDIA_DIR="${productionDataRoot}/cms-media"`
     );
+    expect(deployScript).toContain(
+      `readonly PRODUCTION_MAILPIT_DIR="${productionDataRoot}/mailpit"`
+    );
     expect(deployScript).toContain('validate_production_data_root');
     expect(deployScript).toContain(
       'PRODUCTION_DATA_ROOT must be an absolute path'
@@ -454,6 +535,9 @@ describe('production deploy script', () => {
     );
     expect(deployScript).toContain(
       'verify_bind_mount redis /data "$PRODUCTION_REDIS_DIR"'
+    );
+    expect(deployScript).toContain(
+      'verify_bind_mount mailpit /data "$PRODUCTION_MAILPIT_DIR"'
     );
     expect(deployScript).toContain('PG_VERSION');
     expect(deployScript).toContain('appendonlydir');

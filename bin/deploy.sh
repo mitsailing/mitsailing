@@ -28,8 +28,8 @@ resolve_deploy_dir() {
 # keep multiple apps under ~/apps/<name>/.
 readonly DEPLOY_DIR="$(resolve_deploy_dir "${DEPLOY_DIR:-$HOME/apps/mitsailing}")"
 
-# Compose overlay: production (no Mailpit; Resend for mail). Override with
-# a full flag sequence, e.g. `DEPLOY_COMPOSE_FILES='-f compose.yaml -f compose.prod.yaml'`.
+# Compose overlay: production services, including Mailpit SMTP capture. Override
+# with a full flag sequence, e.g. `DEPLOY_COMPOSE_FILES='-f compose.yaml -f compose.prod.yaml'`.
 readonly COMPOSE_FILES="${DEPLOY_COMPOSE_FILES:--f compose.yaml -f compose.prod.yaml}"
 readonly ENV_FILE="${DEPLOY_ENV_FILE:-.env.production}"
 readonly DEPLOY_STATE_DIR="${DEPLOY_DIR}/.deploy"
@@ -52,6 +52,7 @@ export PRODUCTION_DATA_ROOT
 readonly PRODUCTION_POSTGRES_DIR="${PRODUCTION_DATA_ROOT}/postgres"
 readonly PRODUCTION_REDIS_DIR="${PRODUCTION_DATA_ROOT}/redis"
 readonly PRODUCTION_CMS_MEDIA_DIR="${PRODUCTION_DATA_ROOT}/cms-media"
+readonly PRODUCTION_MAILPIT_DIR="${PRODUCTION_DATA_ROOT}/mailpit"
 
 log() { printf '[deploy %s] %s\n' "$(date -u +'%FT%TZ')" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
@@ -159,6 +160,7 @@ verify_started_app_cms_media_bind_mounts() {
 verify_production_bind_mounts() {
   verify_bind_mount postgres /var/lib/postgresql "$PRODUCTION_POSTGRES_DIR"
   verify_bind_mount redis /data "$PRODUCTION_REDIS_DIR"
+  verify_bind_mount mailpit /data "$PRODUCTION_MAILPIT_DIR"
   verify_cms_media_bind_mount tusd
   verify_cms_media_bind_mount media
   verify_started_app_cms_media_bind_mounts
@@ -271,6 +273,28 @@ server {
   send_timeout ${DEPLOY_DRAIN_SECONDS}s;
   keepalive_timeout 75s;
 
+  location = /mail {
+    return 308 /mail/;
+  }
+
+  location /mail/ {
+    proxy_pass http://mailpit:8025;
+    proxy_http_version 1.1;
+    proxy_request_buffering off;
+    proxy_buffering off;
+    proxy_connect_timeout 30s;
+    proxy_send_timeout ${DEPLOY_DRAIN_SECONDS}s;
+    proxy_read_timeout ${DEPLOY_DRAIN_SECONDS}s;
+    proxy_next_upstream off;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Host \$host;
+    proxy_set_header X-Forwarded-Proto \$forwarded_proto;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection \$connection_upgrade;
+  }
+
   location / {
     proxy_pass http://mitsailing_next;
     proxy_http_version 1.1;
@@ -362,10 +386,11 @@ run_migrations_for_service() {
 }
 
 ensure_ingress_services() {
-  log "ensuring data, upload, and media services are running"
-  compose up --detach --no-recreate postgres redis tusd media
+  log "ensuring data, mail, upload, and media services are running"
+  compose up --detach --no-recreate postgres redis mailpit tusd media
   wait_for_service_health postgres "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health redis "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  wait_for_service_health mailpit "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health tusd "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health media "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   verify_production_bind_mounts

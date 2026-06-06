@@ -43,6 +43,9 @@ describe('single host deploy script', () => {
     expect(script).toContain(
       `readonly PRODUCTION_CMS_MEDIA_DIR="${productionDataRoot}/cms-media"`
     );
+    expect(script).toContain(
+      `readonly PRODUCTION_MAILPIT_DIR="${productionDataRoot}/mailpit"`
+    );
     expect(script).toContain('validate_production_data_root');
     expect(script).toContain('PRODUCTION_DATA_ROOT must be an absolute path');
     expect(script).toContain('PRODUCTION_DATA_ROOT must not be empty');
@@ -60,6 +63,9 @@ describe('single host deploy script', () => {
     );
     expect(script).toContain(
       'verify_bind_mount redis /data "$PRODUCTION_REDIS_DIR"'
+    );
+    expect(script).toContain(
+      'verify_bind_mount mailpit /data "$PRODUCTION_MAILPIT_DIR"'
     );
     expect(script).toContain('verify_cms_media_bind_mount tusd');
     expect(script).toContain('verify_cms_media_bind_mount media');
@@ -111,10 +117,10 @@ describe('single host deploy script', () => {
       'compose up --detach --no-recreate postgres redis'
     );
     expect(script).toContain(
-      'compose up --detach --no-recreate postgres redis tusd media'
+      'compose up --detach --no-recreate postgres redis mailpit tusd media'
     );
     expect(script).toMatch(
-      /ensure_ingress_services\(\) \{[\s\S]*wait_for_service_health tusd "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*verify_production_bind_mounts/u
+      /ensure_ingress_services\(\) \{[\s\S]*wait_for_service_health mailpit "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health tusd "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*verify_production_bind_mounts/u
     );
     expect(script).toContain('compose up --detach --no-deps cloudflared');
     expect(script).toMatch(
@@ -124,6 +130,23 @@ describe('single host deploy script', () => {
     expect(script).toContain('tusd-maintenance)');
     expect(script).not.toMatch(/release_ref\(\)[\s\S]*--force-recreate tusd/u);
     expect(script).not.toMatch(/release_ref\(\)[\s\S]*--force-recreate media/u);
+  });
+
+  it('proxies authenticated Mailpit UI at /mail', () => {
+    expect(script).toContain('location = /mail');
+    expect(script).toContain('return 308 /mail/;');
+    expect(script).toContain('location /mail/');
+    expect(script).toContain('proxy_pass http://mailpit:8025;');
+    expect(script).toContain(`proxy_send_timeout ${deployDrainSeconds};`);
+    expect(script).toContain(`proxy_read_timeout ${deployDrainSeconds};`);
+    expect(script).toContain('proxy_set_header Host \\$host;');
+    expect(script).toContain(
+      'proxy_set_header X-Forwarded-Proto \\$forwarded_proto;'
+    );
+    expect(script).toContain('proxy_set_header Upgrade \\$http_upgrade;');
+    expect(script).toContain(
+      'proxy_set_header Connection \\$connection_upgrade;'
+    );
   });
 
   it('waits for media maintenance services to pass health checks', () => {

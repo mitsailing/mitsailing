@@ -86,10 +86,11 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | Mailpit SMTP and HTTP/API ports are loopback-only in local development. | Pass | `compose.override.yaml` publishes both `1025` and `8025` on `127.0.0.1`, so unauthenticated local capture is not exposed on the LAN. |
 | Mailpit readiness uses the official healthcheck endpoint. | Pass | The Mailpit service healthcheck calls `http://localhost:8025/readyz`. |
 | Stored test mail is bounded and pruned. | Pass | `MP_DATABASE=/data/mailpit.db` persists local messages for debugging, while `MP_MAX_MESSAGES=5000` and `MP_MAX_AGE=7d` cap retention. |
+| Selective real delivery is owned by Mailpit, not app code. | Pass | Production Mailpit config uses `MP_SMTP_RELAY_*` with `MP_SMTP_RELAY_MATCHING`, so the app sends SMTP to Mailpit and Mailpit decides which recipients are relayed through Resend. |
 | E2E standalone runtime has a complete SMTP sender config. | Pass | `playwright.config.ts` defaults `EMAIL_FROM` to `MIT Sailing <noreply@mitsailing.test>` before starting the standalone server. |
 | Tests isolate reads through recipient-scoped API queries. | Pass | `findLatestMessageToMatching` searches Mailpit with `to:<email>` and fetches full messages by ID before assertions. |
 | Test cleanup uses Mailpit API deletion. | Pass | `deleteAllMessages()` calls `DELETE /api/v1/messages`; individual tests also use unique recipient addresses to avoid parallel-worker collisions. |
-| Unauthenticated Mailpit is limited to local development. | Pass | Local Compose accepts any SMTP credentials only on loopback. `.env.staging.example` documents UI basic auth for shared QA, and `.env.production.example` uses Resend instead of Mailpit. |
+| Unauthenticated Mailpit is limited to local development. | Pass | Local Compose accepts any SMTP credentials only on loopback. Shared staging/production capture uses `MAILPIT_UI_AUTH`, app nginx proxies Mailpit at `/mail/`, and Cloudflare Access/rate limiting protects the path. |
 | Mailpit CORS is not opened broadly. | Pass | No `MP_API_CORS=*` or browser cross-origin Mailpit API access is configured; tests call the API server-side from Playwright helpers. |
 
 ## Docker and Compose
