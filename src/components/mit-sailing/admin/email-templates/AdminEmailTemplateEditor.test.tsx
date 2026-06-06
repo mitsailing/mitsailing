@@ -6,12 +6,23 @@ import { AdminEmailTemplateEditor } from '@/components/mit-sailing/admin/email-t
 import { installComponentTestLocalStorage } from '@/test/component';
 
 const mocks = vi.hoisted(() => ({
+  editorChain: vi.fn(),
   editorGetHTML: vi.fn(),
   getEmailHTML: vi.fn(),
   getEmailText: vi.fn(),
   getJSON: vi.fn(),
   saveAction: vi.fn(),
   sendTestAction: vi.fn(),
+  chain: {
+    focus: vi.fn(),
+    run: vi.fn(),
+    toggleBold: vi.fn(),
+    toggleBulletList: vi.fn(),
+    toggleHeading: vi.fn(),
+    toggleItalic: vi.fn(),
+    toggleOrderedList: vi.fn(),
+    toggleUnderline: vi.fn(),
+  },
 }));
 
 vi.mock('@react-email/editor', async () => {
@@ -22,7 +33,7 @@ vi.mock('@react-email/editor', async () => {
       ref: React.ForwardedRef<unknown>
     ) {
       React.useImperativeHandle(ref, () => ({
-        editor: { getHTML: mocks.editorGetHTML },
+        editor: { chain: mocks.editorChain, getHTML: mocks.editorGetHTML },
         getEmailHTML: mocks.getEmailHTML,
         getEmailText: mocks.getEmailText,
         getJSON: mocks.getJSON,
@@ -44,11 +55,18 @@ vi.mock('@react-email/editor', async () => {
 
 const editorText = {
   bodyLabel: 'Body',
+  boldLabel: 'Bold',
+  bulletListLabel: 'Bulleted list',
+  headingLabel: 'Heading',
+  italicLabel: 'Italic',
+  orderedListLabel: 'Numbered list',
   previewTextLabel: 'Preview text',
   saveDraft: 'Save draft',
   sendTest: 'Send test',
   subjectLabel: 'Subject',
   testEmailLabel: 'Test recipient',
+  toolbarLabel: 'Formatting',
+  underlineLabel: 'Underline',
 };
 
 function renderEditor(
@@ -72,6 +90,14 @@ function renderEditor(
 beforeEach(() => {
   installComponentTestLocalStorage();
   vi.clearAllMocks();
+  mocks.chain.focus.mockReturnValue(mocks.chain);
+  mocks.chain.toggleBold.mockReturnValue(mocks.chain);
+  mocks.chain.toggleBulletList.mockReturnValue(mocks.chain);
+  mocks.chain.toggleHeading.mockReturnValue(mocks.chain);
+  mocks.chain.toggleItalic.mockReturnValue(mocks.chain);
+  mocks.chain.toggleOrderedList.mockReturnValue(mocks.chain);
+  mocks.chain.toggleUnderline.mockReturnValue(mocks.chain);
+  mocks.editorChain.mockReturnValue(mocks.chain);
   mocks.editorGetHTML.mockReturnValue('<p>Editor draft</p>');
   mocks.getEmailHTML.mockResolvedValue('<html>Email ready</html>');
   mocks.getEmailText.mockResolvedValue('Email ready');
@@ -100,6 +126,18 @@ describe('AdminEmailTemplateEditor', () => {
     expect(
       container.querySelector('input[name="editorJson"][type="hidden"]')
     ).not.toBeNull();
+  });
+
+  it('renders formatting controls for the body editor', async () => {
+    const user = userEvent.setup();
+    renderEditor();
+
+    await user.click(screen.getByRole('button', { name: 'Italic' }));
+
+    expect(mocks.editorChain).toHaveBeenCalled();
+    expect(mocks.chain.focus).toHaveBeenCalled();
+    expect(mocks.chain.toggleItalic).toHaveBeenCalled();
+    expect(mocks.chain.run).toHaveBeenCalled();
   });
 
   it('exports editor content before saving', async () => {

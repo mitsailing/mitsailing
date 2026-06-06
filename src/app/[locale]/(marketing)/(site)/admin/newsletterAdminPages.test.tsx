@@ -149,11 +149,6 @@ describe('newsletter admin pages', () => {
     const pages = [
       { name: 'broadcasts', path: './newsletter-broadcasts/page' },
       { name: 'new broadcast', path: './newsletter-broadcasts/new/page' },
-      { name: 'email templates', path: './email-templates/page' },
-      {
-        name: 'email template detail',
-        path: './email-templates/[key]/page',
-      },
       { name: 'lists', path: './newsletter-lists/page' },
       { name: 'new list', path: './newsletter-lists/new/page' },
       { name: 'subscribers', path: './newsletter-subscribers/page' },
@@ -192,6 +187,38 @@ describe('newsletter admin pages', () => {
         mocks.getAdminNewsletterTemplates,
         page.name
       ).not.toHaveBeenCalled();
+    }
+  });
+
+  it('requires email template management before rendering email template pages', async () => {
+    const pages = [
+      { name: 'email templates', path: './email-templates/page' },
+      {
+        name: 'email template detail',
+        path: './email-templates/[key]/page',
+      },
+    ];
+
+    for (const page of pages) {
+      vi.clearAllMocks();
+      mocks.getTranslations.mockResolvedValue((key: string) => key);
+      mocks.requirePermission.mockRejectedValue(
+        new Error('email templates required')
+      );
+
+      const Page = await loadAdminPage(page.path);
+      await expect(Page(pageProps())).rejects.toThrow(
+        'email templates required'
+      );
+      expect(mocks.requirePermission, page.name).toHaveBeenCalledWith(
+        Permission.EMAIL_TEMPLATES_MANAGE,
+        'en'
+      );
+      expect(
+        mocks.getAdminEmailTemplateDetail,
+        page.name
+      ).not.toHaveBeenCalled();
+      expect(mocks.getAdminEmailTemplateList, page.name).not.toHaveBeenCalled();
     }
   });
 });

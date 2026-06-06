@@ -6,10 +6,8 @@ import { Prisma } from '@/generated/prisma/client';
 import { requirePermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
 import { prisma } from '@/libs/DB';
-import {
-  emailTemplateRenderHash,
-  ensureEditableEmailTemplateDefaults,
-} from '@/libs/email-templates/emailTemplateAdminQueries';
+import { ensureEditableEmailTemplateDefaults } from '@/libs/email-templates/emailTemplateAdminQueries';
+import { emailTemplateRenderHash } from '@/libs/email-templates/emailTemplateDefaultSeeder';
 import type { EditableEmailTemplateKey } from '@/libs/email-templates/emailTemplateKeys';
 import { isEditableEmailTemplateKey } from '@/libs/email-templates/emailTemplatePublishing';
 import { renderEditableEmailTemplate } from '@/libs/email-templates/emailTemplateRendering';
@@ -162,7 +160,10 @@ export async function saveEmailTemplateDraftAction(
   key: string,
   formData: FormData
 ): Promise<void> {
-  const session = await requirePermission(Permission.NEWSLETTER_MANAGE, locale);
+  const session = await requirePermission(
+    Permission.EMAIL_TEMPLATES_MANAGE,
+    locale
+  );
   if (!isEditableEmailTemplateKey(key)) {
     adminRedirect(locale, ADMIN_EMAIL_TEMPLATES_PATH, 'not_found');
   }
@@ -197,7 +198,10 @@ export async function publishEmailTemplateRevisionAction(
   key: string,
   revisionId: string
 ): Promise<void> {
-  const session = await requirePermission(Permission.NEWSLETTER_MANAGE, locale);
+  const session = await requirePermission(
+    Permission.EMAIL_TEMPLATES_MANAGE,
+    locale
+  );
   if (!isEditableEmailTemplateKey(key)) {
     adminRedirect(locale, ADMIN_EMAIL_TEMPLATES_PATH, 'not_found');
   }
@@ -260,7 +264,7 @@ export async function sendEmailTemplateTestAction(
   key: string,
   formData: FormData
 ): Promise<void> {
-  await requirePermission(Permission.NEWSLETTER_MANAGE, locale);
+  await requirePermission(Permission.EMAIL_TEMPLATES_MANAGE, locale);
   if (!isEditableEmailTemplateKey(key)) {
     adminRedirect(locale, ADMIN_EMAIL_TEMPLATES_PATH, 'not_found');
   }

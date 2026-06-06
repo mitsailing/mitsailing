@@ -6,9 +6,20 @@ import { installComponentTestLocalStorage } from '@/test/component';
 
 const mocks = vi.hoisted(() => ({
   action: vi.fn(),
+  editorChain: vi.fn(),
   editorGetHTML: vi.fn(),
   getEmailText: vi.fn(),
   getJSON: vi.fn(),
+  chain: {
+    focus: vi.fn(),
+    run: vi.fn(),
+    toggleBold: vi.fn(),
+    toggleBulletList: vi.fn(),
+    toggleHeading: vi.fn(),
+    toggleItalic: vi.fn(),
+    toggleOrderedList: vi.fn(),
+    toggleUnderline: vi.fn(),
+  },
 }));
 
 vi.mock('@react-email/editor', async () => {
@@ -19,7 +30,7 @@ vi.mock('@react-email/editor', async () => {
       ref: React.ForwardedRef<unknown>
     ) {
       React.useImperativeHandle(ref, () => ({
-        editor: { getHTML: mocks.editorGetHTML },
+        editor: { chain: mocks.editorChain, getHTML: mocks.editorGetHTML },
         getEmailText: mocks.getEmailText,
         getJSON: mocks.getJSON,
       }));
@@ -40,8 +51,15 @@ vi.mock('@react-email/editor', async () => {
 
 const editorText = {
   bodyLabel: 'Body',
+  boldLabel: 'Bold',
+  bulletListLabel: 'Bulleted list',
+  headingLabel: 'Heading',
+  italicLabel: 'Italic',
+  orderedListLabel: 'Numbered list',
   queueBroadcast: 'Queue broadcast',
   saveDraft: 'Save draft',
+  toolbarLabel: 'Formatting',
+  underlineLabel: 'Underline',
 };
 
 function renderEditor() {
@@ -59,6 +77,14 @@ function renderEditor() {
 beforeEach(() => {
   installComponentTestLocalStorage();
   vi.clearAllMocks();
+  mocks.chain.focus.mockReturnValue(mocks.chain);
+  mocks.chain.toggleBold.mockReturnValue(mocks.chain);
+  mocks.chain.toggleBulletList.mockReturnValue(mocks.chain);
+  mocks.chain.toggleHeading.mockReturnValue(mocks.chain);
+  mocks.chain.toggleItalic.mockReturnValue(mocks.chain);
+  mocks.chain.toggleOrderedList.mockReturnValue(mocks.chain);
+  mocks.chain.toggleUnderline.mockReturnValue(mocks.chain);
+  mocks.editorChain.mockReturnValue(mocks.chain);
   mocks.action.mockImplementation(async () => {
     await Promise.resolve();
   });
@@ -81,6 +107,18 @@ describe('AdminNewsletterBroadcastEditor', () => {
     expect(
       container.querySelector('input[name="bodyJson"][type="hidden"]')
     ).not.toBeNull();
+  });
+
+  it('renders formatting controls for the body editor', async () => {
+    const user = userEvent.setup();
+    renderEditor();
+
+    await user.click(screen.getByRole('button', { name: 'Bold' }));
+
+    expect(mocks.editorChain).toHaveBeenCalled();
+    expect(mocks.chain.focus).toHaveBeenCalled();
+    expect(mocks.chain.toggleBold).toHaveBeenCalled();
+    expect(mocks.chain.run).toHaveBeenCalled();
   });
 
   it('exports editor content before submitting', async () => {

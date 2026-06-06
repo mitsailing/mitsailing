@@ -24,13 +24,16 @@ export default async function AdminEmailTemplatesPage(props: PageProps) {
   await connection();
   const { locale } = await props.params;
   setRequestLocale(locale);
-  await requirePermission(Permission.NEWSLETTER_MANAGE, locale);
+  await requirePermission(Permission.EMAIL_TEMPLATES_MANAGE, locale);
   const t = await getTranslations({ locale, namespace: 'AdminEmailTemplates' });
   const rows = await getAdminEmailTemplateList();
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
-      <AdminPageHeader title={t('title')} />
+      <div>
+        <AdminPageHeader title={t('title')} />
+        <p className="mt-2 text-sm text-muted-foreground">{t('intro')}</p>
+      </div>
       <AdminEmailTemplateList
         locale={locale}
         rows={rows}

@@ -54,6 +54,10 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
     permissions,
     Permission.NEWSLETTER_MANAGE
   );
+  const canEmailTemplates = hasPermission(
+    permissions,
+    Permission.EMAIL_TEMPLATES_MANAGE
+  );
 
   const t = await getTranslations({ locale, namespace: 'AdminIndex' });
   const tCatalog = await getTranslations({
@@ -187,7 +191,33 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
                   {t('link_newsletter_broadcasts_blurb')}
                 </p>
               </li>
+              <li>
+                <Link
+                  className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+                  href="/admin/newsletter-templates"
+                  prefetch={false}
+                >
+                  {t('link_newsletter_templates')}
+                </Link>
+                <p className="mt-0.5 text-sm text-mit-text">
+                  {t('link_newsletter_templates_blurb')}
+                </p>
+              </li>
             </>
+          ) : null}
+          {canEmailTemplates ? (
+            <li>
+              <Link
+                className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+                href="/admin/email-templates"
+                prefetch={false}
+              >
+                {t('link_email_templates')}
+              </Link>
+              <p className="mt-0.5 text-sm text-mit-text">
+                {t('link_email_templates_blurb')}
+              </p>
+            </li>
           ) : null}
           {CATALOG_RESOURCE_IDS.map((id) => {
             const def = catalogResourceDefinitions[id];

@@ -1,7 +1,6 @@
 import 'server-only';
-import { createHash } from 'node:crypto';
-import { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
+import { seedEditableEmailTemplateDefaults } from '@/libs/email-templates/emailTemplateDefaultSeeder';
 import type { EditableEmailTemplateKey } from '@/libs/email-templates/emailTemplateKeys';
 import {
   choosePublishedRevision,
@@ -49,24 +48,6 @@ export type AdminEmailTemplateDetail = Readonly<{
   revisions: readonly EmailTemplateRevisionRow[];
 }>;
 
-export function emailTemplateRenderHash(params: {
-  editorBodyHtml: string;
-  previewText: string;
-  renderedText: string;
-  subject: string;
-}) {
-  return createHash('sha256')
-    .update(
-      JSON.stringify({
-        editorBodyHtml: params.editorBodyHtml,
-        previewText: params.previewText,
-        renderedText: params.renderedText,
-        subject: params.subject,
-      })
-    )
-    .digest('hex');
-}
-
 function latestDraftRevision(
   revisions: readonly EmailTemplateRevisionRow[]
 ): EmailTemplateRevisionRow | null {
@@ -98,36 +79,7 @@ function revisionForRenderer(
  * Creates missing editable email template defaults as draft revisions.
  */
 export async function ensureEditableEmailTemplateDefaults(): Promise<void> {
-  const keys = defaultEmailTemplateRevisions.map((revision) => revision.key);
-  const existing = await prisma.emailTemplate.findMany({
-    select: { key: true },
-    where: { key: { in: keys } },
-  });
-  const existingKeys = new Set(existing.map((template) => template.key));
-  const missingDefaults = defaultEmailTemplateRevisions.filter(
-    (revision) => !existingKeys.has(revision.key)
-  );
-
-  for (const revision of missingDefaults) {
-    await prisma.emailTemplate.create({
-      data: {
-        family: revision.family,
-        key: revision.key,
-        name: revision.name,
-        revisions: {
-          create: {
-            editorBodyHtml: revision.editorBodyHtml,
-            editorJson: Prisma.DbNull,
-            previewText: revision.previewText,
-            renderedText: revision.renderedText,
-            renderHash: emailTemplateRenderHash(revision),
-            status: 'draft',
-            subject: revision.subject,
-          },
-        },
-      },
-    });
-  }
+  await seedEditableEmailTemplateDefaults(prisma);
 }
 
 export async function getAdminEmailTemplateList(): Promise<

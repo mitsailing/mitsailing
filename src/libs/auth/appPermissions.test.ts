@@ -21,6 +21,9 @@ describe('app permissions', () => {
     const permissions = getAppRolePermissions(Role.ADMIN);
 
     expect(isAdminAppRole(Role.ADMIN)).toBe(true);
+    expect(hasPermission(permissions, Permission.EMAIL_TEMPLATES_MANAGE)).toBe(
+      true
+    );
     expect(hasPermission(permissions, Permission.USERS_DELETE)).toBe(true);
     expect(hasPermission(permissions, Permission.EVENTS_MANAGE)).toBe(true);
   });
@@ -30,6 +33,12 @@ describe('app permissions', () => {
 
     expect(hasPermission(permissions, Permission.ADMIN_VIEW)).toBe(true);
     expect(hasPermission(permissions, Permission.EVENTS_MANAGE)).toBe(true);
+    expect(hasPermission(permissions, Permission.EMAIL_TEMPLATES_MANAGE)).toBe(
+      false
+    );
+    expect(hasPermission(permissions, Permission.NEWSLETTER_MANAGE)).toBe(
+      false
+    );
     expect(isAdminAppRole(Role.DOCK_STAFF)).toBe(false);
   });
 

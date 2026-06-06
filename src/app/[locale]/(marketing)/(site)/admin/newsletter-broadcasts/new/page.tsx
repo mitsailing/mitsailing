@@ -95,8 +95,15 @@ export default async function AdminNewsletterBroadcastNewPage(
         initialBody="<p></p>"
         text={{
           bodyLabel: t('field_body'),
+          boldLabel: t('editor_bold'),
+          bulletListLabel: t('editor_bullet_list'),
+          headingLabel: t('editor_heading'),
+          italicLabel: t('editor_italic'),
+          orderedListLabel: t('editor_ordered_list'),
           queueBroadcast: t('queue_broadcast'),
           saveDraft: t('save_draft'),
+          toolbarLabel: t('editor_toolbar'),
+          underlineLabel: t('editor_underline'),
         }}
       >
         <div className="grid gap-4 sm:grid-cols-2">

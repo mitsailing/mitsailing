@@ -115,6 +115,7 @@ describe('AdminIndexPage', () => {
     mocks.requireAdminAreaAccess.mockResolvedValue({
       permissions: [
         Permission.CMS_VIEW,
+        Permission.EMAIL_TEMPLATES_MANAGE,
         Permission.NEWSLETTER_MANAGE,
         Permission.FLEET_MANAGE,
       ],
@@ -142,10 +143,41 @@ describe('AdminIndexPage', () => {
       screen.getByRole('link', { name: 'link_newsletter_broadcasts' })
     ).toHaveAttribute('href', '/admin/newsletter-broadcasts');
     expect(
+      screen.getByRole('link', { name: 'link_newsletter_templates' })
+    ).toHaveAttribute('href', '/admin/newsletter-templates');
+    expect(
+      screen.getByRole('link', { name: 'link_email_templates' })
+    ).toHaveAttribute('href', '/admin/email-templates');
+    expect(
       screen.getByRole('link', { name: 'hub_label_fleet' })
     ).toHaveAttribute('href', '/admin/fleet');
     expect(
       screen.queryByRole('link', { name: 'hub_label_users' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders email templates independently from newsletter tools', async () => {
+    mocks.requireAdminAreaAccess.mockResolvedValue({
+      permissions: [Permission.EMAIL_TEMPLATES_MANAGE],
+      roles: [],
+      session: { session: { impersonatedBy: null }, user: { id: 'admin-1' } },
+    });
+    const { default: AdminIndexPage } = await import('./page');
+
+    render(
+      await AdminIndexPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    );
+
+    expect(
+      screen.getByRole('link', { name: 'link_email_templates' })
+    ).toHaveAttribute('href', '/admin/email-templates');
+    expect(
+      screen.queryByRole('link', { name: 'link_newsletter_broadcasts' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'link_newsletter_templates' })
     ).not.toBeInTheDocument();
   });
 });
