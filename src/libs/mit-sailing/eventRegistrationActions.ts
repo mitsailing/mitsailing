@@ -935,10 +935,7 @@ export async function createPublicEventRegistrationAction(
           ...lockedContext.event,
           selectedFeeId: lockedSelectedFee.eventEntryFeeId,
         });
-        if (
-          status === EventRegistrationStatus.approved &&
-          paymentFee !== null
-        ) {
+        if (paymentFee !== null) {
           await tx.payment.upsert({
             create: {
               amountCents: paymentFee.amountCents,
@@ -976,21 +973,19 @@ export async function createPublicEventRegistrationAction(
           });
           return { redirectToCheckout: true };
         }
-        if (status === EventRegistrationStatus.approved) {
-          await tx.payment.updateMany({
-            data: { status: PaymentStatus.cancelled },
-            where: {
-              registrationId,
-              status: {
-                in: [
-                  PaymentStatus.checkout_created,
-                  PaymentStatus.past_due,
-                  PaymentStatus.pending,
-                ],
-              },
+        await tx.payment.updateMany({
+          data: { status: PaymentStatus.cancelled },
+          where: {
+            registrationId,
+            status: {
+              in: [
+                PaymentStatus.checkout_created,
+                PaymentStatus.past_due,
+                PaymentStatus.pending,
+              ],
             },
-          });
-        }
+          },
+        });
         return { redirectToCheckout: false };
       },
       {

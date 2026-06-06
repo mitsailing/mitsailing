@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
+import {
+  EventRegistrationStatus,
+  PaymentPurpose,
+  PaymentStatus,
+} from '@/generated/prisma/enums';
 
 const mocks = vi.hoisted(() => ({
   eventFindFirst: vi.fn(),
@@ -76,7 +80,66 @@ describe('getEventPaymentCheckoutPageData', () => {
       },
       where: {
         eventId: 'event-1',
-        status: 'approved',
+        status: {
+          in: [
+            EventRegistrationStatus.approved,
+            EventRegistrationStatus.pending,
+          ],
+        },
+        userId: 'user-1',
+      },
+    });
+  });
+
+  it('loads payment from the latest pending registration', async () => {
+    mocks.eventRegistrationFindFirst.mockResolvedValue({
+      payment: {
+        amountCents: 1500,
+        id: 'payment-pending',
+        purpose: PaymentPurpose.event_payment,
+        status: PaymentStatus.pending,
+        stripeReceiptUrl: null,
+      },
+    });
+    const { getEventPaymentCheckoutPageData } =
+      await import('@/libs/mit-sailing/eventPaymentCheckoutQueries');
+
+    await expect(
+      getEventPaymentCheckoutPageData('intro-sail', 'user-1')
+    ).resolves.toEqual({
+      event: {
+        id: 'event-1',
+        name: 'Intro Sail',
+        slug: 'intro-sail',
+      },
+      payment: {
+        amountCents: 1500,
+        id: 'payment-pending',
+        receiptUrl: null,
+        status: PaymentStatus.pending,
+      },
+    });
+    expect(mocks.eventRegistrationFindFirst).toHaveBeenCalledWith({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        payment: {
+          select: {
+            amountCents: true,
+            id: true,
+            purpose: true,
+            status: true,
+            stripeReceiptUrl: true,
+          },
+        },
+      },
+      where: {
+        eventId: 'event-1',
+        status: {
+          in: [
+            EventRegistrationStatus.approved,
+            EventRegistrationStatus.pending,
+          ],
+        },
         userId: 'user-1',
       },
     });
