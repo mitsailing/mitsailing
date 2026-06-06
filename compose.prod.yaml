@@ -209,12 +209,8 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          'wget',
-          '--quiet',
-          '--tries=1',
-          '--spider',
-          'http://127.0.0.1:8025/mail/readyz',
+          'CMD-SHELL',
+          'wget --quiet --tries=1 --spider "http://127.0.0.1:8025$${MP_WEBROOT:-/}readyz"',
         ]
       interval: 10s
       timeout: 5s
@@ -252,7 +248,7 @@ services:
       test:
         [
           'CMD-SHELL',
-          'ruby -rnet/http -e ''exit Net::HTTP.get_response(URI("http://127.0.0.1:8080/pghero/health")).code == "200" ? 0 : 1''',
+          'ruby -rnet/http -e ''exit Net::HTTP.get_response(URI("http://127.0.0.1:8080#{ENV.fetch("RAILS_RELATIVE_URL_ROOT", "")}/health")).code == "200" ? 0 : 1''',
         ]
       interval: 30s
       timeout: 5s

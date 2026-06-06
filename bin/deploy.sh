@@ -43,6 +43,8 @@ readonly DEPLOY_HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
 # The app release drain is intentionally short: tusd/media keep handling uploads
 # outside the blue/green web cutover, and nginx upload timeouts track this value.
 readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-120}"
+readonly MAILPIT_ROUTE="/mail"
+readonly PGHERO_ROUTE="/pghero"
 # A server admin must create the default root-owned tree before deploy. Rootless
 # hosts may set PRODUCTION_DATA_ROOT to a prepared deploy-user-owned path.
 readonly PRODUCTION_DATA_ROOT_WAS_SET="${PRODUCTION_DATA_ROOT+x}"
@@ -273,11 +275,11 @@ server {
   send_timeout ${DEPLOY_DRAIN_SECONDS}s;
   keepalive_timeout 75s;
 
-  location = /mail {
-    return 308 /mail/;
+  location = ${MAILPIT_ROUTE} {
+    return 308 ${MAILPIT_ROUTE}/;
   }
 
-  location /mail/ {
+  location ${MAILPIT_ROUTE}/ {
     proxy_pass http://mailpit:8025;
     proxy_http_version 1.1;
     proxy_request_buffering off;
@@ -295,11 +297,11 @@ server {
     proxy_set_header Connection \$connection_upgrade;
   }
 
-  location = /pghero {
-    return 308 /pghero/;
+  location = ${PGHERO_ROUTE} {
+    return 308 ${PGHERO_ROUTE}/;
   }
 
-  location /pghero/ {
+  location ${PGHERO_ROUTE}/ {
     proxy_pass http://pghero:8080;
     proxy_http_version 1.1;
     proxy_request_buffering off;
@@ -313,7 +315,7 @@ server {
     proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Host \$host;
     proxy_set_header X-Forwarded-Proto \$forwarded_proto;
-    proxy_set_header X-Forwarded-Prefix /pghero;
+    proxy_set_header X-Forwarded-Prefix ${PGHERO_ROUTE};
     proxy_set_header Upgrade \$http_upgrade;
     proxy_set_header Connection \$connection_upgrade;
   }
