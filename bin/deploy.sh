@@ -295,12 +295,11 @@ server {
     proxy_set_header Connection \$connection_upgrade;
   }
 
-  location = /_ops/harbor-watch {
-    return 308 /_ops/harbor-watch/;
+  location = /pghero {
+    return 308 /pghero/;
   }
 
-  location /_ops/harbor-watch/ {
-    auth_request /api/internal/pghero-auth;
+  location /pghero/ {
     proxy_pass http://pghero:8080;
     proxy_http_version 1.1;
     proxy_request_buffering off;
@@ -314,23 +313,9 @@ server {
     proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Host \$host;
     proxy_set_header X-Forwarded-Proto \$forwarded_proto;
-    proxy_set_header X-Forwarded-Prefix /_ops/harbor-watch;
+    proxy_set_header X-Forwarded-Prefix /pghero;
     proxy_set_header Upgrade \$http_upgrade;
     proxy_set_header Connection \$connection_upgrade;
-  }
-
-  location = /api/internal/pghero-auth {
-    internal;
-    proxy_pass http://mitsailing_next;
-    proxy_pass_request_body off;
-    proxy_set_header Content-Length "";
-    proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Host \$host;
-    proxy_set_header X-Forwarded-Proto \$forwarded_proto;
-    proxy_set_header X-Original-URI \$request_uri;
-    proxy_set_header Cookie \$http_cookie;
   }
 
   location / {

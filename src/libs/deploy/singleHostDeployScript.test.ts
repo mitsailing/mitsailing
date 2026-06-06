@@ -20,7 +20,7 @@ const mailpitProxyHeaders = [
 const pgheroProxyHeaders = [
   String.raw`proxy_set_header Host \$host;`,
   String.raw`proxy_set_header X-Forwarded-Proto \$forwarded_proto;`,
-  String.raw`proxy_set_header X-Forwarded-Prefix /_ops/harbor-watch;`,
+  String.raw`proxy_set_header X-Forwarded-Prefix /pghero;`,
   String.raw`proxy_set_header Upgrade \$http_upgrade;`,
   String.raw`proxy_set_header Connection \$connection_upgrade;`,
 ];
@@ -159,20 +159,13 @@ describe('single host deploy script', () => {
     }
   });
 
-  it('proxies PgHero behind top-admin app auth at a non-product-name ops path', () => {
-    expect(script).toContain('location = /_ops/harbor-watch');
-    expect(script).toContain('return 308 /_ops/harbor-watch/;');
-    expect(script).toContain('location /_ops/harbor-watch/');
-    expect(script).toContain('auth_request /api/internal/pghero-auth;');
+  it('proxies PgHero behind PgHero basic auth at /pghero', () => {
+    expect(script).toContain('location = /pghero');
+    expect(script).toContain('return 308 /pghero/;');
+    expect(script).toContain('location /pghero/');
     expect(script).toContain('proxy_pass http://pghero:8080;');
-    expect(script).toContain('location = /api/internal/pghero-auth');
-    expect(script).toContain('internal;');
-    expect(script).toContain('proxy_pass http://mitsailing_next;');
-    expect(script).toContain('proxy_pass_request_body off;');
-    expect(script).toContain('proxy_set_header Content-Length "";');
-    expect(script).toContain(
-      String.raw`proxy_set_header Cookie \$http_cookie;`
-    );
+    expect(script).not.toContain('auth_request /api/internal/pghero-auth;');
+    expect(script).not.toContain('location = /api/internal/pghero-auth');
     for (const header of pgheroProxyHeaders) {
       expect(script).toContain(header);
     }

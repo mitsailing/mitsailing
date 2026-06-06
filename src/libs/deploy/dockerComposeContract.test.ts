@@ -251,7 +251,7 @@ describe('production docker compose', () => {
       'uses `--autoupdate-freq 24h` as a security override'
     );
     expect(productionReadinessChecklist).toContain(
-      'PgHero is top-admin gated by app auth and has CPU/memory limits.'
+      'PgHero is protected by PgHero basic auth and has CPU/memory limits.'
     );
   });
 
@@ -281,7 +281,7 @@ describe('production docker compose', () => {
       `${productionDataRoot}/mailpit`,
       'target: /data',
       'create_host_path: false',
-      'http://127.0.0.1:8025/readyz',
+      'http://127.0.0.1:8025/mail/readyz',
     ]);
     expect(mailpitBlock).not.toContain('ports:');
     expect(appBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
@@ -289,15 +289,17 @@ describe('production docker compose', () => {
     expect(workerBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
   });
 
-  it('runs PgHero as a private admin-gated operations service', () => {
+  it('runs PgHero as a private basic-auth operations service', () => {
     const appBlock = readYamlServiceBlock(productionCompose, 'app');
     const pgheroBlock = readYamlServiceBlock(productionCompose, 'pghero');
 
     expectContainsFragments(pgheroBlock, [
       'image: ankane/pghero:v3.8.0',
       `DATABASE_URL: ${composeVariable('PGHERO_DATABASE_URL:?set PGHERO_DATABASE_URL')}`,
-      'RAILS_RELATIVE_URL_ROOT: /_ops/harbor-watch',
-      'http://127.0.0.1:8080/health',
+      `PGHERO_USERNAME: ${composeVariable('PGHERO_USERNAME:?set PGHERO_USERNAME')}`,
+      `PGHERO_PASSWORD: ${composeVariable('PGHERO_PASSWORD:?set PGHERO_PASSWORD')}`,
+      'RAILS_RELATIVE_URL_ROOT: /pghero',
+      'http://127.0.0.1:8080/pghero/health',
       "cpus: '0.25'",
       'memory: 512M',
       "cpus: '0.05'",
@@ -305,10 +307,9 @@ describe('production docker compose', () => {
     ]);
     expect(pgheroBlock).not.toContain('ports:');
     expect(appBlock).toMatch(/pghero:\s+condition: service_healthy/u);
-    expect(deployRunbook).toContain(
-      'PgHero is served at `/_ops/harbor-watch/`'
-    );
-    expect(deployRunbook).toContain('top-level app admins');
+    expect(deployRunbook).toContain('PgHero is served at `/pghero/`');
+    expect(deployRunbook).toContain('PGHERO_USERNAME');
+    expect(deployRunbook).toContain('PGHERO_PASSWORD');
     expect(deployRunbook).toContain('https://pgtune.leopard.in.ua/');
   });
 
@@ -599,6 +600,25 @@ describe('production deploy script', () => {
     expect(deployScript).toContain('NGINX_STATE_DIR');
     expect(deployScript).toContain('chmod 700 "$DEPLOY_STATE_DIR"');
     expect(deployScript).toContain('chmod 700 "$NGINX_STATE_DIR"');
+  });
+
+  it('generates subpath routes for production operations services', () => {
+    expect(deployScript).toContain('location = /mail');
+    expect(deployScript).toContain('return 308 /mail/;');
+    expect(deployScript).toContain('location /mail/');
+    expect(deployScript).toContain('proxy_pass http://mailpit:8025;');
+    expect(deployScript).toContain('location = /pghero');
+    expect(deployScript).toContain('return 308 /pghero/;');
+    expect(deployScript).toContain('location /pghero/');
+    expect(deployScript).toContain('proxy_pass http://pghero:8080;');
+    expect(deployScript).toContain(
+      'proxy_set_header X-Forwarded-Prefix /pghero;'
+    );
+    expect(deployScript).not.toContain(
+      'auth_request /api/internal/pghero-auth'
+    );
+    expect(deployScript).not.toContain('location = /api/internal/pghero-auth');
+    expect(deployScript).not.toContain('/_ops/harbor-watch');
   });
 
   it('verifies production data mounts before running migrations', () => {
