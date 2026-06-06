@@ -295,6 +295,44 @@ server {
     proxy_set_header Connection \$connection_upgrade;
   }
 
+  location = /_ops/harbor-watch {
+    return 308 /_ops/harbor-watch/;
+  }
+
+  location /_ops/harbor-watch/ {
+    auth_request /api/internal/pghero-auth;
+    proxy_pass http://pghero:8080;
+    proxy_http_version 1.1;
+    proxy_request_buffering off;
+    proxy_buffering off;
+    proxy_connect_timeout 30s;
+    proxy_send_timeout ${DEPLOY_DRAIN_SECONDS}s;
+    proxy_read_timeout ${DEPLOY_DRAIN_SECONDS}s;
+    proxy_next_upstream off;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Host \$host;
+    proxy_set_header X-Forwarded-Proto \$forwarded_proto;
+    proxy_set_header X-Forwarded-Prefix /_ops/harbor-watch;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection \$connection_upgrade;
+  }
+
+  location = /api/internal/pghero-auth {
+    internal;
+    proxy_pass http://mitsailing_next;
+    proxy_pass_request_body off;
+    proxy_set_header Content-Length "";
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Host \$host;
+    proxy_set_header X-Forwarded-Proto \$forwarded_proto;
+    proxy_set_header X-Original-URI \$request_uri;
+    proxy_set_header Cookie \$http_cookie;
+  }
+
   location / {
     proxy_pass http://mitsailing_next;
     proxy_http_version 1.1;
@@ -387,10 +425,11 @@ run_migrations_for_service() {
 
 ensure_ingress_services() {
   log "ensuring data, mail, upload, and media services are running"
-  compose up --detach --no-recreate postgres redis mailpit tusd media
+  compose up --detach --no-recreate postgres redis mailpit pghero tusd media
   wait_for_service_health postgres "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health redis "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health mailpit "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  wait_for_service_health pghero "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health tusd "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health media "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   verify_production_bind_mounts

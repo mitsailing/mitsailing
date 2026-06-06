@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-06-05.
 
-These checklists capture the production expectations for Redis, BullMQ, the CMS rich text editor, Mailpit email capture, and Docker/Compose. Keep this file focused on operationally meaningful checks: configuration, runtime behavior, security boundaries, and verification evidence.
+These checklists capture the production expectations for Redis, BullMQ, the CMS rich text editor, Mailpit email capture, PgHero database visibility, and Docker/Compose. Keep this file focused on operationally meaningful checks: configuration, runtime behavior, security boundaries, and verification evidence.
 
 ## Official references
 
@@ -21,6 +21,10 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 - [Mailpit integration testing](https://mailpit.axllent.org/docs/integration/)
 - [Mailpit healthchecks](https://mailpit.axllent.org/docs/integration/healthcheck/)
 - [Mailpit search filters](https://mailpit.axllent.org/docs/usage/search-filters/)
+- [PgHero Docker guide](https://github.com/ankane/pghero/blob/master/guides/Docker.md)
+- [PgHero permissions guide](https://github.com/ankane/pghero/blob/master/guides/Permissions.md)
+- [PgHero query stats guide](https://github.com/ankane/pghero/blob/master/guides/Query-Stats.md)
+- [PgTune](https://pgtune.leopard.in.ua/)
 - [Docker Compose services reference](https://docs.docker.com/reference/compose-file/services/)
 - [Docker build best practices](https://docs.docker.com/build/building/best-practices/)
 - [Docker multi-stage builds](https://docs.docker.com/build/building/multi-stage/)
@@ -92,6 +96,17 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | Test cleanup uses Mailpit API deletion. | Pass | `deleteAllMessages()` calls `DELETE /api/v1/messages`; individual tests also use unique recipient addresses to avoid parallel-worker collisions. |
 | Unauthenticated Mailpit is limited to local development. | Pass | Local Compose accepts any SMTP credentials only on loopback. Shared staging/production capture uses `MAILPIT_UI_AUTH`, app nginx proxies Mailpit at `/mail/`, and Cloudflare Access/rate limiting protects the path. |
 | Mailpit CORS is not opened broadly. | Pass | No `MP_API_CORS=*` or browser cross-origin Mailpit API access is configured; tests call the API server-side from Playwright helpers. |
+
+## PgHero
+
+| Check | Status | Current evidence |
+| --- | --- | --- |
+| PgHero stays in its own container and is not published externally. | Pass | `compose.prod.yaml` runs `ankane/pghero:v3.8.0` on the internal network with no `ports:` mapping. |
+| PgHero is top-admin gated by app auth and has CPU/memory limits. | Pass | app nginx proxies `/_ops/harbor-watch/` only after `auth_request /api/internal/pghero-auth`; the endpoint allows only `Role.ADMIN`. Compose limits PgHero to `0.25` CPU and `512M` memory with `0.05` CPU and `128M` reservations. |
+| PgHero uses a dedicated database URL. | Pass | `PGHERO_DATABASE_URL` is required separately from `DATABASE_URL`; the env examples use a `pghero` role. |
+| Query stats can be enabled without production-only drift. | Pass | Compose preloads `pg_stat_statements` with PgHero's documented settings, and the Prisma migration creates the extension. |
+| PostgreSQL tuning changes stay reviewable. | Watch | PgHero's Tune page links PgTune; operators should use `https://pgtune.leopard.in.ua/` with actual host RAM/CPU and PostgreSQL version, then commit reviewed Compose/Postgres config changes instead of hand-editing production. |
+| PgHero image updates are automated. | Pass | Dependabot monitors Docker Compose service images, so `ankane/pghero` updates arrive as PRs with CI and image scanning. |
 
 ## Docker and Compose
 

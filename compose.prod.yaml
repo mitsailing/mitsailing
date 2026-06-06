@@ -89,6 +89,8 @@ services:
     depends_on:
       mailpit:
         condition: service_healthy
+      pghero:
+        condition: service_healthy
     volumes:
       - type: bind
         source: ./.deploy/nginx
@@ -225,6 +227,43 @@ services:
         reservations:
           cpus: '0.05'
           memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  pghero:
+    image: ankane/pghero:v3.8.0
+    restart: unless-stopped
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      DATABASE_URL: ${PGHERO_DATABASE_URL:?set PGHERO_DATABASE_URL}
+      RAILS_RELATIVE_URL_ROOT: /_ops/harbor-watch
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'ruby -rnet/http -e ''exit Net::HTTP.get_response(URI("http://127.0.0.1:8080/health")).code == "200" ? 0 : 1''',
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 512M
+        reservations:
+          cpus: '0.05'
+          memory: 128M
     logging:
       driver: json-file
       options:

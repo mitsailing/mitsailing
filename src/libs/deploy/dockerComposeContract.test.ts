@@ -70,6 +70,8 @@ describe('production docker compose', () => {
     expect(productionCompose).toContain("command: ['node', 'worker.mjs']");
     expect(productionCompose).toContain('mailpit:');
     expect(productionCompose).toContain('image: axllent/mailpit:v1.30.1');
+    expect(productionCompose).toContain('pghero:');
+    expect(productionCompose).toContain('image: ankane/pghero:v3.8.0');
     expect(productionCompose).toContain('tusd:');
     expect(productionCompose).toContain('image: tusproject/tusd:v2.9.2');
     expect(productionCompose).toContain("user: '1001:1001'");
@@ -123,6 +125,19 @@ describe('production docker compose', () => {
     expect(baseCompose).toContain('CONFIG GET maxmemory-policy');
   });
 
+  it('loads pg_stat_statements for PgHero query stats', () => {
+    const baseCompose = readRepoFile('compose.yaml');
+    const postgresBlock = readYamlServiceBlock(baseCompose, 'postgres');
+
+    expectContainsFragments(postgresBlock, [
+      '- postgres',
+      '- shared_preload_libraries=pg_stat_statements',
+      '- pg_stat_statements.track=all',
+      '- pg_stat_statements.max=10000',
+      '- track_activity_query_size=2048',
+    ]);
+  });
+
   it('prevents privilege escalation for public production services', () => {
     const servicesStart = productionCompose.indexOf('services:');
     expect(servicesStart).toBeGreaterThanOrEqual(0);
@@ -137,6 +152,7 @@ describe('production docker compose', () => {
     const appBlock = readYamlServiceBlock(productionCompose, 'app');
     const workerBlock = readYamlServiceBlock(productionCompose, 'worker');
     const mailpitBlock = readYamlServiceBlock(productionCompose, 'mailpit');
+    const pgheroBlock = readYamlServiceBlock(productionCompose, 'pghero');
     const tusdBlock = readYamlServiceBlock(productionCompose, 'tusd');
     const mediaBlock = readYamlServiceBlock(productionCompose, 'media');
     const cloudflaredBlock = readYamlServiceBlock(
@@ -152,6 +168,7 @@ describe('production docker compose', () => {
       appBlock,
       workerBlock,
       mailpitBlock,
+      pgheroBlock,
       tusdBlock,
       mediaBlock,
       cloudflaredBlock,
@@ -233,6 +250,9 @@ describe('production docker compose', () => {
     expect(productionReadinessChecklist).toContain(
       'uses `--autoupdate-freq 24h` as a security override'
     );
+    expect(productionReadinessChecklist).toContain(
+      'PgHero is top-admin gated by app auth and has CPU/memory limits.'
+    );
   });
 
   it('runs production Mailpit behind authenticated app nginx', () => {
@@ -267,6 +287,29 @@ describe('production docker compose', () => {
     expect(appBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
     expect(webDefaultsBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
     expect(workerBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
+  });
+
+  it('runs PgHero as a private admin-gated operations service', () => {
+    const appBlock = readYamlServiceBlock(productionCompose, 'app');
+    const pgheroBlock = readYamlServiceBlock(productionCompose, 'pghero');
+
+    expectContainsFragments(pgheroBlock, [
+      'image: ankane/pghero:v3.8.0',
+      `DATABASE_URL: ${composeVariable('PGHERO_DATABASE_URL:?set PGHERO_DATABASE_URL')}`,
+      'RAILS_RELATIVE_URL_ROOT: /_ops/harbor-watch',
+      'http://127.0.0.1:8080/health',
+      "cpus: '0.25'",
+      'memory: 512M',
+      "cpus: '0.05'",
+      'memory: 128M',
+    ]);
+    expect(pgheroBlock).not.toContain('ports:');
+    expect(appBlock).toMatch(/pghero:\s+condition: service_healthy/u);
+    expect(deployRunbook).toContain(
+      'PgHero is served at `/_ops/harbor-watch/`'
+    );
+    expect(deployRunbook).toContain('top-level app admins');
+    expect(deployRunbook).toContain('https://pgtune.leopard.in.ua/');
   });
 
   it('documents protected Mailpit UI verification', () => {

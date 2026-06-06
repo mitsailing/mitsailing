@@ -17,6 +17,14 @@ const mailpitProxyHeaders = [
   String.raw`proxy_set_header Connection \$connection_upgrade;`,
 ];
 
+const pgheroProxyHeaders = [
+  String.raw`proxy_set_header Host \$host;`,
+  String.raw`proxy_set_header X-Forwarded-Proto \$forwarded_proto;`,
+  String.raw`proxy_set_header X-Forwarded-Prefix /_ops/harbor-watch;`,
+  String.raw`proxy_set_header Upgrade \$http_upgrade;`,
+  String.raw`proxy_set_header Connection \$connection_upgrade;`,
+];
+
 describe('single host deploy script', () => {
   const script = readRepoFile('bin/deploy.sh');
   const deployDrainSeconds = `${shellVariable('DEPLOY_DRAIN_SECONDS')}s`;
@@ -124,10 +132,10 @@ describe('single host deploy script', () => {
       'compose up --detach --no-recreate postgres redis'
     );
     expect(script).toContain(
-      'compose up --detach --no-recreate postgres redis mailpit tusd media'
+      'compose up --detach --no-recreate postgres redis mailpit pghero tusd media'
     );
     expect(script).toMatch(
-      /ensure_ingress_services\(\) \{[\s\S]*wait_for_service_health mailpit "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health tusd "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*verify_production_bind_mounts/u
+      /ensure_ingress_services\(\) \{[\s\S]*wait_for_service_health mailpit "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health pghero "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health tusd "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*verify_production_bind_mounts/u
     );
     expect(script).toContain('compose up --detach --no-deps cloudflared');
     expect(script).toMatch(
@@ -147,6 +155,25 @@ describe('single host deploy script', () => {
     expect(script).toContain(`proxy_send_timeout ${deployDrainSeconds};`);
     expect(script).toContain(`proxy_read_timeout ${deployDrainSeconds};`);
     for (const header of mailpitProxyHeaders) {
+      expect(script).toContain(header);
+    }
+  });
+
+  it('proxies PgHero behind top-admin app auth at a non-product-name ops path', () => {
+    expect(script).toContain('location = /_ops/harbor-watch');
+    expect(script).toContain('return 308 /_ops/harbor-watch/;');
+    expect(script).toContain('location /_ops/harbor-watch/');
+    expect(script).toContain('auth_request /api/internal/pghero-auth;');
+    expect(script).toContain('proxy_pass http://pghero:8080;');
+    expect(script).toContain('location = /api/internal/pghero-auth');
+    expect(script).toContain('internal;');
+    expect(script).toContain('proxy_pass http://mitsailing_next;');
+    expect(script).toContain('proxy_pass_request_body off;');
+    expect(script).toContain('proxy_set_header Content-Length "";');
+    expect(script).toContain(
+      String.raw`proxy_set_header Cookie \$http_cookie;`
+    );
+    for (const header of pgheroProxyHeaders) {
       expect(script).toContain(header);
     }
   });
