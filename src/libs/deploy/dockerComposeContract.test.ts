@@ -35,6 +35,12 @@ function expectMailpitRelayEnvExample(envExample: string): void {
   expect(envExample).not.toContain('EMAIL_REAL_DELIVERY_ALLOWLIST');
 }
 
+function expectContainsFragments(source: string, fragments: string[]): void {
+  for (const fragment of fragments) {
+    expect(source).toContain(fragment);
+  }
+}
+
 describe('production docker compose', () => {
   const productionCompose = readRepoFile('compose.prod.yaml');
   const deployRunbook = readRepoFile('docs/deploy.md');
@@ -210,43 +216,25 @@ describe('production docker compose', () => {
     const workerBlock = readYamlServiceBlock(productionCompose, 'worker');
     const mailpitBlock = readYamlServiceBlock(productionCompose, 'mailpit');
 
-    expect(mailpitBlock).toContain('image: axllent/mailpit:v1.30.0');
-    expect(mailpitBlock).toContain(
-      `MP_MAX_MESSAGES: ${composeVariable('MAILPIT_MAX_MESSAGES:-10000')}`
-    );
-    expect(mailpitBlock).toContain(
-      `MP_MAX_AGE: ${composeVariable('MAILPIT_MAX_AGE:-30d')}`
-    );
-    expect(mailpitBlock).toContain('MP_DATABASE: /data/mailpit.db');
-    expect(mailpitBlock).toContain('MP_WEBROOT: /mail/');
-    expect(mailpitBlock).toContain(
-      `MP_UI_AUTH: ${composeVariable('MAILPIT_UI_AUTH:?set MAILPIT_UI_AUTH')}`
-    );
-    expect(mailpitBlock).toContain(
-      `MP_SMTP_RELAY_HOST: ${composeVariable('MAILPIT_SMTP_RELAY_HOST:-smtp.resend.com')}`
-    );
-    expect(mailpitBlock).toContain(
-      `MP_SMTP_RELAY_PORT: ${composeVariable('MAILPIT_SMTP_RELAY_PORT:-587')}`
-    );
-    expect(mailpitBlock).toContain(
-      `MP_SMTP_RELAY_STARTTLS: ${composeVariable('MAILPIT_SMTP_RELAY_STARTTLS:-true')}`
-    );
-    expect(mailpitBlock).toContain(
-      `MP_SMTP_RELAY_AUTH: ${composeVariable('MAILPIT_SMTP_RELAY_AUTH:-plain')}`
-    );
-    expect(mailpitBlock).toContain(
-      `MP_SMTP_RELAY_USERNAME: ${composeVariable('MAILPIT_SMTP_RELAY_USERNAME:-resend')}`
-    );
-    expect(mailpitBlock).toContain(
-      `MP_SMTP_RELAY_PASSWORD: ${composeVariable('RESEND_API_KEY:?set RESEND_API_KEY')}`
-    );
-    expect(mailpitBlock).toContain(
-      `MP_SMTP_RELAY_MATCHING: ${composeVariable('MAILPIT_SMTP_RELAY_MATCHING:?set MAILPIT_SMTP_RELAY_MATCHING')}`
-    );
-    expect(mailpitBlock).toContain(`${productionDataRoot}/mailpit`);
-    expect(mailpitBlock).toContain('target: /data');
-    expect(mailpitBlock).toContain('create_host_path: false');
-    expect(mailpitBlock).toContain('http://127.0.0.1:8025/readyz');
+    expectContainsFragments(mailpitBlock, [
+      'image: axllent/mailpit:v1.30.0',
+      `MP_MAX_MESSAGES: ${composeVariable('MAILPIT_MAX_MESSAGES:-10000')}`,
+      `MP_MAX_AGE: ${composeVariable('MAILPIT_MAX_AGE:-30d')}`,
+      'MP_DATABASE: /data/mailpit.db',
+      'MP_WEBROOT: /mail/',
+      `MP_UI_AUTH: ${composeVariable('MAILPIT_UI_AUTH:?set MAILPIT_UI_AUTH')}`,
+      `MP_SMTP_RELAY_HOST: ${composeVariable('MAILPIT_SMTP_RELAY_HOST:-smtp.resend.com')}`,
+      `MP_SMTP_RELAY_PORT: ${composeVariable('MAILPIT_SMTP_RELAY_PORT:-587')}`,
+      `MP_SMTP_RELAY_STARTTLS: ${composeVariable('MAILPIT_SMTP_RELAY_STARTTLS:-true')}`,
+      `MP_SMTP_RELAY_AUTH: ${composeVariable('MAILPIT_SMTP_RELAY_AUTH:-plain')}`,
+      `MP_SMTP_RELAY_USERNAME: ${composeVariable('MAILPIT_SMTP_RELAY_USERNAME:-resend')}`,
+      `MP_SMTP_RELAY_PASSWORD: ${composeVariable('RESEND_API_KEY:?set RESEND_API_KEY')}`,
+      `MP_SMTP_RELAY_MATCHING: ${composeVariable('MAILPIT_SMTP_RELAY_MATCHING:?set MAILPIT_SMTP_RELAY_MATCHING')}`,
+      `${productionDataRoot}/mailpit`,
+      'target: /data',
+      'create_host_path: false',
+      'http://127.0.0.1:8025/readyz',
+    ]);
     expect(mailpitBlock).not.toContain('ports:');
     expect(appBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
     expect(webDefaultsBlock).toMatch(/mailpit:\s+condition: service_healthy/u);
