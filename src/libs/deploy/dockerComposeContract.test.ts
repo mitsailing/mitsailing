@@ -20,6 +20,21 @@ function composeVariable(value: string): string {
   return `\${${value}}`;
 }
 
+function expectMailpitRelayEnvExample(envExample: string): void {
+  for (const fragment of [
+    'MAIL_TRANSPORT=smtp',
+    'MAILPIT_UI_AUTH=',
+    'MAILPIT_SMTP_RELAY_MATCHING=(?i)^',
+    String.raw`ak(\+[^@]+)?@callred\.com`,
+    String.raw`delivered(\+[^@]+)?@resend\.dev`,
+    String.raw`suppressed@resend\.dev`,
+    String.raw`)\z`,
+  ]) {
+    expect(envExample).toContain(fragment);
+  }
+  expect(envExample).not.toContain('EMAIL_REAL_DELIVERY_ALLOWLIST');
+}
+
 describe('production docker compose', () => {
   const productionCompose = readRepoFile('compose.prod.yaml');
   const deployRunbook = readRepoFile('docs/deploy.md');
@@ -450,26 +465,12 @@ describe('local Mailpit capture', () => {
   });
 
   it('keeps shared and production Mailpit capture authenticated', () => {
-    expect(stagingEnvExample).toContain('MAIL_TRANSPORT=smtp');
-    expect(stagingEnvExample).toContain('MAILPIT_UI_AUTH=');
-    expect(stagingEnvExample).toContain('MAILPIT_SMTP_RELAY_MATCHING=(?i)^');
-    expect(stagingEnvExample).toContain('ak(\\+[^@]+)?@callred\\.com');
-    expect(stagingEnvExample).toContain('delivered(\\+[^@]+)?@resend\\.dev');
-    expect(stagingEnvExample).toContain('suppressed@resend\\.dev');
-    expect(stagingEnvExample).toContain(')\\z');
-    expect(stagingEnvExample).not.toContain('EMAIL_REAL_DELIVERY_ALLOWLIST');
-    expect(productionEnvExample).toContain('MAIL_TRANSPORT=smtp');
+    expectMailpitRelayEnvExample(stagingEnvExample);
+    expectMailpitRelayEnvExample(productionEnvExample);
     expect(productionEnvExample).toContain('SMTP_URL=smtp://mailpit:1025');
     expect(productionEnvExample).toContain(
       'MAILPIT_API_URL=http://mailpit:8025'
     );
-    expect(productionEnvExample).toContain('MAILPIT_SMTP_RELAY_MATCHING=(?i)^');
-    expect(productionEnvExample).toContain('ak(\\+[^@]+)?@callred\\.com');
-    expect(productionEnvExample).toContain('delivered(\\+[^@]+)?@resend\\.dev');
-    expect(productionEnvExample).toContain('suppressed@resend\\.dev');
-    expect(productionEnvExample).toContain(')\\z');
-    expect(productionEnvExample).not.toContain('EMAIL_REAL_DELIVERY_ALLOWLIST');
-    expect(productionEnvExample).toContain('MAILPIT_UI_AUTH=');
   });
 });
 

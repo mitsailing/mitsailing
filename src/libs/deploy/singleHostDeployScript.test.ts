@@ -10,6 +10,13 @@ function shellVariable(value: string): string {
   return `${String.fromCodePoint(36)}{${value}}`;
 }
 
+const mailpitProxyHeaders = [
+  String.raw`proxy_set_header Host \$host;`,
+  String.raw`proxy_set_header X-Forwarded-Proto \$forwarded_proto;`,
+  String.raw`proxy_set_header Upgrade \$http_upgrade;`,
+  String.raw`proxy_set_header Connection \$connection_upgrade;`,
+];
+
 describe('single host deploy script', () => {
   const script = readRepoFile('bin/deploy.sh');
   const deployDrainSeconds = `${shellVariable('DEPLOY_DRAIN_SECONDS')}s`;
@@ -139,14 +146,9 @@ describe('single host deploy script', () => {
     expect(script).toContain('proxy_pass http://mailpit:8025;');
     expect(script).toContain(`proxy_send_timeout ${deployDrainSeconds};`);
     expect(script).toContain(`proxy_read_timeout ${deployDrainSeconds};`);
-    expect(script).toContain('proxy_set_header Host \\$host;');
-    expect(script).toContain(
-      'proxy_set_header X-Forwarded-Proto \\$forwarded_proto;'
-    );
-    expect(script).toContain('proxy_set_header Upgrade \\$http_upgrade;');
-    expect(script).toContain(
-      'proxy_set_header Connection \\$connection_upgrade;'
-    );
+    for (const header of mailpitProxyHeaders) {
+      expect(script).toContain(header);
+    }
   });
 
   it('waits for media maintenance services to pass health checks', () => {
