@@ -110,11 +110,13 @@ Mailpit UI is served by app nginx at `/mail/` and proxied to the in-stack
 `mailpit:8025` service. Keep the tunnel route as `everything else -> app:3000`;
 do not expose Mailpit as its own public Cloudflare origin.
 
-Production pins the `cloudflare/cloudflared` container tag and runs with
-`--no-autoupdate`, matching Cloudflare's container examples. Cloudflare supports
-runtime auto-updates for service installs, but container updates should happen
-through Dependabot PRs so CI, image scanning, and production approval gates run
-before the tunnel binary changes.
+Production pins the `cloudflare/cloudflared` container tag so base deploys stay
+reviewable through Dependabot PRs, CI, image scanning, and production approval.
+As a security override, the running tunnel also enables Cloudflare's
+`cloudflared` runtime auto-update check with `--autoupdate-freq 24h`. Cloudflare
+documents that updates restart `cloudflared` and can affect traffic currently
+being served; accept that risk so tunnel security fixes are not delayed until the
+next app deploy.
 
 Mailpit also owns outbound pass-through. `compose.prod.yaml` wires
 `MP_SMTP_RELAY_*` to Resend SMTP and `MAILPIT_SMTP_RELAY_MATCHING` controls the

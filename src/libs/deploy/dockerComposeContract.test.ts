@@ -204,7 +204,9 @@ describe('production docker compose', () => {
     );
     expect(productionCompose).not.toContain('cloudflare/cloudflared:latest');
     expect(productionCompose).toContain('CLOUDFLARE_TUNNEL_TOKEN');
-    expect(cloudflaredBlock).toContain('--no-autoupdate');
+    expect(cloudflaredBlock).toContain('--autoupdate-freq');
+    expect(cloudflaredBlock).toContain('- 24h');
+    expect(cloudflaredBlock).not.toContain('--no-autoupdate');
     expect(cloudflaredBlock).toContain('depends_on:');
     expect(cloudflaredBlock).toContain('app:');
     expect(cloudflaredBlock).toContain('tusd:');
@@ -229,7 +231,7 @@ describe('production docker compose', () => {
       'Dependabot monitors Dockerfile and Docker Compose images.'
     );
     expect(productionReadinessChecklist).toContain(
-      'does not self-update at runtime'
+      'uses `--autoupdate-freq 24h` as a security override'
     );
   });
 
