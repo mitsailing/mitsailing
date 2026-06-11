@@ -293,12 +293,14 @@ describe('handleMembershipStripeWebhookEvent', () => {
         db,
         event: membershipEvent('invoice.paid', {
           amount_paid: 12_500,
+          billing_reason: 'subscription_cycle',
           currency: 'usd',
           customer: 'cus_test',
           charge: 'ch_invoice',
           hosted_invoice_url: 'https://pay.stripe.com/invoice/test',
           id: 'in_test',
           invoice_pdf: 'https://pay.stripe.com/invoice/test/pdf',
+          lines: { data: [{ period: { start: 1_784_088_000 } }] },
           parent: { subscription_details: { metadata: membershipMetadata() } },
           payment_intent: 'pi_test',
           subscription: subscriptionObject({ status: 'active' }),
@@ -306,12 +308,21 @@ describe('handleMembershipStripeWebhookEvent', () => {
       })
     ).resolves.toEqual({ handled: true });
 
+    expect(db.payment.findFirst).toHaveBeenCalledWith({
+      orderBy: { createdAt: 'desc' },
+      where: {
+        OR: [{ stripeInvoiceId: 'in_test' }],
+        purpose: 'membership',
+      },
+    });
     expect(db.payment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         amountCents: 12_500,
+        cardYear: 2027,
         membershipPaymentKind: MembershipPaymentKind.renewal,
         membershipSubscriptionId: 'local_sub_1',
         purpose: 'membership',
+        registrationId: null,
         status: PaymentStatus.paid,
         stripeChargeId: 'ch_invoice',
         stripeInvoiceId: 'in_test',
@@ -352,6 +363,44 @@ describe('handleMembershipStripeWebhookEvent', () => {
       }),
       where: { id: 'payment_1', status: PaymentStatus.checkout_created },
     });
+  });
+
+  it('does not mark the initial payment past due for renewal invoice failures', async () => {
+    const db = createDb({
+      payment: null,
+      subscription: {
+        cardType: SailingCardType.racing,
+        id: 'local_sub_1',
+        stripeCustomerId: 'cus_test',
+        userId: 'user_1',
+      },
+    });
+
+    await expect(
+      handleMembershipStripeWebhookEvent({
+        db,
+        event: membershipEvent('invoice.payment_failed', {
+          amount_due: 12_500,
+          billing_reason: 'subscription_cycle',
+          currency: 'usd',
+          customer: 'cus_test',
+          hosted_invoice_url: 'https://pay.stripe.com/invoice/test',
+          id: 'in_renewal_failed',
+          invoice_pdf: 'https://pay.stripe.com/invoice/test/pdf',
+          parent: { subscription_details: { metadata: membershipMetadata() } },
+          subscription: 'sub_test',
+        }),
+      })
+    ).resolves.toEqual({ handled: true });
+
+    expect(db.payment.findFirst).toHaveBeenCalledWith({
+      orderBy: { createdAt: 'desc' },
+      where: {
+        OR: [{ stripeInvoiceId: 'in_renewal_failed' }],
+        purpose: 'membership',
+      },
+    });
+    expect(db.payment.updateMany).not.toHaveBeenCalled();
   });
 
   it('stores charge references from membership charge events for later issue matching', async () => {

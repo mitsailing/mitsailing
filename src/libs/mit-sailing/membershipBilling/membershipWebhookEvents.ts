@@ -14,6 +14,7 @@ import type {
   SailingCardType as SailingCardTypeType,
 } from '@/generated/prisma/enums';
 import { logger } from '@/libs/Logger';
+import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
 import type {
   ProcessableStripeEvent,
   StripeWebhookDb,
@@ -92,6 +93,10 @@ function objectValue(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? Object.fromEntries(Object.entries(value))
     : null;
+}
+
+function arrayValue(value: unknown): readonly unknown[] {
+  return Array.isArray(value) ? value : [];
 }
 
 function stringValue(value: unknown): string | null {
@@ -275,6 +280,7 @@ async function findMembershipPayment(options: {
   readonly chargeId?: string | null;
   readonly db: MembershipWebhookDbWithWrites;
   readonly invoiceId?: string | null;
+  readonly matchInitialSubscription?: boolean;
   readonly paymentId?: string | null;
   readonly paymentIntentId?: string | null;
   readonly sessionId?: string | null;
@@ -296,7 +302,7 @@ async function findMembershipPayment(options: {
   if (options.invoiceId) {
     OR.push({ stripeInvoiceId: options.invoiceId });
   }
-  if (options.subscriptionId) {
+  if (options.subscriptionId && options.matchInitialSubscription !== false) {
     OR.push({
       membershipPaymentKind: MembershipPaymentKind.initial,
       stripeSubscriptionId: options.subscriptionId,
@@ -555,6 +561,33 @@ function invoiceCurrency(object: Record<string, unknown>) {
   return stringValue(object.currency)?.toLowerCase() ?? 'usd';
 }
 
+function invoiceBillingReason(object: Record<string, unknown>) {
+  return stringValue(object.billing_reason);
+}
+
+function invoiceLocalPaymentId(object: Record<string, unknown>) {
+  if (invoiceBillingReason(object) === 'subscription_cycle') {
+    return null;
+  }
+  return localPaymentId(object);
+}
+
+function invoiceLinePeriodStart(object: Record<string, unknown>) {
+  const line = objectValue(arrayValue(objectValue(object.lines)?.data)[0]);
+  return stripeDate(objectValue(line?.period)?.start);
+}
+
+function invoiceCardYear(options: {
+  readonly event: ProcessableStripeEvent;
+  readonly object: Record<string, unknown>;
+}) {
+  return getCurrentSailingCardYear(
+    invoiceLinePeriodStart(options.object) ??
+      stripeDate(options.object.period_start) ??
+      stripeEventCreatedAtDate(options.event)
+  );
+}
+
 function objectChargeId(object: Record<string, unknown>) {
   return (
     stripeExpandableId(object.charge) ??
@@ -622,7 +655,8 @@ async function handleInvoicePaid(options: {
   const payment = await findMembershipPayment({
     db: options.db,
     invoiceId,
-    paymentId: stringValue(metadata.localPaymentId),
+    matchInitialSubscription: false,
+    paymentId: invoiceLocalPaymentId(options.object),
     subscriptionId,
   });
   const userId = stringValue(metadata.userId) ?? payment?.userId;
@@ -677,11 +711,12 @@ async function handleInvoicePaid(options: {
       ...invoiceData,
       amountCents: invoiceAmountCents(options.object),
       cardType,
-      cardYear: null,
+      cardYear: invoiceCardYear(options),
       currency: invoiceCurrency(options.object),
       membershipPaymentKind: MembershipPaymentKind.renewal,
       membershipRenewalPriceId: stringValue(metadata.renewalMembershipPriceId),
       purpose: PaymentPurpose.membership,
+      registrationId: null,
       source: PaymentSource.stripe,
       status: PaymentStatus.paid,
       userId,
@@ -735,6 +770,8 @@ async function handleInvoicePaymentFailed(options: {
   const payment = await findMembershipPayment({
     db: options.db,
     invoiceId,
+    matchInitialSubscription: false,
+    paymentId: invoiceLocalPaymentId(options.object),
     subscriptionId,
   });
   const existingSubscription = subscriptionId
