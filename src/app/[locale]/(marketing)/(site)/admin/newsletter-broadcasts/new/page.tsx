@@ -95,6 +95,8 @@ export default async function AdminNewsletterBroadcastNewPage(
         initialBody="<p></p>"
         text={{
           bodyLabel: t('field_body'),
+          pendingQueueBroadcast: t('pending_queue_broadcast'),
+          pendingSaveDraft: t('pending_save_draft'),
           queueBroadcast: t('queue_broadcast'),
           saveDraft: t('save_draft'),
         }}
@@ -169,14 +171,18 @@ export default async function AdminNewsletterBroadcastNewPage(
               .filter((list) => !list.isArchived)
               .map((list) => (
                 <label
-                  aria-label={list.name}
-                  className="rounded-lg border border-border bg-background p-3 text-sm"
+                  aria-label={
+                    list.description
+                      ? `${list.name}. ${list.description}`
+                      : list.name
+                  }
+                  className="min-h-11 cursor-pointer rounded-lg border border-border bg-background p-3 text-sm transition-colors hover:bg-muted/50 has-[input:checked]:border-mit-red has-[input:checked]:bg-mit-red-50/70 dark:has-[input:checked]:bg-mit-red/15"
                   htmlFor={`newsletter-broadcast-list-${list.id}`}
                   key={list.id}
                 >
                   <span className="flex items-start gap-3">
                     <input
-                      className="mt-1"
+                      className="mt-0.5 size-5 shrink-0 accent-mit-red"
                       id={`newsletter-broadcast-list-${list.id}`}
                       name="listId"
                       type="checkbox"

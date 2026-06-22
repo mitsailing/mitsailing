@@ -96,7 +96,9 @@ export async function createEmbeddedEventPaymentCheckoutSession(options: {
     userId: options.payment.userId,
   };
   const params = {
+    allow_promotion_codes: true,
     client_reference_id: options.payment.id,
+    customer_creation: 'always',
     line_items: [
       {
         price_data: {
@@ -111,7 +113,10 @@ export async function createEmbeddedEventPaymentCheckoutSession(options: {
     ],
     metadata,
     mode: 'payment',
-    payment_intent_data: { metadata },
+    payment_intent_data: {
+      metadata,
+      setup_future_usage: 'off_session',
+    },
     return_url: options.returnUrl,
     ui_mode: 'embedded',
   } satisfies EmbeddedStripeCheckoutSessionCreateParams;

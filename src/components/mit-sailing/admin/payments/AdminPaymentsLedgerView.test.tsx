@@ -31,6 +31,7 @@ const baseViewProps = {
 
 const baseLedgerRow = {
   amountCents: 5000,
+  amountPaidCents: null,
   createdAt: new Date('2026-05-21T16:00:00.000Z'),
   event: null,
   id: 'payment-1',
@@ -42,13 +43,14 @@ const baseLedgerRow = {
   payerName: null,
   receiptUrl: null,
   status: PaymentStatus.paid,
+  stripeDiscountMetadata: null,
   stripeCheckoutSessionId: null,
   stripePaymentIntentId: null,
   user: null,
 } as const;
 
 describe('AdminPaymentsLedgerView', () => {
-  it('renders legacy source evidence for imported payments', () => {
+  it('renders legacy source evidence for imported event payments', () => {
     render(
       <AdminPaymentsLedgerView
         {...baseViewProps}
@@ -57,9 +59,9 @@ describe('AdminPaymentsLedgerView', () => {
           rows: [
             {
               ...baseLedgerRow,
-              legacyCategory: 'boat_deposit',
-              legacyDescription: 'CROTR07 Damage Deposit',
-              legacySourceId: 'BD-1001',
+              legacyCategory: 'regatta_registration',
+              legacyDescription: 'CROTR registration',
+              legacySourceId: 'REG-1001',
               legacySourceTable: 'legacy.payments',
               payerEmail: 'sailor@example.com',
               payerName: 'Sailor One',
@@ -72,8 +74,36 @@ describe('AdminPaymentsLedgerView', () => {
     );
 
     expect(
-      screen.getByText('Legacy source: legacy.payments BD-1001 · boat_deposit')
+      screen.getByText(
+        'Legacy source: legacy.payments REG-1001 · regatta_registration'
+      )
     ).toBeVisible();
+  });
+
+  it('renders paid amount and coupon metadata for discounted Stripe payments', () => {
+    render(
+      <AdminPaymentsLedgerView
+        {...baseViewProps}
+        data={{
+          latestWebhook: null,
+          rows: [
+            {
+              ...baseLedgerRow,
+              amountCents: 5000,
+              amountPaidCents: 0,
+              stripeDiscountMetadata: {
+                amountDiscountCents: 5000,
+                discounts: [{ promotionCode: 'VOLUNTEER' }],
+              },
+            },
+          ],
+        }}
+        filters={{}}
+      />
+    );
+
+    expect(screen.getByText('$0.00 of $50.00')).toBeVisible();
+    expect(screen.getByText('Discount: VOLUNTEER')).toBeVisible();
   });
 
   it('renders empty state when no payments match filters', () => {

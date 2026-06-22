@@ -263,7 +263,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
                 features: [
                   'Regular Pavilion racing from April 1 through July 14.',
                   'Race-related classes included.',
-                  'Renews with all cards on July 15.',
+                  'Valid through July 14.',
                 ],
               },
               {

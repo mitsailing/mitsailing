@@ -15,7 +15,6 @@ export type AdminUserMembershipBlocker = {
 type AdminUserMembershipBlockerProps = {
   readonly cardRequest: {
     readonly cardType: 'normal' | 'racing' | 'team_racing';
-    readonly paymentBypassNote: string | null;
   } | null;
   readonly introClassRequired: boolean;
   readonly membershipAccess: MembershipPaymentAccessStatus;
@@ -61,7 +60,7 @@ export function adminUserMembershipBlockers(
 ): AdminUserMembershipBlocker[] {
   const blockers: AdminUserMembershipBlocker[] = [];
   const payment = paymentBlocker(props.membershipAccess);
-  if (payment && !props.cardRequest?.paymentBypassNote) {
+  if (payment) {
     blockers.push(payment);
   }
   if (props.recreationVerificationRequired) {

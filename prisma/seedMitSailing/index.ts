@@ -1,4 +1,5 @@
 import { prisma } from '../../src/libs/DB';
+import { seedLegacyProcessorPaymentFixtures } from './legacyPaymentFixtures';
 import {
   seedClassCategories,
   seedCmsContent,
@@ -35,4 +36,5 @@ export async function seedMitSailing(): Promise<void> {
   await seedPavilionReservationCatalog(prisma);
   await seedSiteAlerts(prisma);
   await seedCmsContent(prisma);
+  await seedLegacyProcessorPaymentFixtures(prisma);
 }

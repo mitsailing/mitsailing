@@ -2,6 +2,11 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
+import {
+  AdminMetricStrip,
+  AdminTableContainer,
+} from '@/components/mit-sailing/admin/AdminDataRows';
+import type { AdminMetricStripItem } from '@/components/mit-sailing/admin/AdminDataRows';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -94,6 +99,37 @@ export default async function AdminNewsletterBroadcastDetailPage(
   const previewHtml =
     await renderAdminNewsletterBroadcastPreviewHtml(broadcast);
   const notificationKey = statusMessageKey(status);
+  const broadcastMetrics = [
+    {
+      label: t('detail_status'),
+      value: t(newsletterBroadcastStatusKey(broadcast.status)),
+    },
+    {
+      label: t('detail_lists'),
+      value: broadcast.targetLists.map((target) => target.list.name).join(', '),
+    },
+    {
+      label: t('detail_created_by'),
+      value: broadcast.createdBy.name || broadcast.createdBy.email,
+    },
+    {
+      label: t('detail_deliveries'),
+      value: broadcast._count.deliveries,
+    },
+    { label: t('detail_template'), value: broadcast.template.name },
+    {
+      label: t('detail_created_at'),
+      value: formatAdminDate(broadcast.createdAt, locale),
+    },
+    {
+      label: t('detail_scheduled_at'),
+      value: formatAdminDate(broadcast.scheduledAt, locale) || t('empty_value'),
+    },
+    {
+      label: t('detail_sent_at'),
+      value: formatAdminDate(broadcast.sentAt, locale) || t('empty_value'),
+    },
+  ] satisfies readonly AdminMetricStripItem[];
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -115,66 +151,7 @@ export default async function AdminNewsletterBroadcastDetailPage(
         </output>
       ) : null}
 
-      <section className="grid gap-4 rounded-lg border border-border bg-card p-5 text-sm text-foreground sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase">
-            {t('detail_status')}
-          </p>
-          <p className="mt-1">
-            {t(newsletterBroadcastStatusKey(broadcast.status))}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase">
-            {t('detail_lists')}
-          </p>
-          <p className="mt-1">
-            {broadcast.targetLists.map((target) => target.list.name).join(', ')}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase">
-            {t('detail_created_by')}
-          </p>
-          <p className="mt-1">
-            {broadcast.createdBy.name || broadcast.createdBy.email}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase">
-            {t('detail_deliveries')}
-          </p>
-          <p className="mt-1">{broadcast._count.deliveries}</p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase">
-            {t('detail_template')}
-          </p>
-          <p className="mt-1">{broadcast.template.name}</p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase">
-            {t('detail_created_at')}
-          </p>
-          <p className="mt-1">{formatAdminDate(broadcast.createdAt, locale)}</p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase">
-            {t('detail_scheduled_at')}
-          </p>
-          <p className="mt-1">
-            {formatAdminDate(broadcast.scheduledAt, locale) || t('empty_value')}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase">
-            {t('detail_sent_at')}
-          </p>
-          <p className="mt-1">
-            {formatAdminDate(broadcast.sentAt, locale) || t('empty_value')}
-          </p>
-        </div>
-      </section>
+      <AdminMetricStrip metrics={broadcastMetrics} />
 
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="flex flex-col gap-3">
@@ -237,7 +214,7 @@ export default async function AdminNewsletterBroadcastDetailPage(
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">{t('deliveries_heading')}</h2>
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <AdminTableContainer>
           <Table>
             <TableHeader>
               <TableRow>
@@ -272,7 +249,7 @@ export default async function AdminNewsletterBroadcastDetailPage(
               )}
             </TableBody>
           </Table>
-        </div>
+        </AdminTableContainer>
       </section>
     </div>
   );

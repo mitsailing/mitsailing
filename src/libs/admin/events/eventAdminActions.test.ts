@@ -257,7 +257,6 @@ function validEventFeeFormData(): FormData {
   const formData = new FormData();
   formData.set('description', 'Clinic fee');
   formData.set('amountDollars', '15.50');
-  formData.set('isDeposit', 'true');
   return formData;
 }
 
@@ -1173,7 +1172,7 @@ describe('admin event fee actions', () => {
 
     expect(mocks.eventEntryFeeUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ amountCents: 1550, isDeposit: true }),
+        data: expect.objectContaining({ amountCents: 1550 }),
         where: { id: 'fee-1', eventId: 'event-1' },
       })
     );
@@ -1692,61 +1691,5 @@ describe('admin event payment actions', () => {
         paymentId: 'payment-1',
       })
     );
-  });
-
-  it('marks a payment handled with a required internal note', async () => {
-    const formData = new FormData();
-    formData.set('note', 'Paid by check at front desk');
-    const { markAdminEventPaymentHandledAction } =
-      await import('@/libs/admin/events/eventAdminActions');
-
-    await expect(
-      markAdminEventPaymentHandledAction(
-        'en',
-        'intro-sail',
-        'payment-1',
-        formData
-      )
-    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/registrations');
-
-    expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        manualHandledByUserId: 'staff-1',
-        manualHandledNote: 'Paid by check at front desk',
-        status: PaymentStatus.handled,
-      }),
-      where: {
-        eventId: 'event-1',
-        id: 'payment-1',
-        status: {
-          in: [
-            PaymentStatus.checkout_created,
-            PaymentStatus.past_due,
-            PaymentStatus.pending,
-          ],
-        },
-      },
-    });
-    expect(mocks.eventPaymentFindFirst).not.toHaveBeenCalled();
-  });
-
-  it('rejects manual handled submissions without a note', async () => {
-    const formData = new FormData();
-    formData.set('note', '');
-    const { markAdminEventPaymentHandledAction } =
-      await import('@/libs/admin/events/eventAdminActions');
-
-    await expect(
-      markAdminEventPaymentHandledAction(
-        'en',
-        'intro-sail',
-        'payment-1',
-        formData
-      )
-    ).rejects.toThrow(
-      'NEXT_REDIRECT:/admin/events/intro-sail/registrations?error=validation_failed'
-    );
-
-    expect(mocks.eventPaymentUpdateMany).not.toHaveBeenCalled();
   });
 });

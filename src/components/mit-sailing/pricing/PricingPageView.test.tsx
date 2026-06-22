@@ -111,7 +111,7 @@ describe('PricingPageView', () => {
     ).toBeInTheDocument();
   });
 
-  it('summarizes renewal timing outside the rates dialog', () => {
+  it('summarizes annual onboarding timing outside the rates dialog', () => {
     renderPricingPage();
 
     expect(
@@ -119,7 +119,7 @@ describe('PricingPageView', () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        'Sailing cards renew each July 15. After renewal, request your next card before picking up a new card number.'
+        'Sailing-card pricing resets each July 15. Complete onboarding and pay again before picking up a new card number.'
       )
     ).toBeInTheDocument();
   });

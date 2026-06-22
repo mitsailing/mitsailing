@@ -9,6 +9,7 @@ import { prisma } from '@/libs/DB';
 
 export type UserPaymentRow = {
   amountCents: number;
+  amountPaidCents: number | null;
   cardType: SailingCardType | null;
   cardYear: number | null;
   createdAt: Date;
@@ -22,6 +23,7 @@ export type UserPaymentRow = {
   receiptUrl: string | null;
   source: PaymentSourceValue;
   status: PaymentStatusValue;
+  stripeDiscountMetadata: unknown;
 };
 
 export async function listUserPayments(
@@ -32,6 +34,7 @@ export async function listUserPayments(
     orderBy: { createdAt: 'desc' },
     select: {
       amountCents: true,
+      amountPaidCents: true,
       cardType: true,
       cardYear: true,
       createdAt: true,
@@ -41,6 +44,7 @@ export async function listUserPayments(
       purpose: true,
       source: true,
       status: true,
+      stripeDiscountMetadata: true,
       stripeReceiptUrl: true,
     },
   });
@@ -50,6 +54,7 @@ export async function listUserPayments(
       if (row.event || row.legacyDescription) {
         payments.push({
           amountCents: row.amountCents,
+          amountPaidCents: row.amountPaidCents,
           cardType: null,
           cardYear: null,
           createdAt: row.createdAt,
@@ -60,6 +65,7 @@ export async function listUserPayments(
           receiptUrl: row.stripeReceiptUrl,
           source: row.source,
           status: row.status,
+          stripeDiscountMetadata: row.stripeDiscountMetadata,
         });
       }
       continue;
@@ -68,6 +74,7 @@ export async function listUserPayments(
     if (row.cardType && row.cardYear) {
       payments.push({
         amountCents: row.amountCents,
+        amountPaidCents: row.amountPaidCents,
         cardType: row.cardType,
         cardYear: row.cardYear,
         createdAt: row.createdAt,
@@ -78,6 +85,7 @@ export async function listUserPayments(
         receiptUrl: row.stripeReceiptUrl,
         source: row.source,
         status: row.status,
+        stripeDiscountMetadata: row.stripeDiscountMetadata,
       });
     }
   }

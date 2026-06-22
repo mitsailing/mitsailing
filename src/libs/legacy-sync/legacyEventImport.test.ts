@@ -105,7 +105,6 @@ function legacyEventRow(
   return {
     ask_notes: null,
     boat_size: '3',
-    deposit: null,
     description:
       '<p>Legacy <strong>racing</strong> weekend</p><script>alert("x")</script>',
     desc_type: null,
@@ -215,7 +214,6 @@ describe('importLegacyEventRows', () => {
           {
             ask_notes: null,
             boat_size: null,
-            deposit: null,
             description: 'Summer race',
             desc_type: null,
             eid: legacyEventId,
@@ -431,6 +429,12 @@ describe('importLegacyEventRows', () => {
           },
           {
             eid: legacyEventId,
+            feeid: 'fee-deposit',
+            name: 'Damage deposit',
+            price: '100.00',
+          },
+          {
+            eid: legacyEventId,
             feeid: null,
             name: 'Skipped fee',
             price: '99.00',
@@ -547,7 +551,6 @@ describe('importLegacyEventRows', () => {
         'event_fee:fee-1',
         'Legacy fee',
         1234,
-        false,
         'app-user-captain',
         'app-user-admin',
         `event_reg:${legacyEventId}:captain-legacy:team-alpha`,
@@ -609,6 +612,13 @@ describe('importLegacyEventRows', () => {
         legacyEventId,
         legacyFeeId: 'fee-zero',
         price: '0',
+      })
+    );
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      'Skipped legacy event deposit fee',
+      expect.objectContaining({
+        legacyEventId,
+        legacyFeeId: 'fee-deposit',
       })
     );
   });

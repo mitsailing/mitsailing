@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  normalizeImportedPersonName,
   normalizeManualPersonName,
   normalizeVerifiedMitDataWarehousePersonName,
 } from '@/libs/mit-sailing/personName';
@@ -26,6 +27,17 @@ describe('personName', () => {
       firstName: 'ADA MARIE',
       lastName: "o'NEIL-smith",
       name: "ADA MARIE o'NEIL-smith",
+    });
+
+    expect(
+      normalizeImportedPersonName({
+        firstName: '  YOONSEO ',
+        lastName: " o'NEIL-CHA ",
+      })
+    ).toEqual({
+      firstName: 'Yoonseo',
+      lastName: "O'Neil-Cha",
+      name: "Yoonseo O'Neil-Cha",
     });
   });
 });

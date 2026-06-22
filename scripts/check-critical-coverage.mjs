@@ -142,9 +142,9 @@ const authCoverageExcludedFiles = [
     reason:
       'Server membership page composes authenticated membership billing data for the covered membership view and actions',
     e2eProof: [
-      'src/libs/mit-sailing/membershipBilling/membershipSubscriptions.test.ts',
-      'src/libs/mit-sailing/membershipBilling/membershipBillingPortalActions.test.ts',
-      'src/libs/mit-sailing/membershipBilling/membershipCancellationActions.test.ts',
+      'src/components/mit-sailing/profile/ProfileMembershipBillingView.test.tsx',
+      'src/libs/mit-sailing/membershipBilling/membershipCheckoutActions.test.ts',
+      'src/libs/mit-sailing/membershipBilling/membershipWebhookEvents.test.ts',
     ],
   },
   {

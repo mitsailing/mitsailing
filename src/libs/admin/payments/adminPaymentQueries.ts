@@ -9,8 +9,11 @@ export type AdminPaymentLedgerFilters = {
   status?: PaymentStatusValue | 'all';
 };
 
+export const ADMIN_PAYMENT_LEDGER_PAGE_SIZE = 50;
+
 export type AdminPaymentLedgerRow = {
   amountCents: number;
+  amountPaidCents: number | null;
   createdAt: Date;
   event: {
     name: string;
@@ -25,6 +28,7 @@ export type AdminPaymentLedgerRow = {
   payerName: string | null;
   receiptUrl: string | null;
   status: PaymentStatusValue;
+  stripeDiscountMetadata: unknown;
   stripeCheckoutSessionId: string | null;
   stripePaymentIntentId: string | null;
   user: {
@@ -40,6 +44,12 @@ export type AdminPaymentLedgerData = {
     processedAt: Date | null;
     stripeCreatedAt: Date;
   } | null;
+};
+
+export type AdminPaymentLedgerPage = AdminPaymentLedgerData & {
+  page: number;
+  pageSize: number;
+  total: number;
 };
 
 export function adminPaymentStatusFromParam(
@@ -91,32 +101,16 @@ function ledgerWhereFromFilters(
   };
 }
 
-export async function listAdminPaymentLedgerData(
-  filters: AdminPaymentLedgerFilters
-): Promise<AdminPaymentLedgerData> {
-  const [rows, latestWebhook] = await Promise.all([
-    prisma.payment.findMany({
-      where: ledgerWhereFromFilters(filters),
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-      select: {
-        amountCents: true,
-        createdAt: true,
-        event: { select: { name: true, slug: true } },
-        id: true,
-        legacyCategory: true,
-        legacyDescription: true,
-        legacySourceId: true,
-        legacySourceTable: true,
-        payerEmail: true,
-        payerName: true,
-        status: true,
-        stripeCheckoutSessionId: true,
-        stripePaymentIntentId: true,
-        stripeReceiptUrl: true,
-        user: { select: { email: true, name: true } },
-      },
-    }),
+export async function listAdminPaymentLedgerPage(
+  filters: AdminPaymentLedgerFilters & {
+    readonly page: number;
+    readonly pageSize?: number;
+  }
+): Promise<AdminPaymentLedgerPage> {
+  const where = ledgerWhereFromFilters(filters);
+  const pageSize = filters.pageSize ?? ADMIN_PAYMENT_LEDGER_PAGE_SIZE;
+  const [total, latestWebhook] = await Promise.all([
+    prisma.payment.count({ where }),
     prisma.stripeWebhookEvent.findFirst({
       orderBy: { stripeCreatedAt: 'desc' },
       select: {
@@ -126,11 +120,41 @@ export async function listAdminPaymentLedgerData(
       },
     }),
   ]);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(filters.page, 1), totalPages);
+  const rows = await prisma.payment.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    skip: (page - 1) * pageSize,
+    take: pageSize,
+    select: {
+      amountCents: true,
+      amountPaidCents: true,
+      createdAt: true,
+      event: { select: { name: true, slug: true } },
+      id: true,
+      legacyCategory: true,
+      legacyDescription: true,
+      legacySourceId: true,
+      legacySourceTable: true,
+      payerEmail: true,
+      payerName: true,
+      status: true,
+      stripeDiscountMetadata: true,
+      stripeCheckoutSessionId: true,
+      stripePaymentIntentId: true,
+      stripeReceiptUrl: true,
+      user: { select: { email: true, name: true } },
+    },
+  });
 
   return {
     latestWebhook,
+    page,
+    pageSize,
     rows: rows.map((row) => ({
       amountCents: row.amountCents,
+      amountPaidCents: row.amountPaidCents,
       createdAt: row.createdAt,
       event: row.event,
       id: row.id,
@@ -142,9 +166,21 @@ export async function listAdminPaymentLedgerData(
       payerName: row.payerName,
       receiptUrl: row.stripeReceiptUrl,
       status: row.status,
+      stripeDiscountMetadata: row.stripeDiscountMetadata,
       stripeCheckoutSessionId: row.stripeCheckoutSessionId,
       stripePaymentIntentId: row.stripePaymentIntentId,
       user: row.user,
     })),
+    total,
+  };
+}
+
+export async function listAdminPaymentLedgerData(
+  filters: AdminPaymentLedgerFilters
+): Promise<AdminPaymentLedgerData> {
+  const page = await listAdminPaymentLedgerPage({ ...filters, page: 1 });
+  return {
+    latestWebhook: page.latestWebhook,
+    rows: page.rows,
   };
 }

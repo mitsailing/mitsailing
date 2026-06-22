@@ -1,7 +1,6 @@
 import 'server-only';
 import type { Stripe } from 'stripe';
 import {
-  SailingCardMembershipBillingInterval,
   SailingCardMembershipPriceKind,
   SailingCardType,
 } from '@/generated/prisma/enums';
@@ -122,14 +121,8 @@ function membershipPriceCategoryLabel(
 }
 
 function membershipStripeProductRole(
-  price: Pick<SailingCardMembershipPriceRow, 'billingInterval' | 'priceKind'>
+  price: Pick<SailingCardMembershipPriceRow, 'priceKind'>
 ) {
-  if (
-    price.billingInterval === SailingCardMembershipBillingInterval.annual &&
-    price.priceKind === SailingCardMembershipPriceKind.full
-  ) {
-    return 'annual';
-  }
   if (price.priceKind === SailingCardMembershipPriceKind.spring) {
     return 'spring';
   }
@@ -146,13 +139,6 @@ function membershipStripeProductDetails(
   const role = membershipStripeProductRole(price);
   const id = `mitsailing_sailing_card_membership_${price.cardType}_${role}`;
   const description = `MIT Sailing ${cardTypeLabel} membership.`;
-  if (role === 'annual') {
-    return {
-      description,
-      id,
-      name: `Annual ${cardTypeLabel} membership renewal every July 15`,
-    };
-  }
   if (role === 'spring') {
     return {
       description,
@@ -191,12 +177,6 @@ function membershipStripePriceNickname(
 ) {
   const cardTypeLabel = membershipCardTypeLabel(price.cardType);
   const categoryLabel = membershipPriceCategoryLabel(price);
-  if (
-    price.billingInterval === SailingCardMembershipBillingInterval.annual &&
-    price.priceKind === SailingCardMembershipPriceKind.full
-  ) {
-    return `Annual ${cardTypeLabel} membership renewal every July 15 (${categoryLabel})`;
-  }
   if (price.priceKind === SailingCardMembershipPriceKind.spring) {
     return `Spring ${cardTypeLabel} membership through July 14 (${categoryLabel})`;
   }
@@ -244,12 +224,6 @@ function assertSyncablePrice(price: SailingCardMembershipPriceRow) {
   }
   if (!Number.isInteger(price.amountCents) || price.amountCents <= 0) {
     throw new TypeError('Membership Stripe prices require positive cents.');
-  }
-  if (
-    price.billingInterval === SailingCardMembershipBillingInterval.annual &&
-    price.priceKind !== SailingCardMembershipPriceKind.full
-  ) {
-    throw new TypeError('Only full membership prices can renew annually.');
   }
 }
 
@@ -353,18 +327,6 @@ function membershipStripePriceMatchesLocalPrice(options: {
     return false;
   }
 
-  if (
-    options.price.billingInterval ===
-    SailingCardMembershipBillingInterval.annual
-  ) {
-    return (
-      options.stripePrice.type === 'recurring' &&
-      options.stripePrice.recurring?.interval === 'year' &&
-      options.stripePrice.recurring.interval_count === 1 &&
-      options.stripePrice.recurring.usage_type === 'licensed'
-    );
-  }
-
   return (
     options.stripePrice.type === 'one_time' &&
     options.stripePrice.recurring === null
@@ -403,11 +365,6 @@ async function createMembershipStripePrice(options: {
     price: options.price,
     stripe: options.stripe,
   });
-  const recurring =
-    options.price.billingInterval ===
-    SailingCardMembershipBillingInterval.annual
-      ? { recurring: { interval: 'year' } as const }
-      : {};
 
   const price = await options.stripe.prices.create(
     {
@@ -416,7 +373,6 @@ async function createMembershipStripePrice(options: {
       metadata: membershipStripePriceMetadata(options.price),
       nickname: membershipStripePriceNickname(options.price),
       product: productId,
-      ...recurring,
       unit_amount: options.price.amountCents,
     },
     { idempotencyKey: `membership-price-sync-${options.price.id}` }

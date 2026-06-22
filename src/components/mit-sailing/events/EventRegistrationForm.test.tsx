@@ -15,7 +15,6 @@ import messages from '@/locales/en.json';
 const labels: EventRegistrationFormLabels = {
   autoApprovalNote: 'Your spot is confirmed immediately after you submit.',
   confirmButton: 'Confirm registration',
-  deposit: 'Deposit',
   errorMessages: {
     answers_invalid: 'One or more registration answers are invalid.',
     closed: 'Registration is not open for this event.',
@@ -163,13 +162,11 @@ function entryFeeEventOverrides(): Partial<PublicEventDetail> {
         amountCents: 15_000,
         description: 'Adult',
         id: 'fee-adult',
-        isDeposit: false,
       },
       {
         amountCents: 9000,
         description: 'Junior',
         id: 'fee-junior',
-        isDeposit: true,
       },
     ],
   };
@@ -486,7 +483,6 @@ describe('EventRegistrationForm', () => {
               amountCents: 15_000,
               description: 'Standard entry',
               id: 'fee-standard',
-              isDeposit: false,
             },
           ],
         }}

@@ -13,14 +13,12 @@ import {
   eventDateFormSchema,
   eventFeeFormSchema,
   eventLocationFormSchema,
-  eventPaymentManualHandledFormSchema,
   eventPaymentSettingsFormSchema,
   eventQuestionFormSchema,
   generateEventAdminSlug,
   parseEasternDateTimeLocal,
   rawEventFeeFromFormData,
   rawEventLocationFromFormData,
-  rawEventPaymentManualHandledFromFormData,
   rawEventPaymentSettingsFromFormData,
   slugifyEventAdmin,
   splitEventAdminOptionLines,
@@ -333,23 +331,25 @@ describe('eventAdminSchemas', () => {
     const parsed = eventFeeFormSchema.parse({
       description: 'Entry fee',
       amountDollars: '150.00',
-      isDeposit: false,
     });
 
     expect(parsed.amountCents).toBe(15_000);
     expect(parsed.description).toBe('Entry fee');
-    expect(parsed.isDeposit).toBe(false);
   });
 
-  it('maps fee form data using amountDollars field name', () => {
+  it('ignores stale deposit form data while mapping fee amounts', () => {
     const formData = new FormData();
-    formData.set('description', 'Deposit');
+    formData.set('description', 'Entry fee');
     formData.set('amountDollars', '25');
     formData.set('isDeposit', 'true');
     const raw = rawEventFeeFromFormData(formData);
     const parsed = eventFeeFormSchema.parse(raw);
 
     expect(parsed.amountCents).toBe(2500);
+    expect(parsed).toEqual({
+      amountCents: 2500,
+      description: 'Entry fee',
+    });
   });
 
   it('parses payment settings from form data', () => {
@@ -447,22 +447,10 @@ describe('eventAdminSchemas', () => {
     expect(parsed.success).toBe(false);
   });
 
-  it('requires a manual handled note', () => {
-    const formData = new FormData();
-    formData.set('note', '  ');
-
-    const parsed = eventPaymentManualHandledFormSchema.safeParse(
-      rawEventPaymentManualHandledFromFormData(formData)
-    );
-
-    expect(parsed.success).toBe(false);
-  });
-
   it('rejects fee form with invalid dollar amount', () => {
     const parsed = eventFeeFormSchema.safeParse({
       description: 'Entry fee',
       amountDollars: 'not-a-number',
-      isDeposit: false,
     });
 
     expect(parsed.success).toBe(false);
@@ -480,7 +468,6 @@ describe('eventAdminSchemas', () => {
       const parsed = eventFeeFormSchema.safeParse({
         description: 'Entry fee',
         amountDollars,
-        isDeposit: false,
       });
 
       expect(parsed.success).toBe(false);

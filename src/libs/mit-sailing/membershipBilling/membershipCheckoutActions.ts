@@ -10,13 +10,9 @@ import type {
   SailingCardType,
 } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
-import { membershipBillingAnchorForCheckout } from '@/libs/mit-sailing/membershipBilling/membershipBillingDates';
 import type { SailingCardMembershipPriceRow } from '@/libs/mit-sailing/membershipBilling/membershipPricing';
 import { getCheckoutMembershipPrices } from '@/libs/mit-sailing/membershipBilling/membershipPricing';
-import {
-  createStripeMembershipCheckoutSession,
-  membershipCheckoutAvailability,
-} from '@/libs/mit-sailing/membershipBilling/membershipStripeCheckout';
+import { createStripeMembershipCheckoutSession } from '@/libs/mit-sailing/membershipBilling/membershipStripeCheckout';
 import { getOrCreateMembershipStripeCustomer } from '@/libs/mit-sailing/membershipBilling/membershipStripeCustomers';
 import type { MembershipStripeCustomerClient } from '@/libs/mit-sailing/membershipBilling/membershipStripeCustomers';
 import {
@@ -39,11 +35,13 @@ type MembershipCheckoutClient = MembershipStripeCustomerClient & {
     readonly findFirst: MembershipStripeCustomerClient['payment']['findFirst'] &
       ((args: {
         readonly select: {
+          readonly id: true;
           readonly stripeCheckoutSessionExpiresAt: true;
           readonly stripeCheckoutSessionUrl: true;
         };
         readonly where: Record<string, unknown>;
       }) => Promise<{
+        readonly id: string;
         readonly stripeCheckoutSessionExpiresAt: Date | null;
         readonly stripeCheckoutSessionUrl: string | null;
       } | null>);
@@ -58,9 +56,6 @@ type MembershipCheckoutClient = MembershipStripeCustomerClient & {
       readonly data: Record<string, unknown>;
       readonly where: { readonly id: string };
     }): Promise<unknown>;
-  };
-  readonly sailingCardSubscription: {
-    findFirst(args: unknown): Promise<unknown>;
   };
 };
 
@@ -89,7 +84,6 @@ function activeCheckoutKey(options: {
   readonly cardType: SailingCardType;
   readonly cardYear: number;
   readonly dueTodayPriceId: string;
-  readonly renewalPriceId: string;
   readonly userId: string;
 }) {
   return [
@@ -98,7 +92,6 @@ function activeCheckoutKey(options: {
     options.cardYear,
     options.cardType,
     options.dueTodayPriceId,
-    options.renewalPriceId,
   ].join(':');
 }
 
@@ -119,20 +112,14 @@ function consentSnapshot(options: {
   readonly cardType: SailingCardType;
   readonly dueTodayPrice: SailingCardMembershipPriceRow;
   readonly now: Date;
-  readonly renewalPrice: SailingCardMembershipPriceRow;
 }) {
-  const renewalAt = membershipBillingAnchorForCheckout(options.now);
   const snapshot = {
     acceptedAtIso: options.now.toISOString(),
     amountDueTodayCents: options.dueTodayPrice.amountCents,
-    autoRenewDisclosureKey: 'membership_checkout_auto_renew_disclosure',
-    cancellationPathTextKey: 'membership_checkout_cancellation_path',
     cardType: options.cardType,
     paymentMethodDisclosureKey: 'membership_checkout_wallet_payment_disclosure',
-    renewalAmountCents: options.renewalPrice.amountCents,
-    renewalAtIso: renewalAt.toISOString(),
     submitButtonTextKey: 'membership_checkout_submit',
-    termsVersion: '2026-05-31',
+    termsVersion: '2026-06-06-payment-only',
   };
   return {
     ...snapshot,
@@ -148,13 +135,12 @@ export async function createMembershipCheckoutForOnboarding(options: {
   readonly client: MembershipCheckoutClient;
   readonly dueTodayPrice: SailingCardMembershipPriceRow;
   readonly now: Date;
-  readonly renewalPrice: SailingCardMembershipPriceRow;
   readonly stripe: MembershipCheckoutStripe;
   readonly successUrl: string;
   readonly user: MembershipCheckoutUser;
 }): Promise<
   | { readonly status: 'created'; readonly url: string }
-  | { readonly status: 'not_eligible' | 'rollover_blocked' }
+  | { readonly status: 'not_eligible' }
 > {
   const access = membershipAccessForOnboardingFlags({
     hasFitnessMembership: false,
@@ -163,36 +149,45 @@ export async function createMembershipCheckoutForOnboarding(options: {
   if (!canRequestPaidRacingMembership({ access, cardType: options.cardType })) {
     return { status: 'not_eligible' };
   }
-  if (membershipCheckoutAvailability(options.now) === 'rollover_blocked') {
-    return { status: 'rollover_blocked' };
-  }
 
   const cardYear = getCurrentSailingCardYear(options.now);
   const checkoutKey = activeCheckoutKey({
     cardType: options.cardType,
     cardYear,
     dueTodayPriceId: options.dueTodayPrice.id,
-    renewalPriceId: options.renewalPrice.id,
     userId: options.user.id,
   });
   const existing = await options.client.payment.findFirst({
     select: {
+      id: true,
       stripeCheckoutSessionExpiresAt: true,
       stripeCheckoutSessionUrl: true,
     },
     where: {
       activeCheckoutKey: checkoutKey,
       status: PaymentStatus.checkout_created,
-      stripeCheckoutSessionExpiresAt: { gt: options.now },
       stripeCheckoutSessionUrl: { not: null },
       userId: options.user.id,
     },
   });
-  if (existing?.stripeCheckoutSessionUrl) {
+  if (
+    existing?.stripeCheckoutSessionUrl &&
+    existing.stripeCheckoutSessionExpiresAt !== null &&
+    existing.stripeCheckoutSessionExpiresAt.getTime() > options.now.getTime()
+  ) {
     return {
       status: 'created',
       url: existing.stripeCheckoutSessionUrl,
     };
+  }
+  if (existing) {
+    await options.client.payment.update({
+      data: {
+        activeCheckoutKey: null,
+        status: PaymentStatus.past_due,
+      },
+      where: { id: existing.id },
+    });
   }
 
   const customerId = await getOrCreateMembershipStripeCustomer({
@@ -213,11 +208,8 @@ export async function createMembershipCheckoutForOnboarding(options: {
         cardType: options.cardType,
         dueTodayPrice: options.dueTodayPrice,
         now: options.now,
-        renewalPrice: options.renewalPrice,
       }),
       membershipInitialPriceId: options.dueTodayPrice.id,
-      membershipPaymentKind: 'initial',
-      membershipRenewalPriceId: options.renewalPrice.id,
       purpose: PaymentPurpose.membership,
       source: PaymentSource.stripe,
       status: PaymentStatus.pending,
@@ -245,7 +237,6 @@ export async function createMembershipCheckoutForOnboarding(options: {
       cancelUrl: options.cancelUrl,
       customerId,
       initialPrice: options.dueTodayPrice,
-      now: options.now,
       payment: {
         activeCheckoutKey: checkoutKey,
         cardType: payment.cardType,
@@ -253,7 +244,6 @@ export async function createMembershipCheckoutForOnboarding(options: {
         id: payment.id,
         userId: payment.userId,
       },
-      renewalPrice: options.renewalPrice,
       stripe: options.stripe,
       successUrl: options.successUrl,
     });
@@ -264,14 +254,6 @@ export async function createMembershipCheckoutForOnboarding(options: {
     });
     throw error;
   }
-  if (session.status === 'rollover_blocked') {
-    await cancelUncreatedMembershipCheckoutPayment({
-      client: options.client,
-      paymentId: payment.id,
-    });
-    return session;
-  }
-
   try {
     await options.client.payment.update({
       data: {
@@ -320,7 +302,6 @@ export async function createMembershipCheckoutUrlForOnboarding(options: {
     client: prisma,
     dueTodayPrice: prices.dueTodayPrice,
     now,
-    renewalPrice: prices.renewalPrice,
     stripe: getStripeClient(),
     successUrl: options.successUrl,
     user: {

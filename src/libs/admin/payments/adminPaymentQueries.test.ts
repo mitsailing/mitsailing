@@ -4,6 +4,7 @@ import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
 vi.mock('server-only', () => ({}));
 
 const mocks = vi.hoisted(() => ({
+  paymentCount: vi.fn(),
   paymentFindMany: vi.fn(),
   stripeWebhookEventFindFirst: vi.fn(),
 }));
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/libs/DB', () => ({
   prisma: {
     payment: {
+      count: mocks.paymentCount,
       findMany: mocks.paymentFindMany,
     },
     stripeWebhookEvent: {
@@ -22,22 +24,25 @@ vi.mock('@/libs/DB', () => ({
 describe('listAdminPaymentLedgerData', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.paymentCount.mockResolvedValue(0);
     mocks.stripeWebhookEventFindFirst.mockResolvedValue(null);
   });
 
   it('returns legacy payments without linked events or users', async () => {
     const legacyPayment = {
       amountCents: 5000,
+      amountPaidCents: null,
       createdAt: new Date('2026-05-21T16:00:00.000Z'),
       event: null,
       id: 'payment-1',
-      legacyCategory: 'boat_deposit',
-      legacyDescription: 'Legacy boat deposit',
-      legacySourceId: 'BD-1001',
+      legacyCategory: 'regatta_registration',
+      legacyDescription: 'Legacy regatta payment',
+      legacySourceId: 'REG-1001',
       legacySourceTable: 'legacy.payments',
       payerEmail: 'sailor@example.com',
       payerName: 'Sailor One',
       status: PaymentStatus.needs_review,
+      stripeDiscountMetadata: null,
       stripeCheckoutSessionId: null,
       stripePaymentIntentId: null,
       stripeReceiptUrl: null,
@@ -54,17 +59,19 @@ describe('listAdminPaymentLedgerData', () => {
       rows: [
         {
           amountCents: 5000,
+          amountPaidCents: null,
           createdAt: new Date('2026-05-21T16:00:00.000Z'),
           event: null,
           id: 'payment-1',
-          legacyCategory: 'boat_deposit',
-          legacyDescription: 'Legacy boat deposit',
-          legacySourceId: 'BD-1001',
+          legacyCategory: 'regatta_registration',
+          legacyDescription: 'Legacy regatta payment',
+          legacySourceId: 'REG-1001',
           legacySourceTable: 'legacy.payments',
           payerEmail: 'sailor@example.com',
           payerName: 'Sailor One',
           receiptUrl: null,
           status: PaymentStatus.needs_review,
+          stripeDiscountMetadata: null,
           stripeCheckoutSessionId: null,
           stripePaymentIntentId: null,
           user: null,
@@ -75,6 +82,7 @@ describe('listAdminPaymentLedgerData', () => {
       orderBy: { createdAt: 'desc' },
       select: {
         amountCents: true,
+        amountPaidCents: true,
         createdAt: true,
         event: { select: { name: true, slug: true } },
         id: true,
@@ -85,12 +93,14 @@ describe('listAdminPaymentLedgerData', () => {
         payerEmail: true,
         payerName: true,
         status: true,
+        stripeDiscountMetadata: true,
         stripeCheckoutSessionId: true,
         stripePaymentIntentId: true,
         stripeReceiptUrl: true,
         user: { select: { email: true, name: true } },
       },
-      take: 100,
+      skip: 0,
+      take: 50,
       where: {
         AND: [
           {
@@ -194,6 +204,7 @@ describe('listAdminPaymentLedgerData', () => {
   it('returns paid legacy membership payments linked to users', async () => {
     const legacyMembershipPayment = {
       amountCents: 12_000,
+      amountPaidCents: null,
       createdAt: new Date('2026-05-29T16:00:00.000Z'),
       event: null,
       id: 'payment-membership-1',
@@ -204,6 +215,7 @@ describe('listAdminPaymentLedgerData', () => {
       payerEmail: 'grace@example.com',
       payerName: 'Grace Hopper',
       status: PaymentStatus.paid,
+      stripeDiscountMetadata: null,
       stripeCheckoutSessionId: null,
       stripePaymentIntentId: null,
       stripeReceiptUrl: null,
@@ -220,6 +232,7 @@ describe('listAdminPaymentLedgerData', () => {
       rows: [
         {
           amountCents: 12_000,
+          amountPaidCents: null,
           createdAt: new Date('2026-05-29T16:00:00.000Z'),
           event: null,
           id: 'payment-membership-1',
@@ -231,6 +244,7 @@ describe('listAdminPaymentLedgerData', () => {
           payerName: 'Grace Hopper',
           receiptUrl: null,
           status: PaymentStatus.paid,
+          stripeDiscountMetadata: null,
           stripeCheckoutSessionId: null,
           stripePaymentIntentId: null,
           user: { email: 'grace@example.com', name: 'Grace Hopper' },

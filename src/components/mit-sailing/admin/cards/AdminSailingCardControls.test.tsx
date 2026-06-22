@@ -62,12 +62,12 @@ vi.mock('next-intl', () => ({
     const actor = stringValue({ field: 'actor', values });
     const messages: Record<string, string> = {
       action_expire: 'Expire',
-      action_issue: 'Issue',
+      action_issue: 'Assign card',
       action_issue_number: `Issue #${number}`,
       action_issue_pending: 'Issuing',
       action_print_card: 'Print card',
       action_update_number: 'Update',
-      action_save_correction: 'Save correction',
+      action_save_correction: 'Save number',
       card_number_label: 'Card number',
       card_number_placeholder: `Auto ${number}`,
       fitness_membership_verify_help:
@@ -84,7 +84,8 @@ vi.mock('next-intl', () => ({
         'Verify MIT Recreation before issuing Normal.',
       error_no_current_card: 'No current card.',
       error_not_found: 'User was not found.',
-      error_payment_required: 'Enter a note before issuing without payment.',
+      error_payment_required:
+        'Stripe payment or a promotion-code checkout is required before issuing this card.',
       error_same_card_number: 'Enter a different card number.',
       issue_form_label: 'Issue sailing card',
       card_type_normal: 'Normal',
@@ -125,7 +126,7 @@ describe('AdminSailingCardControls', () => {
     ).toBeVisible();
     expect(screen.getByLabelText('Card number')).not.toBeRequired();
     expect(screen.getByLabelText('Card number')).toHaveValue(60);
-    expect(screen.getByRole('button', { name: 'Issue #60' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Assign card' })).toBeVisible();
   });
 
   it('accepts manual card number input', async () => {
@@ -145,7 +146,7 @@ describe('AdminSailingCardControls', () => {
     expect(screen.getByLabelText('Card number')).toHaveValue(7);
   });
 
-  it('renders payment bypass note for paid pending rows without payment', () => {
+  it('renders payment-required notice for paid pending rows without payment', () => {
     render(
       <AdminSailingCardIssueForm
         action={vi.fn()}
@@ -157,9 +158,10 @@ describe('AdminSailingCardControls', () => {
       />
     );
 
-    const note = screen.getByLabelText('Payment bypass note');
-    expect(note).toHaveAttribute('name', 'paymentBypassNote');
-    expect(note).toBeRequired();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Stripe payment or a promotion-code checkout is required before issuing this card.'
+    );
+    expect(screen.queryByLabelText('Payment bypass note')).toBeNull();
   });
 
   it('omits payment bypass note for paid pending rows with paid access', () => {
@@ -194,7 +196,7 @@ describe('AdminSailingCardControls', () => {
     );
 
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Enter a note before issuing without payment.'
+      'Stripe payment or a promotion-code checkout is required before issuing this card.'
     );
   });
 
@@ -213,9 +215,7 @@ describe('AdminSailingCardControls', () => {
     ).toBeVisible();
     expect(screen.getByLabelText('Card number')).toBeRequired();
     expect(screen.getByLabelText('Card number')).toHaveValue(61);
-    expect(
-      screen.getByRole('button', { name: 'Save correction' })
-    ).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Save number' })).toBeVisible();
   });
 
   it('renders same-number correction errors', () => {
@@ -273,7 +273,7 @@ describe('AdminSailingCardControls', () => {
     expect(screen.getByText(/Dock Master/u)).toBeInTheDocument();
   });
 
-  it('requires payment bypass note for team racing cards without payment', () => {
+  it('renders payment-required notice for team racing cards without payment', () => {
     render(
       <AdminSailingCardIssueForm
         action={vi.fn()}
@@ -285,9 +285,10 @@ describe('AdminSailingCardControls', () => {
       />
     );
 
-    const note = screen.getByLabelText('Payment bypass note');
-    expect(note).toHaveAttribute('name', 'paymentBypassNote');
-    expect(note).toBeRequired();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Stripe payment or a promotion-code checkout is required before issuing this card.'
+    );
+    expect(screen.queryByLabelText('Payment bypass note')).toBeNull();
   });
 
   it('omits payment bypass note for normal cards without payment', () => {

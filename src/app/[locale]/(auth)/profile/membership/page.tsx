@@ -5,11 +5,9 @@ import { PaymentPurpose } from '@/generated/prisma/enums';
 import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
-import {
-  membershipProfileState,
-  selectCanonicalMembershipSubscription,
-} from '@/libs/mit-sailing/membershipBilling/membershipSubscriptions';
+import { membershipProfileState } from '@/libs/mit-sailing/membershipBilling/membershipProfileState';
 import { membershipAccessForSailingCardUser } from '@/libs/mit-sailing/sailingCardMembershipEligibility';
+import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
 import { getI18nPath } from '@/utils/Helpers';
 
 type ProfileMembershipPageProps = Readonly<{
@@ -50,26 +48,12 @@ export default async function ProfileMembershipPage(
     locale,
     getI18nPath('/profile/membership', locale)
   );
+  const now = new Date();
   const [dbUser, latestPayment, t] = await Promise.all([
     prisma.user.findUnique({
       select: {
         gymMembershipVerifiedAt: true,
         sailingAffiliation: true,
-        sailingCardSubscriptions: {
-          orderBy: { updatedAt: 'desc' },
-          select: {
-            autoRenew: true,
-            cancelAtPeriodEnd: true,
-            canonicalSubscriptionId: true,
-            cardType: true,
-            currentPeriodEnd: true,
-            id: true,
-            status: true,
-            stripeCustomerId: true,
-            stripeSubscriptionId: true,
-          },
-          take: 10,
-        },
       },
       where: { id: user.id },
     }),
@@ -77,8 +61,12 @@ export default async function ProfileMembershipPage(
       orderBy: { createdAt: 'desc' },
       select: {
         amountCents: true,
+        amountPaidCents: true,
+        cardType: true,
+        cardYear: true,
         id: true,
         issueKind: true,
+        source: true,
         status: true,
         stripeReceiptUrl: true,
       },
@@ -93,29 +81,23 @@ export default async function ProfileMembershipPage(
     throw new Error('Missing db user after auth');
   }
 
-  const subscription = selectCanonicalMembershipSubscription(
-    dbUser.sailingCardSubscriptions
-  );
   const state = membershipProfileState({
     access:
       membershipAccessForSailingCardUser(dbUser).kind === 'free_normal'
         ? 'free_normal'
         : 'paid_racing_available',
+    cardYear: getCurrentSailingCardYear(now),
     latestPayment,
-    subscription,
   });
 
   return (
     <ProfileMembershipBillingView
       accessThroughLabel={profileDateLabel(state.accessThrough, locale)}
       amountCents={state.amountCents}
-      canOpenBillingPortal={state.canOpenBillingPortal}
-      canTurnOffAutoRenew={state.canTurnOffAutoRenew}
       cardType={state.cardType}
       kind={state.kind}
       locale={locale}
       receiptUrl={state.receiptUrl}
-      subscriptionId={subscription?.id ?? null}
       t={t}
     />
   );

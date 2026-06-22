@@ -81,7 +81,6 @@ export type AdminEventFeeDto = {
   description: string;
   /** USD minor units (integer cents); same as Stripe `amount` for `usd`. */
   amountCents: number;
-  isDeposit: boolean;
 };
 
 export type AdminEventAdminDto = {
@@ -176,8 +175,10 @@ export type AdminEventRegistrationPaymentDto = {
   id: string;
   status: PaymentStatusValue;
   amountCents: number;
+  amountPaidCents: number | null;
   currency: string;
   receiptUrl: string | null;
+  stripeDiscountMetadata: Prisma.JsonValue | null;
   manualHandledNote: string | null;
   manualHandledByUserId: string | null;
   manualHandledBy: AdminEventUserOption | null;
@@ -266,6 +267,15 @@ export type AdminEventListFilters = {
 };
 
 export type AdminEventListScope = 'my' | 'all';
+
+export const ADMIN_EVENTS_PAGE_SIZE = 25;
+
+export type AdminEventListPage = {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly rows: AdminEventListRow[];
+  readonly total: number;
+};
 
 type AdminEventUserListOptions = {
   limit?: number;
@@ -420,7 +430,6 @@ function registrationDtosFromRows(
       id: string;
       description: string;
       amountCents: number;
-      isDeposit: boolean;
     } | null;
     createdAt: Date;
     swimAgreementAcceptedAt: Date;
@@ -440,7 +449,9 @@ function registrationDtosFromRows(
       id: string;
       status: PaymentStatusValue;
       amountCents: number;
+      amountPaidCents: number | null;
       currency: string;
+      stripeDiscountMetadata: Prisma.JsonValue | null;
       stripeReceiptUrl: string | null;
       manualHandledNote: string | null;
       manualHandledByUserId: string | null;
@@ -487,6 +498,7 @@ function registrationDtosFromRows(
       payment: registration.payment
         ? {
             amountCents: registration.payment.amountCents,
+            amountPaidCents: registration.payment.amountPaidCents,
             currency: registration.payment.currency,
             id: registration.payment.id,
             manualHandledAt: registration.payment.manualHandledAt,
@@ -498,6 +510,7 @@ function registrationDtosFromRows(
               registration.payment.status
             ),
             status: registration.payment.status,
+            stripeDiscountMetadata: registration.payment.stripeDiscountMetadata,
           }
         : null,
       answers: registration.registrationAnswers
@@ -650,12 +663,22 @@ export async function listAdminEventUsers(
   return rows;
 }
 
-export async function listAdminEventRows(
-  filters: AdminEventListFilters
-): Promise<AdminEventListRow[]> {
+export async function listAdminEventRowsPage(
+  filters: AdminEventListFilters & {
+    readonly page: number;
+    readonly pageSize?: number;
+  }
+): Promise<AdminEventListPage> {
+  const where = eventWhereFromFilters(filters);
+  const pageSize = filters.pageSize ?? ADMIN_EVENTS_PAGE_SIZE;
+  const total = await prisma.event.count({ where });
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(filters.page, 1), totalPages);
   const rows = await prisma.event.findMany({
-    where: eventWhereFromFilters(filters),
+    where,
     orderBy: [{ createdAt: 'desc' }, { name: 'asc' }],
+    skip: (page - 1) * pageSize,
+    take: pageSize,
     select: {
       id: true,
       name: true,
@@ -682,11 +705,23 @@ export async function listAdminEventRows(
   const countsByEventId = await registrationCountsByEventId(
     authorizedRows.map((row) => row.id)
   );
-  return authorizedRows.map((row) => ({
-    ...row,
-    registrationCounts:
-      countsByEventId.get(row.id) ?? emptyRegistrationCounts(),
-  }));
+  return {
+    page,
+    pageSize,
+    rows: authorizedRows.map((row) => ({
+      ...row,
+      registrationCounts:
+        countsByEventId.get(row.id) ?? emptyRegistrationCounts(),
+    })),
+    total,
+  };
+}
+
+export async function listAdminEventRows(
+  filters: AdminEventListFilters
+): Promise<AdminEventListRow[]> {
+  const page = await listAdminEventRowsPage({ ...filters, page: 1 });
+  return page.rows;
 }
 
 export async function getAdminEventEditorDataBySlug(options: {
@@ -770,12 +805,11 @@ export async function getAdminEventEditorDataBySlug(options: {
               },
             },
             entryFees: {
-              orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+              orderBy: { description: 'asc' },
               select: {
                 id: true,
                 description: true,
                 amountCents: true,
-                isDeposit: true,
               },
             },
           },
@@ -871,12 +905,11 @@ export async function getAdminEventRegistrationsBySlug(options: {
         },
       },
       entryFees: {
-        orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+        orderBy: { description: 'asc' },
         select: {
           id: true,
           description: true,
           amountCents: true,
-          isDeposit: true,
         },
       },
       registrations: {
@@ -896,7 +929,6 @@ export async function getAdminEventRegistrationsBySlug(options: {
               id: true,
               description: true,
               amountCents: true,
-              isDeposit: true,
             },
           },
           createdAt: true,
@@ -936,7 +968,9 @@ export async function getAdminEventRegistrationsBySlug(options: {
               id: true,
               status: true,
               amountCents: true,
+              amountPaidCents: true,
               currency: true,
+              stripeDiscountMetadata: true,
               stripeReceiptUrl: true,
               manualHandledNote: true,
               manualHandledByUserId: true,

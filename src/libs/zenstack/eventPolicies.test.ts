@@ -270,11 +270,11 @@ async function insertFixtures(pool: Pool) {
   await pool.query(
     `
       INSERT INTO "event_entry_fees" (
-        "id", "event_id", "description", "amount_cents", "is_deposit"
+        "id", "event_id", "description", "amount_cents"
       )
       VALUES
-        ($1, $2, 'Fee', 1200, false),
-        ($3, $4, 'Other fee', 1200, false)
+        ($1, $2, 'Fee', 1200),
+        ($3, $4, 'Other fee', 1200)
     `,
     [ids.fee, ids.assignedEvent, ids.otherFee, ids.otherEvent]
   );

@@ -179,11 +179,7 @@ describe('adminSailingCardUiQueries', () => {
           agreementVersion: sailingCardAgreement.version,
         },
       ],
-      paymentBypassRequest: {
-        paymentBypassAt: new Date('2026-05-22T16:00:00.000Z'),
-        paymentBypassBy: { name: 'Payment Admin' },
-        paymentBypassNote: 'Admin issued sailing card without payment.',
-      },
+      paymentBypassRequest: undefined,
       sailingCardRequests: [
         {
           paymentBypassAt: null,
@@ -207,15 +203,13 @@ describe('adminSailingCardUiQueries', () => {
       paymentBypassRequest: undefined,
     };
     mocks.userFindUnique.mockResolvedValue(userSummary);
-    mocks.sailingCardRequestFindFirst.mockResolvedValue(
-      summary.paymentBypassRequest
-    );
     const { getAdminUserSailingCardSummary } =
       await import('@/libs/admin/cards/adminSailingCardUiQueries');
 
     await expect(getAdminUserSailingCardSummary('user-1')).resolves.toEqual(
       summary
     );
+    expect(mocks.sailingCardRequestFindFirst).not.toHaveBeenCalled();
     expect(mocks.userFindUnique).toHaveBeenCalledWith(
       expect.objectContaining({
         select: expect.objectContaining({
@@ -240,13 +234,6 @@ describe('adminSailingCardUiQueries', () => {
               cardYear: true,
               hasFitnessMembership: true,
               issuedCardNumber: true,
-              paymentBypassAt: true,
-              paymentBypassBy: {
-                select: {
-                  name: true,
-                },
-              },
-              paymentBypassNote: true,
               requestedAt: true,
               sailingAffiliation: true,
               status: true,
@@ -257,28 +244,5 @@ describe('adminSailingCardUiQueries', () => {
         where: { id: 'user-1' },
       })
     );
-    expect(mocks.sailingCardRequestFindFirst).toHaveBeenCalledWith({
-      orderBy: { paymentBypassAt: 'desc' },
-      select: {
-        cardType: true,
-        cardYear: true,
-        hasFitnessMembership: true,
-        issuedCardNumber: true,
-        paymentBypassAt: true,
-        paymentBypassBy: {
-          select: {
-            name: true,
-          },
-        },
-        paymentBypassNote: true,
-        requestedAt: true,
-        sailingAffiliation: true,
-        status: true,
-      },
-      where: {
-        paymentBypassAt: { not: null },
-        userId: 'user-1',
-      },
-    });
   });
 });

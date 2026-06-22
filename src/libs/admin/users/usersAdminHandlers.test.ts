@@ -154,8 +154,8 @@ describe('usersAdminHandlers', () => {
           phone: '+15555550101',
           sailingAffiliation: 'OTHER_NON_STUDENT',
           sailingCardNumber: 61,
-          sailingCardRequests: [],
           sailingCardYear: 2026,
+          _count: { sailingCardRequests: 0 },
         },
         {
           appRole: Role.ADMIN,
@@ -177,8 +177,8 @@ describe('usersAdminHandlers', () => {
           phone: null,
           sailingAffiliation: null,
           sailingCardNumber: null,
-          sailingCardRequests: [{ status: 'pending' }],
           sailingCardYear: null,
+          _count: { sailingCardRequests: 1 },
         },
       ]);
 
@@ -230,6 +230,21 @@ describe('usersAdminHandlers', () => {
           appRole: Role.ADMIN,
         },
       ]);
+      expect(mocks.userFindMany).toHaveBeenCalledWith({
+        orderBy: { email: 'asc' },
+        select: expect.objectContaining({
+          _count: {
+            select: {
+              sailingCardRequests: {
+                where: expect.objectContaining({ status: 'pending' }),
+              },
+            },
+          },
+        }),
+      });
+      expect(mocks.userFindMany.mock.calls[0]?.[0]?.select).not.toHaveProperty(
+        'sailingCardRequests'
+      );
     });
   });
 

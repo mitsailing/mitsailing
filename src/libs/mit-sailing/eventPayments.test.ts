@@ -5,7 +5,6 @@ import {
 } from '@/generated/prisma/enums';
 import {
   applyEventPaymentPaidTransition,
-  buildManualHandledEventPaymentTransition,
   eventPaymentNeedsReminder,
   eventPaymentStatusAllowsReminder,
   eventPaymentStatusCanTransitionTo,
@@ -142,40 +141,6 @@ describe('event payment status transitions', () => {
         to: PaymentStatus.pending,
       })
     ).toBe(false);
-  });
-
-  it('requires note and admin id for manual handled transition', () => {
-    expect(() =>
-      buildManualHandledEventPaymentTransition({
-        adminUserId: 'admin-1',
-        note: '  ',
-        now: new Date('2026-06-01T13:00:00.000Z'),
-        status: PaymentStatus.pending,
-      })
-    ).toThrow('Manual handled payments require an internal note.');
-
-    expect(() =>
-      buildManualHandledEventPaymentTransition({
-        adminUserId: '',
-        note: 'Paid by check',
-        now: new Date('2026-06-01T13:00:00.000Z'),
-        status: PaymentStatus.pending,
-      })
-    ).toThrow('Manual handled payments require an admin user id.');
-
-    expect(
-      buildManualHandledEventPaymentTransition({
-        adminUserId: 'admin-1',
-        note: ' Paid by check ',
-        now: new Date('2026-06-01T13:00:00.000Z'),
-        status: PaymentStatus.pending,
-      })
-    ).toEqual({
-      manualHandledAt: new Date('2026-06-01T13:00:00.000Z'),
-      manualHandledByUserId: 'admin-1',
-      manualHandledNote: 'Paid by check',
-      status: PaymentStatus.handled,
-    });
   });
 
   it.each([

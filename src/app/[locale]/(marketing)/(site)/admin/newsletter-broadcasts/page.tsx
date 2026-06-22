@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { connection } from 'next/server';
+import { AdminTableContainer } from '@/components/mit-sailing/admin/AdminDataRows';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
 import {
@@ -71,7 +72,7 @@ export default async function AdminNewsletterBroadcastsPage(props: PageProps) {
           {t(notificationKey)}
         </output>
       ) : null}
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <AdminTableContainer>
         <Table>
           <TableHeader>
             <TableRow>
@@ -117,7 +118,7 @@ export default async function AdminNewsletterBroadcastsPage(props: PageProps) {
             )}
           </TableBody>
         </Table>
-      </div>
+      </AdminTableContainer>
     </div>
   );
 }

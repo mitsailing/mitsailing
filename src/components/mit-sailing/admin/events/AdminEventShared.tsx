@@ -1,15 +1,8 @@
 import type { getTranslations } from 'next-intl/server';
 import * as React from 'react';
 import { useId } from 'react';
+import { AdminPageSection } from '@/components/mit-sailing/admin/AdminDataRows';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import type { AdminStatusSemanticTone } from '@/lib/mit-sailing/tokens';
 import {
@@ -57,21 +50,13 @@ type AdminEventFormSectionProps = {
 
 export function AdminEventFormSection(props: AdminEventFormSectionProps) {
   return (
-    <Card aria-labelledby={props.id} className="rounded-lg">
-      <CardHeader>
-        <CardTitle>
-          <h2 id={props.id}>{props.title}</h2>
-        </CardTitle>
-        {props.subtitle ? (
-          <CardDescription className="max-w-3xl text-mit-readable-ink">
-            {props.subtitle}
-          </CardDescription>
-        ) : null}
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {props.children}
-      </CardContent>
-    </Card>
+    <AdminPageSection
+      id={props.id}
+      subtitle={props.subtitle}
+      title={props.title}
+    >
+      {props.children}
+    </AdminPageSection>
   );
 }
 
@@ -180,10 +165,11 @@ export function AdminEventCheckbox(props: {
   return (
     <label className="flex cursor-pointer items-start gap-2 text-sm text-mit-readable-ink">
       <input name={props.name} type="hidden" value="false" />
-      <Checkbox
-        className="mt-0.5"
+      <input
+        className="mt-0.5 size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
         defaultChecked={props.defaultChecked}
         name={props.name}
+        type="checkbox"
         value="true"
       />
       <span className="flex min-w-0 flex-col gap-0.5">

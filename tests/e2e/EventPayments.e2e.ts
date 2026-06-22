@@ -5,11 +5,11 @@ import {
   createPaymentEvent,
   createRegistrationWithPayment,
   endPaymentFixturePool,
-  markPaymentHandledFixture,
   mountMockStripeCheckout,
   paymentRequestCount,
   paymentRowsForEvent,
   paymentSettingsForEvent,
+  registrationStatusesForEvent,
   submitRegistration,
 } from '../helpers/e2e-event-payments-fixtures';
 
@@ -41,7 +41,7 @@ test.describe('Event payments', () => {
     await signInAsAdmin(page);
 
     await page.goto(`/admin/events/${event.slug}/edit`);
-    await page.getByLabel('Collect payment for approved registrations').check();
+    await page.getByLabel('Collect payment for registrations').check();
     await page
       .getByLabel('Payment deadline')
       .fill(`${paymentDeadlineYear}-01-15T12:00`);
@@ -115,13 +115,14 @@ test.describe('Event payments', () => {
       .toMatchObject([{ status: 'checkout_created' }]);
   });
 
-  test('approval-required registration creates payment request after approval', async ({
+  test('approval-required paid registration lands on checkout and stays pending', async ({
     page,
   }) => {
     const event = await createPaymentEvent({
       name: 'E2E approval paid clinic',
       requiresApproval: true,
     });
+    await mountMockStripeCheckout(page);
     await signInAsAdmin(page);
 
     await submitRegistration({
@@ -132,12 +133,15 @@ test.describe('Event payments', () => {
     });
     await expect
       .poll(() => new URL(page.url()).pathname)
-      .toBe(`/events/${event.slug}`);
+      .toBe(`/events/${event.slug}/checkout`);
+    await expect(
+      page.getByRole('region', { name: 'Secure Stripe checkout' })
+    ).toBeVisible();
+    await expect(page.getByRole('status')).toHaveText(
+      'Embedded checkout ready'
+    );
 
     await page.goto(`/admin/events/${event.slug}#registrations`);
-    await page.getByLabel(/Actions for/u).click();
-    await page.getByText('Approve', { exact: true }).click();
-    await page.getByRole('button', { name: 'Confirm approve' }).click();
     await expect(
       page
         .locator('span')
@@ -150,20 +154,16 @@ test.describe('Event payments', () => {
         const rows = await paymentRowsForEvent(event.slug);
         return rows;
       })
-      .toMatchObject([{ status: 'pending' }]);
-    const [payment] = await paymentRowsForEvent(event.slug);
-    if (!payment) {
-      throw new Error('Approval did not create an event payment.');
-    }
+      .toMatchObject([{ status: 'checkout_created' }]);
     await expect
       .poll(async () => {
-        const count = await paymentRequestCount(payment.id);
-        return count;
+        const rows = await registrationStatusesForEvent(event.slug);
+        return rows;
       })
-      .toBe(1);
+      .toMatchObject([{ status: 'pending' }]);
   });
 
-  test('admin resends payment request and marks payment handled', async ({
+  test('admin resends unpaid request without local payment handling', async ({
     page,
   }) => {
     const event = await createPaymentEvent({
@@ -187,65 +187,13 @@ test.describe('Event payments', () => {
       })
       .toBe(1);
 
-    const manualHandledNote = 'Paid by check at the pavilion.';
-    let handled = false;
-    for (let attempt = 0; attempt < 3 && !handled; attempt += 1) {
-      await page.goto(`/admin/events/${event.slug}#registrations`);
-      await expect(page.getByText('Pending').first()).toBeVisible();
-      const manualPaymentForm = page.locator('form').filter({
-        has: page.getByLabel('Manual payment note'),
-      });
-      await expect(manualPaymentForm).toBeVisible();
-      await manualPaymentForm
-        .getByLabel('Manual payment note')
-        .fill(manualHandledNote);
-      await expect(
-        manualPaymentForm.getByRole('button', { name: 'Mark handled' })
-      ).toBeVisible();
-      await manualPaymentForm.evaluate((form) => {
-        if (!(form instanceof HTMLFormElement)) {
-          throw new Error('Manual payment form was not a form element.');
-        }
-        form.requestSubmit();
-      });
-
-      const deadline = Date.now() + 5000;
-      while (Date.now() < deadline && !handled) {
-        const rows = await paymentRowsForEvent(event.slug);
-        handled = rows.some(
-          (row) => row.id === paymentId && row.status === 'handled'
-        );
-        if (!handled) {
-          await page.waitForTimeout(250);
-        }
-      }
-    }
-
-    let usedFixtureFallback = false;
-    if (!handled) {
-      await markPaymentHandledFixture({
-        note: manualHandledNote,
-        paymentId,
-      });
-      handled = true;
-      usedFixtureFallback = true;
-    }
-    expect(handled).toBe(true);
-    const registrationsUrl = usedFixtureFallback
-      ? `/admin/events/${event.slug}?paymentStatusRefresh=${Date.now()}#registrations`
-      : `/admin/events/${event.slug}#registrations`;
-    await page.goto(registrationsUrl);
+    await expect(page.getByLabel('Manual payment note')).toHaveCount(0);
     await expect(
-      page
-        .locator('span')
-        .filter({ hasText: /^Handled$/ })
-        .first()
-    ).toBeVisible();
-    await page.getByText('Manual handling note').click();
-    await expect(page.getByText(manualHandledNote)).toBeVisible();
+      page.getByRole('button', { name: 'Mark handled' })
+    ).toHaveCount(0);
   });
 
-  test('profile shows payment receipt and manual handled behavior', async ({
+  test('profile shows paid Stripe receipt without local handled controls', async ({
     page,
   }) => {
     const paidEvent = await createPaymentEvent({
@@ -253,39 +201,22 @@ test.describe('Event payments', () => {
       name: 'E2E paid receipt clinic',
       requiresApproval: false,
     });
-    const handledEvent = await createPaymentEvent({
-      name: 'E2E handled receipt clinic',
-      requiresApproval: false,
-    });
     await createRegistrationWithPayment({
       event: paidEvent,
       receiptUrl: 'https://pay.stripe.com/receipts/e2e-paid',
       status: 'paid',
     });
-    await createRegistrationWithPayment({
-      event: handledEvent,
-      manualHandledNote: 'Handled outside Stripe.',
-      receiptUrl: 'https://pay.stripe.com/receipts/e2e-handled',
-      status: 'handled',
-    });
     await signInAsAdmin(page);
 
     await page.goto('/profile/payments');
 
-    const paidRow = page.getByRole('row', { name: /E2E paid receipt clinic/ });
+    const paidRow = page
+      .getByRole('listitem')
+      .filter({ hasText: 'E2E paid receipt clinic' });
     await expect(paidRow).toContainText('$15.00');
     await expect(paidRow).toContainText('Paid');
     await expect(
       paidRow.getByRole('link', { exact: true, name: 'Receipt' })
     ).toHaveAttribute('href', 'https://pay.stripe.com/receipts/e2e-paid');
-
-    const handledRow = page.getByRole('row', {
-      name: /E2E handled receipt clinic/,
-    });
-    await expect(handledRow).toContainText('Handled by MIT Sailing');
-    await expect(handledRow).toContainText('None');
-    await expect(
-      handledRow.getByRole('link', { exact: true, name: 'Receipt' })
-    ).toHaveCount(0);
   });
 });

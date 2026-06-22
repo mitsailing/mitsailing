@@ -22,6 +22,10 @@ type PaymentRow = {
   status: string;
 };
 
+type RegistrationStatusRow = {
+  status: string;
+};
+
 export type PaymentSettingsRow = {
   address_city: string | null;
   address_line1: string | null;
@@ -204,8 +208,8 @@ export async function createPaymentEvent(options: {
   );
   await pool.query(
     `
-      INSERT INTO "event_entry_fees" ("id", "event_id", "description", "amount_cents", "is_deposit")
-      VALUES ($1, $2, 'Event registration', $3, false)
+      INSERT INTO "event_entry_fees" ("id", "event_id", "description", "amount_cents")
+      VALUES ($1, $2, 'Event registration', $3)
     `,
     [feeId, eventId, amountCents]
   );
@@ -237,11 +241,10 @@ async function insertApprovedRegistration(options: {
 
 async function insertEventPayment(options: {
   event: EventFixture;
-  manualHandledNote?: string;
   paymentId: string;
   receiptUrl?: string | null;
   registrationId: string;
-  status: 'handled' | 'paid' | 'past_due' | 'pending';
+  status: 'paid' | 'past_due' | 'pending';
   userId: string;
 }): Promise<void> {
   await pool.query(
@@ -259,17 +262,12 @@ async function insertEventPayment(options: {
         "currency",
         "status",
         "stripe_receipt_url",
-        "manual_handled_note",
-        "manual_handled_by_user_id",
-        "manual_handled_at",
         "created_at",
         "updated_at"
       )
       VALUES (
-        $1, 'event', 'stripe', $2, $3, $4, $5, 'Event registration', $9, 'usd',
-        $6::payment_status, $7, $8,
-        CASE WHEN $6::text = 'handled' THEN $4 ELSE NULL END,
-        CASE WHEN $6::text = 'handled' THEN NOW() ELSE NULL END,
+        $1, 'event', 'stripe', $2, $3, $4, $5, 'Event registration', $8, 'usd',
+        $6::payment_status, $7,
         NOW(),
         NOW()
       )
@@ -282,7 +280,6 @@ async function insertEventPayment(options: {
       options.event.feeId,
       options.status,
       options.receiptUrl ?? null,
-      options.manualHandledNote ?? null,
       options.event.amountCents,
     ]
   );
@@ -290,9 +287,8 @@ async function insertEventPayment(options: {
 
 export async function createRegistrationWithPayment(options: {
   event: EventFixture;
-  manualHandledNote?: string;
   receiptUrl?: string | null;
-  status: 'handled' | 'paid' | 'past_due' | 'pending';
+  status: 'paid' | 'past_due' | 'pending';
 }): Promise<string> {
   const userId = await adminUserId();
   const registrationId = randomUUID();
@@ -304,7 +300,6 @@ export async function createRegistrationWithPayment(options: {
   });
   await insertEventPayment({
     event: options.event,
-    manualHandledNote: options.manualHandledNote,
     paymentId,
     receiptUrl: options.receiptUrl,
     registrationId,
@@ -328,6 +323,22 @@ export async function paymentRowsForEvent(slug: string): Promise<PaymentRow[]> {
   return result.rows;
 }
 
+export async function registrationStatusesForEvent(
+  slug: string
+): Promise<RegistrationStatusRow[]> {
+  const result = await pool.query<RegistrationStatusRow>(
+    `
+      SELECT er."status"
+      FROM "event_registrations" er
+      JOIN "events" e ON e."id" = er."event_id"
+      WHERE e."slug" = $1
+      ORDER BY er."created_at" DESC
+    `,
+    [slug]
+  );
+  return result.rows;
+}
+
 export async function paymentRequestCount(paymentId: string): Promise<number> {
   const result = await pool.query<{ count: string }>(
     `
@@ -338,25 +349,6 @@ export async function paymentRequestCount(paymentId: string): Promise<number> {
     [paymentId]
   );
   return Number(result.rows[0]?.count ?? '0');
-}
-
-export async function markPaymentHandledFixture(options: {
-  note: string;
-  paymentId: string;
-}): Promise<void> {
-  const adminId = await adminUserId();
-  await pool.query(
-    `
-      UPDATE "payments"
-      SET "status" = 'handled',
-          "manual_handled_note" = $2,
-          "manual_handled_by_user_id" = $3,
-          "manual_handled_at" = NOW(),
-          "updated_at" = NOW()
-      WHERE "id" = $1
-    `,
-    [options.paymentId, options.note, adminId]
-  );
 }
 
 export async function paymentSettingsForEvent(

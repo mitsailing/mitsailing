@@ -9,6 +9,7 @@ import { Role } from '@/libs/auth/roles';
 import type * as EventQueries from '@/libs/mit-sailing/eventQueries';
 
 const mocks = vi.hoisted(() => ({
+  eventCount: vi.fn(),
   eventFindFirst: vi.fn(),
   eventFindMany: vi.fn(),
   eventFindUnique: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock('server-only', () => ({}));
 vi.mock('@/libs/DB', () => ({
   prisma: {
     event: {
+      count: mocks.eventCount,
       findFirst: mocks.eventFindFirst,
       findMany: mocks.eventFindMany,
       findUnique: mocks.eventFindUnique,
@@ -50,6 +52,7 @@ vi.mock('@/libs/mit-sailing/eventQueries', async (importOriginal) => ({
 
 beforeEach(() => {
   mocks.eventFindFirst.mockReset();
+  mocks.eventCount.mockReset();
   mocks.eventFindMany.mockReset();
   mocks.eventFindUnique.mockReset();
   mocks.eventRegistrationGroupBy.mockReset();
@@ -58,6 +61,7 @@ beforeEach(() => {
   mocks.eventCategoryFindMany.mockReset();
   mocks.userFindMany.mockReset();
   mocks.eventCategoryFindMany.mockResolvedValue([]);
+  mocks.eventCount.mockResolvedValue(0);
   mocks.eventRegistrationGroupBy.mockResolvedValue([]);
   mocks.userFindMany.mockResolvedValue([]);
 });

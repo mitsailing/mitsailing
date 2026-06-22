@@ -8,6 +8,7 @@ import {
 } from '@/generated/prisma/enums';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
+import { normalizeImportedPersonName } from '@/libs/mit-sailing/personName';
 import {
   normalizeInternationalPhone,
   normalizeUsPhone,
@@ -200,10 +201,20 @@ function parseLegacyDate(value: string | null | undefined): Date | null {
 }
 
 function displayName(row: LegacyMemberRow): string {
-  const first = stringValue(row.first);
-  const last = stringValue(row.last);
-  const joined = `${first} ${last}`.trim();
+  const name = normalizeImportedPersonName({
+    firstName: stringValue(row.first),
+    lastName: stringValue(row.last),
+  });
+  const joined = name.name;
   return joined || normalizeLegacyEmail(row.email) || 'Legacy sailor';
+}
+
+function nullableImportedNamePart(value: string | null | undefined) {
+  const normalized = normalizeImportedPersonName({
+    firstName: stringValue(value),
+    lastName: '',
+  }).firstName;
+  return normalized === '' ? null : normalized;
 }
 
 function legacySailingCardFromMembers(
@@ -287,9 +298,9 @@ function canonicalUserFromMembers(
     email,
     emergencyContactName: emergencyContact.emergencyContactName,
     emergencyContactPhone: emergencyContact.emergencyContactPhone,
-    firstName: nullableString(profile?.first),
+    firstName: nullableImportedNamePart(profile?.first),
     key,
-    lastName: nullableString(profile?.last),
+    lastName: nullableImportedNamePart(profile?.last),
     legacySailingCard: legacySailingCardFromMembers(sorted),
     legacyMemberIds,
     legacyMemberRows: sorted,
@@ -1151,6 +1162,9 @@ export async function importLegacyPaymentRows(props: {
       const orderNumber = stringValue(payment.omarsid);
       if (orderNumber === '') {
         paymentsNeedingReview += 1;
+        continue;
+      }
+      if (isLegacyDepositPayment(payment)) {
         continue;
       }
       const write = legacyPaymentWrite({

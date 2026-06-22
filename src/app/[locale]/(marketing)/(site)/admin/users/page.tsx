@@ -1,25 +1,104 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
+import {
+  AdminPagination,
+  adminPaginationPage,
+} from '@/components/mit-sailing/admin/AdminPagination';
 import { AdminPrimaryActionLink } from '@/components/mit-sailing/admin/AdminPrimaryActionLink';
 import { AdminCatalogTable } from '@/components/mit-sailing/admin/catalog/AdminCatalogTable';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   ADMIN_USERS_PATH,
   adminUsersNewPath,
 } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminDefinition } from '@/libs/admin/users/userAdminDefinitions';
-import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
+import {
+  ADMIN_USERS_PAGE_SIZE,
+  listAdminUsersPage,
+} from '@/libs/admin/users/usersAdminHandlers';
+import type {
+  AdminUsersEmailStatusFilter,
+  AdminUsersListFilters,
+  AdminUsersSailingCardStatusFilter,
+} from '@/libs/admin/users/usersAdminHandlers';
 import {
   getAppRolePermissions,
   hasPermission,
   Permission,
 } from '@/libs/auth/appPermissions';
 import { appRoleFromSessionUser, requirePermission } from '@/libs/auth/dal';
+import { Link } from '@/libs/I18nNavigation';
 import { getI18nPath } from '@/utils/Helpers';
 
 type AdminUsersIndexPageProps = {
   params: Promise<{ locale: string }>;
+  searchParams?: Promise<{
+    emailStatus?: string | string[];
+    page?: string | string[];
+    q?: string | string[];
+    sailingCardStatus?: string | string[];
+  }>;
 };
+
+function searchParamString(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value.at(0)?.trim() ?? '';
+  }
+  return value?.trim() ?? '';
+}
+
+function adminUsersEmailStatusFilter(
+  value: string | string[] | undefined
+): AdminUsersEmailStatusFilter {
+  const selected = searchParamString(value);
+  return selected === 'bounced' ||
+    selected === 'ok' ||
+    selected === 'suppressed'
+    ? selected
+    : 'all';
+}
+
+function adminUsersSailingCardStatusFilter(
+  value: string | string[] | undefined
+): AdminUsersSailingCardStatusFilter {
+  const selected = searchParamString(value);
+  return selected === 'current' ||
+    selected === 'expired' ||
+    selected === 'none' ||
+    selected === 'pending'
+    ? selected
+    : 'all';
+}
+
+function adminUsersPaginationSummary(props: {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly total: number;
+}) {
+  if (props.total === 0) {
+    return { end: 0, start: 0 };
+  }
+  const start = (props.page - 1) * props.pageSize + 1;
+  return {
+    end: Math.min(props.total, start + props.pageSize - 1),
+    start,
+  };
+}
+
+function adminUsersFilterParams(filters: AdminUsersListFilters) {
+  return {
+    emailStatus:
+      filters.emailStatus === 'all' ? undefined : filters.emailStatus,
+    q: filters.query,
+    sailingCardStatus:
+      filters.sailingCardStatus === 'all'
+        ? undefined
+        : filters.sailingCardStatus,
+  };
+}
 
 export async function generateMetadata(
   props: AdminUsersIndexPageProps
@@ -39,6 +118,7 @@ export default async function AdminUsersIndexPage(
   props: AdminUsersIndexPageProps
 ) {
   const { locale } = await props.params;
+  const searchParams = (await props.searchParams) ?? {};
   setRequestLocale(locale);
 
   const session = await requirePermission(Permission.USERS_VIEW, locale);
@@ -55,7 +135,23 @@ export default async function AdminUsersIndexPage(
   );
   const accountHref = getI18nPath('/', locale);
 
-  const rows = await usersAdminHandlers.list();
+  const filters = {
+    emailStatus: adminUsersEmailStatusFilter(searchParams.emailStatus),
+    query: searchParamString(searchParams.q),
+    sailingCardStatus: adminUsersSailingCardStatusFilter(
+      searchParams.sailingCardStatus
+    ),
+  } satisfies AdminUsersListFilters;
+  const usersPage = await listAdminUsersPage({
+    filters,
+    page: adminPaginationPage(searchParamString(searchParams.page)),
+    pageSize: ADMIN_USERS_PAGE_SIZE,
+  });
+  const paginationRange = adminUsersPaginationSummary(usersPage);
+  const hasActiveFilters =
+    filters.query.length > 0 ||
+    filters.emailStatus !== 'all' ||
+    filters.sailingCardStatus !== 'all';
   const tr = await getTranslations({ locale, namespace: 'AdminUsers' });
   const t = await getTranslations({ locale, namespace: 'MitSailingRoutes' });
   const ta = await getTranslations({ locale, namespace: 'AdminPage' });
@@ -72,6 +168,72 @@ export default async function AdminUsersIndexPage(
         }
         title={t('title_admin_users')}
       />
+      <form
+        action={ADMIN_USERS_PATH}
+        className="grid gap-3 md:grid-cols-[minmax(16rem,1fr)_14rem_14rem_auto] md:items-end"
+        method="get"
+      >
+        <div>
+          <Label htmlFor="admin-users-q">{tr('filter_search_label')}</Label>
+          <Input
+            className="mt-2"
+            defaultValue={filters.query}
+            id="admin-users-q"
+            name="q"
+            placeholder={tr('filter_search_placeholder')}
+            type="search"
+          />
+        </div>
+        <div>
+          <Label htmlFor="admin-users-email-status">
+            {tr('filter_email_status_label')}
+          </Label>
+          <select
+            className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            defaultValue={filters.emailStatus}
+            id="admin-users-email-status"
+            name="emailStatus"
+          >
+            <option value="all">{tr('filter_email_status_all')}</option>
+            <option value="ok">{tr('email_status_ok')}</option>
+            <option value="bounced">{tr('email_status_bounced')}</option>
+            <option value="suppressed">{tr('email_status_suppressed')}</option>
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="admin-users-card-status">
+            {tr('filter_sailing_card_status_label')}
+          </Label>
+          <select
+            className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            defaultValue={filters.sailingCardStatus}
+            id="admin-users-card-status"
+            name="sailingCardStatus"
+          >
+            <option value="all">{tr('filter_sailing_card_status_all')}</option>
+            <option value="pending">
+              {tr('filter_sailing_card_status_pending')}
+            </option>
+            <option value="current">
+              {tr('filter_sailing_card_status_current')}
+            </option>
+            <option value="expired">
+              {tr('filter_sailing_card_status_expired')}
+            </option>
+            <option value="none">
+              {tr('filter_sailing_card_status_none')}
+            </option>
+          </select>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit">{tr('filter_submit')}</Button>
+          {hasActiveFilters ? (
+            <Button asChild type="button" variant="outline">
+              <Link href={ADMIN_USERS_PATH}>{tr('filter_clear')}</Link>
+            </Button>
+          ) : null}
+        </div>
+      </form>
 
       <AdminCatalogTable
         adminBasePath={ADMIN_USERS_PATH}
@@ -86,55 +248,8 @@ export default async function AdminUsersIndexPage(
         }}
         locale={locale}
         messageNamespace="AdminUsers"
-        filters={[
-          {
-            allKey: 'filter_email_status_all',
-            field: 'emailDeliverabilityStatus',
-            labelKey: 'filter_email_status_label',
-            options: [
-              { labelKey: 'email_status_ok', value: 'ok' },
-              { labelKey: 'email_status_bounced', value: 'bounced' },
-              { labelKey: 'email_status_suppressed', value: 'suppressed' },
-            ],
-          },
-          {
-            allKey: 'filter_sailing_card_status_all',
-            field: 'sailingCardStatus',
-            labelKey: 'filter_sailing_card_status_label',
-            options: [
-              {
-                labelKey: 'filter_sailing_card_status_pending',
-                value: 'pending',
-              },
-              {
-                labelKey: 'filter_sailing_card_status_current',
-                value: 'current',
-              },
-              {
-                labelKey: 'filter_sailing_card_status_expired',
-                value: 'expired',
-              },
-              { labelKey: 'filter_sailing_card_status_none', value: 'none' },
-            ],
-          },
-        ]}
         resourceId={usersAdminDefinition.id}
-        rows={rows}
-        search={{
-          emptyKey: 'filter_empty',
-          fields: [
-            'email',
-            'name',
-            'phone',
-            'emergencyContactName',
-            'emergencyContactPhone',
-            'mitId',
-            'sailingCardNumber',
-            'appRole',
-          ],
-          labelKey: 'filter_search_label',
-          placeholderKey: 'filter_search_placeholder',
-        }}
+        rows={usersPage.rows}
         userImpersonation={
           canEditUsers
             ? {
@@ -144,6 +259,22 @@ export default async function AdminUsersIndexPage(
               }
             : undefined
         }
+      />
+      <AdminPagination
+        basePath={ADMIN_USERS_PATH}
+        labels={{
+          next: tr('pagination_next'),
+          previous: tr('pagination_previous'),
+          summary: tr('pagination_summary', {
+            end: paginationRange.end,
+            start: paginationRange.start,
+            total: usersPage.total,
+          }),
+        }}
+        page={usersPage.page}
+        pageSize={usersPage.pageSize}
+        params={adminUsersFilterParams(filters)}
+        total={usersPage.total}
       />
     </div>
   );

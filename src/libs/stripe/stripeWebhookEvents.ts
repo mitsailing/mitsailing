@@ -2,6 +2,7 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import type { Stripe } from 'stripe';
 import {
+  EventRegistrationStatus,
   EventPaymentNotificationKind,
   PaymentPurpose,
   PaymentStatus,
@@ -16,6 +17,10 @@ import {
   eventPaymentStatusCanTransitionTo,
   nyEventPaymentNotificationDateKey,
 } from '@/libs/mit-sailing/eventPayments';
+import {
+  stripeObjectPaidAmountCents,
+  stripePaymentDiscountMetadataFromObject,
+} from '@/libs/stripe/stripePaymentDiscountMetadata';
 
 type StripeWebhookConstructEvent = {
   webhooks: {
@@ -49,22 +54,19 @@ type StripeWebhookDbPayment = {
   cardType?: SailingCardType | null;
   cardYear?: number | null;
   currency: string;
+  eventId?: string | null;
   id: string;
   membershipInitialPriceId?: string | null;
-  membershipPaymentKind?: string | null;
-  membershipRenewalPriceId?: string | null;
-  membershipSubscriptionId?: string | null;
   purpose?: PaymentPurposeType;
+  registrationId?: string | null;
   status: PaymentStatusType;
   lastStripePaymentEventCreatedAt?: Date | null;
   lastStripePaymentEventId?: string | null;
   stripeChargeId?: string | null;
   stripeCheckoutSessionId?: string | null;
   stripeCustomerId?: string | null;
-  stripeInvoiceId?: string | null;
   stripePaymentIntentId?: string | null;
   stripeReceiptUrl?: string | null;
-  stripeSubscriptionId?: string | null;
   userId?: string | null;
 };
 
@@ -83,7 +85,18 @@ export type StripeWebhookDb = {
       where: { id: string; status?: PaymentStatusType };
     }) => Promise<{ count: number }>;
   };
-  sailingCardSubscription?: unknown;
+  eventRegistration?: {
+    updateMany: (args: {
+      data: { status: typeof EventRegistrationStatus.approved };
+      where: {
+        event: { requiresApproval: false };
+        eventId: string;
+        id: string;
+        status: typeof EventRegistrationStatus.pending;
+        userId: string;
+      };
+    }) => Promise<{ count: number }>;
+  };
   eventPaymentNotification: {
     upsert: (args: {
       create: {
@@ -194,10 +207,6 @@ function stringValue(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
-function numberValue(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
 function expandableId(value: unknown): string | null {
   if (typeof value === 'string') {
     return value;
@@ -218,10 +227,6 @@ function eventMetadata(
   return objectValue(object.metadata) ?? {};
 }
 
-function stripeMetadataValue(value: unknown): Record<string, unknown> {
-  return objectValue(objectValue(value)?.metadata) ?? {};
-}
-
 function eventPaymentId(object: Record<string, unknown>): string | null {
   return (
     stringValue(eventMetadata(object).paymentId) ??
@@ -232,15 +237,10 @@ function eventPaymentId(object: Record<string, unknown>): string | null {
 function isSailingCardMembershipStripeObject(
   object: Record<string, unknown>
 ): boolean {
-  const parent = objectValue(object.parent);
-  return [
-    eventMetadata(object),
-    stripeMetadataValue(object.subscription_details),
-    parent ? stripeMetadataValue(parent.subscription_details) : {},
-  ].some(
-    (metadata) =>
-      stringValue(metadata.domain) === 'sailing_card_membership' ||
-      stringValue(metadata.purpose) === 'membership'
+  const metadata = eventMetadata(object);
+  return (
+    stringValue(metadata.domain) === 'sailing_card_membership' ||
+    stringValue(metadata.purpose) === 'membership'
   );
 }
 
@@ -302,19 +302,31 @@ async function claimExistingWebhookEvent(options: {
   return claim.count === 1 ? { id: options.eventId } : null;
 }
 
-function stripeObjectMatchesPaymentAmount(
+function stripeObjectMatchesPaymentCurrency(
+  object: Record<string, unknown>,
+  payment: Pick<StripeWebhookDbPayment, 'currency'>
+): boolean {
+  const currency = stringValue(object.currency);
+  return currency?.toLowerCase() === payment.currency.toLowerCase();
+}
+
+function stripeObjectCanSatisfyPaymentAmount(
   object: Record<string, unknown>,
   payment: Pick<StripeWebhookDbPayment, 'amountCents' | 'currency'>
 ): boolean {
-  const amount =
-    numberValue(object.amount_total) ??
-    numberValue(object.amount_received) ??
-    numberValue(object.amount);
-  const currency = stringValue(object.currency);
+  const amount = stripeObjectPaidAmountCents(object);
   return (
-    amount === payment.amountCents &&
-    currency?.toLowerCase() === payment.currency.toLowerCase()
+    amount !== null &&
+    Number.isInteger(amount) &&
+    amount >= 0 &&
+    amount <= payment.amountCents &&
+    stripeObjectMatchesPaymentCurrency(object, payment)
   );
+}
+
+function checkoutSessionPaymentIsSatisfied(object: Record<string, unknown>) {
+  const paymentStatus = stringValue(object.payment_status);
+  return paymentStatus === 'paid' || paymentStatus === 'no_payment_required';
 }
 
 async function ensureReceiptNotification(options: {
@@ -351,7 +363,7 @@ function receiptJobForPaidEventPayment(options: {
 }): Promise<StripeWebhookReceiptJob> | null {
   if (
     options.payment.status !== PaymentStatus.paid ||
-    !stripeObjectMatchesPaymentAmount(options.object, options.payment)
+    !stripeObjectCanSatisfyPaymentAmount(options.object, options.payment)
   ) {
     return null;
   }
@@ -405,6 +417,17 @@ function paidStripeReferenceMergeData(update: Record<string, unknown>) {
       data[key] = value;
     }
   }
+  for (const key of [
+    'amountPaidCents',
+    'lastStripePaymentEventCreatedAt',
+    'lastStripePaymentEventId',
+    'stripeDiscountMetadata',
+  ]) {
+    const value = update[key];
+    if (value !== undefined) {
+      data[key] = value;
+    }
+  }
   return data;
 }
 
@@ -417,7 +440,7 @@ async function duplicateReceiptJobForPaidEvent(options: {
   if (
     (options.event.type === 'checkout.session.completed' ||
       options.event.type === 'checkout.session.async_payment_succeeded') &&
-    stringValue(object.payment_status) !== 'paid'
+    !checkoutSessionPaymentIsSatisfied(object)
   ) {
     return null;
   }
@@ -454,6 +477,31 @@ async function duplicateReceiptJobForPaidEvent(options: {
   });
 }
 
+async function approveAutoApprovedEventRegistrationAfterPayment(options: {
+  db: StripeWebhookDb;
+  payment: StripeWebhookDbPayment;
+}) {
+  if (
+    options.payment.purpose !== PaymentPurpose.event_payment ||
+    !options.db.eventRegistration ||
+    !options.payment.eventId ||
+    !options.payment.registrationId ||
+    !options.payment.userId
+  ) {
+    return;
+  }
+  await options.db.eventRegistration.updateMany({
+    data: { status: EventRegistrationStatus.approved },
+    where: {
+      event: { requiresApproval: false },
+      eventId: options.payment.eventId,
+      id: options.payment.registrationId,
+      status: EventRegistrationStatus.pending,
+      userId: options.payment.userId,
+    },
+  });
+}
+
 async function markPaymentPaid(options: {
   chargeId?: string | null;
   checkoutSessionId?: string | null;
@@ -476,9 +524,18 @@ async function markPaymentPaid(options: {
   ) {
     return { handled: true };
   }
-  if (!stripeObjectMatchesPaymentAmount(options.object, options.payment)) {
+  if (!stripeObjectCanSatisfyPaymentAmount(options.object, options.payment)) {
     throw new TypeError('Stripe webhook amount does not match event payment.');
   }
+  const accountingData = {
+    amountPaidCents: stripeObjectPaidAmountCents(options.object),
+    lastStripePaymentEventCreatedAt: stripeEventCreatedAtDate(options.event),
+    lastStripePaymentEventId: options.event.id,
+    stripeDiscountMetadata: stripePaymentDiscountMetadataFromObject({
+      object: options.object,
+      paymentAmountCents: options.payment.amountCents,
+    }),
+  };
   const transition = applyEventPaymentPaidTransition({
     current: options.payment,
     stripeChargeId: options.chargeId,
@@ -487,17 +544,29 @@ async function markPaymentPaid(options: {
     stripePaymentIntentId: options.paymentIntentId,
     stripeReceiptUrl: options.receiptUrl,
   });
+  const update = {
+    ...transition.update,
+    ...accountingData,
+  };
   const result = await options.db.payment.updateMany({
-    data: transition.update,
+    data: update,
     where: { id: options.payment.id, status: options.payment.status },
   });
   if (result.count === 0) {
     await options.db.payment.updateMany({
-      data: paidStripeReferenceMergeData(transition.update),
+      data: paidStripeReferenceMergeData(update),
       where: { id: options.payment.id, status: PaymentStatus.paid },
+    });
+    await approveAutoApprovedEventRegistrationAfterPayment({
+      db: options.db,
+      payment: options.payment,
     });
     return { handled: true };
   }
+  await approveAutoApprovedEventRegistrationAfterPayment({
+    db: options.db,
+    payment: options.payment,
+  });
   if (!transition.shouldCreateReceiptNotification) {
     if (!options.retryingReceiptEnqueue) {
       return { handled: true };
@@ -536,7 +605,7 @@ async function handleCheckoutCompleted(options: {
   if (!payment) {
     return { handled: !isSailingCardMembershipStripeObject(options.object) };
   }
-  if (stringValue(options.object.payment_status) !== 'paid') {
+  if (!checkoutSessionPaymentIsSatisfied(options.object)) {
     return { handled: true };
   }
   return markPaymentPaid({

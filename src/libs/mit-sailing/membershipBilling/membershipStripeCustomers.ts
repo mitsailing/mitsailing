@@ -12,13 +12,6 @@ export type MembershipStripeCustomerClient = {
       };
     }): Promise<{ readonly stripeCustomerId: string | null } | null>;
   };
-  readonly sailingCardSubscription: {
-    findFirst(args: {
-      readonly orderBy: { readonly updatedAt: 'desc' };
-      readonly select: { readonly stripeCustomerId: true };
-      readonly where: { readonly userId: string };
-    }): Promise<{ readonly stripeCustomerId: string } | null>;
-  };
 };
 
 export type MembershipStripeCustomerStripe = {
@@ -48,15 +41,6 @@ export async function getOrCreateMembershipStripeCustomer(options: {
   readonly stripe: MembershipStripeCustomerStripe;
   readonly userId: string;
 }): Promise<string> {
-  const subscription = await options.client.sailingCardSubscription.findFirst({
-    orderBy: { updatedAt: 'desc' },
-    select: { stripeCustomerId: true },
-    where: { userId: options.userId },
-  });
-  if (subscription) {
-    return subscription.stripeCustomerId;
-  }
-
   const payment = await options.client.payment.findFirst({
     orderBy: { updatedAt: 'desc' },
     select: { stripeCustomerId: true },

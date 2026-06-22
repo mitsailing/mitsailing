@@ -1,14 +1,15 @@
 'use client';
 
-import { EmailEditor } from '@react-email/editor';
 import type { EmailEditorRef } from '@react-email/editor';
 import type * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { Label } from '@/components/ui/label';
+import { AdminEmailEditorSurface } from '@/components/mit-sailing/admin/AdminEmailEditorSurface';
 import { SubmitButton } from '@/components/ui/submit-button';
 
 type AdminNewsletterBroadcastEditorText = Readonly<{
   bodyLabel: string;
+  pendingQueueBroadcast: string;
+  pendingSaveDraft: string;
   queueBroadcast: string;
   saveDraft: string;
 }>;
@@ -90,39 +91,37 @@ export function AdminNewsletterBroadcastEditor(
         await props.action(formData);
         globalThis.localStorage.removeItem(DRAFT_STORAGE_KEY);
       }}
-      className="space-y-5 rounded-lg border border-border bg-card p-5"
+      className="flex flex-col gap-5"
     >
       {props.children}
-      <div className="flex flex-col gap-1.5">
-        <Label>{props.text.bodyLabel}</Label>
-        <div className="min-h-[420px] rounded-lg border border-border bg-card p-3">
-          <EmailEditor
-            content={body}
-            key={body}
-            onUpdate={(ref) => {
-              const nextBody = ref.editor?.getHTML() ?? body;
-              persistDraft(nextBody);
-            }}
-            ref={editorRef}
-            theme="basic"
-          />
-        </div>
-      </div>
+      <AdminEmailEditorSurface
+        content={body}
+        editorRef={editorRef}
+        label={props.text.bodyLabel}
+        onUpdate={(ref) => {
+          const nextBody = ref.editor?.getHTML() ?? body;
+          persistDraft(nextBody);
+        }}
+      />
       <input name="body" type="hidden" />
       <input name="bodyText" type="hidden" />
       <input name="bodyJson" type="hidden" />
-      <div className="flex flex-wrap gap-2">
+      <div className="sticky bottom-0 z-20 grid gap-2 border-t border-border bg-background/95 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur supports-[backdrop-filter]:bg-background/85 sm:static sm:flex sm:flex-wrap sm:justify-end sm:border-t-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
         <SubmitButton
+          className="h-11 w-full sm:h-8 sm:w-auto"
           name="intent"
-          pendingKind="saving"
+          pendingLabel={props.text.pendingSaveDraft}
+          type="submit"
           value="draft"
           variant="outline"
         >
           {props.text.saveDraft}
         </SubmitButton>
         <SubmitButton
+          className="h-11 w-full sm:h-8 sm:w-auto"
           name="intent"
-          pendingKind="sending"
+          pendingLabel={props.text.pendingQueueBroadcast}
+          type="submit"
           value="queue"
           variant="mit"
         >

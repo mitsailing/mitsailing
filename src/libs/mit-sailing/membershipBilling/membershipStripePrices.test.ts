@@ -37,7 +37,7 @@ function priceRow(
     active: row.active ?? true,
     amountCents: row.amountCents ?? 12_500,
     billingInterval:
-      row.billingInterval ?? SailingCardMembershipBillingInterval.annual,
+      row.billingInterval ?? SailingCardMembershipBillingInterval.one_time,
     cardType: row.cardType ?? SailingCardType.racing,
     currency: row.currency ?? 'usd',
     effectiveAt: row.effectiveAt ?? new Date('2026-01-01T05:00:00.000Z'),
@@ -79,21 +79,15 @@ type StripePriceListRow = Awaited<
   ReturnType<MembershipStripePriceSyncStripe['prices']['list']>
 >['data'][number];
 
-function annualRecurringPrice(
+function oneTimeStripePrice(
   price: Partial<StripePriceListRow> = {}
 ): StripePriceListRow {
   return {
     currency: 'usd',
     id: 'price_recovered',
-    product: 'mitsailing_sailing_card_membership_racing_annual',
-    recurring: {
-      interval: 'year',
-      interval_count: 1,
-      meter: null,
-      trial_period_days: null,
-      usage_type: 'licensed',
-    },
-    type: 'recurring',
+    product: 'mitsailing_sailing_card_membership_racing_current_season',
+    recurring: null,
+    type: 'one_time',
     unit_amount: 12_500,
     ...price,
   };
@@ -244,7 +238,7 @@ describe('membership Stripe Prices', () => {
     });
   });
 
-  it('creates recurring annual Stripe Prices for full annual prices', async () => {
+  it('creates one-time Stripe Prices for current-season prices', async () => {
     const price = priceRow();
 
     await expect(
@@ -264,9 +258,8 @@ describe('membership Stripe Prices', () => {
         currency: 'usd',
         lookup_key: 'mitsailing_membership_price-row-1',
         metadata: membershipStripePriceMetadata(price),
-        nickname: 'Annual racing membership renewal every July 15 (under 30)',
-        product: 'mitsailing_sailing_card_membership_racing_annual',
-        recurring: { interval: 'year' },
+        nickname: 'Current-season racing membership through July 14 (under 30)',
+        product: 'mitsailing_sailing_card_membership_racing_current_season',
         unit_amount: 12_500,
       },
       { idempotencyKey: 'membership-price-sync-price-row-1' }
@@ -281,7 +274,7 @@ describe('membership Stripe Prices', () => {
   it('recovers a previously created Stripe Price by lookup key before creating', async () => {
     const price = priceRow();
     mocks.pricesList.mockResolvedValueOnce({
-      data: [annualRecurringPrice()],
+      data: [oneTimeStripePrice()],
     });
 
     await expect(
@@ -316,47 +309,29 @@ describe('membership Stripe Prices', () => {
   it.each([
     {
       label: 'amount',
-      stripePrice: annualRecurringPrice({ unit_amount: 13_000 }),
+      stripePrice: oneTimeStripePrice({ unit_amount: 13_000 }),
     },
     {
       label: 'currency',
-      stripePrice: annualRecurringPrice({ currency: 'eur' }),
+      stripePrice: oneTimeStripePrice({ currency: 'eur' }),
     },
     {
       label: 'product',
-      stripePrice: annualRecurringPrice({
+      stripePrice: oneTimeStripePrice({
         product: 'mitsailing_sailing_card_membership_racing_spring',
       }),
     },
     {
       label: 'type',
-      stripePrice: annualRecurringPrice({
-        recurring: null,
-        type: 'one_time',
-      }),
-    },
-    {
-      label: 'interval count',
-      stripePrice: annualRecurringPrice({
-        recurring: {
-          interval: 'year',
-          interval_count: 2,
-          meter: null,
-          trial_period_days: null,
-          usage_type: 'licensed',
-        },
-      }),
-    },
-    {
-      label: 'usage type',
-      stripePrice: annualRecurringPrice({
+      stripePrice: oneTimeStripePrice({
         recurring: {
           interval: 'year',
           interval_count: 1,
           meter: null,
           trial_period_days: null,
-          usage_type: 'metered',
+          usage_type: 'licensed',
         },
+        type: 'recurring',
       }),
     },
   ])(
@@ -482,7 +457,7 @@ describe('membership Stripe Prices', () => {
 
   it('preserves concurrent successful syncs for the same Stripe Price', async () => {
     mocks.pricesList.mockResolvedValueOnce({
-      data: [annualRecurringPrice({ id: 'price_123' })],
+      data: [oneTimeStripePrice({ id: 'price_123' })],
     });
     mocks.priceFindUnique.mockResolvedValueOnce(
       priceRow({ stripePriceId: 'price_123', stripeSyncedAt: syncedAt })
@@ -577,23 +552,24 @@ describe('membership Stripe Prices', () => {
       {
         active: true,
         description: 'MIT Sailing team racing membership.',
-        id: 'mitsailing_sailing_card_membership_team_racing_annual',
+        id: 'mitsailing_sailing_card_membership_team_racing_current_season',
         metadata: {
-          billingInterval: 'annual',
+          billingInterval: 'one_time',
           cardType: 'team_racing',
           domain: 'sailing_card_membership',
           priceKind: 'full',
         },
-        name: 'Annual team racing membership renewal every July 15',
+        name: 'Current-season team racing membership through July 14',
       },
       {
         idempotencyKey:
-          'membership-price-product-mitsailing_sailing_card_membership_team_racing_annual',
+          'membership-price-product-mitsailing_sailing_card_membership_team_racing_current_season',
       }
     );
     expect(mocks.pricesCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        product: 'mitsailing_sailing_card_membership_team_racing_annual',
+        product:
+          'mitsailing_sailing_card_membership_team_racing_current_season',
       }),
       { idempotencyKey: 'membership-price-sync-price-row-1' }
     );
@@ -602,7 +578,7 @@ describe('membership Stripe Prices', () => {
   it('reactivates the card-type Stripe Product before creating a Price when archived', async () => {
     mocks.productsRetrieve.mockResolvedValueOnce({
       active: false,
-      id: 'mitsailing_sailing_card_membership_team_racing_annual',
+      id: 'mitsailing_sailing_card_membership_team_racing_current_season',
     });
 
     await syncSailingCardMembershipPrice({
@@ -613,16 +589,17 @@ describe('membership Stripe Prices', () => {
     });
 
     expect(mocks.productsUpdate).toHaveBeenCalledWith(
-      'mitsailing_sailing_card_membership_team_racing_annual',
+      'mitsailing_sailing_card_membership_team_racing_current_season',
       { active: true },
       {
         idempotencyKey:
-          'membership-price-product-activate-mitsailing_sailing_card_membership_team_racing_annual',
+          'membership-price-product-activate-mitsailing_sailing_card_membership_team_racing_current_season',
       }
     );
     expect(mocks.pricesCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        product: 'mitsailing_sailing_card_membership_team_racing_annual',
+        product:
+          'mitsailing_sailing_card_membership_team_racing_current_season',
       }),
       { idempotencyKey: 'membership-price-sync-price-row-1' }
     );

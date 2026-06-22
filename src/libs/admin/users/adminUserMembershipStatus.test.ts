@@ -5,7 +5,7 @@ describe('adminUserMembershipBlockers', () => {
   it('returns payment blocker before card issuance', () => {
     expect(
       adminUserMembershipBlockers({
-        cardRequest: { cardType: 'racing', paymentBypassNote: null },
+        cardRequest: { cardType: 'racing' },
         introClassRequired: false,
         membershipAccess: {
           access: 'blocked',
@@ -25,7 +25,7 @@ describe('adminUserMembershipBlockers', () => {
   it('returns prerequisite blockers without actions', () => {
     expect(
       adminUserMembershipBlockers({
-        cardRequest: { cardType: 'normal', paymentBypassNote: null },
+        cardRequest: { cardType: 'normal' },
         introClassRequired: true,
         membershipAccess: { access: 'none' },
         recreationVerificationRequired: true,

@@ -1,5 +1,11 @@
 import { ExternalLink, Search } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
+import {
+  AdminMetricStrip,
+  AdminResponsiveColumnLabel,
+} from '@/components/mit-sailing/admin/AdminDataRows';
+import type { AdminMetricStripItem } from '@/components/mit-sailing/admin/AdminDataRows';
+import { AdminPagination } from '@/components/mit-sailing/admin/AdminPagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -7,10 +13,15 @@ import { PaymentStatus } from '@/generated/prisma/enums';
 import type {
   AdminPaymentLedgerData,
   AdminPaymentLedgerFilters,
+  AdminPaymentLedgerPage,
   AdminPaymentLedgerRow,
 } from '@/libs/admin/payments/adminPaymentQueries';
 import { Link } from '@/libs/I18nNavigation';
 import { formatEasternDateTime } from '@/libs/mit-sailing/easternTimeFormat';
+import {
+  paidAmountCentsForPayment,
+  paymentDiscountDisplaySummary,
+} from '@/libs/mit-sailing/payments/paymentDisplay';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 
 type AdminPaymentsTranslations = Awaited<
@@ -18,7 +29,7 @@ type AdminPaymentsTranslations = Awaited<
 >;
 
 type AdminPaymentsLedgerViewProps = {
-  data: AdminPaymentLedgerData;
+  data: AdminPaymentLedgerData | AdminPaymentLedgerPage;
   dashboardBaseUrl: string;
   filters: AdminPaymentLedgerFilters;
   locale: string;
@@ -44,6 +55,35 @@ function paymentStatusLabel(
   t: AdminPaymentsTranslations
 ): string {
   return t(paymentStatusLabelKeys[status]);
+}
+
+function paymentLedgerPaginationSummary(props: {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly total: number;
+}) {
+  if (props.total === 0) {
+    return { end: 0, start: 0 };
+  }
+  const start = (props.page - 1) * props.pageSize + 1;
+  return {
+    end: Math.min(props.total, start + props.pageSize - 1),
+    start,
+  };
+}
+
+function paymentLedgerPageData(
+  data: AdminPaymentLedgerData | AdminPaymentLedgerPage
+): AdminPaymentLedgerPage {
+  if ('page' in data) {
+    return data;
+  }
+  return {
+    ...data,
+    page: 1,
+    pageSize: Math.max(data.rows.length, 1),
+    total: data.rows.length,
+  };
 }
 
 function StripeDashboardLinks(
@@ -162,64 +202,100 @@ function PaymentLedgerPayer(
   );
 }
 
+function PaymentLedgerAmount(
+  props: Readonly<{
+    locale: string;
+    payment: AdminPaymentLedgerRow;
+    t: AdminPaymentsTranslations;
+  }>
+) {
+  const paidAmountCents = paidAmountCentsForPayment(props.payment);
+  const discount = paymentDiscountDisplaySummary(
+    props.payment.stripeDiscountMetadata
+  );
+  return (
+    <div>
+      <span>
+        {paidAmountCents === props.payment.amountCents
+          ? formatUsdMinorUnitsAsCurrency(
+              props.payment.amountCents,
+              props.locale
+            )
+          : props.t('amount_paid_of_total', {
+              paid: formatUsdMinorUnitsAsCurrency(
+                paidAmountCents,
+                props.locale
+              ),
+              total: formatUsdMinorUnitsAsCurrency(
+                props.payment.amountCents,
+                props.locale
+              ),
+            })}
+      </span>
+      {discount ? (
+        <span className="mt-1 block text-xs font-normal text-mit-readable-ink">
+          {props.t('discount_summary', {
+            discount:
+              discount.label ??
+              (discount.amountDiscountCents === null
+                ? props.t('discount_applied')
+                : formatUsdMinorUnitsAsCurrency(
+                    discount.amountDiscountCents,
+                    props.locale
+                  )),
+          })}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function HealthSummary(props: {
   data: AdminPaymentLedgerData;
   stripeConfigured: boolean;
   t: AdminPaymentsTranslations;
   webhookConfigured: boolean;
 }) {
+  const metrics = [
+    {
+      label: props.t('health_stripe'),
+      value: props.stripeConfigured
+        ? props.t('health_configured')
+        : props.t('health_not_configured'),
+    },
+    {
+      label: props.t('health_webhook'),
+      value: props.webhookConfigured
+        ? props.t('health_configured')
+        : props.t('health_not_configured'),
+    },
+    {
+      label: props.t('health_last_event'),
+      value: props.data.latestWebhook
+        ? props.t('health_last_event_value', {
+            date: formatEasternDateTime(
+              props.data.latestWebhook.stripeCreatedAt
+            ),
+            type: props.data.latestWebhook.eventType,
+          })
+        : props.t('health_last_event_empty'),
+    },
+  ] satisfies readonly AdminMetricStripItem[];
+
   return (
-    <section
-      aria-label={props.t('health_aria')}
-      className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-3"
-    >
-      <div>
-        <p className="text-xs font-semibold tracking-wide text-mit-readable-ink uppercase">
-          {props.t('health_stripe')}
-        </p>
-        <p className="mt-1 text-sm font-semibold text-foreground">
-          {props.stripeConfigured
-            ? props.t('health_configured')
-            : props.t('health_not_configured')}
-        </p>
-      </div>
-      <div>
-        <p className="text-xs font-semibold tracking-wide text-mit-readable-ink uppercase">
-          {props.t('health_webhook')}
-        </p>
-        <p className="mt-1 text-sm font-semibold text-foreground">
-          {props.webhookConfigured
-            ? props.t('health_configured')
-            : props.t('health_not_configured')}
-        </p>
-      </div>
-      <div>
-        <p className="text-xs font-semibold tracking-wide text-mit-readable-ink uppercase">
-          {props.t('health_last_event')}
-        </p>
-        <p className="mt-1 text-sm font-semibold text-foreground">
-          {props.data.latestWebhook
-            ? props.t('health_last_event_value', {
-                date: formatEasternDateTime(
-                  props.data.latestWebhook.stripeCreatedAt
-                ),
-                type: props.data.latestWebhook.eventType,
-              })
-            : props.t('health_last_event_empty')}
-        </p>
-      </div>
+    <section aria-label={props.t('health_aria')} className="grid gap-3">
+      <AdminMetricStrip columnsClassName="sm:grid-cols-3" metrics={metrics} />
     </section>
   );
 }
 
 export function AdminPaymentsLedgerView(props: AdminPaymentsLedgerViewProps) {
+  const data = paymentLedgerPageData(props.data);
+  const paginationRange = paymentLedgerPaginationSummary(data);
   return (
     <div className="flex w-full max-w-6xl flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-mit-red-ink">
-          {props.t('eyebrow')}
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
           {props.t('title')}
         </h1>
         <p className="max-w-3xl text-sm text-mit-readable-ink">
@@ -228,13 +304,13 @@ export function AdminPaymentsLedgerView(props: AdminPaymentsLedgerViewProps) {
       </header>
 
       <HealthSummary
-        data={props.data}
+        data={data}
         stripeConfigured={props.stripeConfigured}
         t={props.t}
         webhookConfigured={props.webhookConfigured}
       />
 
-      <form className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[1fr_220px_auto] md:items-end">
+      <form className="grid gap-3 border-y border-border py-4 md:grid-cols-[1fr_220px_auto] md:items-end">
         <label
           className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
           htmlFor="admin-payments-ledger-query"
@@ -271,45 +347,85 @@ export function AdminPaymentsLedgerView(props: AdminPaymentsLedgerViewProps) {
         </Button>
       </form>
 
-      {props.data.rows.length === 0 ? (
+      {data.rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-muted/40 px-4 py-8 text-center text-sm text-mit-readable-ink">
           {props.t('empty_state')}
         </div>
       ) : (
-        <ol className="m-0 list-none divide-y divide-mit-line rounded-lg border border-border bg-card p-0">
-          {props.data.rows.map((payment) => (
-            <li
-              className="grid gap-3 p-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_130px_150px] md:items-center"
-              key={payment.id}
-            >
-              <div className="min-w-0">
-                <PaymentLedgerTitle payment={payment} t={props.t} />
-                <PaymentLedgerLegacyEvidence payment={payment} t={props.t} />
-                <PaymentLedgerPayer payment={payment} t={props.t} />
-              </div>
-              <div className="text-sm text-mit-readable-ink">
-                <span className="font-semibold text-foreground">
-                  {paymentStatusLabel(payment.status, props.t)}
-                </span>
-                <span className="block">
-                  {formatEasternDateTime(payment.createdAt)}
-                </span>
-              </div>
-              <div className="text-sm font-semibold text-foreground tabular-nums">
-                {formatUsdMinorUnitsAsCurrency(
-                  payment.amountCents,
-                  props.locale
-                )}
-              </div>
-              <StripeDashboardLinks
-                dashboardBaseUrl={props.dashboardBaseUrl}
-                payment={payment}
-                t={props.t}
-              />
-            </li>
-          ))}
-        </ol>
+        <div className="border-y border-border">
+          <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_130px_150px] gap-3 border-b border-mit-line px-4 py-2 text-xs font-medium text-muted-foreground md:grid">
+            <span>{props.t('column_payment')}</span>
+            <span>{props.t('column_status')}</span>
+            <span>{props.t('column_amount')}</span>
+            <span>{props.t('column_stripe')}</span>
+          </div>
+          <ol className="m-0 list-none divide-y divide-mit-line p-0">
+            {data.rows.map((payment) => (
+              <li
+                className="grid gap-3 p-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_130px_150px] md:items-start"
+                key={payment.id}
+              >
+                <div className="min-w-0">
+                  <PaymentLedgerTitle payment={payment} t={props.t} />
+                  <PaymentLedgerLegacyEvidence payment={payment} t={props.t} />
+                  <PaymentLedgerPayer payment={payment} t={props.t} />
+                </div>
+                <div className="text-sm text-mit-readable-ink">
+                  <AdminResponsiveColumnLabel
+                    label={props.t('column_status')}
+                  />
+                  <span className="font-semibold text-foreground">
+                    {paymentStatusLabel(payment.status, props.t)}
+                  </span>
+                  <span className="block">
+                    {formatEasternDateTime(payment.createdAt)}
+                  </span>
+                </div>
+                <div className="text-sm font-semibold text-foreground tabular-nums">
+                  <AdminResponsiveColumnLabel
+                    label={props.t('column_amount')}
+                  />
+                  <PaymentLedgerAmount
+                    locale={props.locale}
+                    payment={payment}
+                    t={props.t}
+                  />
+                </div>
+                <div>
+                  <AdminResponsiveColumnLabel
+                    label={props.t('column_stripe')}
+                  />
+                  <StripeDashboardLinks
+                    dashboardBaseUrl={props.dashboardBaseUrl}
+                    payment={payment}
+                    t={props.t}
+                  />
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
       )}
+      <AdminPagination
+        basePath="/admin/payments"
+        labels={{
+          next: props.t('pagination_next'),
+          previous: props.t('pagination_previous'),
+          summary: props.t('pagination_summary', {
+            end: paginationRange.end,
+            start: paginationRange.start,
+            total: data.total,
+          }),
+        }}
+        page={data.page}
+        pageSize={data.pageSize}
+        params={{
+          q: props.filters.query,
+          status:
+            props.filters.status === 'all' ? undefined : props.filters.status,
+        }}
+        total={data.total}
+      />
     </div>
   );
 }

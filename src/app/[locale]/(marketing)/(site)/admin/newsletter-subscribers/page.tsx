@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { connection } from 'next/server';
+import { AdminTableContainer } from '@/components/mit-sailing/admin/AdminDataRows';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import {
   Table,
@@ -49,7 +50,7 @@ export default async function AdminNewsletterSubscribersPage(props: PageProps) {
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <AdminPageHeader title={t('subscribers_title')} />
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <AdminTableContainer>
         <Table>
           <TableHeader>
             <TableRow>
@@ -90,7 +91,7 @@ export default async function AdminNewsletterSubscribersPage(props: PageProps) {
             )}
           </TableBody>
         </Table>
-      </div>
+      </AdminTableContainer>
     </div>
   );
 }

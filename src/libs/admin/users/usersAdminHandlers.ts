@@ -33,14 +33,47 @@ const VIABLE_ADMIN_FILTER = {
   emailVerified: true,
 } satisfies Prisma.UserWhereInput;
 
+export const ADMIN_USERS_PAGE_SIZE = 50;
+
+export type AdminUsersEmailStatusFilter =
+  | 'all'
+  | 'bounced'
+  | 'ok'
+  | 'suppressed';
+
+export type AdminUsersSailingCardStatusFilter =
+  | 'all'
+  | 'current'
+  | 'expired'
+  | 'none'
+  | 'pending';
+
+export type AdminUsersListFilters = {
+  readonly emailStatus: AdminUsersEmailStatusFilter;
+  readonly query: string;
+  readonly sailingCardStatus: AdminUsersSailingCardStatusFilter;
+};
+
+export type AdminUsersListPage = {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly rows: AdminUserRow[];
+  readonly total: number;
+};
+
 function sailingCardStatusFromUser(user: {
+  readonly _count?: { readonly sailingCardRequests: number };
   readonly sailingCardNumber: number | null;
-  readonly sailingCardRequests: readonly { readonly status: string }[];
+  readonly sailingCardRequests?: readonly { readonly status: string }[];
   readonly sailingCardYear: number | null;
 }): AdminUserRow['sailingCardStatus'] {
-  const pendingRequest = user.sailingCardRequests.some(
-    (request) => request.status === SailingCardRequestStatus.pending
-  );
+  const pendingRequestCount = user._count?.sailingCardRequests;
+  const pendingRequest =
+    pendingRequestCount === undefined
+      ? (user.sailingCardRequests?.some(
+          (request) => request.status === SailingCardRequestStatus.pending
+        ) ?? false)
+      : pendingRequestCount > 0;
   if (pendingRequest) {
     return 'pending';
   }
@@ -54,6 +87,7 @@ function sailingCardStatusFromUser(user: {
 }
 
 function rowFromDb(user: {
+  _count?: { sailingCardRequests: number };
   id: string;
   email: string;
   name: string;
@@ -73,7 +107,7 @@ function rowFromDb(user: {
   phone: string | null;
   sailingAffiliation: AdminUserRow['sailingAffiliation'];
   sailingCardNumber: number | null;
-  sailingCardRequests: readonly { status: string }[];
+  sailingCardRequests?: readonly { status: string }[];
   sailingCardYear: number | null;
 }): AdminUserRow {
   return {
@@ -112,6 +146,98 @@ function isViableAdminUser(user: {
     user.banned === false &&
     user.emailVerified === true
   );
+}
+
+function userSearchWhere(query: string): Prisma.UserWhereInput | null {
+  const value = query.trim();
+  if (!value) {
+    return null;
+  }
+  const clauses: Prisma.UserWhereInput[] = [
+    { email: { contains: value, mode: 'insensitive' } },
+    { name: { contains: value, mode: 'insensitive' } },
+    { firstName: { contains: value, mode: 'insensitive' } },
+    { lastName: { contains: value, mode: 'insensitive' } },
+    { phone: { contains: value, mode: 'insensitive' } },
+    { emergencyContactName: { contains: value, mode: 'insensitive' } },
+    { emergencyContactPhone: { contains: value, mode: 'insensitive' } },
+    { mitId: { contains: value, mode: 'insensitive' } },
+    { appRole: { equals: normalizeAppRole(value) } },
+  ];
+  const cardNumber = Number.parseInt(value, 10);
+  if (Number.isInteger(cardNumber) && String(cardNumber) === value) {
+    clauses.push({ sailingCardNumber: cardNumber });
+  }
+  return { OR: clauses };
+}
+
+function emailStatusWhere(
+  filter: AdminUsersEmailStatusFilter
+): Prisma.UserWhereInput | null {
+  if (filter === 'bounced') {
+    return { emailBouncedAt: { not: null } };
+  }
+  if (filter === 'suppressed') {
+    return { emailSuppressedAt: { not: null } };
+  }
+  if (filter === 'ok') {
+    return {
+      emailBouncedAt: null,
+      emailSuppressedAt: null,
+    };
+  }
+  return null;
+}
+
+function pendingSailingCardRequestWhere() {
+  return {
+    sailingCardRequests: {
+      some: {
+        cardYear: getCurrentSailingCardYear(),
+        status: SailingCardRequestStatus.pending,
+      },
+    },
+  } satisfies Prisma.UserWhereInput;
+}
+
+function sailingCardStatusWhere(
+  filter: AdminUsersSailingCardStatusFilter
+): Prisma.UserWhereInput | null {
+  if (filter === 'pending') {
+    return pendingSailingCardRequestWhere();
+  }
+  if (filter === 'current') {
+    return {
+      NOT: pendingSailingCardRequestWhere(),
+      sailingCardNumber: { not: null },
+      sailingCardYear: getCurrentSailingCardYear(),
+    };
+  }
+  if (filter === 'expired') {
+    return {
+      NOT: pendingSailingCardRequestWhere(),
+      sailingCardNumber: { not: null },
+      sailingCardYear: { not: getCurrentSailingCardYear() },
+    };
+  }
+  if (filter === 'none') {
+    return {
+      NOT: pendingSailingCardRequestWhere(),
+      sailingCardNumber: null,
+    };
+  }
+  return null;
+}
+
+function adminUsersWhere(
+  filters: AdminUsersListFilters
+): Prisma.UserWhereInput {
+  const clauses = [
+    userSearchWhere(filters.query),
+    emailStatusWhere(filters.emailStatus),
+    sailingCardStatusWhere(filters.sailingCardStatus),
+  ].filter((clause): clause is Prisma.UserWhereInput => clause !== null);
+  return clauses.length === 0 ? {} : { AND: clauses };
 }
 
 async function assertCanRemoveOrDemoteAdmin(
@@ -261,6 +387,62 @@ async function setAdminUserPassword(props: {
   }
 }
 
+export async function listAdminUsersPage(options: {
+  readonly filters: AdminUsersListFilters;
+  readonly page: number;
+  readonly pageSize?: number;
+}): Promise<AdminUsersListPage> {
+  const pageSize = options.pageSize ?? ADMIN_USERS_PAGE_SIZE;
+  const where = adminUsersWhere(options.filters);
+  const total = await prisma.user.count({ where });
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(options.page, 1), totalPages);
+  const rows = await prisma.user.findMany({
+    orderBy: [{ name: 'asc' }, { email: 'asc' }],
+    skip: (page - 1) * pageSize,
+    take: pageSize,
+    where,
+    select: {
+      _count: {
+        select: {
+          sailingCardRequests: {
+            where: {
+              cardYear: getCurrentSailingCardYear(),
+              status: SailingCardRequestStatus.pending,
+            },
+          },
+        },
+      },
+      id: true,
+      email: true,
+      name: true,
+      appRole: true,
+      emailVerified: true,
+      banned: true,
+      emailBouncedAt: true,
+      emergencyContactName: true,
+      emergencyContactPhone: true,
+      emailSuppressedAt: true,
+      emailSuppressionReason: true,
+      firstName: true,
+      lastName: true,
+      mitClassYear: true,
+      mitDataWarehouseVerifiedAt: true,
+      mitId: true,
+      phone: true,
+      sailingAffiliation: true,
+      sailingCardNumber: true,
+      sailingCardYear: true,
+    },
+  });
+  return {
+    page,
+    pageSize,
+    rows: rows.map(rowFromDb),
+    total,
+  };
+}
+
 /**
  * Better Auth–backed handlers for `/admin/users` (not registered in catalog registry).
  */
@@ -269,6 +451,16 @@ export const usersAdminHandlers: CatalogServerHandlers = {
     const rows = await prisma.user.findMany({
       orderBy: { email: 'asc' },
       select: {
+        _count: {
+          select: {
+            sailingCardRequests: {
+              where: {
+                cardYear: getCurrentSailingCardYear(),
+                status: SailingCardRequestStatus.pending,
+              },
+            },
+          },
+        },
         id: true,
         email: true,
         name: true,
@@ -288,11 +480,6 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         phone: true,
         sailingAffiliation: true,
         sailingCardNumber: true,
-        sailingCardRequests: {
-          orderBy: { requestedAt: 'desc' },
-          select: { status: true },
-          take: 1,
-        },
         sailingCardYear: true,
       },
     });

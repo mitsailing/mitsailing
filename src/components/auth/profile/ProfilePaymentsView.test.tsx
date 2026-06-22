@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { createTranslator } from 'next-intl';
 import { describe, expect, it } from 'vitest';
 import {
@@ -17,6 +17,7 @@ const t = createTranslator({
 
 const basePayment = {
   amountCents: 5000,
+  amountPaidCents: null,
   cardType: null,
   cardYear: null,
   createdAt: new Date('2026-05-19T16:00:00.000Z'),
@@ -27,6 +28,7 @@ const basePayment = {
   receiptUrl: null,
   source: PaymentSource.stripe,
   status: PaymentStatus.paid,
+  stripeDiscountMetadata: null,
 };
 
 describe('ProfilePaymentsView', () => {
@@ -37,6 +39,7 @@ describe('ProfilePaymentsView', () => {
         payments={[
           {
             amountCents: 12_000,
+            amountPaidCents: null,
             cardType: SailingCardType.racing,
             cardYear: 2027,
             createdAt: new Date('2026-05-19T16:00:00.000Z'),
@@ -47,6 +50,7 @@ describe('ProfilePaymentsView', () => {
             receiptUrl: null,
             source: PaymentSource.legacy,
             status: PaymentStatus.paid,
+            stripeDiscountMetadata: null,
           },
         ]}
         t={t}
@@ -159,7 +163,7 @@ describe('ProfilePaymentsView', () => {
         payments={[
           {
             ...basePayment,
-            legacyDescription: 'Old boat deposit payment',
+            legacyDescription: 'Old regatta payment',
             source: PaymentSource.legacy,
             status: PaymentStatus.paid,
           },
@@ -168,7 +172,30 @@ describe('ProfilePaymentsView', () => {
       />
     );
 
-    expect(screen.getByText('Old boat deposit payment')).toBeVisible();
+    expect(screen.getByText('Old regatta payment')).toBeVisible();
+  });
+
+  it('shows paid amount and coupon metadata for discounted payments', () => {
+    render(
+      <ProfilePaymentsView
+        locale="en"
+        payments={[
+          {
+            ...basePayment,
+            amountCents: 5000,
+            amountPaidCents: 0,
+            stripeDiscountMetadata: {
+              amountDiscountCents: 5000,
+              discounts: [{ promotionCode: 'VOLUNTEER' }],
+            },
+          },
+        ]}
+        t={t}
+      />
+    );
+
+    expect(screen.getByText('$0.00 of $50.00')).toBeVisible();
+    expect(screen.getByText('Discount: VOLUNTEER')).toBeVisible();
   });
 
   it('falls back to generic Payment title when there is no event or description', () => {
@@ -186,7 +213,11 @@ describe('ProfilePaymentsView', () => {
       />
     );
 
-    expect(screen.getByRole('rowheader', { name: 'Payment' })).toBeVisible();
+    const [paymentRow] = screen.getAllByRole('listitem');
+    if (!paymentRow) {
+      throw new Error('Expected a payment row.');
+    }
+    expect(within(paymentRow).getByText('Payment')).toBeVisible();
   });
 
   it('shows needs_review status label', () => {

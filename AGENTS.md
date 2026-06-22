@@ -1,5 +1,15 @@
 # AGENTS
 
+<!-- BEGIN:nextjs-agent-rules -->
+
+## Next.js Agent Docs
+
+Before any Next.js work, find and read the relevant doc in `node_modules/next/dist/docs/`. Your training data is outdated; the bundled docs are the version-matched source of truth.
+
+Use the `.mcp.json` `next-devtools` MCP server for live Next.js dev diagnostics when available. Start or restart `npm run dev` after MCP config changes, then query the running app for errors, logs, routes, and page metadata before guessing.
+
+<!-- END:nextjs-agent-rules -->
+
 ## Principles
 
 - Clarity and consistency over cleverness. Minimal changes. Match existing patterns.

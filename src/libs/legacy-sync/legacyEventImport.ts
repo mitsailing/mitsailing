@@ -19,7 +19,6 @@ type LegacyEventTypeRow = {
 type LegacyEventRow = {
   readonly ask_notes: string | null;
   readonly boat_size: string | null;
-  readonly deposit: string | null;
   readonly description: string | null;
   readonly desc_type: string | null;
   readonly eid: string | null;
@@ -107,7 +106,6 @@ type LegacyEventFeeStageRow = Readonly<{
   description: string;
   eventId: string;
   id: string;
-  isDeposit: boolean;
   legacySourceKey: string;
 }>;
 
@@ -336,6 +334,10 @@ function legacyFeeSourceKey(row: LegacyEventFeeRow): string {
   return `event_fee:${stringValue(row.feeid)}`;
 }
 
+function isLegacyDepositFee(row: LegacyEventFeeRow): boolean {
+  return stringValue(row.name).toLowerCase().includes('deposit');
+}
+
 function legacyBoatMemberSourceKey(row: LegacyEventBoatRow): string {
   return `event_boat:${stringValue(row.eid)}:${stringValue(row.team_id)}:${stringValue(row.boat_num)}:${stringValue(row.boat_pos)}`;
 }
@@ -362,7 +364,7 @@ function eventDateStageSql(row: LegacyEventDateStageRow) {
 }
 
 function eventFeeStageSql(row: LegacyEventFeeStageRow) {
-  return Prisma.sql`(${row.id}, ${row.legacySourceKey}, ${row.eventId}, ${row.description}, ${row.amountCents}, ${row.isDeposit})`;
+  return Prisma.sql`(${row.id}, ${row.legacySourceKey}, ${row.eventId}, ${row.description}, ${row.amountCents})`;
 }
 
 function eventAdminStageSql(row: LegacyEventAdminStageRow) {
@@ -649,6 +651,14 @@ async function importEventFees(props: {
     if (!eventId || !stringValue(row.feeid)) {
       return [];
     }
+    if (isLegacyDepositFee(row)) {
+      logger.warn('Skipped legacy event deposit fee', {
+        feeName: stringValue(row.name),
+        legacyEventId: stringValue(row.eid),
+        legacyFeeId: stringValue(row.feeid),
+      });
+      return [];
+    }
     const parsedAmountCents = amountCents(row.price);
     if (parsedAmountCents === null) {
       logger.warn('Skipped legacy event fee with invalid amount', {
@@ -665,7 +675,6 @@ async function importEventFees(props: {
         description: stringValue(row.name) || 'Legacy fee',
         eventId,
         id: randomUUID(),
-        isDeposit: false,
         legacySourceKey,
       },
     ];
@@ -676,19 +685,17 @@ async function importEventFees(props: {
       legacy_source_key text NOT NULL UNIQUE,
       event_id text NOT NULL,
       description text NOT NULL,
-      amount_cents integer NOT NULL,
-      is_deposit boolean NOT NULL
+      amount_cents integer NOT NULL
     ) ON COMMIT DROP
   `;
-  for (const chunk of stageChunks(rows, 6)) {
+  for (const chunk of stageChunks(rows, 5)) {
     await props.db.$executeRaw`
       INSERT INTO legacy_import_event_fees (
         id,
         legacy_source_key,
         event_id,
         description,
-        amount_cents,
-        is_deposit
+        amount_cents
       )
       VALUES ${Prisma.join(chunk.map(eventFeeStageSql), ', ')}
       ON CONFLICT (legacy_source_key) DO UPDATE
@@ -703,16 +710,14 @@ async function importEventFees(props: {
         "legacy_source_key",
         "event_id",
         "description",
-        "amount_cents",
-        "is_deposit"
+        "amount_cents"
       )
       SELECT
         source.id,
         source.legacy_source_key,
         source.event_id,
         source.description,
-        source.amount_cents,
-        source.is_deposit
+        source.amount_cents
       FROM legacy_import_event_fees AS source
       ON CONFLICT ("legacy_source_key") DO UPDATE
       SET "description" = EXCLUDED."description",

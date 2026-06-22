@@ -1,15 +1,15 @@
 import { Mail } from 'lucide-react';
 import { SubmitButton } from '@/components/ui/submit-button';
-import { Textarea } from '@/components/ui/textarea';
 import { PaymentStatus } from '@/generated/prisma/enums';
 import type { PaymentStatus as PaymentStatusValue } from '@/generated/prisma/enums';
-import {
-  markAdminEventPaymentHandledAction,
-  resendAdminEventPaymentRequestAction,
-} from '@/libs/admin/events/eventAdminActions';
+import { resendAdminEventPaymentRequestAction } from '@/libs/admin/events/eventAdminActions';
 import type { AdminEventRegistrationDto } from '@/libs/admin/events/eventAdminQueries';
 import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
 import { formatEasternDateTime } from '@/libs/mit-sailing/easternTimeFormat';
+import {
+  paidAmountCentsForPayment,
+  paymentDiscountDisplaySummary,
+} from '@/libs/mit-sailing/payments/paymentDisplay';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 import type { AdminEventRegistrationsTranslations } from './AdminEventRegistrationUtils';
 import { AdminEventListStatusBadge } from './AdminEventShared';
@@ -39,14 +39,6 @@ function paymentStatusLabel(
   return t(paymentStatusLabelKeys[status]);
 }
 
-function canMarkPaymentHandled(status: RegistrationPaymentStatus): boolean {
-  return (
-    status === PaymentStatus.checkout_created ||
-    status === PaymentStatus.past_due ||
-    status === PaymentStatus.pending
-  );
-}
-
 export function AdminEventRegistrationPaymentValue(props: {
   accessMode: AdminEventAccessMode;
   locale: string;
@@ -64,11 +56,9 @@ export function AdminEventRegistrationPaymentValue(props: {
     props.slug,
     payment.id
   );
-  const markHandledAction = markAdminEventPaymentHandledAction.bind(
-    null,
-    props.locale,
-    props.slug,
-    payment.id
+  const paidAmountCents = paidAmountCentsForPayment(payment);
+  const discount = paymentDiscountDisplaySummary(
+    payment.stripeDiscountMetadata
   );
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
@@ -77,9 +67,34 @@ export function AdminEventRegistrationPaymentValue(props: {
           {paymentStatusLabel(payment.status, props.t)}
         </AdminEventListStatusBadge>
         <span className="text-sm text-mit-readable-ink">
-          {formatUsdMinorUnitsAsCurrency(payment.amountCents, props.locale)}
+          {paidAmountCents === payment.amountCents
+            ? formatUsdMinorUnitsAsCurrency(payment.amountCents, props.locale)
+            : props.t('payment_amount_paid_of_total', {
+                paid: formatUsdMinorUnitsAsCurrency(
+                  paidAmountCents,
+                  props.locale
+                ),
+                total: formatUsdMinorUnitsAsCurrency(
+                  payment.amountCents,
+                  props.locale
+                ),
+              })}
         </span>
       </div>
+      {discount ? (
+        <p className="text-xs text-mit-readable-ink">
+          {props.t('payment_discount_summary', {
+            discount:
+              discount.label ??
+              (discount.amountDiscountCents === null
+                ? props.t('payment_discount_applied')
+                : formatUsdMinorUnitsAsCurrency(
+                    discount.amountDiscountCents,
+                    props.locale
+                  )),
+          })}
+        </p>
+      ) : null}
       {props.accessMode === 'editable' && payment.resendEligible ? (
         <form action={resendAction}>
           <SubmitButton
@@ -90,26 +105,6 @@ export function AdminEventRegistrationPaymentValue(props: {
           >
             <Mail aria-hidden className="size-4" />
             {props.t('payment_resend_request')}
-          </SubmitButton>
-        </form>
-      ) : null}
-      {props.accessMode === 'editable' &&
-      canMarkPaymentHandled(payment.status) ? (
-        <form action={markHandledAction} className="flex flex-col gap-2">
-          <Textarea
-            aria-label={props.t('payment_manual_note_label')}
-            className="min-h-20"
-            name="note"
-            placeholder={props.t('payment_manual_note_placeholder')}
-            required
-          />
-          <SubmitButton
-            className="w-fit"
-            pendingKind="saving"
-            size="sm"
-            variant="outline"
-          >
-            {props.t('payment_mark_handled')}
           </SubmitButton>
         </form>
       ) : null}

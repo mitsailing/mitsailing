@@ -330,7 +330,6 @@ describe('EventDetailView', () => {
               amountCents: 15_000,
               description: 'Adult entry',
               id: 'fee-1',
-              isDeposit: false,
             },
           ],
           maxParticipants: 10,

@@ -29,7 +29,6 @@ import {
   eventDateFormSchema,
   eventFeeFormSchema,
   eventLocationFormSchema,
-  eventPaymentManualHandledFormSchema,
   eventPaymentSettingsFormSchema,
   eventQuestionFormSchema,
   eventRegistrationStatusFormSchema,
@@ -41,7 +40,6 @@ import {
   rawEventDateFromFormData,
   rawEventFeeFromFormData,
   rawEventLocationFromFormData,
-  rawEventPaymentManualHandledFromFormData,
   rawEventPaymentSettingsFromFormData,
   rawEventQuestionFromFormData,
   rawEventRegistrationStatusFromFormData,
@@ -52,7 +50,6 @@ import { Permission } from '@/libs/auth/permissions';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import {
-  buildManualHandledEventPaymentTransition,
   getEventPaymentEligibility,
   nyEventPaymentNotificationDateKey,
 } from '@/libs/mit-sailing/eventPayments';
@@ -994,7 +991,6 @@ export async function addAdminEventFeeAction(
         eventId: verifiedEventId,
         description: parsed.data.description,
         amountCents: parsed.data.amountCents,
-        isDeposit: parsed.data.isDeposit,
       },
     });
   } catch (error) {
@@ -1029,7 +1025,6 @@ export async function updateAdminEventFeeAction(
       data: {
         description: parsed.data.description,
         amountCents: parsed.data.amountCents,
-        isDeposit: parsed.data.isDeposit,
       },
     });
     updatedCount = result.count;
@@ -1181,7 +1176,7 @@ export async function updateAdminEventRegistrationStatusAction(
             paymentDeadlineAt: true,
             paymentsEnabled: true,
             entryFees: {
-              orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+              orderBy: { description: 'asc' },
               select: { amountCents: true, description: true, id: true },
             },
           },
@@ -1353,61 +1348,6 @@ export async function resendAllAdminEventPaymentRequestsAction(
   }
   for (const paymentRequestJob of paymentRequestJobs) {
     enqueuePaymentRequestEmailJobInBackground(paymentRequestJob);
-  }
-  revalidateEventAdminMutation(locale, [slug]);
-  redirect(getI18nPath(adminEventRegistrationsPath(slug), locale));
-}
-
-export async function markAdminEventPaymentHandledAction(
-  locale: string,
-  slug: string,
-  paymentId: string,
-  formData: FormData
-): Promise<void> {
-  const access = await requireRegistrationsAdminEvent(locale, slug);
-  const zodParse = await adminEventZodParseParams(locale);
-  const parsed = eventPaymentManualHandledFormSchema.safeParse(
-    rawEventPaymentManualHandledFromFormData(formData),
-    zodParse
-  );
-  if (!parsed.success) {
-    redirect(registrationsUrlWithError(locale, slug, 'validation_failed'));
-  }
-  let updatedCount = 0;
-  try {
-    const transition = buildManualHandledEventPaymentTransition({
-      adminUserId: access.session.user.id,
-      note: parsed.data.note,
-      now: new Date(),
-      status: PaymentStatus.pending,
-    });
-    const result = await prisma.payment.updateMany({
-      where: {
-        eventId: access.event.id,
-        id: paymentId,
-        status: {
-          in: [
-            PaymentStatus.checkout_created,
-            PaymentStatus.past_due,
-            PaymentStatus.pending,
-          ],
-        },
-      },
-      data: transition,
-    });
-    updatedCount = result.count;
-  } catch (error) {
-    logAdminEventMutationFailure({
-      action: 'mark-payment-handled',
-      error,
-      slug,
-    });
-    redirect(
-      registrationsUrlWithError(locale, slug, mutationCodeFromPrisma(error))
-    );
-  }
-  if (updatedCount === 0) {
-    redirect(registrationsUrlWithError(locale, slug, 'not_found'));
   }
   revalidateEventAdminMutation(locale, [slug]);
   redirect(getI18nPath(adminEventRegistrationsPath(slug), locale));

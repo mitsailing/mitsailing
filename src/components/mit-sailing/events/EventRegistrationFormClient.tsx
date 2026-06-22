@@ -18,7 +18,6 @@ import { formatPhoneForDisplay } from '@/utils/phoneValidation';
 export type EventRegistrationFormLabels = {
   autoApprovalNote: string;
   confirmButton: string;
-  deposit: string;
   errorMessages: Record<EventRegistrationMutationCode, string>;
   questionsHeading: string;
   required: string;
@@ -696,14 +695,7 @@ function RegistrationFeeSummary(props: {
                   type="radio"
                   value={fee.id}
                 />
-                <span className="min-w-0">
-                  {fee.description}
-                  {fee.isDeposit ? (
-                    <span className="ml-2 rounded-sm bg-mit-red-highlight px-1.5 py-0.5 text-xs font-semibold text-mit-red dark:text-mit-red-ink">
-                      {props.labels.deposit}
-                    </span>
-                  ) : null}
-                </span>
+                <span className="min-w-0">{fee.description}</span>
               </span>
               <span className="shrink-0 font-semibold text-mit-text">
                 {formatUsdMinorUnitsAsCurrency(fee.amountCents, props.locale)}
@@ -732,14 +724,7 @@ function RegistrationFeeSummary(props: {
             className="flex items-baseline justify-between gap-4 text-sm text-mit-text"
             key={fee.id}
           >
-            <dt className="text-mit-text">
-              {fee.description}
-              {fee.isDeposit ? (
-                <span className="ml-2 rounded-sm bg-mit-red-highlight px-1.5 py-0.5 text-xs font-semibold text-mit-red dark:text-mit-red-ink">
-                  {props.labels.deposit}
-                </span>
-              ) : null}
-            </dt>
+            <dt className="text-mit-text">{fee.description}</dt>
             <dd className="m-0 font-semibold text-mit-text">
               {formatUsdMinorUnitsAsCurrency(fee.amountCents, props.locale)}
             </dd>

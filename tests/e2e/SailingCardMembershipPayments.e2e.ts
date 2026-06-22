@@ -447,9 +447,11 @@ test('duplicate card number for the same year fails', async ({ page }) => {
   ).toBeVisible();
 });
 
-test('paid racing without payment requires a bypass note', async ({ page }) => {
-  const email = fixtureEmail('bypass-note');
-  await createPendingCardUser({
+test('paid racing without payment cannot be issued locally', async ({
+  page,
+}) => {
+  const email = fixtureEmail('payment-required');
+  const userId = await createPendingCardUser({
     cardType: 'racing',
     email,
     firstName: 'Grace',
@@ -459,11 +461,24 @@ test('paid racing without payment requires a bypass note', async ({ page }) => {
   await signInAsAdmin(page);
   await openAdminUserProfile({ page, query: email, userName: 'Grace Hopper' });
 
-  await expect(page.getByLabel('Payment bypass note')).toBeVisible();
-  await expect(page.getByLabel('Payment bypass note')).toHaveAttribute(
-    'required',
-    ''
-  );
+  await expect(page.getByLabel('Payment bypass note')).toHaveCount(0);
+  await expect(
+    page.getByText(
+      'Stripe payment or a promotion-code checkout is required before issuing this card.'
+    )
+  ).toBeVisible();
+
+  await page.getByLabel('Card number').fill('112');
+  await page.getByRole('button', { name: 'Issue' }).click();
+  await expect
+    .poll(async () => {
+      const result = await pool.query<{ sailing_card_number: number | null }>(
+        'SELECT "sailing_card_number" FROM "user" WHERE "id" = $1',
+        [userId]
+      );
+      return result.rows[0]?.sailing_card_number ?? null;
+    })
+    .toBeNull();
 });
 
 test('legacy-paid member sees paid status without Stripe receipt', async ({

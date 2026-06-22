@@ -1,17 +1,24 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { adminPaginationPage } from '@/components/mit-sailing/admin/AdminPagination';
 import { AdminEventsListView } from '@/components/mit-sailing/admin/events/AdminEventsListView';
 import { requireAdminEventListAccess } from '@/libs/admin/events/eventAdminAuthorization';
 import { adminEventsIndexPath } from '@/libs/admin/events/eventAdminPaths';
 import {
+  ADMIN_EVENTS_PAGE_SIZE,
   listAdminEventCategories,
-  listAdminEventRows,
+  listAdminEventRowsPage,
 } from '@/libs/admin/events/eventAdminQueries';
 import { getPathname } from '@/libs/I18nNavigation';
 
 type PageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ q?: string; category?: string; scope?: string }>;
+  searchParams: Promise<{
+    category?: string;
+    page?: string;
+    q?: string;
+    scope?: string;
+  }>;
 };
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
@@ -28,11 +35,13 @@ export default async function AdminEventsListPage(props: PageProps) {
   const searchParams = await props.searchParams;
   setRequestLocale(locale);
   const access = await requireAdminEventListAccess(locale);
-  const [categories, rows, t] = await Promise.all([
+  const [categories, eventsPage, t] = await Promise.all([
     listAdminEventCategories(),
-    listAdminEventRows({
+    listAdminEventRowsPage({
       authContext: access.authContext,
       categoryId: searchParams.category,
+      page: adminPaginationPage(searchParams.page),
+      pageSize: ADMIN_EVENTS_PAGE_SIZE,
       query: searchParams.q,
       scope: searchParams.scope,
     }),
@@ -51,7 +60,8 @@ export default async function AdminEventsListPage(props: PageProps) {
         query: searchParams.q,
         scope: searchParams.scope,
       }}
-      rows={rows}
+      pagination={eventsPage}
+      rows={eventsPage.rows}
       t={t}
     />
   );

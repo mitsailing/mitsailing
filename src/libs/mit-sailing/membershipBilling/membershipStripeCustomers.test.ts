@@ -14,9 +14,6 @@ describe('membershipStripeCustomers', () => {
             .fn()
             .mockResolvedValue({ stripeCustomerId: 'cus_local' }),
         },
-        sailingCardSubscription: {
-          findFirst: vi.fn().mockResolvedValue(null),
-        },
       },
       email: 'member@example.com',
       name: 'Member Example',
@@ -44,9 +41,6 @@ describe('membershipStripeCustomers', () => {
         payment: {
           findFirst: vi.fn().mockResolvedValue(null),
         },
-        sailingCardSubscription: {
-          findFirst: vi.fn().mockResolvedValue(null),
-        },
       },
       email: 'member@example.com',
       name: null,
@@ -72,9 +66,6 @@ describe('membershipStripeCustomers', () => {
     const customerId = await getOrCreateMembershipStripeCustomer({
       client: {
         payment: {
-          findFirst: vi.fn().mockResolvedValue(null),
-        },
-        sailingCardSubscription: {
           findFirst: vi.fn().mockResolvedValue(null),
         },
       },

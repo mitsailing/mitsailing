@@ -1,6 +1,13 @@
 import { ArrowLeft, Eye, Pencil, Trash2 } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
-import type * as React from 'react';
+import {
+  AdminDetailRows,
+  AdminMetricStrip,
+} from '@/components/mit-sailing/admin/AdminDataRows';
+import type {
+  AdminDataRowItem,
+  AdminMetricStripItem,
+} from '@/components/mit-sailing/admin/AdminDataRows';
 import { AdminSuccessAlert } from '@/components/mit-sailing/admin/AdminErrorAlert';
 import { AdminEventRegistrationsView } from '@/components/mit-sailing/admin/events/AdminEventRegistrationsView';
 import type { RegistrationFilter } from '@/components/mit-sailing/admin/events/AdminEventRegistrationsView';
@@ -157,12 +164,18 @@ export function AdminEventShowView(props: AdminEventShowViewProps) {
           props.event.maxParticipants - props.event.registrationCounts.approved
         );
   const metrics = [
-    [props.t('show_stat_signed_up'), signedUp],
-    [props.t('show_stat_confirmed'), props.event.registrationCounts.approved],
-    [props.t('show_stat_awaiting'), props.event.registrationCounts.pending],
-    [props.t('show_stat_remaining'), remaining],
-  ];
-  const details: { label: string; value: React.ReactNode }[] = [
+    { label: props.t('show_stat_signed_up'), value: signedUp },
+    {
+      label: props.t('show_stat_confirmed'),
+      value: props.event.registrationCounts.approved,
+    },
+    {
+      label: props.t('show_stat_awaiting'),
+      value: props.event.registrationCounts.pending,
+    },
+    { label: props.t('show_stat_remaining'), value: remaining },
+  ] satisfies readonly AdminMetricStripItem[];
+  const details: AdminDataRowItem[] = [
     {
       label: props.t('show_primary_date'),
       value: primaryDateLabel(props),
@@ -222,15 +235,14 @@ export function AdminEventShowView(props: AdminEventShowViewProps) {
 
       <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 flex-col gap-3">
-          <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-mit-red-ink">
-            {props.t('show_eyebrow')}
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
             {props.event.name}
           </h1>
-          <p className="text-sm text-mit-readable-ink">
-            {props.event.category.name} · /events/{props.event.slug}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-mit-readable-ink">
+            <span>{props.event.category.name}</span>
+            <span aria-hidden>·</span>
+            <span className="break-all">/events/{props.event.slug}</span>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             <AdminEventListStatusBadge
               tone={props.event.isPublished ? 'success' : 'neutral'}
@@ -282,51 +294,27 @@ export function AdminEventShowView(props: AdminEventShowViewProps) {
       ) : null}
       <AdminEventStatusAlert code={props.statusCode ?? null} t={props.t} />
 
-      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {metrics.map(([label, value]) => (
-          <div
-            className="rounded-lg border border-border bg-card p-4"
-            key={label}
-          >
-            <dt className="text-sm font-medium text-mit-readable-ink">
-              {label}
-            </dt>
-            <dd className="mt-1 text-2xl font-semibold text-foreground tabular-nums">
-              {value}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <AdminMetricStrip metrics={metrics} />
 
-      <section className="rounded-lg border border-border bg-card p-5">
-        <h2 className="text-xl font-semibold text-foreground">
+      <section className="grid gap-3">
+        <h2 className="text-lg font-semibold text-foreground">
           {props.t('show_summary_heading')}
         </h2>
-        <dl className="mt-4 grid gap-4 text-sm md:grid-cols-2">
-          {details.map((detail) => (
-            <div key={detail.label}>
-              <dt className="font-semibold text-foreground">{detail.label}</dt>
-              <dd className="mt-1 text-mit-readable-ink">{detail.value}</dd>
-            </div>
-          ))}
-        </dl>
+        <AdminDetailRows rows={details} />
       </section>
 
-      <section className="rounded-lg border border-border bg-card p-5">
-        <h2 className="text-xl font-semibold text-foreground">
+      <section className="grid gap-3">
+        <h2 className="text-lg font-semibold text-foreground">
           {props.t('show_public_content_heading')}
         </h2>
-        <div className="mt-4 grid gap-4">
+        <div className="divide-y divide-border border-y border-border">
           {publicContentSections.length === 0 ? (
-            <p className="text-sm text-mit-readable-ink">
+            <p className="m-0 py-3 text-sm text-mit-readable-ink">
               {props.t('show_public_content_empty')}
             </p>
           ) : (
             publicContentSections.map((section) => (
-              <article
-                className="rounded-lg border border-border bg-background p-4"
-                key={section.id}
-              >
+              <article className="py-3" key={section.id}>
                 <h3 className="text-base font-semibold text-foreground">
                   {props.t(section.titleKey)}
                 </h3>
@@ -339,11 +327,8 @@ export function AdminEventShowView(props: AdminEventShowViewProps) {
 
       <section aria-labelledby="registrations-heading" className="grid gap-4">
         <div>
-          <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-mit-red-ink">
-            {props.t('registrations_eyebrow')}
-          </p>
           <h2
-            className="mt-1 text-2xl font-semibold tracking-tight text-foreground"
+            className="text-lg font-semibold text-foreground"
             id="registrations-heading"
           >
             {props.t('registration_table_label')}
