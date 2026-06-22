@@ -178,6 +178,7 @@ export type AdminEventRegistrationPaymentDto = {
   amountPaidCents: number | null;
   currency: string;
   receiptUrl: string | null;
+  refundedAmountCents: number | null;
   stripeDiscountMetadata: Prisma.JsonValue | null;
   manualHandledNote: string | null;
   manualHandledByUserId: string | null;
@@ -451,6 +452,7 @@ function registrationDtosFromRows(
       amountCents: number;
       amountPaidCents: number | null;
       currency: string;
+      refundedAmountCents: number | null;
       stripeDiscountMetadata: Prisma.JsonValue | null;
       stripeReceiptUrl: string | null;
       manualHandledNote: string | null;
@@ -506,6 +508,7 @@ function registrationDtosFromRows(
             manualHandledByUserId: registration.payment.manualHandledByUserId,
             manualHandledNote: registration.payment.manualHandledNote,
             receiptUrl: registration.payment.stripeReceiptUrl,
+            refundedAmountCents: registration.payment.refundedAmountCents,
             resendEligible: eventPaymentResendEligible(
               registration.payment.status
             ),
@@ -970,6 +973,7 @@ export async function getAdminEventRegistrationsBySlug(options: {
               amountCents: true,
               amountPaidCents: true,
               currency: true,
+              refundedAmountCents: true,
               stripeDiscountMetadata: true,
               stripeReceiptUrl: true,
               manualHandledNote: true,

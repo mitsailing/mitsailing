@@ -42,6 +42,7 @@ const baseLedgerRow = {
   payerEmail: null,
   payerName: null,
   receiptUrl: null,
+  refundedAmountCents: null,
   status: PaymentStatus.paid,
   stripeDiscountMetadata: null,
   stripeCheckoutSessionId: null,

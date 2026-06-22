@@ -21,11 +21,16 @@ function stripeEvent(
   };
 }
 
-function membershipPayment(status: PaymentStatusValue = PaymentStatus.pending) {
+function membershipPayment(
+  status: PaymentStatusValue = PaymentStatus.pending,
+  refundedAmountCents: number | null = null
+) {
   return {
     amountCents: 7000,
+    amountPaidCents: 7000,
     currency: 'usd',
     id: 'payment_1',
+    refundedAmountCents,
     status,
   };
 }
@@ -213,22 +218,47 @@ describe('handleMembershipStripeWebhookEvent', () => {
     });
   });
 
-  it('marks refund and dispute events terminal', async () => {
-    const refundDb = db(membershipPayment(PaymentStatus.paid));
+  it('records partial and full refund events', async () => {
+    const partialDb = db(membershipPayment(PaymentStatus.paid));
     await handleMembershipStripeWebhookEvent({
-      db: refundDb,
-      event: stripeEvent('refund.created', {
+      db: partialDb,
+      event: stripeEvent('charge.refunded', {
+        amount_refunded: 2000,
         charge: 'ch_test',
+        id: 'ch_test',
         metadata: { domain: 'sailing_card_membership' },
         payment_intent: 'pi_test',
       }),
     });
-    expect(refundDb.payment.updateMany).toHaveBeenCalledWith({
-      data: {
+    expect(partialDb.payment.updateMany).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        refundedAmountCents: 2000,
+        status: PaymentStatus.paid,
+        stripeChargeId: 'ch_test',
+        stripePaymentIntentId: 'pi_test',
+      }),
+      where: { id: 'payment_1', status: PaymentStatus.paid },
+    });
+
+    const fullDb = db(membershipPayment(PaymentStatus.paid, 2000));
+    await handleMembershipStripeWebhookEvent({
+      db: fullDb,
+      event: stripeEvent('refund.created', {
+        amount: 5000,
+        charge: 'ch_test',
+        metadata: { domain: 'sailing_card_membership' },
+        object: 'refund',
+        payment_intent: 'pi_test',
+      }),
+    });
+    expect(fullDb.payment.updateMany).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        activeCheckoutKey: null,
+        refundedAmountCents: 7000,
         status: PaymentStatus.refunded,
         stripeChargeId: 'ch_test',
         stripePaymentIntentId: 'pi_test',
-      },
+      }),
       where: { id: 'payment_1', status: PaymentStatus.paid },
     });
 
@@ -237,16 +267,19 @@ describe('handleMembershipStripeWebhookEvent', () => {
       db: disputeDb,
       event: stripeEvent('charge.dispute.created', {
         charge: 'ch_test',
+        id: 'dp_test',
         metadata: { domain: 'sailing_card_membership' },
         payment_intent: 'pi_test',
       }),
     });
     expect(disputeDb.payment.updateMany).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
+        activeCheckoutKey: null,
         status: PaymentStatus.disputed,
         stripeChargeId: 'ch_test',
+        stripeDisputeId: 'dp_test',
         stripePaymentIntentId: 'pi_test',
-      },
+      }),
       where: { id: 'payment_1', status: PaymentStatus.paid },
     });
   });

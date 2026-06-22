@@ -1,0 +1,74 @@
+import { describe, expect, it } from 'vitest';
+import { PaymentStatus } from '@/generated/prisma/enums';
+import {
+  paymentDisputeUpdateFromStripe,
+  paymentRefundUpdateFromStripe,
+  stripeCumulativeRefundedAmountCents,
+} from '@/libs/stripe/stripeRefundMetadata';
+
+describe('stripeCumulativeRefundedAmountCents', () => {
+  it('reads cumulative amount_refunded from charge objects', () => {
+    expect(
+      stripeCumulativeRefundedAmountCents({ amount_refunded: 2500 }, null)
+    ).toBe(2500);
+  });
+
+  it('adds incremental refund amounts from refund objects', () => {
+    expect(
+      stripeCumulativeRefundedAmountCents(
+        { amount: 1500, object: 'refund' },
+        1000
+      )
+    ).toBe(2500);
+  });
+});
+
+describe('paymentRefundUpdateFromStripe', () => {
+  const payment = {
+    amountCents: 7000,
+    amountPaidCents: 7000,
+  };
+
+  it('keeps paid status for partial refunds', () => {
+    expect(
+      paymentRefundUpdateFromStripe({
+        existingRefundedAmountCents: null,
+        object: { amount_refunded: 2000 },
+        payment,
+      })
+    ).toEqual({
+      refundedAmountCents: 2000,
+      status: PaymentStatus.paid,
+    });
+  });
+
+  it('marks full refunds refunded and clears active checkout key', () => {
+    expect(
+      paymentRefundUpdateFromStripe({
+        clearActiveCheckoutKeyOnFullRefund: true,
+        existingRefundedAmountCents: 2000,
+        object: { amount: 5000, object: 'refund' },
+        payment,
+      })
+    ).toEqual({
+      activeCheckoutKey: null,
+      refundedAmountCents: 7000,
+      status: PaymentStatus.refunded,
+    });
+  });
+});
+
+describe('paymentDisputeUpdateFromStripe', () => {
+  it('marks disputed and clears active checkout key when requested', () => {
+    expect(
+      paymentDisputeUpdateFromStripe({
+        clearActiveCheckoutKey: true,
+        disputeId: 'dp_test',
+      })
+    ).toEqual({
+      activeCheckoutKey: null,
+      status: PaymentStatus.disputed,
+      stripeDisputeId: 'dp_test',
+    });
+  });
+});

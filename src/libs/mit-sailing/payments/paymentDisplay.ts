@@ -49,6 +49,39 @@ export function paidAmountCentsForPayment(payment: {
   return payment.amountPaidCents ?? payment.amountCents;
 }
 
+export function paymentRefundedAmountCents(payment: {
+  readonly refundedAmountCents: number | null;
+}) {
+  return payment.refundedAmountCents ?? 0;
+}
+
+export function paymentHasPartialRefund(payment: {
+  readonly amountCents: number;
+  readonly amountPaidCents: number | null;
+  readonly refundedAmountCents: number | null;
+  readonly status: string;
+}) {
+  const refundedAmountCents = paymentRefundedAmountCents(payment);
+  if (refundedAmountCents <= 0) {
+    return false;
+  }
+  return (
+    payment.status === 'paid' &&
+    refundedAmountCents < paidAmountCentsForPayment(payment)
+  );
+}
+
+export function paymentNetPaidAmountCents(payment: {
+  readonly amountCents: number;
+  readonly amountPaidCents: number | null;
+  readonly refundedAmountCents: number | null;
+}) {
+  return Math.max(
+    0,
+    paidAmountCentsForPayment(payment) - paymentRefundedAmountCents(payment)
+  );
+}
+
 export function paymentDiscountDisplaySummary(
   metadata: unknown
 ): PaymentDiscountDisplaySummary | null {

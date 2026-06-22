@@ -84,6 +84,8 @@ type AdminCatalogTableProps = {
     labelKey: AdminTableMessageKey;
     placeholderKey: AdminTableMessageKey;
   };
+  /** Optional empty-state message when server-side filters return no rows. */
+  emptyKey?: AdminTableMessageKey;
   /** Optional exact-match filters for secondary states that do not need table columns. */
   filters?: readonly {
     allKey: AdminTableMessageKey;
@@ -542,13 +544,14 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
           start: pageStart,
           total: visibleRows.length,
         });
-  const emptyRow = search ? (
+  const emptyMessageKey = props.search?.emptyKey ?? props.emptyKey;
+  const emptyRow = emptyMessageKey ? (
     <TableRow>
       <TableCell
         className="px-3 py-4 text-sm text-muted-foreground"
         colSpan={displayColumns.length + (canDragReorder ? 2 : 1)}
       >
-        {t(search.emptyKey)}
+        {t(emptyMessageKey)}
       </TableCell>
     </TableRow>
   ) : null;

@@ -21,6 +21,11 @@ import {
   stripeObjectPaidAmountCents,
   stripePaymentDiscountMetadataFromObject,
 } from '@/libs/stripe/stripePaymentDiscountMetadata';
+import {
+  paymentDisputeUpdateFromStripe,
+  paymentRefundUpdateFromStripe,
+  stripeDisputeIdFromObject,
+} from '@/libs/stripe/stripeRefundMetadata';
 
 type StripeWebhookConstructEvent = {
   webhooks: {
@@ -51,6 +56,7 @@ export function stripeEventCreatedAtDate(event: Pick<Stripe.Event, 'created'>) {
 
 type StripeWebhookDbPayment = {
   amountCents: number;
+  amountPaidCents?: number | null;
   cardType?: SailingCardType | null;
   cardYear?: number | null;
   currency: string;
@@ -58,6 +64,7 @@ type StripeWebhookDbPayment = {
   id: string;
   membershipInitialPriceId?: string | null;
   purpose?: PaymentPurposeType;
+  refundedAmountCents?: number | null;
   registrationId?: string | null;
   status: PaymentStatusType;
   lastStripePaymentEventCreatedAt?: Date | null;
@@ -684,11 +691,48 @@ async function handleChargeSucceeded(options: {
   });
 }
 
-async function markPaymentTerminal(options: {
+async function applyPaymentRefundFromStripe(options: {
   chargeId?: string | null;
   db: StripeWebhookDb;
   object: Record<string, unknown>;
-  status: typeof PaymentStatus.disputed | typeof PaymentStatus.refunded;
+}): Promise<boolean> {
+  const chargeId =
+    options.chargeId ??
+    stringValue(options.object.charge) ??
+    stringValue(options.object.id);
+  const paymentIntentId = expandableId(options.object.payment_intent);
+  const payment = await findPaymentForStripeObject({
+    chargeId,
+    db: options.db,
+    paymentId: eventPaymentId(options.object),
+    paymentIntentId,
+  });
+  if (!payment) {
+    return !isSailingCardMembershipStripeObject(options.object);
+  }
+  const refundUpdate = paymentRefundUpdateFromStripe({
+    existingRefundedAmountCents: payment.refundedAmountCents ?? null,
+    object: options.object,
+    payment: {
+      amountCents: payment.amountCents,
+      amountPaidCents: payment.amountPaidCents ?? null,
+    },
+  });
+  await options.db.payment.updateMany({
+    data: {
+      ...refundUpdate,
+      ...(chargeId ? { stripeChargeId: chargeId } : {}),
+      ...(paymentIntentId ? { stripePaymentIntentId: paymentIntentId } : {}),
+    },
+    where: { id: payment.id, status: payment.status },
+  });
+  return true;
+}
+
+async function applyPaymentDisputeFromStripe(options: {
+  chargeId?: string | null;
+  db: StripeWebhookDb;
+  object: Record<string, unknown>;
 }): Promise<boolean> {
   const chargeId =
     options.chargeId ??
@@ -706,7 +750,9 @@ async function markPaymentTerminal(options: {
   }
   await options.db.payment.updateMany({
     data: {
-      status: options.status,
+      ...paymentDisputeUpdateFromStripe({
+        disputeId: stripeDisputeIdFromObject(options.object),
+      }),
       ...(chargeId ? { stripeChargeId: chargeId } : {}),
       ...(paymentIntentId ? { stripePaymentIntentId: paymentIntentId } : {}),
     },
@@ -761,10 +807,9 @@ async function handleEventPaymentStripeWebhookEvent(options: {
     options.event.type === 'refund.created' ||
     options.event.type === 'refund.updated'
   ) {
-    const handled = await markPaymentTerminal({
+    const handled = await applyPaymentRefundFromStripe({
       db: options.db,
       object,
-      status: PaymentStatus.refunded,
     });
     return { handled };
   }
@@ -772,11 +817,10 @@ async function handleEventPaymentStripeWebhookEvent(options: {
     options.event.type === 'charge.dispute.created' ||
     options.event.type === 'charge.dispute.updated'
   ) {
-    const handled = await markPaymentTerminal({
+    const handled = await applyPaymentDisputeFromStripe({
       chargeId: stringValue(object.charge),
       db: options.db,
       object,
-      status: PaymentStatus.disputed,
     });
     return { handled };
   }

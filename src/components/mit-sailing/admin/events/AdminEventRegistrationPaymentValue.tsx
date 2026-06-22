@@ -1,4 +1,5 @@
 import { Mail } from 'lucide-react';
+import { PaymentAmountDisplay } from '@/components/mit-sailing/payments/PaymentAmountDisplay';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { PaymentStatus } from '@/generated/prisma/enums';
 import type { PaymentStatus as PaymentStatusValue } from '@/generated/prisma/enums';
@@ -6,11 +7,6 @@ import { resendAdminEventPaymentRequestAction } from '@/libs/admin/events/eventA
 import type { AdminEventRegistrationDto } from '@/libs/admin/events/eventAdminQueries';
 import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
 import { formatEasternDateTime } from '@/libs/mit-sailing/easternTimeFormat';
-import {
-  paidAmountCentsForPayment,
-  paymentDiscountDisplaySummary,
-} from '@/libs/mit-sailing/payments/paymentDisplay';
-import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 import type { AdminEventRegistrationsTranslations } from './AdminEventRegistrationUtils';
 import { AdminEventListStatusBadge } from './AdminEventShared';
 
@@ -56,10 +52,6 @@ export function AdminEventRegistrationPaymentValue(props: {
     props.slug,
     payment.id
   );
-  const paidAmountCents = paidAmountCentsForPayment(payment);
-  const discount = paymentDiscountDisplaySummary(
-    payment.stripeDiscountMetadata
-  );
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -67,34 +59,21 @@ export function AdminEventRegistrationPaymentValue(props: {
           {paymentStatusLabel(payment.status, props.t)}
         </AdminEventListStatusBadge>
         <span className="text-sm text-mit-readable-ink">
-          {paidAmountCents === payment.amountCents
-            ? formatUsdMinorUnitsAsCurrency(payment.amountCents, props.locale)
-            : props.t('payment_amount_paid_of_total', {
-                paid: formatUsdMinorUnitsAsCurrency(
-                  paidAmountCents,
-                  props.locale
-                ),
-                total: formatUsdMinorUnitsAsCurrency(
-                  payment.amountCents,
-                  props.locale
-                ),
-              })}
+          <PaymentAmountDisplay
+            labels={{
+              amountPaidOfTotal: (values) =>
+                props.t('payment_amount_paid_of_total', values),
+              discountApplied: props.t('payment_discount_applied'),
+              discountSummary: (values) =>
+                props.t('payment_discount_summary', values),
+              partialRefundSummary: (values) =>
+                props.t('payment_amount_partial_refund', values),
+            }}
+            locale={props.locale}
+            payment={payment}
+          />
         </span>
       </div>
-      {discount ? (
-        <p className="text-xs text-mit-readable-ink">
-          {props.t('payment_discount_summary', {
-            discount:
-              discount.label ??
-              (discount.amountDiscountCents === null
-                ? props.t('payment_discount_applied')
-                : formatUsdMinorUnitsAsCurrency(
-                    discount.amountDiscountCents,
-                    props.locale
-                  )),
-          })}
-        </p>
-      ) : null}
       {props.accessMode === 'editable' && payment.resendEligible ? (
         <form action={resendAction}>
           <SubmitButton

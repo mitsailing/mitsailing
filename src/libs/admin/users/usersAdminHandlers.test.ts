@@ -156,6 +156,8 @@ describe('usersAdminHandlers', () => {
           sailingCardNumber: 61,
           sailingCardYear: 2026,
           _count: { sailingCardRequests: 0 },
+          payments: [],
+          sailingCardRequests: [],
         },
         {
           appRole: Role.ADMIN,
@@ -179,6 +181,8 @@ describe('usersAdminHandlers', () => {
           sailingCardNumber: null,
           sailingCardYear: null,
           _count: { sailingCardRequests: 1 },
+          payments: [],
+          sailingCardRequests: [],
         },
       ]);
 
@@ -204,6 +208,8 @@ describe('usersAdminHandlers', () => {
           sailingAffiliation: 'OTHER_NON_STUDENT',
           sailingCardNumber: 61,
           sailingCardStatus: 'current',
+          pendingCardType: null,
+          membershipPaymentStatus: 'not_applicable',
           appRole: Role.USER,
         },
         {
@@ -227,24 +233,18 @@ describe('usersAdminHandlers', () => {
           sailingAffiliation: null,
           sailingCardNumber: null,
           sailingCardStatus: 'pending',
+          pendingCardType: null,
+          membershipPaymentStatus: 'not_applicable',
           appRole: Role.ADMIN,
         },
       ]);
       expect(mocks.userFindMany).toHaveBeenCalledWith({
         orderBy: { email: 'asc' },
         select: expect.objectContaining({
-          _count: {
-            select: {
-              sailingCardRequests: {
-                where: expect.objectContaining({ status: 'pending' }),
-              },
-            },
-          },
+          payments: expect.any(Object),
+          sailingCardRequests: expect.any(Object),
         }),
       });
-      expect(mocks.userFindMany.mock.calls[0]?.[0]?.select).not.toHaveProperty(
-        'sailingCardRequests'
-      );
     });
   });
 
@@ -271,6 +271,7 @@ describe('usersAdminHandlers', () => {
           phone: '+15555550101',
           sailingAffiliation: 'OTHER_NON_STUDENT',
           sailingCardNumber: 61,
+          payments: [],
           sailingCardRequests: [],
           sailingCardYear: 2026,
         })

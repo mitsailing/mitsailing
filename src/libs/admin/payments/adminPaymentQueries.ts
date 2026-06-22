@@ -27,6 +27,7 @@ export type AdminPaymentLedgerRow = {
   payerEmail: string | null;
   payerName: string | null;
   receiptUrl: string | null;
+  refundedAmountCents: number | null;
   status: PaymentStatusValue;
   stripeDiscountMetadata: unknown;
   stripeCheckoutSessionId: string | null;
@@ -139,6 +140,7 @@ export async function listAdminPaymentLedgerPage(
       legacySourceTable: true,
       payerEmail: true,
       payerName: true,
+      refundedAmountCents: true,
       status: true,
       stripeDiscountMetadata: true,
       stripeCheckoutSessionId: true,
@@ -165,6 +167,7 @@ export async function listAdminPaymentLedgerPage(
       payerEmail: row.payerEmail,
       payerName: row.payerName,
       receiptUrl: row.stripeReceiptUrl,
+      refundedAmountCents: row.refundedAmountCents,
       status: row.status,
       stripeDiscountMetadata: row.stripeDiscountMetadata,
       stripeCheckoutSessionId: row.stripeCheckoutSessionId,

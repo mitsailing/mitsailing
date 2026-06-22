@@ -10,6 +10,10 @@ import { AdminCatalogTable } from '@/components/mit-sailing/admin/catalog/AdminC
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type {
+  AdminUsersCardTypeFilter,
+  AdminUsersMembershipPaymentStatusFilter,
+} from '@/libs/admin/users/adminUserListMembershipPayment';
 import {
   ADMIN_USERS_PATH,
   adminUsersNewPath,
@@ -36,7 +40,9 @@ import { getI18nPath } from '@/utils/Helpers';
 type AdminUsersIndexPageProps = {
   params: Promise<{ locale: string }>;
   searchParams?: Promise<{
+    cardType?: string | string[];
     emailStatus?: string | string[];
+    membershipPaymentStatus?: string | string[];
     page?: string | string[];
     q?: string | string[];
     sailingCardStatus?: string | string[];
@@ -57,6 +63,29 @@ function adminUsersEmailStatusFilter(
   return selected === 'bounced' ||
     selected === 'ok' ||
     selected === 'suppressed'
+    ? selected
+    : 'all';
+}
+
+function adminUsersCardTypeFilter(
+  value: string | string[] | undefined
+): AdminUsersCardTypeFilter {
+  const selected = searchParamString(value);
+  return selected === 'normal' ||
+    selected === 'racing' ||
+    selected === 'team_racing'
+    ? selected
+    : 'all';
+}
+
+function adminUsersMembershipPaymentStatusFilter(
+  value: string | string[] | undefined
+): AdminUsersMembershipPaymentStatusFilter {
+  const selected = searchParamString(value);
+  return selected === 'unpaid' ||
+    selected === 'checkout_started' ||
+    selected === 'past_due' ||
+    selected === 'paid'
     ? selected
     : 'all';
 }
@@ -90,8 +119,13 @@ function adminUsersPaginationSummary(props: {
 
 function adminUsersFilterParams(filters: AdminUsersListFilters) {
   return {
+    cardType: filters.cardType === 'all' ? undefined : filters.cardType,
     emailStatus:
       filters.emailStatus === 'all' ? undefined : filters.emailStatus,
+    membershipPaymentStatus:
+      filters.membershipPaymentStatus === 'all'
+        ? undefined
+        : filters.membershipPaymentStatus,
     q: filters.query,
     sailingCardStatus:
       filters.sailingCardStatus === 'all'
@@ -136,7 +170,11 @@ export default async function AdminUsersIndexPage(
   const accountHref = getI18nPath('/', locale);
 
   const filters = {
+    cardType: adminUsersCardTypeFilter(searchParams.cardType),
     emailStatus: adminUsersEmailStatusFilter(searchParams.emailStatus),
+    membershipPaymentStatus: adminUsersMembershipPaymentStatusFilter(
+      searchParams.membershipPaymentStatus
+    ),
     query: searchParamString(searchParams.q),
     sailingCardStatus: adminUsersSailingCardStatusFilter(
       searchParams.sailingCardStatus
@@ -151,7 +189,9 @@ export default async function AdminUsersIndexPage(
   const hasActiveFilters =
     filters.query.length > 0 ||
     filters.emailStatus !== 'all' ||
-    filters.sailingCardStatus !== 'all';
+    filters.sailingCardStatus !== 'all' ||
+    filters.cardType !== 'all' ||
+    filters.membershipPaymentStatus !== 'all';
   const tr = await getTranslations({ locale, namespace: 'AdminUsers' });
   const t = await getTranslations({ locale, namespace: 'MitSailingRoutes' });
   const ta = await getTranslations({ locale, namespace: 'AdminPage' });
@@ -170,7 +210,7 @@ export default async function AdminUsersIndexPage(
       />
       <form
         action={ADMIN_USERS_PATH}
-        className="grid gap-3 md:grid-cols-[minmax(16rem,1fr)_14rem_14rem_auto] md:items-end"
+        className="grid gap-3 md:grid-cols-[minmax(16rem,1fr)_14rem_14rem_14rem_14rem_auto] md:items-end"
         method="get"
       >
         <div>
@@ -225,6 +265,49 @@ export default async function AdminUsersIndexPage(
             </option>
           </select>
         </div>
+        <div>
+          <Label htmlFor="admin-users-card-type">
+            {tr('filter_card_type_label')}
+          </Label>
+          <select
+            className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            defaultValue={filters.cardType}
+            id="admin-users-card-type"
+            name="cardType"
+          >
+            <option value="all">{tr('filter_card_type_all')}</option>
+            <option value="normal">{tr('list_card_type_normal')}</option>
+            <option value="racing">{tr('list_card_type_racing')}</option>
+            <option value="team_racing">
+              {tr('list_card_type_team_racing')}
+            </option>
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="admin-users-membership-payment-status">
+            {tr('filter_membership_payment_status_label')}
+          </Label>
+          <select
+            className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            defaultValue={filters.membershipPaymentStatus}
+            id="admin-users-membership-payment-status"
+            name="membershipPaymentStatus"
+          >
+            <option value="all">
+              {tr('filter_membership_payment_status_all')}
+            </option>
+            <option value="unpaid">
+              {tr('list_membership_payment_unpaid')}
+            </option>
+            <option value="checkout_started">
+              {tr('list_membership_payment_checkout_started')}
+            </option>
+            <option value="past_due">
+              {tr('list_membership_payment_past_due')}
+            </option>
+            <option value="paid">{tr('list_membership_payment_paid')}</option>
+          </select>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Button type="submit">{tr('filter_submit')}</Button>
           {hasActiveFilters ? (
@@ -246,6 +329,7 @@ export default async function AdminUsersIndexPage(
             update: canEditUsers,
           },
         }}
+        emptyKey={hasActiveFilters ? 'filter_empty' : undefined}
         locale={locale}
         messageNamespace="AdminUsers"
         resourceId={usersAdminDefinition.id}

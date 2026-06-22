@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { AdminStatusPill } from '@/components/mit-sailing/admin/catalog/AdminStatusPill';
 import type { AdminStatusPillTone } from '@/components/mit-sailing/admin/catalog/AdminStatusPill';
+import { AdminUsersCatalogListCell } from '@/components/mit-sailing/admin/catalog/AdminUsersCatalogListCell';
 import type {
   AdminBooleanListPolarity,
   AdminFieldKind,
@@ -97,6 +98,67 @@ type AdminCatalogListCellProps = {
   listNameEditHref?: string;
 };
 
+function renderStandardCatalogListCell(props: {
+  booleanPolarity?: AdminBooleanListPolarity;
+  field: string;
+  kind: AdminFieldKind;
+  listNameEditHref?: string;
+  raw: CatalogCellValue;
+  tCatalog: ReturnType<typeof useTranslations<'AdminCatalogResource'>>;
+  tc: ReturnType<typeof useTranslations<'AdminCatalog'>>;
+}) {
+  if (props.kind === 'boolean') {
+    if (props.raw === null || props.raw === undefined) {
+      return <span className="text-slate-400">—</span>;
+    }
+    const on = Boolean(props.raw);
+    return (
+      <AdminStatusPill tone={booleanListTone(on, props.booleanPolarity)}>
+        {on ? props.tc('yes') : props.tc('no')}
+      </AdminStatusPill>
+    );
+  }
+
+  if (props.kind === 'visibility') {
+    const visible = Boolean(props.raw);
+    return (
+      <AdminStatusPill tone={visible ? 'success' : 'neutral'}>
+        {visible
+          ? props.tCatalog('status_live')
+          : props.tCatalog('status_draft')}
+      </AdminStatusPill>
+    );
+  }
+
+  if (
+    props.kind === 'url' &&
+    typeof props.raw === 'string' &&
+    props.raw.length > 0
+  ) {
+    return renderUrlListContent(props.raw);
+  }
+
+  if (props.kind === 'number' && typeof props.raw === 'number') {
+    return <span className="tabular-nums">{props.raw}</span>;
+  }
+
+  if (
+    props.field === 'name' &&
+    (props.kind === 'string' || props.kind === 'text')
+  ) {
+    return renderAdminCatalogNameListContent({
+      listNameEditHref: props.listNameEditHref,
+      raw: props.raw,
+    });
+  }
+
+  if (props.raw === null || props.raw === undefined) {
+    return <span className="text-slate-400">—</span>;
+  }
+
+  return <span>{String(props.raw)}</span>;
+}
+
 /**
  * Renders one catalog list cell (visibility badge, links, plain text, numbers).
  *
@@ -112,50 +174,23 @@ export function AdminCatalogListCell(props: AdminCatalogListCellProps) {
   const tc = useTranslations('AdminCatalog');
   const raw = props.row[props.field];
 
-  if (props.kind === 'boolean') {
-    if (raw === null || raw === undefined) {
-      return <span className="text-slate-400">—</span>;
-    }
-    const on = Boolean(raw);
-    return (
-      <AdminStatusPill tone={booleanListTone(on, props.booleanPolarity)}>
-        {on ? tc('yes') : tc('no')}
-      </AdminStatusPill>
-    );
-  }
-
-  if (props.kind === 'visibility') {
-    const visible = Boolean(raw);
-    return (
-      <AdminStatusPill tone={visible ? 'success' : 'neutral'}>
-        {visible ? tCatalog('status_live') : tCatalog('status_draft')}
-      </AdminStatusPill>
-    );
-  }
-
-  if (props.kind === 'url' && typeof raw === 'string' && raw.length > 0) {
-    return renderUrlListContent(raw);
-  }
-
-  if (props.kind === 'number' && typeof raw === 'number') {
-    return <span className="tabular-nums">{raw}</span>;
-  }
-
   if (
-    props.field === 'name' &&
-    (props.kind === 'string' || props.kind === 'text')
+    props.field === 'sailingCardStatus' ||
+    props.field === 'pendingCardType' ||
+    props.field === 'membershipPaymentStatus'
   ) {
-    return renderAdminCatalogNameListContent({
-      listNameEditHref: props.listNameEditHref,
-      raw,
-    });
+    return <AdminUsersCatalogListCell field={props.field} raw={raw} />;
   }
 
-  if (raw === null || raw === undefined) {
-    return <span className="text-slate-400">—</span>;
-  }
-
-  return <span>{String(raw)}</span>;
+  return renderStandardCatalogListCell({
+    booleanPolarity: props.booleanPolarity,
+    field: props.field,
+    kind: props.kind,
+    listNameEditHref: props.listNameEditHref,
+    raw,
+    tCatalog,
+    tc,
+  });
 }
 
 type AdminCatalogEditStatusBadgeProps = {

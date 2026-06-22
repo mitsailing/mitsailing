@@ -74,6 +74,9 @@ export function AdminPagination(
 ) {
   const pageParamName = props.pageParamName ?? 'page';
   const totalPages = Math.max(1, Math.ceil(props.total / props.pageSize));
+  if (props.total === 0 || totalPages <= 1) {
+    return null;
+  }
   const page = Math.min(Math.max(props.page, 1), totalPages);
   const previousPage = Math.max(1, page - 1);
   const nextPage = Math.min(totalPages, page + 1);

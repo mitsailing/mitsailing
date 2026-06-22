@@ -2,7 +2,15 @@ import 'server-only';
 import { APIError } from 'better-auth';
 import { headers } from 'next/headers';
 import type { Prisma } from '@/generated/prisma/client';
-import { SailingCardRequestStatus } from '@/generated/prisma/enums';
+import {
+  SailingCardRequestStatus,
+  PaymentPurpose,
+} from '@/generated/prisma/enums';
+import type {
+  PaymentPurpose as PaymentPurposeValue,
+  PaymentStatus as PaymentStatusValue,
+  SailingCardType as SailingCardTypeValue,
+} from '@/generated/prisma/enums';
 import type {
   AdminUserRow,
   CatalogCreateResult,
@@ -11,6 +19,16 @@ import type {
   CatalogRow,
   CatalogServerHandlers,
 } from '@/libs/admin/catalog/types';
+import {
+  adminUserMembershipPaymentListStatus,
+  cardTypeFilterWhere,
+  membershipPaymentStatusFilterWhere,
+  pendingCardTypeFromUser,
+} from '@/libs/admin/users/adminUserListMembershipPayment';
+import type {
+  AdminUsersCardTypeFilter,
+  AdminUsersMembershipPaymentStatusFilter,
+} from '@/libs/admin/users/adminUserListMembershipPayment';
 import { updateUserAppRole } from '@/libs/admin/users/appRoleActions';
 import { mapAuthAdminErrorToCode } from '@/libs/admin/users/mapAuthAdminError';
 import {
@@ -49,7 +67,9 @@ export type AdminUsersSailingCardStatusFilter =
   | 'pending';
 
 export type AdminUsersListFilters = {
+  readonly cardType: AdminUsersCardTypeFilter;
   readonly emailStatus: AdminUsersEmailStatusFilter;
+  readonly membershipPaymentStatus: AdminUsersMembershipPaymentStatusFilter;
   readonly query: string;
   readonly sailingCardStatus: AdminUsersSailingCardStatusFilter;
 };
@@ -107,9 +127,22 @@ function rowFromDb(user: {
   phone: string | null;
   sailingAffiliation: AdminUserRow['sailingAffiliation'];
   sailingCardNumber: number | null;
-  sailingCardRequests?: readonly { status: string }[];
+  sailingCardRequests?: readonly {
+    cardType: SailingCardTypeValue;
+    cardYear: number;
+    status: SailingCardRequestStatus;
+  }[];
+  payments?: readonly {
+    cardType: SailingCardTypeValue | null;
+    cardYear: number | null;
+    createdAt: Date;
+    purpose: PaymentPurposeValue;
+    status: PaymentStatusValue;
+  }[];
   sailingCardYear: number | null;
 }): AdminUserRow {
+  const sailingCardRequests = user.sailingCardRequests ?? [];
+  const payments = user.payments ?? [];
   return {
     id: user.id,
     email: user.email,
@@ -129,6 +162,11 @@ function rowFromDb(user: {
     sailingAffiliation: user.sailingAffiliation,
     sailingCardNumber: user.sailingCardNumber,
     sailingCardStatus: sailingCardStatusFromUser(user),
+    pendingCardType: pendingCardTypeFromUser({ sailingCardRequests }),
+    membershipPaymentStatus: adminUserMembershipPaymentListStatus({
+      payments,
+      sailingCardRequests,
+    }),
     name: user.name,
     appRole: normalizeAppRole(user.appRole),
     emailVerified: user.emailVerified,
@@ -236,8 +274,57 @@ function adminUsersWhere(
     userSearchWhere(filters.query),
     emailStatusWhere(filters.emailStatus),
     sailingCardStatusWhere(filters.sailingCardStatus),
+    cardTypeFilterWhere(filters.cardType),
+    membershipPaymentStatusFilterWhere(
+      filters.membershipPaymentStatus,
+      filters.cardType
+    ),
   ].filter((clause): clause is Prisma.UserWhereInput => clause !== null);
   return clauses.length === 0 ? {} : { AND: clauses };
+}
+
+const adminUserListPaymentSelect = {
+  cardType: true,
+  cardYear: true,
+  createdAt: true,
+  purpose: true,
+  status: true,
+} as const;
+
+const adminUserListRequestSelect = {
+  cardType: true,
+  cardYear: true,
+  status: true,
+} as const;
+
+function adminUserListInclude(currentYear: number) {
+  return {
+    _count: {
+      select: {
+        sailingCardRequests: {
+          where: {
+            cardYear: currentYear,
+            status: SailingCardRequestStatus.pending,
+          },
+        },
+      },
+    },
+    payments: {
+      orderBy: { createdAt: 'desc' as const },
+      select: adminUserListPaymentSelect,
+      where: {
+        cardYear: currentYear,
+        purpose: PaymentPurpose.membership,
+      },
+    },
+    sailingCardRequests: {
+      select: adminUserListRequestSelect,
+      where: {
+        cardYear: currentYear,
+        status: SailingCardRequestStatus.pending,
+      },
+    },
+  };
 }
 
 async function assertCanRemoveOrDemoteAdmin(
@@ -394,6 +481,7 @@ export async function listAdminUsersPage(options: {
 }): Promise<AdminUsersListPage> {
   const pageSize = options.pageSize ?? ADMIN_USERS_PAGE_SIZE;
   const where = adminUsersWhere(options.filters);
+  const currentYear = getCurrentSailingCardYear();
   const total = await prisma.user.count({ where });
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.min(Math.max(options.page, 1), totalPages);
@@ -403,16 +491,7 @@ export async function listAdminUsersPage(options: {
     take: pageSize,
     where,
     select: {
-      _count: {
-        select: {
-          sailingCardRequests: {
-            where: {
-              cardYear: getCurrentSailingCardYear(),
-              status: SailingCardRequestStatus.pending,
-            },
-          },
-        },
-      },
+      ...adminUserListInclude(currentYear),
       id: true,
       email: true,
       name: true,
@@ -448,19 +527,11 @@ export async function listAdminUsersPage(options: {
  */
 export const usersAdminHandlers: CatalogServerHandlers = {
   async list(): Promise<CatalogRow[]> {
+    const currentYear = getCurrentSailingCardYear();
     const rows = await prisma.user.findMany({
       orderBy: { email: 'asc' },
       select: {
-        _count: {
-          select: {
-            sailingCardRequests: {
-              where: {
-                cardYear: getCurrentSailingCardYear(),
-                status: SailingCardRequestStatus.pending,
-              },
-            },
-          },
-        },
+        ...adminUserListInclude(currentYear),
         id: true,
         email: true,
         name: true,
@@ -487,9 +558,11 @@ export const usersAdminHandlers: CatalogServerHandlers = {
   },
 
   async getById(id: string): Promise<CatalogRow | null> {
+    const currentYear = getCurrentSailingCardYear();
     const row = await prisma.user.findUnique({
       where: { id },
       select: {
+        ...adminUserListInclude(currentYear),
         id: true,
         email: true,
         name: true,
@@ -509,11 +582,6 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         phone: true,
         sailingAffiliation: true,
         sailingCardNumber: true,
-        sailingCardRequests: {
-          orderBy: { requestedAt: 'desc' },
-          select: { status: true },
-          take: 1,
-        },
         sailingCardYear: true,
       },
     });

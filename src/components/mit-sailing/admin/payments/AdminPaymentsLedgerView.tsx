@@ -6,6 +6,7 @@ import {
 } from '@/components/mit-sailing/admin/AdminDataRows';
 import type { AdminMetricStripItem } from '@/components/mit-sailing/admin/AdminDataRows';
 import { AdminPagination } from '@/components/mit-sailing/admin/AdminPagination';
+import { PaymentAmountDisplay } from '@/components/mit-sailing/payments/PaymentAmountDisplay';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -18,11 +19,6 @@ import type {
 } from '@/libs/admin/payments/adminPaymentQueries';
 import { Link } from '@/libs/I18nNavigation';
 import { formatEasternDateTime } from '@/libs/mit-sailing/easternTimeFormat';
-import {
-  paidAmountCentsForPayment,
-  paymentDiscountDisplaySummary,
-} from '@/libs/mit-sailing/payments/paymentDisplay';
-import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 
 type AdminPaymentsTranslations = Awaited<
   ReturnType<typeof getTranslations<'AdminPayments'>>
@@ -209,44 +205,18 @@ function PaymentLedgerAmount(
     t: AdminPaymentsTranslations;
   }>
 ) {
-  const paidAmountCents = paidAmountCentsForPayment(props.payment);
-  const discount = paymentDiscountDisplaySummary(
-    props.payment.stripeDiscountMetadata
-  );
   return (
-    <div>
-      <span>
-        {paidAmountCents === props.payment.amountCents
-          ? formatUsdMinorUnitsAsCurrency(
-              props.payment.amountCents,
-              props.locale
-            )
-          : props.t('amount_paid_of_total', {
-              paid: formatUsdMinorUnitsAsCurrency(
-                paidAmountCents,
-                props.locale
-              ),
-              total: formatUsdMinorUnitsAsCurrency(
-                props.payment.amountCents,
-                props.locale
-              ),
-            })}
-      </span>
-      {discount ? (
-        <span className="mt-1 block text-xs font-normal text-mit-readable-ink">
-          {props.t('discount_summary', {
-            discount:
-              discount.label ??
-              (discount.amountDiscountCents === null
-                ? props.t('discount_applied')
-                : formatUsdMinorUnitsAsCurrency(
-                    discount.amountDiscountCents,
-                    props.locale
-                  )),
-          })}
-        </span>
-      ) : null}
-    </div>
+    <PaymentAmountDisplay
+      labels={{
+        amountPaidOfTotal: (values) => props.t('amount_paid_of_total', values),
+        discountApplied: props.t('discount_applied'),
+        discountSummary: (values) => props.t('discount_summary', values),
+        partialRefundSummary: (values) =>
+          props.t('amount_partial_refund', values),
+      }}
+      locale={props.locale}
+      payment={props.payment}
+    />
   );
 }
 

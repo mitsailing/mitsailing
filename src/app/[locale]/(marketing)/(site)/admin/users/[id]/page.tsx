@@ -22,6 +22,7 @@ import {
 } from '@/components/mit-sailing/admin/cards/AdminSailingCardControls';
 import type { AdminSailingCardPaymentAccess } from '@/components/mit-sailing/admin/cards/AdminSailingCardControls';
 import { AdminUserRatingsPanel } from '@/components/mit-sailing/admin/users/AdminUserRatingsPanel';
+import { PaymentAmountDisplay } from '@/components/mit-sailing/payments/PaymentAmountDisplay';
 import {
   Table,
   TableBody,
@@ -66,10 +67,6 @@ import {
 import type { AdminUserEmailMessageRow } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
 import { membershipPaymentAccessStatus } from '@/libs/mit-sailing/membershipBilling/membershipPaymentStatus';
-import {
-  paidAmountCentsForPayment,
-  paymentDiscountDisplaySummary,
-} from '@/libs/mit-sailing/payments/paymentDisplay';
 import { needsFitnessMembershipQuestion } from '@/libs/mit-sailing/sailingCardMembership';
 import {
   getCurrentSailingCardYear,
@@ -77,7 +74,6 @@ import {
 } from '@/libs/mit-sailing/sailingCardValidity';
 import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
 import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
-import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 
 type EmailDeliverabilityStatus = 'ok' | 'bounced' | 'suppressed';
 
@@ -1069,36 +1065,20 @@ function AdminUserPaymentAmount(props: {
   readonly payment: AdminUserPaymentHistoryRow;
   readonly t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
-  const paidAmountCents = paidAmountCentsForPayment(props.payment);
-  const discount = paymentDiscountDisplaySummary(
-    props.payment.stripeDiscountMetadata
-  );
   return (
-    <span>
-      {paidAmountCents === props.payment.amountCents
-        ? formatUsdMinorUnitsAsCurrency(props.payment.amountCents, props.locale)
-        : props.t('payment_amount_paid_of_total', {
-            paid: formatUsdMinorUnitsAsCurrency(paidAmountCents, props.locale),
-            total: formatUsdMinorUnitsAsCurrency(
-              props.payment.amountCents,
-              props.locale
-            ),
-          })}
-      {discount ? (
-        <span className="mt-1 block text-xs text-mit-readable-ink">
-          {props.t('payment_discount_summary', {
-            discount:
-              discount.label ??
-              (discount.amountDiscountCents === null
-                ? props.t('payment_discount_applied')
-                : formatUsdMinorUnitsAsCurrency(
-                    discount.amountDiscountCents,
-                    props.locale
-                  )),
-          })}
-        </span>
-      ) : null}
-    </span>
+    <PaymentAmountDisplay
+      labels={{
+        amountPaidOfTotal: (values) =>
+          props.t('payment_amount_paid_of_total', values),
+        discountApplied: props.t('payment_discount_applied'),
+        discountSummary: (values) =>
+          props.t('payment_discount_summary', values),
+        partialRefundSummary: (values) =>
+          props.t('payment_amount_partial_refund', values),
+      }}
+      locale={props.locale}
+      payment={props.payment}
+    />
   );
 }
 

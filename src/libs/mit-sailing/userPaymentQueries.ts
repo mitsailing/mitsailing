@@ -21,6 +21,7 @@ export type UserPaymentRow = {
   legacyDescription: string | null;
   purpose: 'event' | 'membership';
   receiptUrl: string | null;
+  refundedAmountCents: number | null;
   source: PaymentSourceValue;
   status: PaymentStatusValue;
   stripeDiscountMetadata: unknown;
@@ -42,6 +43,7 @@ export async function listUserPayments(
       id: true,
       legacyDescription: true,
       purpose: true,
+      refundedAmountCents: true,
       source: true,
       status: true,
       stripeDiscountMetadata: true,
@@ -63,6 +65,7 @@ export async function listUserPayments(
           legacyDescription: row.legacyDescription,
           purpose: 'event',
           receiptUrl: row.stripeReceiptUrl,
+          refundedAmountCents: row.refundedAmountCents,
           source: row.source,
           status: row.status,
           stripeDiscountMetadata: row.stripeDiscountMetadata,
@@ -83,6 +86,7 @@ export async function listUserPayments(
         legacyDescription: null,
         purpose: 'membership',
         receiptUrl: row.stripeReceiptUrl,
+        refundedAmountCents: row.refundedAmountCents,
         source: row.source,
         status: row.status,
         stripeDiscountMetadata: row.stripeDiscountMetadata,

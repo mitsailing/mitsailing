@@ -1,17 +1,13 @@
 import { ExternalLink } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
+import { PaymentAmountDisplay } from '@/components/mit-sailing/payments/PaymentAmountDisplay';
 import {
   PaymentSource,
   PaymentStatus,
   SailingCardType,
 } from '@/generated/prisma/enums';
 import { Link } from '@/libs/I18nNavigation';
-import {
-  paidAmountCentsForPayment,
-  paymentDiscountDisplaySummary,
-} from '@/libs/mit-sailing/payments/paymentDisplay';
 import type { UserPaymentRow } from '@/libs/mit-sailing/userPaymentQueries';
-import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 
 type ProfilePaymentsTranslations = Awaited<
   ReturnType<typeof getTranslations<'UserProfilePage'>>
@@ -113,44 +109,20 @@ function PaymentAmountValue(props: {
   payment: UserPaymentRow;
   t: ProfilePaymentsTranslations;
 }) {
-  const paidAmountCents = paidAmountCentsForPayment(props.payment);
-  const discount = paymentDiscountDisplaySummary(
-    props.payment.stripeDiscountMetadata
-  );
   return (
-    <div>
-      <span>
-        {paidAmountCents === props.payment.amountCents
-          ? formatUsdMinorUnitsAsCurrency(
-              props.payment.amountCents,
-              props.locale
-            )
-          : props.t('payments_amount_paid_of_total', {
-              paid: formatUsdMinorUnitsAsCurrency(
-                paidAmountCents,
-                props.locale
-              ),
-              total: formatUsdMinorUnitsAsCurrency(
-                props.payment.amountCents,
-                props.locale
-              ),
-            })}
-      </span>
-      {discount ? (
-        <span className="mt-1 block text-xs font-normal text-mit-readable-ink">
-          {props.t('payments_discount_summary', {
-            discount:
-              discount.label ??
-              (discount.amountDiscountCents === null
-                ? props.t('payments_discount_applied')
-                : formatUsdMinorUnitsAsCurrency(
-                    discount.amountDiscountCents,
-                    props.locale
-                  )),
-          })}
-        </span>
-      ) : null}
-    </div>
+    <PaymentAmountDisplay
+      labels={{
+        amountPaidOfTotal: (values) =>
+          props.t('payments_amount_paid_of_total', values),
+        discountApplied: props.t('payments_discount_applied'),
+        discountSummary: (values) =>
+          props.t('payments_discount_summary', values),
+        partialRefundSummary: (values) =>
+          props.t('payments_amount_partial_refund', values),
+      }}
+      locale={props.locale}
+      payment={props.payment}
+    />
   );
 }
 

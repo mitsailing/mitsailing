@@ -5,6 +5,11 @@ import {
   stripeObjectPaidAmountCents,
   stripePaymentDiscountMetadataFromObject,
 } from '@/libs/stripe/stripePaymentDiscountMetadata';
+import {
+  paymentDisputeUpdateFromStripe,
+  paymentRefundUpdateFromStripe,
+  stripeDisputeIdFromObject,
+} from '@/libs/stripe/stripeRefundMetadata';
 import type {
   ProcessableStripeEvent,
   StripeWebhookDb,
@@ -16,8 +21,10 @@ type StripeObject = Record<string, unknown>;
 
 type MembershipWebhookPayment = {
   readonly amountCents: number;
+  readonly amountPaidCents: number | null;
   readonly currency: string;
   readonly id: string;
+  readonly refundedAmountCents: number | null;
   readonly status: PaymentStatusType;
 };
 
@@ -132,7 +139,17 @@ async function findMembershipPayment(options: {
       purpose: PaymentPurpose.membership,
     },
   });
-  return payment;
+  if (!payment) {
+    return null;
+  }
+  return {
+    amountCents: payment.amountCents,
+    amountPaidCents: payment.amountPaidCents ?? null,
+    currency: payment.currency,
+    id: payment.id,
+    refundedAmountCents: payment.refundedAmountCents ?? null,
+    status: payment.status,
+  };
 }
 
 function paidUpdateData(options: {
@@ -317,12 +334,42 @@ async function handleChargeSucceeded(options: {
   });
 }
 
-async function markTerminalMembershipPayment(options: {
+async function applyMembershipRefundFromStripe(options: {
   readonly db: StripeWebhookDb;
   readonly object: StripeObject;
-  readonly status:
-    | typeof PaymentStatus.disputed
-    | typeof PaymentStatus.refunded;
+}): Promise<StripeWebhookDispatchHandlerResult> {
+  const chargeId =
+    stringValue(options.object.charge) ?? stringValue(options.object.id);
+  const paymentIntentId = expandableId(options.object.payment_intent);
+  const payment = await findMembershipPayment({
+    chargeId,
+    db: options.db,
+    object: options.object,
+    paymentIntentId,
+  });
+  if (!payment) {
+    return { handled: isMembershipStripeObject(options.object) };
+  }
+  const refundUpdate = paymentRefundUpdateFromStripe({
+    clearActiveCheckoutKeyOnFullRefund: true,
+    existingRefundedAmountCents: payment.refundedAmountCents,
+    object: options.object,
+    payment,
+  });
+  await options.db.payment.updateMany({
+    data: {
+      ...refundUpdate,
+      ...(chargeId ? { stripeChargeId: chargeId } : {}),
+      ...(paymentIntentId ? { stripePaymentIntentId: paymentIntentId } : {}),
+    },
+    where: { id: payment.id, status: payment.status },
+  });
+  return { handled: true };
+}
+
+async function applyMembershipDisputeFromStripe(options: {
+  readonly db: StripeWebhookDb;
+  readonly object: StripeObject;
 }): Promise<StripeWebhookDispatchHandlerResult> {
   const chargeId =
     stringValue(options.object.charge) ?? stringValue(options.object.id);
@@ -338,7 +385,10 @@ async function markTerminalMembershipPayment(options: {
   }
   await options.db.payment.updateMany({
     data: {
-      status: options.status,
+      ...paymentDisputeUpdateFromStripe({
+        clearActiveCheckoutKey: true,
+        disputeId: stripeDisputeIdFromObject(options.object),
+      }),
       ...(chargeId ? { stripeChargeId: chargeId } : {}),
       ...(paymentIntentId ? { stripePaymentIntentId: paymentIntentId } : {}),
     },
@@ -388,10 +438,9 @@ export async function handleMembershipStripeWebhookEvent(options: {
     options.event.type === 'refund.created' ||
     options.event.type === 'refund.updated'
   ) {
-    const result = await markTerminalMembershipPayment({
+    const result = await applyMembershipRefundFromStripe({
       db: options.db,
       object,
-      status: PaymentStatus.refunded,
     });
     return result;
   }
@@ -399,10 +448,9 @@ export async function handleMembershipStripeWebhookEvent(options: {
     options.event.type === 'charge.dispute.created' ||
     options.event.type === 'charge.dispute.updated'
   ) {
-    const result = await markTerminalMembershipPayment({
+    const result = await applyMembershipDisputeFromStripe({
       db: options.db,
       object,
-      status: PaymentStatus.disputed,
     });
     return result;
   }

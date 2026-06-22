@@ -23,6 +23,7 @@ type AdminUserPaymentHistoryDbRow = {
   manualHandledBy: { name: string } | null;
   manualHandledNote: string | null;
   purpose: PaymentPurpose;
+  refundedAmountCents: number | null;
   source: PaymentSourceValue;
   status: PaymentStatusValue;
   stripeDiscountMetadata: unknown;
@@ -43,6 +44,7 @@ export type AdminUserPaymentHistoryRow = {
   readonly manualHandledNote: string | null;
   readonly purpose: 'event' | 'membership';
   readonly receiptHref: string | null;
+  readonly refundedAmountCents: number | null;
   readonly source: PaymentSourceValue;
   readonly status: PaymentStatusValue;
   readonly stripeDiscountMetadata: unknown;
@@ -70,6 +72,7 @@ const paymentHistorySelect = {
   manualHandledBy: { select: { name: true } },
   manualHandledNote: true,
   purpose: true,
+  refundedAmountCents: true,
   source: true,
   status: true,
   stripeDiscountMetadata: true,
@@ -111,6 +114,7 @@ function paymentHistoryRowsFromDb(
           manualHandledNote: row.manualHandledNote,
           purpose: 'event',
           receiptHref: row.stripeReceiptUrl,
+          refundedAmountCents: row.refundedAmountCents,
           source: row.source,
           status: row.status,
           stripeDiscountMetadata: row.stripeDiscountMetadata,
@@ -135,6 +139,7 @@ function paymentHistoryRowsFromDb(
         manualHandledNote: row.manualHandledNote,
         purpose: 'membership',
         receiptHref: row.stripeReceiptUrl,
+        refundedAmountCents: row.refundedAmountCents,
         source: row.source,
         status: row.status,
         stripeDiscountMetadata: row.stripeDiscountMetadata,
