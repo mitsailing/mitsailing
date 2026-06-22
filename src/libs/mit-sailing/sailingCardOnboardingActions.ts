@@ -723,7 +723,17 @@ export const submitSailingCardOnboardingAction = async (
       });
 
       if (requestUpdate.count === 0) {
-        redirect(successDestination);
+        if (
+          await currentYearRequestShouldFinishOnboarding({
+            cardYear,
+            client: tx,
+            request: currentYearRequest,
+            userId: session.user.id,
+          })
+        ) {
+          return { status: 'alreadyCompleted' } as const;
+        }
+        return { status: 'submitted' } as const;
       }
     }
 

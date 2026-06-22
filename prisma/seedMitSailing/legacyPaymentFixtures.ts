@@ -330,5 +330,5 @@ export async function seedLegacyProcessorPaymentFixtures(
       )
   `;
 
-  await importLegacyPaymentsFromSchema();
+  await importLegacyPaymentsFromSchema({ prisma: p });
 }

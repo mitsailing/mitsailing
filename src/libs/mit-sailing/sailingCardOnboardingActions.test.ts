@@ -519,6 +519,48 @@ describe('submitSailingCardOnboardingAction', () => {
     expect(mocks.prismaTransaction).not.toHaveBeenCalled();
   });
 
+  it('finishes onboarding from transaction-side payment recheck when pre-transaction read missed request', async () => {
+    const completedRacingRequest = {
+      cardYear: 2026,
+      cardType: SailingCardType.racing,
+      hasFitnessMembership: false,
+      legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+      },
+      sailingAffiliation: SailingAffiliation.OTHER_NON_STUDENT,
+      status: SailingCardRequestStatus.pending,
+      userId: 'user-1',
+      user: {
+        emergencyContactName: 'Grace Hopper',
+        emergencyContactPhone: '+442079460958',
+        gymMembershipVerifiedAt: null,
+        phone: '+16175550100',
+      },
+    };
+    mocks.prismaPaymentFindFirst.mockResolvedValue({ id: 'payment-1' });
+    mocks.prismaUserFindUnique.mockResolvedValue(currentUserFixture());
+    mocks.prismaSailingCardRequestFindUnique.mockResolvedValue(
+      completedRacingRequest
+    );
+    const submitSailingCardOnboardingAction =
+      await loadSubmitSailingCardOnboardingAction();
+
+    await expect(
+      submitSailingCardOnboardingAction(
+        idleState,
+        paidRacingOnboardingFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+
+    expect(mocks.prismaTransaction).toHaveBeenCalledTimes(1);
+    expect(
+      mocks.createMembershipCheckoutUrlForOnboarding
+    ).not.toHaveBeenCalled();
+  });
+
   it('updates only the current user', async () => {
     const { submitSailingCardOnboardingAction } =
       await import('@/libs/mit-sailing/sailingCardOnboardingActions');

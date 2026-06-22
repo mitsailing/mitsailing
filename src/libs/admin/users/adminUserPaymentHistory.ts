@@ -156,7 +156,7 @@ export async function listAdminUserPaymentHistory(
   const rows = await prisma.payment.findMany({
     orderBy: { createdAt: 'desc' },
     select: paymentHistorySelect,
-    where: { userId },
+    where: { ...paymentHistoryWhere, userId },
   });
 
   return paymentHistoryRowsFromDb(rows);

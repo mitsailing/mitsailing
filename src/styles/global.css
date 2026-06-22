@@ -89,8 +89,14 @@
   @media (min-width: 768px) {
     [data-admin-email-editor]
       :is(.ProseMirror, .tiptap, [contenteditable='true']) {
-      min-height: calc(60vh - 3rem);
+      min-height: max(30rem, calc(60vh - 3rem));
     }
+  }
+
+  [data-admin-email-editor]
+    :is(.ProseMirror, .tiptap, [contenteditable='true']):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 
   .cms-rich-text {

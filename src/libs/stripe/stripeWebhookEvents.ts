@@ -560,14 +560,16 @@ async function markPaymentPaid(options: {
     where: { id: options.payment.id, status: options.payment.status },
   });
   if (result.count === 0) {
-    await options.db.payment.updateMany({
+    const paidMergeResult = await options.db.payment.updateMany({
       data: paidStripeReferenceMergeData(update),
       where: { id: options.payment.id, status: PaymentStatus.paid },
     });
-    await approveAutoApprovedEventRegistrationAfterPayment({
-      db: options.db,
-      payment: options.payment,
-    });
+    if (paidMergeResult.count > 0) {
+      await approveAutoApprovedEventRegistrationAfterPayment({
+        db: options.db,
+        payment: options.payment,
+      });
+    }
     return { handled: true };
   }
   await approveAutoApprovedEventRegistrationAfterPayment({

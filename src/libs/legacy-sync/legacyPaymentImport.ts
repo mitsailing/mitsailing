@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import type { PrismaClient } from '@/generated/prisma/client';
 import { Prisma } from '@/generated/prisma/client';
 import {
   PaymentPurpose,
@@ -1159,12 +1160,12 @@ export async function importLegacyPaymentRows(props: {
     const paymentWrites: LegacyPaymentWrite[] = [];
 
     for (const payment of props.payments) {
+      if (isLegacyDepositPayment(payment)) {
+        continue;
+      }
       const orderNumber = stringValue(payment.omarsid);
       if (orderNumber === '') {
         paymentsNeedingReview += 1;
-        continue;
-      }
-      if (isLegacyDepositPayment(payment)) {
         continue;
       }
       const write = legacyPaymentWrite({
@@ -1191,15 +1192,18 @@ export async function importLegacyPaymentRows(props: {
   return result;
 }
 
-export async function importLegacyPaymentsFromSchema(): Promise<LegacyPaymentImportResult> {
+export async function importLegacyPaymentsFromSchema(options?: {
+  readonly prisma?: Pick<PrismaClient, '$queryRaw'>;
+}): Promise<LegacyPaymentImportResult> {
+  const db = options?.prisma ?? prisma;
   const [members, payments] = await Promise.all([
-    prisma.$queryRaw<LegacyMemberRow[]>`
+    db.$queryRaw<LegacyMemberRow[]>`
       SELECT *
       FROM legacy.members
       WHERE active = '1'
       ORDER BY lower(trim(email)), record_date DESC, record DESC
     `,
-    prisma.$queryRaw<LegacyPaymentRow[]>`
+    db.$queryRaw<LegacyPaymentRow[]>`
       SELECT *
       FROM legacy.payments
       ORDER BY date, omarsid

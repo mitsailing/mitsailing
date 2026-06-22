@@ -56,7 +56,7 @@ vi.mock('@/libs/admin/users/appRoleActions', () => ({
   updateUserAppRole: mocks.updateUserAppRole,
 }));
 
-const { usersAdminHandlers } =
+const { usersAdminHandlers, listAdminUsersPage } =
   await import('@/libs/admin/users/usersAdminHandlers');
 
 function createFormData(props?: {
@@ -721,5 +721,41 @@ describe('usersAdminHandlers', () => {
         ok: false,
       });
     });
+  });
+});
+
+describe('listAdminUsersPage', () => {
+  beforeEach(() => {
+    mocks.userCount.mockReset();
+    mocks.userFindMany.mockReset();
+    mocks.userCount.mockResolvedValue(0);
+    mocks.userFindMany.mockResolvedValue([]);
+  });
+
+  it('does not match every user role for free-text search queries', async () => {
+    await listAdminUsersPage({
+      filters: {
+        cardType: 'all',
+        emailStatus: 'all',
+        membershipPaymentStatus: 'all',
+        query: 'sailor',
+        sailingCardStatus: 'all',
+      },
+      page: 1,
+    });
+
+    expect(mocks.userCount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              OR: expect.not.arrayContaining([
+                expect.objectContaining({ appRole: expect.anything() }),
+              ]),
+            }),
+          ]),
+        }),
+      })
+    );
   });
 });

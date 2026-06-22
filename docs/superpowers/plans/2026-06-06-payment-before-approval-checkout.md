@@ -40,3 +40,7 @@ Paid event registrations must collect payment as soon as the registration is sub
 - `npm run check:i18n`
 - `git diff --check`
 - `coderabbit review --agent -t uncommitted -c AGENTS.md`
+
+## Infrastructure
+
+Using existing local `AdminPagination`, `AdminDataRows`, and `paymentDisplay` because admin lists are app-specific and already established in this codebase; no third-party table engine was added for this slice.

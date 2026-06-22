@@ -27,7 +27,6 @@ export function AdminEmailEditorSurface(props: AdminEmailEditorSurfaceProps) {
         editable.setAttribute('aria-labelledby', labelId);
         editable.setAttribute('role', 'textbox');
         editable.style.minHeight = '30rem';
-        editable.style.outline = 'none';
         editable.style.width = '100%';
       }
     }

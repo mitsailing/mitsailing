@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PaymentStatus } from '@/generated/prisma/enums';
+import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
 import type { PaymentStatus as PaymentStatusType } from '@/generated/prisma/enums';
 import {
   constructStripeWebhookEvent,
@@ -30,6 +30,18 @@ function eventPayment(
     currency: 'usd',
     id: options.id ?? 'payment_123',
     status: options.status ?? PaymentStatus.pending,
+  };
+}
+
+function eventRegistrationPayment(
+  options: { id?: string; status?: PaymentStatusType } = {}
+): StripeWebhookPayment {
+  return {
+    ...eventPayment(options),
+    eventId: 'event-1',
+    purpose: PaymentPurpose.event_payment,
+    registrationId: 'registration-1',
+    userId: 'user-1',
   };
 }
 
@@ -90,6 +102,7 @@ function mockWebhookUpdateMany(result?: { count: number }) {
 function createWebhookDb(
   options: {
     createWebhookEventMany?: StripeWebhookDb['stripeWebhookEvent']['createMany'];
+    eventRegistration?: StripeWebhookDb['eventRegistration'];
     payment?: StripeWebhookPayment | null;
     storedWebhookEvent?: StoredWebhookEvent | null;
     updateManyWebhookEvent?: StripeWebhookDb['stripeWebhookEvent']['updateMany'];
@@ -111,6 +124,7 @@ function createWebhookDb(
     eventPaymentNotification: {
       upsert: options.upsertReceipt ?? mockReceiptUpsert(),
     },
+    eventRegistration: options.eventRegistration,
     stripeWebhookEvent: {
       createMany: options.createWebhookEventMany ?? mockWebhookCreateMany(),
       findUnique: vi
@@ -556,6 +570,31 @@ describe('processStripeWebhookEvent', () => {
       where: { id: 'payment_123', status: PaymentStatus.paid },
     });
     expect(upsertReceipt).not.toHaveBeenCalled();
+  });
+
+  it('does not auto-approve registration when paid merge updates zero rows', async () => {
+    const updatePayment = vi
+      .fn<StripeWebhookDb['payment']['updateMany']>()
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 0 });
+    const updateRegistration = vi.fn().mockResolvedValue({ count: 0 });
+    const db = createWebhookDb({
+      eventRegistration: {
+        updateMany: updateRegistration,
+      },
+      payment: eventRegistrationPayment({
+        status: PaymentStatus.checkout_created,
+      }),
+      updatePayment,
+    });
+
+    const result = await processStripeWebhookEvent({
+      db,
+      event: paymentIntentSucceededEvent(),
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(updateRegistration).not.toHaveBeenCalled();
   });
 
   it('does not synthesize receipts when retrying a failed later event that never created one', async () => {

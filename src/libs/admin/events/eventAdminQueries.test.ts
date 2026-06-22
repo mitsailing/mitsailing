@@ -207,6 +207,25 @@ describe('event admin queries', () => {
     expect(rows).toEqual([]);
   });
 
+  it('scopes assigned events at the database for ordinary users browsing all events', async () => {
+    mocks.eventFindMany.mockResolvedValue([]);
+    mocks.eventCount.mockResolvedValue(0);
+    const { listAdminEventRowsPage } =
+      await import('@/libs/admin/events/eventAdminQueries');
+
+    await listAdminEventRowsPage({
+      authContext: { appRole: Role.USER, id: 'staff-1' },
+      page: 1,
+      scope: 'all',
+    });
+
+    expect(mocks.eventCount).toHaveBeenCalledWith({
+      where: {
+        admins: { some: { adminUserId: 'staff-1' } },
+      },
+    });
+  });
+
   it('loads editor data through the protected ZenStack client', async () => {
     mocks.protectedEventFindFirst.mockResolvedValue(null);
     const { getAdminEventEditorDataBySlug } =

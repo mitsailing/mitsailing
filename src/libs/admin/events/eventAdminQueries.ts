@@ -13,7 +13,11 @@ import type {
 } from '@/generated/prisma/enums';
 import { ASSIGNABLE_EVENT_ADMIN_ROLES } from '@/libs/admin/events/eventAdminSchemas';
 import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
-import { eventAccessModeWithAuthContext } from '@/libs/admin/events/zenstackEventAccess';
+import {
+  canManageAllEventsWithAuthContext,
+  eventAccessModeWithAuthContext,
+} from '@/libs/admin/events/zenstackEventAccess';
+import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 import {
@@ -549,7 +553,11 @@ function eventWhereFromFilters(
       { slug: { contains: query, mode: 'insensitive' } },
     ];
   }
-  if (adminEventListScopeFromValue(filters.scope) === 'my') {
+  if (
+    adminEventListScopeFromValue(filters.scope) === 'my' ||
+    (!canManageAllEventsWithAuthContext({ authContext: filters.authContext }) &&
+      filters.authContext.appRole !== Role.VOLUNTEER_INSTRUCTOR)
+  ) {
     businessWhere.admins = {
       some: { adminUserId: filters.authContext.id },
     };
@@ -673,7 +681,11 @@ export async function listAdminEventRowsPage(
   }
 ): Promise<AdminEventListPage> {
   const where = eventWhereFromFilters(filters);
-  const pageSize = filters.pageSize ?? ADMIN_EVENTS_PAGE_SIZE;
+  const requestedPageSize = filters.pageSize ?? ADMIN_EVENTS_PAGE_SIZE;
+  const pageSize =
+    Number.isInteger(requestedPageSize) && requestedPageSize > 0
+      ? requestedPageSize
+      : ADMIN_EVENTS_PAGE_SIZE;
   const total = await prisma.event.count({ where });
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.min(Math.max(filters.page, 1), totalPages);

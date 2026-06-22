@@ -25,4 +25,10 @@ describe('membership billing dates', () => {
       membershipAccessThroughDate(new Date('2027-07-14T12:00:00.000Z'))
     ).toBe('2027-07-14');
   });
+
+  it('returns next-season access-through date on renewal day', () => {
+    expect(
+      membershipAccessThroughDate(new Date('2027-07-15T04:00:00.000Z'))
+    ).toBe('2028-07-14');
+  });
 });

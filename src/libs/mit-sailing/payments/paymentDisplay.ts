@@ -17,7 +17,9 @@ function stringValue(value: unknown): string | null {
 }
 
 function numberValue(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+    ? value
+    : null;
 }
 
 function discountObjects(value: unknown): readonly PaymentDiscountObject[] {

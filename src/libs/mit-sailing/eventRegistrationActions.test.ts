@@ -747,6 +747,7 @@ describe('createPublicEventRegistrationAction', () => {
         registrationId: 'registration-1',
         status: {
           in: [
+            PaymentStatus.cancelled,
             PaymentStatus.checkout_created,
             PaymentStatus.past_due,
             PaymentStatus.pending,
@@ -899,6 +900,7 @@ describe('createPublicEventRegistrationAction', () => {
         registrationId: 'registration-1',
         status: {
           in: [
+            PaymentStatus.cancelled,
             PaymentStatus.checkout_created,
             PaymentStatus.past_due,
             PaymentStatus.pending,

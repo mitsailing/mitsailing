@@ -965,6 +965,7 @@ export async function createPublicEventRegistrationAction(
               registrationId,
               status: {
                 in: [
+                  PaymentStatus.cancelled,
                   PaymentStatus.checkout_created,
                   PaymentStatus.past_due,
                   PaymentStatus.pending,

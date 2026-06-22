@@ -39,7 +39,7 @@ import {
 } from '@/libs/admin/users/usersAdminSchemas';
 import { auth } from '@/libs/auth';
 import { normalizeAppRole } from '@/libs/auth/appPermissions';
-import { Role } from '@/libs/auth/roles';
+import { isRole, Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { emailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
 import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
@@ -200,8 +200,10 @@ function userSearchWhere(query: string): Prisma.UserWhereInput | null {
     { emergencyContactName: { contains: value, mode: 'insensitive' } },
     { emergencyContactPhone: { contains: value, mode: 'insensitive' } },
     { mitId: { contains: value, mode: 'insensitive' } },
-    { appRole: { equals: normalizeAppRole(value) } },
   ];
+  if (isRole(value)) {
+    clauses.push({ appRole: { equals: value } });
+  }
   const cardNumber = Number.parseInt(value, 10);
   if (Number.isInteger(cardNumber) && String(cardNumber) === value) {
     clauses.push({ sailingCardNumber: cardNumber });

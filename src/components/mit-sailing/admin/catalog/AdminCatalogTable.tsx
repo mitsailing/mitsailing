@@ -52,7 +52,6 @@ import type {
 } from '@/libs/admin/catalog/types';
 import { Link } from '@/libs/I18nNavigation';
 import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
-import messages from '@/locales/en.json';
 
 type AdminTableMessageKey =
   | AdminCatalogResourceMessageKey
@@ -97,18 +96,6 @@ type AdminCatalogTableProps = {
     }[];
   }[];
 };
-
-function isAdminUsersMessageKey(
-  key: AdminTableMessageKey
-): key is AdminUsersMessageKey {
-  return Object.hasOwn(messages.AdminUsers, key);
-}
-
-function isAdminCatalogResourceMessageKey(
-  key: AdminTableMessageKey
-): key is AdminCatalogResourceMessageKey {
-  return Object.hasOwn(messages.AdminCatalogResource, key);
-}
 
 function SortableRow(props: {
   id: string;
@@ -400,16 +387,12 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
   const canReorder = props.definition.capabilities.reorder;
 
   function t(key: AdminTableMessageKey): string {
-    if (
-      props.messageNamespace === 'AdminUsers' &&
-      isAdminUsersMessageKey(key)
-    ) {
-      return tUsers(key);
+    if (props.messageNamespace === 'AdminUsers') {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- messageNamespace picks users keys
+      return tUsers(key as AdminUsersMessageKey);
     }
-    if (isAdminCatalogResourceMessageKey(key)) {
-      return tCatalog(key);
-    }
-    return tUsers(key);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- default catalog keys
+    return tCatalog(key as AdminCatalogResourceMessageKey);
   }
 
   function editHref(id: string): string {
