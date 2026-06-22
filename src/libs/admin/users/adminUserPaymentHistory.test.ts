@@ -41,6 +41,7 @@ describe('listAdminUserPaymentHistory', () => {
         manualHandledBy: null,
         manualHandledNote: null,
         purpose: PaymentPurpose.event_payment,
+        refundedAmountCents: null,
         source: PaymentSource.stripe,
         status: PaymentStatus.paid,
         stripeDiscountMetadata: null,
@@ -60,6 +61,7 @@ describe('listAdminUserPaymentHistory', () => {
         manualHandledBy: null,
         manualHandledNote: null,
         purpose: PaymentPurpose.event_payment,
+        refundedAmountCents: null,
         source: PaymentSource.stripe,
         status: PaymentStatus.disputed,
         stripeDiscountMetadata: null,
@@ -79,6 +81,7 @@ describe('listAdminUserPaymentHistory', () => {
         manualHandledBy: { name: 'Dock Master' },
         manualHandledNote: 'Admin issued sailing card without payment.',
         purpose: PaymentPurpose.membership,
+        refundedAmountCents: null,
         source: PaymentSource.legacy,
         status: PaymentStatus.paid,
         stripeDiscountMetadata: null,
@@ -103,6 +106,7 @@ describe('listAdminUserPaymentHistory', () => {
         manualHandledNote: null,
         purpose: 'event',
         receiptHref: 'https://pay.stripe.com/receipts/payment-1',
+        refundedAmountCents: null,
         source: PaymentSource.stripe,
         status: PaymentStatus.paid,
         stripeDiscountMetadata: null,
@@ -122,6 +126,7 @@ describe('listAdminUserPaymentHistory', () => {
         manualHandledNote: null,
         purpose: 'event',
         receiptHref: null,
+        refundedAmountCents: null,
         source: PaymentSource.stripe,
         status: PaymentStatus.disputed,
         stripeDiscountMetadata: null,
@@ -141,6 +146,7 @@ describe('listAdminUserPaymentHistory', () => {
         manualHandledNote: 'Admin issued sailing card without payment.',
         purpose: 'membership',
         receiptHref: null,
+        refundedAmountCents: null,
         source: PaymentSource.legacy,
         status: PaymentStatus.paid,
         stripeDiscountMetadata: null,
@@ -163,12 +169,29 @@ describe('listAdminUserPaymentHistory', () => {
         manualHandledBy: { select: { name: true } },
         manualHandledNote: true,
         purpose: true,
+        refundedAmountCents: true,
         source: true,
         status: true,
         stripeDiscountMetadata: true,
         stripeReceiptUrl: true,
       },
-      where: { userId: 'user-1' },
+      where: {
+        OR: [
+          {
+            purpose: PaymentPurpose.event_payment,
+            OR: [
+              { eventId: { not: null } },
+              { legacyDescription: { not: null } },
+            ],
+          },
+          {
+            cardType: { not: null },
+            cardYear: { not: null },
+            purpose: PaymentPurpose.membership,
+          },
+        ],
+        userId: 'user-1',
+      },
     });
   });
 });

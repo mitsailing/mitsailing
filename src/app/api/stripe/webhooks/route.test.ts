@@ -482,6 +482,7 @@ describe('stripe webhook route', () => {
   it('marks refunded payments terminal without queuing receipts', async () => {
     mocks.constructEvent.mockReturnValueOnce(
       stripeEvent('charge.refunded', {
+        amount_refunded: 4200,
         id: 'ch_test',
         metadata: { paymentId: 'payment-1' },
         payment_intent: 'pi_test',
@@ -492,11 +493,12 @@ describe('stripe webhook route', () => {
 
     expect(response.status).toBe(200);
     expect(mocks.tx.payment.updateMany).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
+        refundedAmountCents: 4200,
         status: PaymentStatus.refunded,
         stripeChargeId: 'ch_test',
         stripePaymentIntentId: 'pi_test',
-      },
+      }),
       where: { id: 'payment-1', status: PaymentStatus.pending },
     });
     expect(mocks.enqueueEventPaymentEmailJob).not.toHaveBeenCalled();
@@ -516,11 +518,12 @@ describe('stripe webhook route', () => {
 
     expect(response.status).toBe(200);
     expect(mocks.tx.payment.updateMany).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
         status: PaymentStatus.disputed,
         stripeChargeId: 'ch_test',
+        stripeDisputeId: 'dp_test',
         stripePaymentIntentId: 'pi_test',
-      },
+      }),
       where: { id: 'payment-1', status: PaymentStatus.pending },
     });
     expect(mocks.enqueueEventPaymentEmailJob).not.toHaveBeenCalled();

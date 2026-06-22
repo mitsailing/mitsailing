@@ -92,6 +92,7 @@ describe('listAdminPaymentLedgerData', () => {
         legacySourceTable: true,
         payerEmail: true,
         payerName: true,
+        refundedAmountCents: true,
         status: true,
         stripeDiscountMetadata: true,
         stripeCheckoutSessionId: true,
