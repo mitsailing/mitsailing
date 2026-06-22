@@ -179,14 +179,7 @@ describe('adminSailingCardUiQueries', () => {
           agreementVersion: sailingCardAgreement.version,
         },
       ],
-      paymentBypassRequest: undefined,
-      sailingCardRequests: [
-        {
-          paymentBypassAt: null,
-          paymentBypassBy: null,
-          paymentBypassNote: null,
-        },
-      ],
+      sailingCardRequests: [],
       sailingCardExpiresOn: new Date('2027-05-31T04:00:00.000Z'),
       sailingCardIssuedAt: new Date('2026-05-22T16:00:00.000Z'),
       sailingCardIssuedBy: {
@@ -198,11 +191,7 @@ describe('adminSailingCardUiQueries', () => {
       sailingCardSwimAgreementInitials: 'AL',
       sailingCardYear: 2026,
     };
-    const userSummary = {
-      ...summary,
-      paymentBypassRequest: undefined,
-    };
-    mocks.userFindUnique.mockResolvedValue(userSummary);
+    mocks.userFindUnique.mockResolvedValue(summary);
     const { getAdminUserSailingCardSummary } =
       await import('@/libs/admin/cards/adminSailingCardUiQueries');
 
