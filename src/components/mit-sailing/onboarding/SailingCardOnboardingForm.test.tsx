@@ -430,6 +430,84 @@ describe('SailingCardOnboardingForm', () => {
     );
   });
 
+  it('lets backspace clear a completed date of birth', async () => {
+    renderForm();
+    const user = userEvent.setup();
+
+    await showWellesleyDetails();
+    const dateOfBirth = screen.getByLabelText('Date of birth');
+
+    await user.type(dateOfBirth, '03241988');
+    expect(dateOfBirth).toHaveValue('03/24/1988');
+
+    await user.type(dateOfBirth, '{Backspace}'.repeat(10));
+
+    expect(dateOfBirth).toHaveValue('');
+  });
+
+  it('clears a sticky server date-of-birth error after the field is fixed', async () => {
+    setOnboardingFormActionState({
+      fieldErrors: { dateOfBirth: 'invalid' },
+      status: 'error',
+      values: {
+        ...emptyValues,
+        affiliation: SailingAffiliation.WELLESLEY,
+        dateOfBirth: '02/30/2000',
+        firstName: 'Grace',
+        lastName: 'Hopper',
+      },
+    });
+
+    renderForm({
+      initialValues: {
+        ...emptyValues,
+        affiliation: SailingAffiliation.WELLESLEY,
+        dateOfBirth: '02/30/2000',
+        firstName: 'Grace',
+        lastName: 'Hopper',
+      },
+    });
+    const user = userEvent.setup();
+
+    const dateOfBirth = screen.getByLabelText('Date of birth');
+    expect(dateOfBirth).toHaveAttribute('aria-invalid', 'true');
+    expect(
+      screen.getByText('Enter a valid date of birth as MM/DD/YYYY.')
+    ).toBeInTheDocument();
+
+    await user.clear(dateOfBirth);
+    await user.type(dateOfBirth, '03241988');
+    await user.tab();
+
+    expect(dateOfBirth).toHaveValue('03/24/1988');
+    expect(dateOfBirth).not.toHaveAttribute('aria-invalid', 'true');
+    expect(
+      screen.queryByText('Enter a valid date of birth as MM/DD/YYYY.')
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows accessible required field errors on submit without native bubbles', async () => {
+    renderForm();
+    const user = userEvent.setup();
+
+    await showWellesleyDetails();
+
+    const form = screen.getByLabelText('Date of birth').closest('form');
+    expect(form).toHaveAttribute('novalidate');
+
+    await user.click(
+      screen.getByRole('button', { name: 'Request sailing card' })
+    );
+
+    const dateOfBirth = screen.getByLabelText('Date of birth');
+    expect(dateOfBirth).toHaveAttribute('aria-invalid', 'true');
+    expect(dateOfBirth).toHaveAccessibleDescription(/required/i);
+    expect(screen.getAllByText('Required.').length).toBeGreaterThan(0);
+
+    const phone = screen.getByLabelText('Your phone number');
+    expect(phone).toHaveAttribute('aria-invalid', 'true');
+  });
+
   it('formats typed date of birth and shows an inline invalid date error', async () => {
     renderForm();
     const user = userEvent.setup();
@@ -439,7 +517,7 @@ describe('SailingCardOnboardingForm', () => {
 
     await user.type(dateOfBirth, '03');
 
-    expect(dateOfBirth).toHaveValue('03/');
+    expect(dateOfBirth).toHaveValue('03');
 
     await user.type(dateOfBirth, '24');
 

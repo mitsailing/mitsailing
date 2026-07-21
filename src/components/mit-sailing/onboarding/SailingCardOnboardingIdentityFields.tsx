@@ -7,6 +7,7 @@ import type {
   UseFormRegister,
   UseFormSetValue,
 } from 'react-hook-form';
+import { useFormState } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +22,10 @@ import type {
   SailingCardOnboardingFormValues,
 } from '@/libs/mit-sailing/sailingCardOnboardingActions';
 import { ariaInvalidWhenShown } from '@/utils/ariaInvalidWhenShown';
-import { FieldError } from './SailingCardOnboardingFieldError';
+import {
+  FieldError,
+  isOnboardingFieldInvalid,
+} from './SailingCardOnboardingFieldError';
 import {
   fieldErrorId,
   getVisibleSailingAffiliation,
@@ -94,10 +98,14 @@ export function AffiliationSelect(props: {
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
+  const { dirtyFields } = useFormState({ name: 'affiliation' });
   const affiliationError = props.state.fieldErrors.affiliation;
   const affiliationClientError = props.clientErrors.affiliation;
-  const showError =
-    affiliationError !== undefined || affiliationClientError !== undefined;
+  const showError = isOnboardingFieldInvalid({
+    clientInvalid: affiliationClientError !== undefined,
+    fieldIsDirty: dirtyFields.affiliation === true,
+    serverInvalid: affiliationError !== undefined,
+  });
   const affiliationHelpId = 'sailing-card-onboarding-affiliation-help';
   const registration = props.register('affiliation', {
     required: 'error_required',
@@ -174,9 +182,14 @@ function MitIdField(props: {
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
+  const { dirtyFields } = useFormState({ name: 'mitId' });
   const mitIdError = props.state.fieldErrors.mitId;
   const mitIdClientError = props.clientErrors.mitId;
-  const showError = mitIdError !== undefined || mitIdClientError !== undefined;
+  const showError = isOnboardingFieldInvalid({
+    clientInvalid: mitIdClientError !== undefined,
+    fieldIsDirty: dirtyFields.mitId === true,
+    serverInvalid: mitIdError !== undefined,
+  });
   const mitIdHelpId = 'sailing-card-onboarding-mitId-help';
   const mitIdHelpKey = props.required
     ? 'mit_id_required_help'
@@ -230,9 +243,14 @@ function ManualNameField(props: {
   readonly required: boolean;
   readonly state: SailingCardOnboardingFormState;
 }) {
+  const { dirtyFields } = useFormState({ name: props.field });
   const error = props.state.fieldErrors[props.field];
   const clientError = props.clientErrors[props.field];
-  const showError = error !== undefined || clientError !== undefined;
+  const showError = isOnboardingFieldInvalid({
+    clientInvalid: clientError !== undefined,
+    fieldIsDirty: dirtyFields[props.field] === true,
+    serverInvalid: error !== undefined,
+  });
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -360,10 +378,14 @@ function AgreementCheckbox(props: {
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
+  const { dirtyFields } = useFormState({ name: 'swimAgreementAccepted' });
   const agreementError = props.state.fieldErrors.swimAgreementAccepted;
   const agreementClientError = props.clientErrors.swimAgreementAccepted;
-  const showError =
-    agreementError !== undefined || agreementClientError !== undefined;
+  const showError = isOnboardingFieldInvalid({
+    clientInvalid: agreementClientError !== undefined,
+    fieldIsDirty: dirtyFields.swimAgreementAccepted === true,
+    serverInvalid: agreementError !== undefined,
+  });
 
   return (
     <div className="flex flex-col gap-1.5">
