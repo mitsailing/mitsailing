@@ -589,6 +589,7 @@ describe('legacyPaymentImport', () => {
       `WHEN target."status" = 'needs_review'`,
       'THEN source.status::text::"payment_status"',
       '"updated_at" = NOW()',
+      'OR target."user_id" IS NULL',
       '"legacy_source_id" = source.legacy_source_id',
     ]);
   });

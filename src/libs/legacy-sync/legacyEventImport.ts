@@ -866,7 +866,10 @@ async function importEventRegistrations(props: {
     await props.db.$executeRaw`
       UPDATE "event_registrations" AS target
       SET "status" = source.status::text::"EventRegistrationStatus",
-          "user_id" = source.user_id
+          "user_id" = CASE
+            WHEN target."user_id" IS NULL THEN source.user_id
+            ELSE target."user_id"
+          END
       FROM legacy_import_event_registrations AS source
       WHERE target."legacy_source_key" = source.legacy_source_key
     `;

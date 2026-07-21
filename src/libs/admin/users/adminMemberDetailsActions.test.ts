@@ -19,7 +19,7 @@ vi.mock('@/libs/auth/dal', () => ({
   requirePermission: mocks.requirePermission,
 }));
 
-vi.mock('@/libs/auth/profileIdentityActions', () => ({
+vi.mock('@/libs/auth/profileIdentityPersistence', () => ({
   profileContactForInput: mocks.profileContactForInput,
   saveProfileDetailsForUser: mocks.saveProfileDetailsForUser,
   validateProfileIdentity: mocks.validateProfileIdentity,

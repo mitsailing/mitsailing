@@ -663,7 +663,12 @@ async function updateExistingLegacyPayments(props: {
           ELSE target."status"
         END,
         "updated_at" = NOW(),
-        "user_id" = source.user_id::text
+        "user_id" = CASE
+          WHEN target."status" = 'needs_review'
+            OR target."user_id" IS NULL
+            THEN source.user_id::text
+          ELSE target."user_id"
+        END
     FROM (
       VALUES ${legacyPaymentUpdateSql(props.writes)}
     ) AS source(

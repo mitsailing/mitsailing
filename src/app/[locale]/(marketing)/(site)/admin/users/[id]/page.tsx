@@ -1159,6 +1159,17 @@ function emptyAdminUserEmailDetails(): AdminUserEmailDetails {
   };
 }
 
+function emptyAdminUserPaymentDetails(): AdminUserPaymentDetails {
+  return {
+    accessRows: [],
+    loadError: false,
+    page: 1,
+    pageSize: ADMIN_USER_PAYMENT_HISTORY_PAGE_SIZE,
+    rows: [],
+    total: 0,
+  };
+}
+
 function adminUserAccountTabs(props: {
   readonly access: ReturnType<typeof adminUserShowAccess>;
   readonly t: Awaited<ReturnType<typeof getTranslations>>;

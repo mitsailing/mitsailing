@@ -8,11 +8,11 @@ import {
   profileContactForInput,
   saveProfileDetailsForUser,
   validateProfileIdentity,
-} from '@/libs/auth/profileIdentityActions';
+} from '@/libs/auth/profileIdentityPersistence';
 import type {
   ProfileDetailsInput,
   UpdateProfileDetailsResult,
-} from '@/libs/auth/profileIdentityActions';
+} from '@/libs/auth/profileIdentityPersistence';
 import { getI18nPath } from '@/utils/Helpers';
 
 /**

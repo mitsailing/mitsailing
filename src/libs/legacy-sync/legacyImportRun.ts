@@ -124,15 +124,19 @@ export async function runLegacyImportWithAudit<T>(props: {
     return { result, skipped: false };
   } catch (error: unknown) {
     if (runId !== null) {
-      await prisma.legacyMysqlSyncRun.update({
-        where: { id: runId },
-        data: {
-          errorMessage:
-            error instanceof Error ? error.message : 'Unknown error',
-          finishedAt: new Date(),
-          status: 'failed',
-        },
-      });
+      try {
+        await prisma.legacyMysqlSyncRun.update({
+          where: { id: runId },
+          data: {
+            errorMessage:
+              error instanceof Error ? error.message : 'Unknown error',
+            finishedAt: new Date(),
+            status: 'failed',
+          },
+        });
+      } catch {
+        // Prefer the original import failure over a secondary audit-write error.
+      }
     }
     throw error;
   } finally {
