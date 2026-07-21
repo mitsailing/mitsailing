@@ -513,7 +513,7 @@ export function CardRequestSection(props: {
   });
 
   return (
-    <section className="flex flex-col gap-3 border-t border-border pt-5">
+    <section className="flex flex-col gap-3 pt-6">
       <h2 className="text-base font-semibold text-foreground">
         {t('card_request_heading')}
       </h2>

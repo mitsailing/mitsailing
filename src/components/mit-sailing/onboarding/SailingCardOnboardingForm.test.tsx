@@ -294,6 +294,7 @@ describe('SailingCardOnboardingForm', () => {
     expect(
       screen.getByRole('button', { name: 'Validate MIT ID' })
     ).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Skip MIT ID' })).toBeEnabled();
     await user.click(screen.getByRole('button', { name: 'Validate MIT ID' }));
 
     expectMitIdentityVerificationCalledWith({

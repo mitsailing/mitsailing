@@ -61,26 +61,28 @@ function OnboardingTaskShell(props: OnboardingTaskShellProps) {
 
         <section className="flex flex-1 items-start justify-center py-8 sm:py-12">
           <div className="w-full max-w-3xl">
-            <nav
-              aria-label={props.helper.title}
-              className="mb-5 rounded-xl border border-border bg-background px-3 py-2 shadow-xs"
-            >
-              <ol className="grid grid-cols-3 gap-1 text-xs font-medium sm:text-sm">
+            <nav aria-label={props.helper.title} className="mb-6">
+              <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
                 {props.helper.steps.map((step, index) => (
-                  <li className="flex items-center justify-center" key={step}>
-                    <span className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground">
-                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[0.7rem] text-foreground">
-                        {index + 1}
+                  <li className="flex items-center gap-2" key={step}>
+                    {index > 0 ? (
+                      <span aria-hidden className="text-border">
+                        /
                       </span>
-                      <span className="truncate">{step}</span>
+                    ) : null}
+                    <span>
+                      <span className="font-medium text-foreground">
+                        {index + 1}.
+                      </span>{' '}
+                      {step}
                     </span>
                   </li>
                 ))}
               </ol>
             </nav>
 
-            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-              <div className="border-b border-border px-5 py-6 text-center sm:px-8 sm:py-7">
+            <div className="rounded-xl border border-border bg-card px-5 py-6 shadow-sm sm:px-8 sm:py-7">
+              <div className="mb-6 text-center sm:mb-8">
                 <p className="text-xs font-semibold tracking-normal text-mit-red uppercase">
                   {props.eyebrow}
                 </p>
@@ -91,7 +93,7 @@ function OnboardingTaskShell(props: OnboardingTaskShellProps) {
                   {props.description}
                 </p>
               </div>
-              <div className="px-5 py-6 sm:px-8">{props.children}</div>
+              {props.children}
             </div>
 
             <p className="mx-auto mt-4 max-w-2xl text-center text-xs leading-5 text-muted-foreground">

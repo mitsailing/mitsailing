@@ -359,7 +359,7 @@ function AgreementDisclosure() {
   const t = useTranslations('OnboardingPage');
 
   return (
-    <details className="rounded border border-border bg-muted/30 px-3 py-2">
+    <details className="rounded-lg bg-muted/40 px-3 py-2">
       <summary className="cursor-pointer font-medium text-foreground">
         {t('agreement_disclosure_summary')}
       </summary>
@@ -430,6 +430,56 @@ function LegalNotice() {
   );
 }
 
+function IdentityContinueActions(props: {
+  readonly canContinue: boolean;
+  readonly continueMode: 'continue' | 'skipMitId' | 'validateMitId';
+  readonly isValidationPending: boolean;
+  readonly mitIdOptional: boolean;
+  readonly onContinue: () => void;
+  readonly onValidateMitId: () => void;
+}) {
+  const t = useTranslations('OnboardingPage');
+  const primaryLabel = {
+    continue: t('continue'),
+    skipMitId: t('skip_mit_id'),
+    validateMitId: t('validate_mit_id'),
+  } as const;
+  const handlePrimary = () => {
+    if (props.continueMode === 'validateMitId') {
+      props.onValidateMitId();
+      return;
+    }
+    props.onContinue();
+  };
+  const showSkipBesideValidate =
+    props.mitIdOptional && props.continueMode === 'validateMitId';
+
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <Button
+        className="w-full sm:w-fit"
+        disabled={!props.canContinue || props.isValidationPending}
+        onClick={handlePrimary}
+        type="button"
+        variant="mit"
+      >
+        {primaryLabel[props.continueMode]}
+      </Button>
+      {showSkipBesideValidate ? (
+        <Button
+          className="w-full sm:w-fit"
+          disabled={props.isValidationPending}
+          onClick={props.onContinue}
+          type="button"
+          variant="ghost"
+        >
+          {t('skip_mit_id')}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export function IdentityFields(props: {
   readonly canContinue: boolean;
   readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
@@ -448,21 +498,19 @@ export function IdentityFields(props: {
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
-  const continueLabel = {
-    continue: t('continue'),
-    skipMitId: t('skip_mit_id'),
-    validateMitId: t('validate_mit_id'),
-  } as const;
-  const handleContinue = () => {
-    if (props.continueMode === 'validateMitId') {
-      props.onValidateMitId();
-      return;
-    }
-    props.onContinue();
-  };
+  const continueActions = props.showContinue ? (
+    <IdentityContinueActions
+      canContinue={props.canContinue}
+      continueMode={props.continueMode}
+      isValidationPending={props.isValidationPending}
+      mitIdOptional={!props.mitIdRequired}
+      onContinue={props.onContinue}
+      onValidateMitId={props.onValidateMitId}
+    />
+  ) : null;
 
   return (
-    <section className="flex flex-col gap-3 border-t border-border pt-5">
+    <section className="flex flex-col gap-4 pt-6">
       <div className="flex flex-col gap-1">
         <h2 className="text-base font-semibold text-foreground">
           {t('identity_heading')}
@@ -490,17 +538,7 @@ export function IdentityFields(props: {
       {props.showLockedIdentity && props.lockedIdentity ? (
         <LockedIdentityFields identity={props.lockedIdentity} />
       ) : null}
-      {props.showContinue ? (
-        <Button
-          className="w-full sm:w-fit"
-          disabled={!props.canContinue || props.isValidationPending}
-          onClick={handleContinue}
-          type="button"
-          variant="outline"
-        >
-          {continueLabel[props.continueMode]}
-        </Button>
-      ) : null}
+      {continueActions}
     </section>
   );
 }
@@ -513,7 +551,7 @@ export function AgreementSection(props: {
   const t = useTranslations('OnboardingPage');
 
   return (
-    <section className="flex flex-col gap-3 border-t border-border pt-5">
+    <section className="flex flex-col gap-3 pt-6">
       <h2 className="text-base font-semibold text-foreground">
         {t('agreement_heading')}
       </h2>

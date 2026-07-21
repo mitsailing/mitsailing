@@ -288,7 +288,7 @@ export function ContactAndSafetyFields(props: {
   const t = useTranslations('OnboardingPage');
 
   return (
-    <section className="flex flex-col gap-3 border-t border-border pt-5">
+    <section className="flex flex-col gap-3 pt-6">
       <h2 className="text-base font-semibold text-foreground">
         {t('contact_and_safety_heading')}
       </h2>
