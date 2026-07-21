@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
@@ -27,6 +28,27 @@ type SignUpFormProps = {
   initialEmail?: string;
 };
 
+type SignUpFormValues = {
+  email: string;
+  password: string;
+  passwordConfirmation: string;
+};
+
+type SignUpFieldErrorKey =
+  | 'error_invalid_email'
+  | 'error_password_mismatch'
+  | 'error_password_too_short'
+  | 'error_required';
+
+const fieldErrorId = (field: keyof SignUpFormValues) =>
+  `sign-up-${field}-error`;
+
+const isSignUpFieldErrorKey = (value: unknown): value is SignUpFieldErrorKey =>
+  value === 'error_invalid_email' ||
+  value === 'error_password_mismatch' ||
+  value === 'error_password_too_short' ||
+  value === 'error_required';
+
 // Client-side sign-up form. Calls `authClient.signUp.email` and maps the
 // explicit `EMAIL_EXISTS` and `PASSWORD_COMPROMISED` codes (both surfaced by
 // our hooks + HaveIBeenPwned plugin) to copy that keeps the Devise-style UX.
@@ -34,14 +56,24 @@ export function SignUpForm(props: SignUpFormProps) {
   const t = useTranslations('SignUpPage');
   const tCommon = useTranslations('Common');
   const router = useRouter();
-  const [email, setEmail] = useState(
-    normalizeEmailAddress(props.initialEmail ?? '')
-  );
-  const [password, setPassword] = useState('');
-  const [passwordConfirmation, setPasswordConfirmation] = useState('');
-  const [error, setError] = useState<ErrorState>(null);
+  const [formError, setFormError] = useState<ErrorState>(null);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const {
+    formState: { errors },
+    getValues,
+    handleSubmit,
+    register,
+    setValue,
+  } = useForm<SignUpFormValues>({
+    defaultValues: {
+      email: normalizeEmailAddress(props.initialEmail ?? ''),
+      password: '',
+      passwordConfirmation: '',
+    },
+    mode: 'onTouched',
+    reValidateMode: 'onChange',
+  });
 
   function mapError(
     code: string | undefined,
@@ -69,37 +101,28 @@ export function SignUpForm(props: SignUpFormProps) {
     };
   }
 
-  async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    if (!Object.is(password, passwordConfirmation)) {
-      setError({
-        message: t('error_password_mismatch'),
-        showSignInLinks: false,
-      });
-      return;
-    }
-    const normalizedEmail = normalizeEmailAddress(email);
-    setEmail(normalizedEmail);
-    if (!isValidEmailAddress(normalizedEmail)) {
-      setError({
-        message: t('error_invalid_email'),
-        showSignInLinks: false,
-      });
-      return;
-    }
+  const fieldMessage = (value: unknown) =>
+    isSignUpFieldErrorKey(value) ? t(value) : null;
+
+  async function onValidSubmit(values: SignUpFormValues) {
+    setFormError(null);
+    const normalizedEmail = normalizeEmailAddress(values.email);
+    setValue('email', normalizedEmail, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
     setSubmitting(true);
     const displayName = normalizedEmail.slice(0, normalizedEmail.indexOf('@'));
     let keepSubmitting = false;
     try {
       const res = await authClient.signUp.email({
         email: normalizedEmail,
-        password,
+        password: values.password,
         name: displayName,
         callbackURL: props.callbackUrl,
       });
       if (res.error) {
-        setError(mapError(res.error.code, res.error.message));
+        setFormError(mapError(res.error.code, res.error.message));
         return;
       }
       setSubmitted(true);
@@ -116,7 +139,7 @@ export function SignUpForm(props: SignUpFormProps) {
         code: undefined,
         message: authClientThrownMessage(caughtError),
       });
-      setError({
+      setFormError({
         message: t('error_generic'),
         showSignInLinks: false,
       });
@@ -138,13 +161,13 @@ export function SignUpForm(props: SignUpFormProps) {
           {t('registered_banner')}
         </p>
       ) : null}
-      {error ? (
+      {formError ? (
         <p
           className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm font-medium text-red-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:text-red-100"
           role="alert"
         >
-          {error.message}
-          {error.showSignInLinks ? (
+          {formError.message}
+          {formError.showSignInLinks ? (
             <>
               {' '}
               <I18nLink
@@ -170,26 +193,39 @@ export function SignUpForm(props: SignUpFormProps) {
 
       <form
         className="flex flex-col gap-4"
-        onSubmit={(event) => {
+        noValidate
+        onSubmit={handleSubmit((values) => {
           // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the form promise.
-          void onSubmit(event);
-        }}
+          void onValidSubmit(values);
+        })}
       >
         <div className="flex flex-col gap-1.5">
           <Label className="text-foreground" htmlFor="email">
             {t('email_label')}
           </Label>
           <Input
+            aria-describedby={errors.email ? fieldErrorId('email') : undefined}
+            aria-invalid={errors.email ? true : undefined}
             autoComplete="email"
             id="email"
-            name="email"
-            onChange={(e) => {
-              setEmail(e.target.value);
-            }}
             required
             type="email"
-            value={email}
+            {...register('email', {
+              required: 'error_required',
+              validate: (value) =>
+                isValidEmailAddress(normalizeEmailAddress(value)) ||
+                'error_invalid_email',
+            })}
           />
+          {errors.email?.message ? (
+            <p
+              className="text-sm font-medium text-red-900 dark:text-red-100"
+              id={fieldErrorId('email')}
+              role="alert"
+            >
+              {fieldMessage(errors.email.message)}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -197,20 +233,42 @@ export function SignUpForm(props: SignUpFormProps) {
             {t('password_label')}
           </Label>
           <Input
+            aria-describedby={
+              [
+                'sign-up-password-hint',
+                errors.password ? fieldErrorId('password') : undefined,
+              ]
+                .filter((id) => id !== undefined)
+                .join(' ') || undefined
+            }
+            aria-invalid={errors.password ? true : undefined}
             autoComplete="new-password"
             id="password"
-            minLength={8}
-            name="password"
-            onChange={(e) => {
-              setPassword(e.target.value);
-            }}
             required
             type="password"
-            value={password}
+            {...register('password', {
+              required: 'error_required',
+              minLength: {
+                value: 8,
+                message: 'error_password_too_short',
+              },
+            })}
           />
-          <span className="text-xs text-muted-foreground">
+          <span
+            className="text-xs text-muted-foreground"
+            id="sign-up-password-hint"
+          >
             {t('password_hint')}
           </span>
+          {errors.password?.message ? (
+            <p
+              className="text-sm font-medium text-red-900 dark:text-red-100"
+              id={fieldErrorId('password')}
+              role="alert"
+            >
+              {fieldMessage(errors.password.message)}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -218,17 +276,31 @@ export function SignUpForm(props: SignUpFormProps) {
             {t('password_confirmation_label')}
           </Label>
           <Input
+            aria-describedby={
+              errors.passwordConfirmation
+                ? fieldErrorId('passwordConfirmation')
+                : undefined
+            }
+            aria-invalid={errors.passwordConfirmation ? true : undefined}
             autoComplete="new-password"
             id="passwordConfirmation"
-            minLength={8}
-            name="passwordConfirmation"
-            onChange={(e) => {
-              setPasswordConfirmation(e.target.value);
-            }}
             required
             type="password"
-            value={passwordConfirmation}
+            {...register('passwordConfirmation', {
+              required: 'error_required',
+              validate: (value) =>
+                value === getValues('password') || 'error_password_mismatch',
+            })}
           />
+          {errors.passwordConfirmation?.message ? (
+            <p
+              className="text-sm font-medium text-red-900 dark:text-red-100"
+              id={fieldErrorId('passwordConfirmation')}
+              role="alert"
+            >
+              {fieldMessage(errors.passwordConfirmation.message)}
+            </p>
+          ) : null}
         </div>
 
         <SubmitButton

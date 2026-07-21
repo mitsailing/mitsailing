@@ -205,6 +205,8 @@
     "error_exists": "That email is already in the system.",
     "error_pwned": "That password has appeared in a known data breach. Choose a different one.",
     "error_password_mismatch": "Passwords do not match.",
+    "error_password_too_short": "Use at least 8 characters.",
+    "error_required": "Required.",
     "error_rate_limited": "Too many sign-up attempts. Wait a few minutes.",
     "error_invalid_email": "Enter a valid email address with a domain (for example name@mit.edu)."
   },
