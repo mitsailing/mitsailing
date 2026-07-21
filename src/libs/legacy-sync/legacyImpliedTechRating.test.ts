@@ -49,6 +49,15 @@ describe('appendImpliedTechRatingRows', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.sailingRatingId).toBe('rating-swim');
   });
+
+  it('does not add tech for ratings outside the implying catalog', () => {
+    const rows = appendImpliedTechRatingRows([
+      grantRow({ userId: 'user-1', sailingRatingId: 'rating-unmapped' }),
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.sailingRatingId).toBe('rating-unmapped');
+  });
 });
 
 describe('legacyRatingCatalogMap tech mapping', () => {

@@ -1202,6 +1202,74 @@ async function suggestedSailingCardNumber(props: {
   return nextNumber;
 }
 
+function AdminMemberDetailsReadOnly(props: {
+  readonly emailVerifiedLabel: string;
+  readonly heading: string;
+  readonly identitySourceLabel: string;
+  readonly memberDetails: ReturnType<typeof adminMemberDetailsInitialValues>;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  const emptyValue = props.t('empty_value');
+  const fullName =
+    `${props.memberDetails.firstName} ${props.memberDetails.lastName}`.trim();
+
+  return (
+    <section
+      aria-labelledby="admin-member-details-readonly"
+      className="flex flex-col gap-3"
+    >
+      <h2
+        className="font-mit-serif text-xl font-semibold text-foreground"
+        id="admin-member-details-readonly"
+      >
+        {props.heading}
+      </h2>
+      <dl className="grid gap-x-5 gap-y-2 sm:grid-cols-2">
+        <AdminUserDetailValue
+          label={props.t('identity_name')}
+          value={fullName || emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('identity_affiliation')}
+          value={props.memberDetails.sailingAffiliation ?? emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('column_mit_id')}
+          value={props.memberDetails.mitId ?? emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('identity_mit_class_year')}
+          value={props.memberDetails.mitClassYear ?? emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('identity_phone')}
+          value={props.memberDetails.phone || emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('identity_emergency_contact_name')}
+          value={props.memberDetails.emergencyContactName || emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('identity_emergency_contact_phone')}
+          value={props.memberDetails.emergencyContactPhone || emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('column_role')}
+          value={props.memberDetails.roleLabel || emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('identity_source')}
+          value={props.identitySourceLabel}
+        />
+        <AdminUserDetailValue
+          label={props.t('column_email_verified')}
+          value={props.emailVerifiedLabel}
+        />
+      </dl>
+    </section>
+  );
+}
+
 function AdminUserShowTabPanels(props: {
   readonly access: ReturnType<typeof adminUserShowAccess>;
   readonly activeTab: AdminUserAccountTab;
@@ -1228,32 +1296,41 @@ function AdminUserShowTabPanels(props: {
   readonly userShowPath: string;
 }) {
   if (props.activeTab === 'account') {
+    const emailVerifiedLabel = props.user.emailVerified
+      ? props.t('email_verified_badge')
+      : props.t('email_unverified_badge');
+    const memberDetailsPanel = props.access.canEditUsers ? (
+      <AdminMemberDetailsClient
+        description={props.t('member_details_form_description')}
+        emailVerifiedLabel={emailVerifiedLabel}
+        heading={props.t('account_panel_heading')}
+        identitySourceLabel={props.identitySourceLabel}
+        initialEmergencyContactName={props.memberDetails.emergencyContactName}
+        initialEmergencyContactPhone={props.memberDetails.emergencyContactPhone}
+        initialFirstName={props.memberDetails.firstName}
+        initialLastName={props.memberDetails.lastName}
+        initialMitClassYear={props.memberDetails.mitClassYear}
+        initialMitId={props.memberDetails.mitId}
+        initialMitIdentityLocked={props.mitIdentityLocked}
+        initialPhone={props.memberDetails.phone}
+        initialSailingAffiliation={props.memberDetails.sailingAffiliation}
+        locale={props.locale}
+        roleLabel={props.memberDetails.roleLabel}
+        userId={props.userId}
+      />
+    ) : (
+      <AdminMemberDetailsReadOnly
+        emailVerifiedLabel={emailVerifiedLabel}
+        heading={props.t('account_panel_heading')}
+        identitySourceLabel={props.identitySourceLabel}
+        memberDetails={props.memberDetails}
+        t={props.t}
+      />
+    );
+
     return (
       <>
-        <AdminMemberDetailsClient
-          description={props.t('member_details_form_description')}
-          emailVerifiedLabel={
-            props.user.emailVerified
-              ? props.t('email_verified_badge')
-              : props.t('email_unverified_badge')
-          }
-          heading={props.t('account_panel_heading')}
-          identitySourceLabel={props.identitySourceLabel}
-          initialEmergencyContactName={props.memberDetails.emergencyContactName}
-          initialEmergencyContactPhone={
-            props.memberDetails.emergencyContactPhone
-          }
-          initialFirstName={props.memberDetails.firstName}
-          initialLastName={props.memberDetails.lastName}
-          initialMitClassYear={props.memberDetails.mitClassYear}
-          initialMitId={props.memberDetails.mitId}
-          initialMitIdentityLocked={props.mitIdentityLocked}
-          initialPhone={props.memberDetails.phone}
-          initialSailingAffiliation={props.memberDetails.sailingAffiliation}
-          locale={props.locale}
-          roleLabel={props.memberDetails.roleLabel}
-          userId={props.userId}
-        />
+        {memberDetailsPanel}
         <AdminUserCurrentBlockers blockers={props.blockers} t={props.t} />
         {props.hasEmailDeliverabilityWarning ? (
           <output className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">

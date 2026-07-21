@@ -25,6 +25,16 @@ vi.mock('@/libs/auth/profileIdentityActions', () => ({
   validateProfileIdentity: mocks.validateProfileIdentity,
 }));
 
+const memberInput = {
+  affiliation: 'OTHER_NON_STUDENT',
+  emergencyContactName: 'Emergency One',
+  emergencyContactPhone: '+15555550102',
+  firstName: 'Sailor',
+  lastName: 'One',
+  mitId: '',
+  phone: '+15555550101',
+} as const;
+
 beforeEach(() => {
   mocks.profileContactForInput.mockReset();
   mocks.requirePermission.mockReset();
@@ -61,22 +71,14 @@ beforeEach(() => {
 });
 
 describe('updateAdminMemberDetailsAction', () => {
-  it('requires users.view before updating another member', async () => {
+  it('requires users.edit before updating another member', async () => {
     const { updateAdminMemberDetailsAction } =
       await import('@/libs/admin/users/adminMemberDetailsActions');
 
-    await updateAdminMemberDetailsAction('en', 'user-1', {
-      affiliation: 'OTHER_NON_STUDENT',
-      emergencyContactName: 'Emergency One',
-      emergencyContactPhone: '+15555550102',
-      firstName: 'Sailor',
-      lastName: 'One',
-      mitId: '',
-      phone: '+15555550101',
-    });
+    await updateAdminMemberDetailsAction('en', 'user-1', { ...memberInput });
 
     expect(mocks.requirePermission).toHaveBeenCalledWith(
-      Permission.USERS_VIEW,
+      Permission.USERS_EDIT,
       'en'
     );
   });
@@ -86,16 +88,64 @@ describe('updateAdminMemberDetailsAction', () => {
       await import('@/libs/admin/users/adminMemberDetailsActions');
 
     const result = await updateAdminMemberDetailsAction('en', 'user-1', {
-      affiliation: 'OTHER_NON_STUDENT',
-      emergencyContactName: 'Emergency One',
-      emergencyContactPhone: '+15555550102',
-      firstName: 'Sailor',
-      lastName: 'One',
-      mitId: '',
-      phone: '+15555550101',
+      ...memberInput,
     });
 
     expect(result.ok).toBe(true);
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/users/user-1');
+  });
+
+  it('skips revalidation when contact validation fails', async () => {
+    mocks.profileContactForInput.mockReturnValue({
+      error: 'invalid_phone',
+      ok: false,
+    });
+
+    const { updateAdminMemberDetailsAction } =
+      await import('@/libs/admin/users/adminMemberDetailsActions');
+
+    const result = await updateAdminMemberDetailsAction('en', 'user-1', {
+      ...memberInput,
+    });
+
+    expect(result).toEqual({ error: 'invalid_phone', ok: false });
+    expect(mocks.validateProfileIdentity).not.toHaveBeenCalled();
+    expect(mocks.saveProfileDetailsForUser).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('skips revalidation when identity validation fails', async () => {
+    mocks.validateProfileIdentity.mockResolvedValue({
+      error: 'first_name_required',
+      ok: false,
+    });
+
+    const { updateAdminMemberDetailsAction } =
+      await import('@/libs/admin/users/adminMemberDetailsActions');
+
+    const result = await updateAdminMemberDetailsAction('en', 'user-1', {
+      ...memberInput,
+    });
+
+    expect(result).toEqual({ error: 'first_name_required', ok: false });
+    expect(mocks.saveProfileDetailsForUser).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('skips revalidation when save returns an error', async () => {
+    mocks.saveProfileDetailsForUser.mockResolvedValue({
+      error: 'unauthorized',
+      ok: false,
+    });
+
+    const { updateAdminMemberDetailsAction } =
+      await import('@/libs/admin/users/adminMemberDetailsActions');
+
+    const result = await updateAdminMemberDetailsAction('en', 'user-1', {
+      ...memberInput,
+    });
+
+    expect(result).toEqual({ error: 'unauthorized', ok: false });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 });

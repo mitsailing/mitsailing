@@ -28,7 +28,7 @@ export async function updateAdminMemberDetailsAction(
   userId: string,
   input: ProfileDetailsInput
 ): Promise<UpdateProfileDetailsResult> {
-  await requirePermission(Permission.USERS_VIEW, locale);
+  await requirePermission(Permission.USERS_EDIT, locale);
 
   const contactResult = profileContactForInput(input);
   if (!contactResult.ok) {

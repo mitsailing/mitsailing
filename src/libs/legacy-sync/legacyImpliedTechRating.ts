@@ -25,6 +25,7 @@ type LegacyImpliedTechRatingDb = Pick<Prisma.TransactionClient, '$executeRaw'>;
 export function appendImpliedTechRatingRows(
   rows: readonly LegacyUserRatingGrantRow[]
 ): LegacyUserRatingGrantRow[] {
+  const implyingTech = new Set(catalogRatingIdsImplyingTech());
   const usersWithTech = new Set(
     rows
       .filter((row) => row.sailingRatingId === TECH_CATALOG_RATING_ID)
@@ -34,6 +35,7 @@ export function appendImpliedTechRatingRows(
   for (const row of rows) {
     if (
       row.sailingRatingId === SWIM_CATALOG_RATING_ID ||
+      !implyingTech.has(row.sailingRatingId) ||
       row.sailingRatingId === TECH_CATALOG_RATING_ID ||
       usersWithTech.has(row.userId)
     ) {
@@ -52,8 +54,8 @@ export function appendImpliedTechRatingRows(
 }
 
 /**
- * Backfills tech rating grants for sailors who already have a non-swim legacy
- * grant but no explicit tech / learn-to-sail row in Pavilion.
+ * Backfills tech rating grants for sailors who already have a catalog grant
+ * that implies tech but no explicit tech / learn-to-sail row in Pavilion.
  *
  * @param props - Database client for raw SQL inserts
  * @returns Number of tech rating rows inserted
@@ -91,14 +93,7 @@ export async function backfillImpliedTechRatingGrants(props: {
         usr.issued_at
       FROM user_sailing_ratings AS usr
       INNER JOIN sailing_ratings AS sr ON sr.id = usr.sailing_rating_id
-      WHERE sr.id <> ${SWIM_CATALOG_RATING_ID}
-        AND (
-          sr.id = ANY(${catalogIds}::text[])
-          OR (
-            sr.legacy_rating_type IS NOT NULL
-            AND sr.legacy_rating_type <> '1'
-          )
-        )
+      WHERE sr.id = ANY(${catalogIds}::text[])
       ORDER BY usr.user_id, usr.issued_at ASC, usr.id ASC
     ) AS source
     WHERE NOT EXISTS (
