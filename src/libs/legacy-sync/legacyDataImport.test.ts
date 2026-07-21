@@ -1,95 +1,123 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { importLegacyDataFromSchema } from '@/libs/legacy-sync/legacyDataImport';
+import { importLegacyData } from '@/libs/legacy-sync/legacyDataImport';
 
 const mocks = vi.hoisted(() => ({
-  calls: [] as string[],
   importEvents: vi.fn(),
   importNews: vi.fn(),
   importPavilionReservations: vi.fn(),
   importPayments: vi.fn(),
   importRatings: vi.fn(),
   importUsers: vi.fn(),
+  runLegacyImportWithAudit: vi.fn(),
 }));
 
 vi.mock('@/libs/legacy-sync/legacyEventImport', () => ({
-  importLegacyEventsFromSchema: mocks.importEvents,
+  importLegacyEvents: mocks.importEvents,
 }));
 
 vi.mock('@/libs/legacy-sync/legacyNewsImport', () => ({
-  importLegacyNewsFromSchema: mocks.importNews,
+  importLegacyNews: mocks.importNews,
 }));
 
 vi.mock('@/libs/legacy-sync/legacyPavilionReservationImport', () => ({
-  importLegacyPavilionReservationsFromSchema: mocks.importPavilionReservations,
+  importLegacyPavilionReservations: mocks.importPavilionReservations,
 }));
 
 vi.mock('@/libs/legacy-sync/legacyPaymentImport', () => ({
-  importLegacyPaymentsFromSchema: mocks.importPayments,
-  importLegacyUsersFromSchema: mocks.importUsers,
+  importLegacyPayments: mocks.importPayments,
+  importLegacyUsers: mocks.importUsers,
 }));
 
 vi.mock('@/libs/legacy-sync/legacyRatingImport', () => ({
-  importLegacyRatingsFromSchema: mocks.importRatings,
+  importLegacyRatings: mocks.importRatings,
 }));
 
-function mockImporter<T>(name: string, fn: ReturnType<typeof vi.fn>, value: T) {
-  fn.mockImplementation(() => {
-    mocks.calls.push(name);
-    return value;
-  });
-}
+vi.mock('@/libs/legacy-sync/legacyImportRun', () => ({
+  runLegacyImportWithAudit: mocks.runLegacyImportWithAudit,
+}));
 
-describe('importLegacyDataFromSchema', () => {
+describe('importLegacyData', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.calls.length = 0;
-    mockImporter('users', mocks.importUsers, {
-      cardRecordsMerged: 1,
-      usersCreated: 2,
-      usersMatched: 3,
-    });
-    mockImporter('events', mocks.importEvents, {
-      adminsImported: 1,
-      boatMembersImported: 2,
-      categoriesImported: 3,
-      datesImported: 4,
-      eventsImported: 5,
-      feesImported: 6,
-      registrationsImported: 7,
-      registrationsSkipped: 8,
-    });
-    mockImporter('ratings', mocks.importRatings, {
-      ratingTypesImported: 1,
-      userRatingsImported: 2,
-      userRatingsSkipped: 3,
-    });
-    mockImporter('news', mocks.importNews, { imported: 1 });
-    mockImporter('pavilionReservations', mocks.importPavilionReservations, {
-      imported: 2,
-      skipped: 3,
-    });
-    mockImporter('payments', mocks.importPayments, {
+    mocks.importUsers.mockResolvedValue({
       cardRecordsMerged: 0,
-      paymentsImported: 4,
-      paymentsNeedingReview: 5,
+      namesUpdated: 0,
+      usersCreated: 1,
+      usersMatched: 0,
+    });
+    mocks.importEvents.mockResolvedValue({
+      adminsImported: 0,
+      boatMembersImported: 0,
+      categoriesImported: 0,
+      datesImported: 0,
+      eventsImported: 0,
+      feesImported: 0,
+      registrationsImported: 0,
+      registrationsSkipped: 0,
+    });
+    mocks.importRatings.mockResolvedValue({
+      catalogGrantsMoved: 0,
+      catalogDuplicatesRemoved: 0,
+      legacyCatalogRowsHidden: 0,
+      ratingTypesImported: 0,
+      techRatingsImplied: 0,
+      userRatingsImported: 0,
+      userRatingsSkipped: 0,
+    });
+    mocks.importNews.mockResolvedValue({ imported: 0, skipped: 0 });
+    mocks.importPavilionReservations.mockResolvedValue({
+      imported: 0,
+      skipped: 0,
+    });
+    mocks.importPayments.mockResolvedValue({
+      cardRecordsMerged: 0,
+      namesUpdated: 0,
+      paymentsImported: 0,
+      paymentsNeedingReview: 0,
       usersCreated: 0,
       usersMatched: 0,
     });
+    mocks.runLegacyImportWithAudit.mockImplementation(
+      async (props: { importRows: () => Promise<unknown> }) => ({
+        result: await props.importRows(),
+        skipped: false,
+      })
+    );
   });
 
-  it('imports dependent legacy data in order', async () => {
-    await expect(importLegacyDataFromSchema()).resolves.toMatchObject({
-      payments: { paymentsImported: 4 },
-      users: { usersCreated: 2 },
+  it('runs domain imports in order through the audit wrapper', async () => {
+    const reader = {
+      close: vi.fn(),
+      fetchActiveMembers: vi.fn(),
+      fetchEventBoats: vi.fn(),
+      fetchEventContacts: vi.fn(),
+      fetchEventDates: vi.fn(),
+      fetchEventFees: vi.fn(),
+      fetchEventRegs: vi.fn(),
+      fetchEventTypes: vi.fn(),
+      fetchEvents: vi.fn(),
+      fetchNews: vi.fn(),
+      fetchPayments: vi.fn(),
+      fetchRatingTypes: vi.fn(),
+      fetchRatings: vi.fn(),
+      fetchReservations: vi.fn(),
+    };
+
+    await expect(importLegacyData({ reader })).resolves.toMatchObject({
+      skipped: false,
+      result: { users: { usersCreated: 1 } },
     });
 
-    expect(mocks.calls).toEqual([
-      'users',
-      'events',
-      'ratings',
-      'news',
-      'pavilionReservations',
-      'payments',
-    ]);
+    expect(mocks.runLegacyImportWithAudit).toHaveBeenCalledOnce();
+    expect(mocks.importUsers).toHaveBeenCalledBefore(mocks.importEvents);
+    expect(mocks.importEvents).toHaveBeenCalledBefore(mocks.importRatings);
+    expect(mocks.importRatings).toHaveBeenCalledBefore(mocks.importNews);
+    expect(mocks.importNews).toHaveBeenCalledBefore(
+      mocks.importPavilionReservations
+    );
+    expect(mocks.importPavilionReservations).toHaveBeenCalledBefore(
+      mocks.importPayments
+    );
+    expect(reader.close).not.toHaveBeenCalled();
   });
 });

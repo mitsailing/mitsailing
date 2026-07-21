@@ -117,7 +117,7 @@ export function buildSiteAlertBannerCollapseAlerts(
  * @returns True when storage exists, there is at least one current alert, and each id's fingerprint matches storage.
  */
 export function siteAlertBannerStartsCollapsed(props: {
-  currentAlerts: SiteAlertBannerCollapseAlert[];
+  currentAlerts: readonly SiteAlertBannerCollapseAlert[];
   storedAlerts: SiteAlertBannerCollapseAlert[] | null;
 }): boolean {
   if (!props.storedAlerts) {

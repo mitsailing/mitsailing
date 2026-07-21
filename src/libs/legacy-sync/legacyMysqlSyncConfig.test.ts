@@ -35,6 +35,18 @@ describe('legacyMysqlSyncConfigFromEnv', () => {
     });
   });
 
+  it('uses host override for ssh tunnel local imports', () => {
+    expect(
+      legacyMysqlSyncConfigFromEnv({
+        LEGACY_MYSQL_HOST: '127.0.0.1',
+        LEGACY_MYSQL_PASSWORD: 'secret',
+        LEGACY_MYSQL_SYNC_ENABLED: 'true',
+      })
+    ).toMatchObject({
+      sourceHost: '127.0.0.1',
+    });
+  });
+
   it('rejects invalid cron overrides', () => {
     expect(() =>
       legacyMysqlSyncConfigFromEnv({

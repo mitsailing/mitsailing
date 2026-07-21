@@ -1,17 +1,17 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { AdminActiveFilterChips } from '@/components/mit-sailing/admin/AdminActiveFilterChips';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import {
   AdminPagination,
   adminPaginationPage,
-  adminPaginationRange,
 } from '@/components/mit-sailing/admin/AdminPagination';
 import { AdminPrimaryActionLink } from '@/components/mit-sailing/admin/AdminPrimaryActionLink';
-import { AdminCatalogTable } from '@/components/mit-sailing/admin/catalog/AdminCatalogTable';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
+import { AdminTableSurface } from '@/components/mit-sailing/admin/AdminTableSurface';
+import { AdminUrlFilterToolbar } from '@/components/mit-sailing/admin/AdminUrlFilterToolbar';
+import { AdminUsersTable } from '@/components/mit-sailing/admin/users/AdminUsersTable';
+import type { AdminFilterChip } from '@/libs/admin/adminFilterChip';
+import { buildAdminListHrefWithoutParam } from '@/libs/admin/buildAdminListHref';
 import type {
   AdminUsersCardTypeFilter,
   AdminUsersMembershipPaymentStatusFilter,
@@ -20,7 +20,15 @@ import {
   ADMIN_USERS_PATH,
   adminUsersNewPath,
 } from '@/libs/admin/users/adminUserPaths';
-import { usersAdminDefinition } from '@/libs/admin/users/userAdminDefinitions';
+import {
+  adminUsersActiveFilterCount,
+  adminUsersClearFiltersHref,
+  adminUsersDefaultOmit,
+  adminUsersFilterChips,
+  adminUsersFilterParams,
+  adminUsersPresetFilterHref,
+  adminUsersToolbarParams,
+} from '@/libs/admin/users/adminUsersFilterUrl';
 import {
   ADMIN_USERS_PAGE_SIZE,
   listAdminUsersPage,
@@ -28,6 +36,7 @@ import {
 import type {
   AdminUsersEmailStatusFilter,
   AdminUsersListFilters,
+  AdminUsersListPage,
   AdminUsersSailingCardStatusFilter,
 } from '@/libs/admin/users/usersAdminHandlers';
 import {
@@ -50,6 +59,11 @@ type AdminUsersIndexPageProps = {
     sailingCardStatus?: string | string[];
   }>;
 };
+
+const adminUsersOmitWhenDefault = {
+  ...adminUsersDefaultOmit,
+  membershipPaymentStatus: 'all',
+} as const;
 
 function searchParamString(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
@@ -109,24 +123,98 @@ function adminUsersPaginationSummary(props: {
   readonly pageSize: number;
   readonly total: number;
 }) {
-  return adminPaginationRange(props);
+  if (props.total === 0) {
+    return { end: 0, start: 0 };
+  }
+  const start = (props.page - 1) * props.pageSize + 1;
+  return {
+    end: Math.min(props.total, start + props.pageSize - 1),
+    start,
+  };
 }
 
-function adminUsersFilterParams(filters: AdminUsersListFilters) {
+function adminUsersListToolbarParams(filters: AdminUsersListFilters) {
   return {
-    cardType: filters.cardType === 'all' ? undefined : filters.cardType,
-    emailStatus:
-      filters.emailStatus === 'all' ? undefined : filters.emailStatus,
+    ...adminUsersToolbarParams(filters),
+    membershipPaymentStatus: filters.membershipPaymentStatus,
+  };
+}
+
+function adminUsersListFilterParams(filters: AdminUsersListFilters) {
+  return {
+    ...adminUsersFilterParams(filters),
     membershipPaymentStatus:
       filters.membershipPaymentStatus === 'all'
         ? undefined
         : filters.membershipPaymentStatus,
-    q: filters.query,
-    sailingCardStatus:
-      filters.sailingCardStatus === 'all'
-        ? undefined
-        : filters.sailingCardStatus,
   };
+}
+
+function membershipPaymentStatusLabel(
+  status: AdminUsersMembershipPaymentStatusFilter,
+  labels: {
+    checkoutStarted: string;
+    paid: string;
+    pastDue: string;
+    unpaid: string;
+  }
+) {
+  if (status === 'checkout_started') {
+    return labels.checkoutStarted;
+  }
+  if (status === 'past_due') {
+    return labels.pastDue;
+  }
+  if (status === 'paid') {
+    return labels.paid;
+  }
+  return labels.unpaid;
+}
+
+function adminUsersListFilterChips(props: {
+  readonly filters: AdminUsersListFilters;
+  readonly chipLabels: Parameters<typeof adminUsersFilterChips>[1];
+  readonly membershipPaymentLabel: string;
+  readonly membershipPaymentValueLabels: {
+    checkoutStarted: string;
+    paid: string;
+    pastDue: string;
+    unpaid: string;
+  };
+  readonly chipRemoveAria: (label: string) => string;
+}): AdminFilterChip[] {
+  const toolbarParams = adminUsersListToolbarParams(props.filters);
+  const chips = adminUsersFilterChips(props.filters, props.chipLabels).map(
+    (chip) => ({
+      ...chip,
+      removeHref: buildAdminListHrefWithoutParam({
+        omitWhenDefault: adminUsersOmitWhenDefault,
+        param: chip.key,
+        params: toolbarParams,
+        pathname: ADMIN_USERS_PATH,
+      }),
+    })
+  );
+
+  if (props.filters.membershipPaymentStatus !== 'all') {
+    chips.push({
+      key: 'membershipPaymentStatus',
+      label: props.membershipPaymentLabel,
+      removeAriaLabel: props.chipRemoveAria(props.membershipPaymentLabel),
+      removeHref: buildAdminListHrefWithoutParam({
+        omitWhenDefault: adminUsersOmitWhenDefault,
+        param: 'membershipPaymentStatus',
+        params: toolbarParams,
+        pathname: ADMIN_USERS_PATH,
+      }),
+      valueLabel: membershipPaymentStatusLabel(
+        props.filters.membershipPaymentStatus,
+        props.membershipPaymentValueLabels
+      ),
+    });
+  }
+
+  return chips;
 }
 
 export async function generateMetadata(
@@ -175,28 +263,54 @@ export default async function AdminUsersIndexPage(
       searchParams.sailingCardStatus
     ),
   } satisfies AdminUsersListFilters;
-  const usersPage = await listAdminUsersPage({
+  const usersPage: AdminUsersListPage = await listAdminUsersPage({
     filters,
     page: adminPaginationPage(searchParamString(searchParams.page)),
     pageSize: ADMIN_USERS_PAGE_SIZE,
   });
-  const paginationRange = adminUsersPaginationSummary(usersPage);
+  const paginationRange = adminUsersPaginationSummary({
+    page: usersPage.page,
+    pageSize: usersPage.pageSize,
+    total: usersPage.total,
+  });
   const hasActiveFilters =
-    filters.query.length > 0 ||
-    filters.emailStatus !== 'all' ||
-    filters.sailingCardStatus !== 'all' ||
-    filters.cardType !== 'all' ||
+    adminUsersActiveFilterCount(filters) > 0 ||
     filters.membershipPaymentStatus !== 'all';
-  let emptyKey: 'filter_empty' | 'list_empty' | undefined;
-  if (usersPage.total === 0) {
-    emptyKey = hasActiveFilters ? 'filter_empty' : 'list_empty';
-  }
   const tr = await getTranslations({ locale, namespace: 'AdminUsers' });
   const t = await getTranslations({ locale, namespace: 'MitSailingRoutes' });
   const ta = await getTranslations({ locale, namespace: 'AdminPage' });
+  const chipLabels = {
+    cardTypeLabel: tr('filter_card_type_label'),
+    cardTypeNormal: tr('list_card_type_normal'),
+    cardTypeRacing: tr('list_card_type_racing'),
+    cardTypeTeamRacing: tr('list_card_type_team_racing'),
+    chipRemoveAria: (label: string) => tr('filter_chip_remove_aria', { label }),
+    emailStatusBounced: tr('email_status_bounced'),
+    emailStatusLabel: tr('filter_email_status_label'),
+    emailStatusOk: tr('email_status_ok'),
+    emailStatusSuppressed: tr('email_status_suppressed'),
+    sailingCardStatusCurrent: tr('filter_sailing_card_status_current'),
+    sailingCardStatusExpired: tr('filter_sailing_card_status_expired'),
+    sailingCardStatusLabel: tr('filter_sailing_card_status_label'),
+    sailingCardStatusNone: tr('filter_sailing_card_status_none'),
+    sailingCardStatusPending: tr('filter_sailing_card_status_pending'),
+    searchLabel: tr('filter_search_label'),
+  };
+  const filterChips = adminUsersListFilterChips({
+    chipLabels,
+    chipRemoveAria: chipLabels.chipRemoveAria,
+    filters,
+    membershipPaymentLabel: tr('filter_membership_payment_status_label'),
+    membershipPaymentValueLabels: {
+      checkoutStarted: tr('list_membership_payment_checkout_started'),
+      paid: tr('list_membership_payment_paid'),
+      pastDue: tr('list_membership_payment_past_due'),
+      unpaid: tr('list_membership_payment_unpaid'),
+    },
+  });
 
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="flex w-full flex-col gap-4">
       <AdminPageHeader
         actions={
           canEditUsers ? (
@@ -207,158 +321,152 @@ export default async function AdminUsersIndexPage(
         }
         title={t('title_admin_users')}
       />
-      <form
-        action={ADMIN_USERS_PATH}
-        className="grid gap-3 md:grid-cols-[minmax(16rem,1fr)_14rem_14rem_14rem_14rem_auto] md:items-end"
-        method="get"
-      >
-        <div>
-          <Label htmlFor="admin-users-q">{tr('filter_search_label')}</Label>
-          <Input
-            className="mt-2"
-            defaultValue={filters.query}
-            id="admin-users-q"
-            name="q"
-            placeholder={tr('filter_search_placeholder')}
-            type="search"
-          />
-        </div>
-        <div>
-          <Label htmlFor="admin-users-email-status">
-            {tr('filter_email_status_label')}
-          </Label>
-          <NativeSelect
-            className="mt-2"
-            defaultValue={filters.emailStatus}
-            id="admin-users-email-status"
-            name="emailStatus"
-          >
-            <option value="all">{tr('filter_email_status_all')}</option>
-            <option value="ok">{tr('email_status_ok')}</option>
-            <option value="bounced">{tr('email_status_bounced')}</option>
-            <option value="suppressed">{tr('email_status_suppressed')}</option>
-          </NativeSelect>
-        </div>
-        <div>
-          <Label htmlFor="admin-users-card-status">
-            {tr('filter_sailing_card_status_label')}
-          </Label>
-          <NativeSelect
-            className="mt-2"
-            defaultValue={filters.sailingCardStatus}
-            id="admin-users-card-status"
-            name="sailingCardStatus"
-          >
-            <option value="all">{tr('filter_sailing_card_status_all')}</option>
-            <option value="pending">
-              {tr('filter_sailing_card_status_pending')}
-            </option>
-            <option value="current">
-              {tr('filter_sailing_card_status_current')}
-            </option>
-            <option value="expired">
-              {tr('filter_sailing_card_status_expired')}
-            </option>
-            <option value="none">
-              {tr('filter_sailing_card_status_none')}
-            </option>
-          </NativeSelect>
-        </div>
-        <div>
-          <Label htmlFor="admin-users-card-type">
-            {tr('filter_card_type_label')}
-          </Label>
-          <NativeSelect
-            className="mt-2"
-            defaultValue={filters.cardType}
-            id="admin-users-card-type"
-            name="cardType"
-          >
-            <option value="all">{tr('filter_card_type_all')}</option>
-            <option value="normal">{tr('list_card_type_normal')}</option>
-            <option value="racing">{tr('list_card_type_racing')}</option>
-            <option value="team_racing">
-              {tr('list_card_type_team_racing')}
-            </option>
-          </NativeSelect>
-        </div>
-        <div>
-          <Label htmlFor="admin-users-membership-payment-status">
-            {tr('filter_membership_payment_status_label')}
-          </Label>
-          <NativeSelect
-            className="mt-2"
-            defaultValue={filters.membershipPaymentStatus}
-            id="admin-users-membership-payment-status"
-            name="membershipPaymentStatus"
-          >
-            <option value="all">
-              {tr('filter_membership_payment_status_all')}
-            </option>
-            <option value="unpaid">
-              {tr('list_membership_payment_unpaid')}
-            </option>
-            <option value="checkout_started">
-              {tr('list_membership_payment_checkout_started')}
-            </option>
-            <option value="past_due">
-              {tr('list_membership_payment_past_due')}
-            </option>
-            <option value="paid">{tr('list_membership_payment_paid')}</option>
-          </NativeSelect>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit">{tr('filter_submit')}</Button>
-          {hasActiveFilters ? (
-            <Button asChild type="button" variant="outline">
-              <Link href={ADMIN_USERS_PATH}>{tr('filter_clear')}</Link>
-            </Button>
-          ) : null}
-        </div>
-      </form>
-
-      <AdminCatalogTable
-        adminBasePath={ADMIN_USERS_PATH}
-        definition={{
-          ...usersAdminDefinition,
-          capabilities: {
-            create: canEditUsers,
-            delete: canDeleteUsers,
-            reorder: false,
-            update: canEditUsers,
-          },
-        }}
-        emptyKey={emptyKey}
-        locale={locale}
-        messageNamespace="AdminUsers"
-        resourceId={usersAdminDefinition.id}
-        rows={usersPage.rows}
-        userImpersonation={
-          canEditUsers
-            ? {
-                accountRedirectHref: accountHref,
-                currentUserId,
-                selfLabel: ta('you'),
-              }
-            : undefined
-        }
-      />
-      <AdminPagination
+      <AdminUrlFilterToolbar
         basePath={ADMIN_USERS_PATH}
-        labels={{
-          next: tr('pagination_next'),
-          previous: tr('pagination_previous'),
-          summary: tr('pagination_summary', {
-            end: paginationRange.end,
-            start: paginationRange.start,
-            total: usersPage.total,
-          }),
+        omitWhenDefault={adminUsersOmitWhenDefault}
+        params={adminUsersListToolbarParams(filters)}
+        search={{
+          label: tr('filter_search_label'),
+          param: 'q',
+          placeholder: tr('filter_search_placeholder'),
+          value: filters.query,
         }}
-        page={usersPage.page}
-        pageSize={usersPage.pageSize}
-        params={adminUsersFilterParams(filters)}
-        total={usersPage.total}
+        selects={[
+          {
+            defaultValue: 'all',
+            label: tr('filter_email_status_label'),
+            options: [
+              { label: tr('filter_email_status_all'), value: 'all' },
+              { label: tr('email_status_ok'), value: 'ok' },
+              { label: tr('email_status_bounced'), value: 'bounced' },
+              { label: tr('email_status_suppressed'), value: 'suppressed' },
+            ],
+            param: 'emailStatus',
+            value: filters.emailStatus,
+          },
+          {
+            defaultValue: 'all',
+            label: tr('filter_sailing_card_status_label'),
+            options: [
+              { label: tr('filter_sailing_card_status_all'), value: 'all' },
+              {
+                label: tr('filter_sailing_card_status_pending'),
+                value: 'pending',
+              },
+              {
+                label: tr('filter_sailing_card_status_current'),
+                value: 'current',
+              },
+              {
+                label: tr('filter_sailing_card_status_expired'),
+                value: 'expired',
+              },
+              { label: tr('filter_sailing_card_status_none'), value: 'none' },
+            ],
+            param: 'sailingCardStatus',
+            value: filters.sailingCardStatus,
+          },
+          {
+            defaultValue: 'all',
+            label: tr('filter_card_type_label'),
+            options: [
+              { label: tr('filter_card_type_all'), value: 'all' },
+              { label: tr('list_card_type_normal'), value: 'normal' },
+              { label: tr('list_card_type_racing'), value: 'racing' },
+              { label: tr('list_card_type_team_racing'), value: 'team_racing' },
+            ],
+            param: 'cardType',
+            value: filters.cardType,
+          },
+          {
+            defaultValue: 'all',
+            label: tr('filter_membership_payment_status_label'),
+            options: [
+              {
+                label: tr('filter_membership_payment_status_all'),
+                value: 'all',
+              },
+              {
+                label: tr('list_membership_payment_unpaid'),
+                value: 'unpaid',
+              },
+              {
+                label: tr('list_membership_payment_checkout_started'),
+                value: 'checkout_started',
+              },
+              {
+                label: tr('list_membership_payment_past_due'),
+                value: 'past_due',
+              },
+              {
+                label: tr('list_membership_payment_paid'),
+                value: 'paid',
+              },
+            ],
+            param: 'membershipPaymentStatus',
+            value: filters.membershipPaymentStatus,
+          },
+        ]}
       />
+      <div className="flex flex-wrap gap-2">
+        <Link
+          className="rounded-full border border-border bg-background px-3 py-1 text-sm font-medium text-foreground hover:bg-muted"
+          href={adminUsersPresetFilterHref('pending_card')}
+        >
+          {tr('filter_preset_pending_card')}
+        </Link>
+        <Link
+          className="rounded-full border border-border bg-background px-3 py-1 text-sm font-medium text-foreground hover:bg-muted"
+          href={adminUsersPresetFilterHref('email_bounced')}
+        >
+          {tr('filter_preset_email_bounced')}
+        </Link>
+      </div>
+      <AdminActiveFilterChips
+        chips={filterChips}
+        clearHref={hasActiveFilters ? adminUsersClearFiltersHref() : undefined}
+        clearLabel={hasActiveFilters ? tr('filter_clear') : undefined}
+      />
+
+      <AdminTableSurface
+        footer={
+          <AdminPagination
+            basePath={ADMIN_USERS_PATH}
+            labels={{
+              next: tr('pagination_next'),
+              previous: tr('pagination_previous'),
+              summary: tr('pagination_summary', {
+                end: paginationRange.end,
+                start: paginationRange.start,
+                total: usersPage.total,
+              }),
+            }}
+            page={usersPage.page}
+            pageSize={usersPage.pageSize}
+            params={adminUsersListFilterParams(filters)}
+            total={usersPage.total}
+          />
+        }
+      >
+        <AdminUsersTable
+          adminBasePath={ADMIN_USERS_PATH}
+          canDelete={canDeleteUsers}
+          canUpdate={canEditUsers}
+          emptyMessage={
+            hasActiveFilters ? tr('filter_empty') : tr('empty_directory')
+          }
+          rows={usersPage.rows}
+          userImpersonation={
+            canEditUsers
+              ? {
+                  accountRedirectHref: accountHref,
+                  currentUserId,
+                  selfLabel: ta('you'),
+                }
+              : undefined
+          }
+        />
+      </AdminTableSurface>
     </div>
   );
 }

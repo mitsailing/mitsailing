@@ -157,28 +157,31 @@ async function expectContactUpdateError(options: {
 }
 
 describe('ProfileAccountClient', () => {
-  it('puts the editable profile details form before the overview', () => {
+  it('shows profile details before sailing card section', () => {
     renderAccountClient();
 
     const detailsSection = screen
       .getByRole('heading', { name: 'Profile details' })
       .closest('section');
-    const overviewSection = screen
-      .getByRole('heading', { name: 'Old Name' })
+    const sailingCardSection = screen
+      .getByRole('heading', { name: 'Sailing card' })
       .closest('section');
 
-    if (detailsSection === null || overviewSection === null) {
-      throw new Error('Expected profile details and overview sections.');
+    if (detailsSection === null || sailingCardSection === null) {
+      throw new Error('Expected profile details and sailing card sections.');
     }
     const parent = detailsSection.parentElement;
-    if (parent === null || parent !== overviewSection.parentElement) {
+    if (parent === null || parent !== sailingCardSection.parentElement) {
       throw new Error('Expected profile sections to share a parent.');
     }
 
     const siblings = [...parent.children];
     expect(siblings.indexOf(detailsSection)).toBeLessThan(
-      siblings.indexOf(overviewSection)
+      siblings.indexOf(sailingCardSection)
     );
+    expect(
+      screen.queryByRole('heading', { name: 'Old Name' })
+    ).not.toBeInTheDocument();
   });
 
   it('profile owner sees pending sailing card request status', () => {

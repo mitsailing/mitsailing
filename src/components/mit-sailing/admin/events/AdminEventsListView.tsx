@@ -1,13 +1,21 @@
-import { Plus, Search } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
-import Form from 'next/form';
 import type * as React from 'react';
+import { AdminActiveFilterChips } from '@/components/mit-sailing/admin/AdminActiveFilterChips';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { AdminPagination } from '@/components/mit-sailing/admin/AdminPagination';
+import { AdminTableSurface } from '@/components/mit-sailing/admin/AdminTableSurface';
+import { AdminUrlFilterToolbar } from '@/components/mit-sailing/admin/AdminUrlFilterToolbar';
 import { AdminEventListStatusBadge } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { NativeSelect } from '@/components/ui/native-select';
+import {
+  adminEventsActiveFilterCount,
+  adminEventsClearFiltersHref,
+  adminEventsDefaultOmit,
+  adminEventsFilterChips,
+  adminEventsResolvedFilters,
+  adminEventsToolbarParams,
+} from '@/libs/admin/events/adminEventsFilterUrl';
 import {
   adminEventShowPath,
   adminEventsIndexPath,
@@ -19,7 +27,6 @@ import type {
   AdminEventListRow,
   AdminEventRegistrationCounts,
 } from '@/libs/admin/events/eventAdminQueries';
-import { adminEventListScopeFromValue } from '@/libs/admin/events/eventAdminQueries';
 import { Link } from '@/libs/I18nNavigation';
 import { formatEasternEventRange } from '@/libs/mit-sailing/easternTimeFormat';
 
@@ -81,14 +88,6 @@ function dateSummary(
 /**
  * Renders the confirmed-registration column for the admin events table.
  *
- * `capacity === null` means no cap. When set, capacity is at least 1; admin
- * `maxParticipants` is validated by
- * {@link import("@/libs/admin/events/eventAdminSchemas").eventAdminBasicsFormSchema}.
- *
- * Branches before calling `t()` so limited-capacity messages never receive
- * `null` for `capacity`: next-intl 4+ disallows `null` and `undefined` as ICU
- * interpolation values.
- *
  * @param counts - Registration counts for the event
  * @param capacity - Positive cap, or null when uncapped
  * @param t - Admin event list translations
@@ -110,13 +109,6 @@ function registrationsSummary(
     confirmed,
     pending: counts.pending,
   });
-}
-
-function resetFiltersPath(scope: 'all' | 'my'): string {
-  if (scope === 'all') {
-    return `${adminEventsIndexPath()}?scope=all`;
-  }
-  return adminEventsIndexPath();
 }
 
 function eventsPaginationSummary(props: {
@@ -182,16 +174,25 @@ function EventRow(props: {
   t: AdminEventsListTranslations;
 }) {
   return (
-    <li className="py-4">
-      <article className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start">
+    <li className="px-4 py-3 md:py-4">
+      <article className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start">
         <div className="flex min-w-0 flex-col gap-2">
           <Link
-            className="text-base font-semibold break-words text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+            className="text-sm font-semibold break-words text-foreground no-underline hover:underline md:text-base"
             href={adminEventShowPath(props.event.slug)}
           >
             {props.event.name}
           </Link>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-mit-readable-ink">
+          <p className="text-xs text-muted-foreground md:hidden">
+            {dateSummary(props.event.dates, props.t)}
+            {' · '}
+            {registrationsSummary(
+              props.event.registrationCounts,
+              props.event.maxParticipants,
+              props.t
+            )}
+          </p>
+          <div className="hidden flex-wrap items-center gap-x-2 gap-y-1 text-sm text-mit-readable-ink md:flex">
             <span>{props.event.category.name}</span>
             <span aria-hidden>·</span>
             <span>{props.event.shortName}</span>
@@ -200,7 +201,7 @@ function EventRow(props: {
           </div>
           <EventStatusBadges event={props.event} t={props.t} />
         </div>
-        <dl className="grid min-w-0 gap-3 sm:grid-cols-3 lg:grid-cols-1">
+        <dl className="hidden min-w-0 gap-3 sm:grid-cols-3 md:grid lg:grid">
           <EventSummaryField label={props.t('column_dates')}>
             {dateSummary(props.event.dates, props.t)}
           </EventSummaryField>
@@ -223,15 +224,32 @@ function EventRow(props: {
 }
 
 export function AdminEventsListView(props: AdminEventsListViewProps) {
-  const scope = adminEventListScopeFromValue(props.filters.scope);
+  const resolvedFilters = adminEventsResolvedFilters(props.filters);
   const pagination = props.pagination ?? {
     page: 1,
     pageSize: Math.max(props.rows.length, 1),
     total: props.rows.length,
   };
   const range = eventsPaginationSummary(pagination);
+  const hasActiveFilters = adminEventsActiveFilterCount(props.filters) > 0;
+  const chipLabels = {
+    categoryAll: props.t('filter_category_all'),
+    categoryLabel: props.t('filter_category_label'),
+    chipRemoveAria: (label: string) =>
+      props.t('filter_chip_remove_aria', { label }),
+    scopeAll: props.t('filter_scope_all'),
+    scopeLabel: props.t('filter_scope_label'),
+    scopeMy: props.t('filter_scope_my'),
+    searchLabel: props.t('filter_search_label'),
+  };
+  const filterChips = adminEventsFilterChips(
+    props.filters,
+    props.categories,
+    chipLabels
+  );
+
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="flex w-full flex-col gap-4">
       <AdminPageHeader
         actions={
           <Button asChild size="sm" variant="mit">
@@ -244,102 +262,95 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
         title={props.t('list_title')}
       />
 
-      <Form
-        action={props.filterAction}
-        className="grid gap-3 border-y border-border py-4 lg:grid-cols-[minmax(0,1fr)_minmax(160px,220px)_minmax(220px,280px)_auto]"
-        role="search"
-      >
-        <label className="relative flex min-w-0 flex-col gap-1.5 text-sm">
-          <span className="font-medium text-foreground">
-            {props.t('filter_search_label')}
-          </span>
-          <Search
-            aria-hidden
-            className="pointer-events-none absolute bottom-2 left-2.5 size-4 text-mit-readable-ink"
-          />
-          <Input
-            className="pl-8"
-            defaultValue={props.filters.query ?? ''}
-            name="q"
-            placeholder={props.t('filter_search_placeholder')}
-            type="search"
-          />
-        </label>
-        <label className="flex min-w-0 flex-col gap-1.5 text-sm">
-          <span className="font-medium text-foreground">
-            {props.t('filter_scope_label')}
-          </span>
-          <NativeSelect defaultValue={scope} name="scope">
-            <option value="my">{props.t('filter_scope_my')}</option>
-            <option value="all">{props.t('filter_scope_all')}</option>
-          </NativeSelect>
-        </label>
-        <label className="flex min-w-0 flex-col gap-1.5 text-sm">
-          <span className="font-medium text-foreground">
-            {props.t('filter_category_label')}
-          </span>
-          <NativeSelect
-            defaultValue={props.filters.categoryId ?? ''}
-            name="category"
-          >
-            <option value="">{props.t('filter_category_all')}</option>
-            {props.categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </NativeSelect>
-        </label>
-        <div className="flex items-end gap-2">
-          <Button type="submit" variant="outline">
-            {props.t('action_filter')}
-          </Button>
-          <Button asChild type="button" variant="ghost">
-            <Link href={resetFiltersPath(scope)}>
-              {props.t('action_reset')}
-            </Link>
-          </Button>
-        </div>
-      </Form>
+      <AdminUrlFilterToolbar
+        basePath={props.filterAction}
+        omitWhenDefault={adminEventsDefaultOmit}
+        params={adminEventsToolbarParams(props.filters)}
+        search={{
+          label: props.t('filter_search_label'),
+          param: 'q',
+          placeholder: props.t('filter_search_placeholder'),
+          value: resolvedFilters.query,
+        }}
+        selects={[
+          {
+            defaultValue: 'my',
+            label: props.t('filter_scope_label'),
+            options: [
+              { label: props.t('filter_scope_my'), value: 'my' },
+              { label: props.t('filter_scope_all'), value: 'all' },
+            ],
+            param: 'scope',
+            value: resolvedFilters.scope,
+          },
+          {
+            defaultValue: '',
+            label: props.t('filter_category_label'),
+            options: [
+              { label: props.t('filter_category_all'), value: '' },
+              ...props.categories.map((category) => ({
+                label: category.name,
+                value: category.id,
+              })),
+            ],
+            param: 'category',
+            value: resolvedFilters.categoryId,
+          },
+        ]}
+      />
+      <AdminActiveFilterChips
+        chips={filterChips}
+        clearHref={
+          hasActiveFilters
+            ? adminEventsClearFiltersHref(props.filters)
+            : undefined
+        }
+        clearLabel={hasActiveFilters ? props.t('action_reset') : undefined}
+      />
 
       <p className="text-sm text-mit-readable-ink">
         {props.t('list_count', { count: pagination.total })}
       </p>
 
-      <ul
-        aria-label={props.t('list_title')}
-        className="m-0 list-none divide-y divide-border border-y border-border p-0"
+      <AdminTableSurface
+        footer={
+          <AdminPagination
+            basePath={adminEventsIndexPath()}
+            labels={{
+              next: props.t('pagination_next'),
+              previous: props.t('pagination_previous'),
+              summary: props.t('pagination_summary', {
+                end: range.end,
+                start: range.start,
+                total: pagination.total,
+              }),
+            }}
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            params={{
+              category: props.filters.categoryId,
+              q: props.filters.query,
+              scope: props.filters.scope,
+            }}
+            total={pagination.total}
+          />
+        }
       >
-        {props.rows.length === 0 ? (
-          <li className="px-4 py-10 text-center text-sm text-mit-readable-ink">
-            {props.t('list_empty')}
-          </li>
-        ) : (
-          props.rows.map((event) => (
-            <EventRow event={event} key={event.id} t={props.t} />
-          ))
-        )}
-      </ul>
-      <AdminPagination
-        basePath={adminEventsIndexPath()}
-        labels={{
-          next: props.t('pagination_next'),
-          previous: props.t('pagination_previous'),
-          summary: props.t('pagination_summary', {
-            end: range.end,
-            start: range.start,
-            total: pagination.total,
-          }),
-        }}
-        page={pagination.page}
-        pageSize={pagination.pageSize}
-        params={{
-          category: props.filters.categoryId,
-          q: props.filters.query,
-          scope: props.filters.scope,
-        }}
-        total={pagination.total}
-      />
+        <ul
+          aria-label={props.t('list_title')}
+          className="m-0 list-none divide-y divide-border p-0"
+        >
+          {props.rows.length === 0 ? (
+            <li className="px-4 py-10 text-center text-sm text-mit-readable-ink">
+              {props.t('list_empty')}
+            </li>
+          ) : (
+            props.rows.map((event) => (
+              <EventRow event={event} key={event.id} t={props.t} />
+            ))
+          )}
+        </ul>
+      </AdminTableSurface>
     </div>
   );
 }

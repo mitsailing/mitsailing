@@ -146,7 +146,7 @@ export async function listAdminPaymentLedgerPage(
       stripeCheckoutSessionId: true,
       stripePaymentIntentId: true,
       stripeReceiptUrl: true,
-      user: { select: { email: true, name: true } },
+      user: { select: { email: true, id: true, name: true } },
     },
   });
 

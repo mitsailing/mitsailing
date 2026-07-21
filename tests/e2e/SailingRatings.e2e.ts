@@ -224,7 +224,7 @@ test.describe('Sail ratings', () => {
     page,
   }) => {
     await signInAsAdmin(page);
-    await page.goto('/admin/users/username/edit');
+    await page.goto('/admin/users/username?tab=admin');
 
     await expect(
       page.getByRole('heading', { name: 'Edit user' })
@@ -259,21 +259,25 @@ test.describe('Sail ratings', () => {
       await expect(
         page.getByRole('heading', { name: 'Sail ratings' })
       ).toBeVisible();
-      await expect(
-        page.getByRole('rowheader', { name: 'Tech Rating' })
-      ).toBeVisible();
-      await expect(
-        page.getByText(/Issued [A-Z][a-z]{2} \d{1,2}, 20\d{2} by Administrator/)
-      ).toBeVisible();
-      const techRatingRow = page.getByRole('row').filter({
-        has: page.getByRole('rowheader', { name: 'Tech Rating' }),
+      const ratingsTable = page.getByRole('table');
+      const techRatingRow = ratingsTable.getByRole('row').filter({
+        has: page.getByRole('link', { name: 'Tech Rating' }),
       });
+      await expect(techRatingRow).toContainText('Earned');
+      await expect(
+        techRatingRow.getByText(
+          /Issued [A-Z][a-z]{2} \d{1,2}, 20\d{2} by Administrator/
+        )
+      ).toBeVisible();
       await expect(
         techRatingRow.getByRole('link', { name: 'Tech dinghy' })
       ).toBeVisible();
       await expect(
         techRatingRow.getByRole('link', { name: 'Mashnee' })
       ).toBeVisible();
+      await expect(
+        ratingsTable.getByRole('link', { name: 'Tech Rating' })
+      ).toHaveAttribute('href', /\/ratings#tech-rating$/);
     });
   });
 

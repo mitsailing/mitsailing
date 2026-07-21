@@ -55,7 +55,6 @@ const authCoverageFiles = [
   'src/app/[locale]/(auth)/profile/payments/page.tsx',
   'src/app/[locale]/(auth)/profile/ProfileEmailSection.tsx',
   'src/app/[locale]/(auth)/profile/ProfileMemberInformationSection.tsx',
-  'src/app/[locale]/(auth)/profile/ProfileOverview.tsx',
   'src/app/[locale]/(auth)/profile/ProfileSailingCardSection.tsx',
   'src/app/[locale]/(auth)/profile/membership/page.tsx',
   'src/app/[locale]/(auth)/profile/ProfileAccountClient.tsx',

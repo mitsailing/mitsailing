@@ -98,7 +98,7 @@ describe('listAdminPaymentLedgerData', () => {
         stripeCheckoutSessionId: true,
         stripePaymentIntentId: true,
         stripeReceiptUrl: true,
-        user: { select: { email: true, name: true } },
+        user: { select: { email: true, id: true, name: true } },
       },
       skip: 0,
       take: 50,
@@ -220,7 +220,11 @@ describe('listAdminPaymentLedgerData', () => {
       stripeCheckoutSessionId: null,
       stripePaymentIntentId: null,
       stripeReceiptUrl: null,
-      user: { email: 'grace@example.com', name: 'Grace Hopper' },
+      user: {
+        email: 'grace@example.com',
+        id: 'user-grace',
+        name: 'Grace Hopper',
+      },
     };
     mocks.paymentFindMany.mockResolvedValue([legacyMembershipPayment]);
     const { listAdminPaymentLedgerData } =
@@ -248,7 +252,11 @@ describe('listAdminPaymentLedgerData', () => {
           stripeDiscountMetadata: null,
           stripeCheckoutSessionId: null,
           stripePaymentIntentId: null,
-          user: { email: 'grace@example.com', name: 'Grace Hopper' },
+          user: {
+            email: 'grace@example.com',
+            id: 'user-grace',
+            name: 'Grace Hopper',
+          },
         },
       ],
     });

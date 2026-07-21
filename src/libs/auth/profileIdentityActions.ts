@@ -53,6 +53,8 @@ type ProfileContactInput = {
 
 type ProfileDetailsInput = ProfileIdentityInput & ProfileContactInput;
 
+export type { ProfileDetailsInput };
+
 type ProfileContact = {
   readonly emergencyContactName: string | null;
   readonly emergencyContactPhone: string | null;
@@ -270,7 +272,7 @@ function profileIdentityForInput(props: {
   });
 }
 
-async function validateProfileIdentity(props: {
+export async function validateProfileIdentity(props: {
   readonly input: ProfileIdentityInput;
   readonly userId: string;
 }): Promise<ProfileIdentityValidationResult> {
@@ -326,7 +328,7 @@ async function validateProfileIdentity(props: {
   };
 }
 
-function profileContactForInput(
+export function profileContactForInput(
   input: ProfileContactInput
 ):
   | { ok: true; contact: ProfileContact }
@@ -406,6 +408,22 @@ async function persistProfileIdentity(props: {
   });
 }
 
+export async function saveProfileDetailsForUser(props: {
+  readonly contact?: ProfileContact;
+  readonly identity: ProfileIdentity;
+  readonly userId: string;
+}): Promise<{ ok: false; error: 'mit_id_duplicate' } | null> {
+  try {
+    await persistProfileIdentity(props);
+    return null;
+  } catch (error) {
+    if (isUniqueMitIdConflict(error)) {
+      return { ok: false, error: 'mit_id_duplicate' };
+    }
+    throw error;
+  }
+}
+
 export async function updateProfileIdentityAction(
   locale: string,
   input: ProfileIdentityInput
@@ -422,16 +440,12 @@ export async function updateProfileIdentityAction(
     return identityResult;
   }
 
-  try {
-    await persistProfileIdentity({
-      identity: identityResult.identity,
-      userId: identityResult.userId,
-    });
-  } catch (error) {
-    if (isUniqueMitIdConflict(error)) {
-      return { ok: false, error: 'mit_id_duplicate' };
-    }
-    throw error;
+  const saveError = await saveProfileDetailsForUser({
+    identity: identityResult.identity,
+    userId: identityResult.userId,
+  });
+  if (saveError) {
+    return saveError;
   }
 
   revalidatePath(getI18nPath('/profile', locale));
@@ -460,17 +474,13 @@ export async function updateProfileDetailsAction(
     return identityResult;
   }
 
-  try {
-    await persistProfileIdentity({
-      contact: contactResult.contact,
-      identity: identityResult.identity,
-      userId: identityResult.userId,
-    });
-  } catch (error) {
-    if (isUniqueMitIdConflict(error)) {
-      return { ok: false, error: 'mit_id_duplicate' };
-    }
-    throw error;
+  const saveError = await saveProfileDetailsForUser({
+    contact: contactResult.contact,
+    identity: identityResult.identity,
+    userId: identityResult.userId,
+  });
+  if (saveError) {
+    return saveError;
   }
 
   revalidatePath(getI18nPath('/profile', locale));

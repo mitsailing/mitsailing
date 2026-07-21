@@ -28,6 +28,12 @@ describe('payment schema contract', () => {
     expect(zmodel).not.toContain('model SailingCardSubscription');
   });
 
+  it('maps event_payment to the postgres enum label used in SQL', () => {
+    expect(zmodel).toMatch(/event_payment\s+@map\("event"\)/u);
+    expect(migration).toContain("'event'");
+    expect(migration).not.toContain("'event_payment'");
+  });
+
   it('keeps event and membership fields mutually exclusive in SQL', () => {
     expect(migration).toContain(
       'ALTER TABLE "event_payments" RENAME TO "payments"'

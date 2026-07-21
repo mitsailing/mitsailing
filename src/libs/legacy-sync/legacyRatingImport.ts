@@ -1,8 +1,17 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
-import { loadLegacyUserIdentityMaps } from '@/libs/legacy-sync/legacyPaymentImport';
-import type { LegacyMemberRow } from '@/libs/legacy-sync/legacyPaymentImport';
+import {
+  appendImpliedTechRatingRows,
+  backfillImpliedTechRatingGrants,
+} from '@/libs/legacy-sync/legacyImpliedTechRating';
+import { legacyImportTransactionOptions } from '@/libs/legacy-sync/legacyImportTransaction';
+import { loadLegacyUserIdentityMaps } from '@/libs/legacy-sync/legacyMemberIdentity';
+import type { LegacyMemberRow } from '@/libs/legacy-sync/legacyMemberIdentity';
+import type { LegacyMysqlReader } from '@/libs/legacy-sync/legacyMysqlReader';
+import { legacyMysqlReaderFromEnv } from '@/libs/legacy-sync/legacyMysqlReader';
+import { legacyRatingCatalogId } from '@/libs/legacy-sync/legacyRatingCatalogMap';
+import { reconcileLegacyRatingCatalogGrants } from '@/libs/legacy-sync/legacyRatingCatalogReconcile';
 
 export type LegacyRatingTypeRow = {
   readonly basic_opt: string | null;
@@ -22,11 +31,15 @@ export type LegacyRatingRow = {
 
 type LegacyRatingImportDb = Pick<
   Prisma.TransactionClient,
-  'sailingRating' | 'user' | 'userSailingRating'
+  '$executeRaw' | '$queryRaw' | 'sailingRating' | 'userSailingRating'
 >;
 
 export type LegacyRatingImportResult = {
+  readonly catalogGrantsMoved: number;
+  readonly catalogDuplicatesRemoved: number;
+  readonly legacyCatalogRowsHidden: number;
   readonly ratingTypesImported: number;
+  readonly techRatingsImplied: number;
   readonly userRatingsImported: number;
   readonly userRatingsSkipped: number;
 };
@@ -78,6 +91,19 @@ async function importRatingTypes(props: {
     if (!legacyRatingType) {
       continue;
     }
+    const catalogId = legacyRatingCatalogId(legacyRatingType);
+    if (catalogId) {
+      await props.db.sailingRating.update({
+        where: { id: catalogId },
+        data: {
+          isDeprecated: stringValue(row.status) !== '1',
+        },
+      });
+      sailingRatingIdByLegacyType.set(legacyRatingType, catalogId);
+      imported += 1;
+      continue;
+    }
+
     const name = stringValue(row.name) || `Legacy rating ${legacyRatingType}`;
     const rating = await props.db.sailingRating.upsert({
       where: { legacyRatingType },
@@ -93,14 +119,14 @@ async function importRatingTypes(props: {
         windCondition: null,
         guideUrl: null,
         displayOrder: positiveInt(row.rank),
-        isVisible: stringValue(row.status) === '1',
+        isVisible: false,
         isDeprecated: stringValue(row.status) !== '1',
       },
       update: {
         name,
         shortName: name,
         displayOrder: positiveInt(row.rank),
-        isVisible: stringValue(row.status) === '1',
+        isVisible: false,
         isDeprecated: stringValue(row.status) !== '1',
       },
       select: { id: true },
@@ -121,7 +147,7 @@ async function importUserRatings(props: {
     db: props.db,
     members: props.members,
   });
-  const rows = props.ratings.flatMap((row) => {
+  const sourceRows = props.ratings.flatMap((row) => {
     const userId = legacyMemberIdToUserId.get(stringValue(row.id));
     const issuedByUserId = legacyMemberIdToUserId.get(stringValue(row.eval_id));
     const sailingRatingId = props.sailingRatingIdByLegacyType.get(
@@ -141,6 +167,7 @@ async function importUserRatings(props: {
       },
     ];
   });
+  const rows = appendImpliedTechRatingRows(sourceRows);
   if (rows.length > 0) {
     await props.db.userSailingRating.createMany({
       data: rows,
@@ -149,7 +176,23 @@ async function importUserRatings(props: {
   }
   return {
     imported: rows.length,
-    skipped: props.ratings.length - rows.length,
+    skipped: props.ratings.length - sourceRows.length,
+  };
+}
+
+async function importUserRatingsWithImpliedTech(props: {
+  readonly db: LegacyRatingImportDb;
+  readonly members: readonly LegacyMemberRow[];
+  readonly ratings: readonly LegacyRatingRow[];
+  readonly sailingRatingIdByLegacyType: ReadonlyMap<string, string>;
+}) {
+  const userRatings = await importUserRatings(props);
+  const techRatingsImplied = await backfillImpliedTechRatingGrants({
+    db: props.db,
+  });
+  return {
+    ...userRatings,
+    techRatingsImplied,
   };
 }
 
@@ -160,43 +203,37 @@ export async function importLegacyRatingRows(props: {
 }): Promise<LegacyRatingImportResult> {
   const result = await prisma.$transaction(async (tx) => {
     const db: LegacyRatingImportDb = tx;
+    const catalogReconcile = await reconcileLegacyRatingCatalogGrants({ db });
     const ratingTypes = await importRatingTypes({
       db,
       ratingTypes: props.ratingTypes,
     });
-    const userRatings = await importUserRatings({
+    const userRatings = await importUserRatingsWithImpliedTech({
       db,
       members: props.members,
       ratings: props.ratings,
       sailingRatingIdByLegacyType: ratingTypes.sailingRatingIdByLegacyType,
     });
     return {
+      catalogGrantsMoved: catalogReconcile.grantsMoved,
+      catalogDuplicatesRemoved: catalogReconcile.duplicatesRemoved,
+      legacyCatalogRowsHidden: catalogReconcile.legacyRowsHidden,
       ratingTypesImported: ratingTypes.imported,
+      techRatingsImplied: userRatings.techRatingsImplied,
       userRatingsImported: userRatings.imported,
       userRatingsSkipped: userRatings.skipped,
     };
-  });
+  }, legacyImportTransactionOptions);
   return result;
 }
 
-export async function importLegacyRatingsFromSchema(): Promise<LegacyRatingImportResult> {
+export async function importLegacyRatings(
+  reader: LegacyMysqlReader = legacyMysqlReaderFromEnv()
+): Promise<LegacyRatingImportResult> {
   const [ratingTypes, ratings, members] = await Promise.all([
-    prisma.$queryRaw<LegacyRatingTypeRow[]>`
-      SELECT *
-      FROM legacy.rating_type
-      ORDER BY rank
-    `,
-    prisma.$queryRaw<LegacyRatingRow[]>`
-      SELECT *
-      FROM legacy.ratings
-      ORDER BY eval_date, id, rating_type
-    `,
-    prisma.$queryRaw<LegacyMemberRow[]>`
-      SELECT *
-      FROM legacy.members
-      WHERE active = '1'
-      ORDER BY lower(trim(email)), record_date DESC, record DESC
-    `,
+    reader.fetchRatingTypes(),
+    reader.fetchRatings(),
+    reader.fetchActiveMembers(),
   ]);
   return importLegacyRatingRows({ members, ratingTypes, ratings });
 }

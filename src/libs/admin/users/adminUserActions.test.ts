@@ -145,7 +145,7 @@ describe('admin user actions', () => {
     ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/users\/user-1$/u);
   });
 
-  it('stays on the edit screen when requested after updating a user', async () => {
+  it('stays on the admin tab when requested after updating a user', async () => {
     const { updateAdminUserAction } =
       await import('@/libs/admin/users/adminUserActions');
     const formData = new FormData();
@@ -153,6 +153,6 @@ describe('admin user actions', () => {
 
     await expect(
       updateAdminUserAction('en', 'user-1', formData)
-    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/users\/user-1\/edit$/u);
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/users\/user-1\?tab=admin$/u);
   });
 });

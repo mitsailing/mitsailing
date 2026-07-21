@@ -15,6 +15,8 @@ type FinalEnv = {
   HEALTHCHECK_SECRET?: string;
   IS_E2E?: '1';
   LEGACY_MYSQL_PASSWORD?: string;
+  LEGACY_MYSQL_HOST?: string;
+  LEGACY_MYSQL_PORT?: number;
   LEGACY_MYSQL_SYNC_ENABLED: 'false' | 'true';
   MEDIA_PUBLIC_BASE_URL?: string;
   MEDIA_STORAGE_ROOT: string;
@@ -185,6 +187,8 @@ export const Env = createEnv({
           'LEGACY_MYSQL_SYNC_CRON must be a six-field BullMQ cron (seconds first), e.g. 0 0 * * * *.',
       }),
     LEGACY_MYSQL_PASSWORD: z.string().min(1).optional(),
+    LEGACY_MYSQL_HOST: z.string().min(1).optional(),
+    LEGACY_MYSQL_PORT: z.coerce.number().int().positive().optional(),
 
     // APP_ENV is orthogonal to NODE_ENV: it names the deployment target
     // (staging runs a production build but behaves like staging — Mailpit
@@ -307,6 +311,8 @@ export const Env = createEnv({
     LEGACY_MYSQL_SYNC_ENABLED: process.env.LEGACY_MYSQL_SYNC_ENABLED,
     LEGACY_MYSQL_SYNC_CRON: process.env.LEGACY_MYSQL_SYNC_CRON,
     LEGACY_MYSQL_PASSWORD: process.env.LEGACY_MYSQL_PASSWORD,
+    LEGACY_MYSQL_HOST: process.env.LEGACY_MYSQL_HOST,
+    LEGACY_MYSQL_PORT: process.env.LEGACY_MYSQL_PORT,
     APP_ENV: process.env.APP_ENV,
     STAGING_BANNER: process.env.STAGING_BANNER,
     MAIL_TRANSPORT: process.env.MAIL_TRANSPORT,

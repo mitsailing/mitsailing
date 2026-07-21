@@ -258,12 +258,6 @@ export class SchemaType implements SchemaDef {
                     attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("UserAuditImpersonatedUser") }] }] as readonly AttributeApplication[],
                     relation: { opposite: "impersonatedUser", name: "UserAuditImpersonatedUser" }
                 },
-                siteTextOverrides: {
-                    name: "siteTextOverrides",
-                    type: "SiteTextOverride",
-                    array: true,
-                    relation: { opposite: "updatedBy" }
-                },
                 cmsMediaAssets: {
                     name: "cmsMediaAssets",
                     type: "CmsMediaAsset",
@@ -1209,74 +1203,6 @@ export class SchemaType implements SchemaDef {
             uniqueFields: {
                 id: { type: "String" },
                 auditableType_auditableId_version: { auditableType: { type: "String" }, auditableId: { type: "String" }, version: { type: "Int" } }
-            }
-        },
-        SiteTextOverride: {
-            name: "SiteTextOverride",
-            fields: {
-                id: {
-                    name: "id",
-                    type: "String",
-                    id: true,
-                    attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
-                    default: ExpressionUtils.call("cuid") as FieldDefault
-                },
-                locale: {
-                    name: "locale",
-                    type: "String"
-                },
-                namespace: {
-                    name: "namespace",
-                    type: "String"
-                },
-                key: {
-                    name: "key",
-                    type: "String"
-                },
-                value: {
-                    name: "value",
-                    type: "String",
-                    attributes: [{ name: "@db.Text" }] as readonly AttributeApplication[]
-                },
-                updatedByUserId: {
-                    name: "updatedByUserId",
-                    type: "String",
-                    optional: true,
-                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("updated_by_user_id") }] }] as readonly AttributeApplication[],
-                    foreignKeyFor: [
-                        "updatedBy"
-                    ] as readonly string[]
-                },
-                createdAt: {
-                    name: "createdAt",
-                    type: "DateTime",
-                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.call("now") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_at") }] }] as readonly AttributeApplication[],
-                    default: ExpressionUtils.call("now") as FieldDefault
-                },
-                updatedAt: {
-                    name: "updatedAt",
-                    type: "DateTime",
-                    updatedAt: true,
-                    attributes: [{ name: "@updatedAt" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("updated_at") }] }] as readonly AttributeApplication[]
-                },
-                updatedBy: {
-                    name: "updatedBy",
-                    type: "User",
-                    optional: true,
-                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("updatedByUserId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
-                    relation: { opposite: "siteTextOverrides", fields: ["updatedByUserId"], references: ["id"], onDelete: "SetNull" }
-                }
-            },
-            attributes: [
-                { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("locale"), ExpressionUtils.field("namespace"), ExpressionUtils.field("key")]) }] },
-                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("locale")]) }] },
-                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("updatedByUserId")]) }] },
-                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("site_text_overrides") }] }
-            ] as readonly AttributeApplication[],
-            idFields: ["id"],
-            uniqueFields: {
-                id: { type: "String" },
-                locale_namespace_key: { locale: { type: "String" }, namespace: { type: "String" }, key: { type: "String" } }
             }
         },
         NewsletterSubscriber: {

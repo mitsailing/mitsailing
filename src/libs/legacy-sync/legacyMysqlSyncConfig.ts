@@ -5,7 +5,11 @@ import {
   LEGACY_MYSQL_SYNC_JOB_NAME,
   LEGACY_MYSQL_SYNC_SCHEDULER_ID,
 } from '@/libs/legacy-sync/legacyMysqlSyncConstants';
-import { LEGACY_MYSQL_SOURCE } from '@/libs/legacy-sync/mysqlConnection';
+import {
+  LEGACY_MYSQL_SOURCE,
+  legacyMysqlHostFromEnv,
+} from '@/libs/legacy-sync/mysqlConnection';
+import type { LegacyMysqlConnectionEnv } from '@/libs/legacy-sync/mysqlConnection';
 
 export { LEGACY_MYSQL_SYNC_JOB_NAME, LEGACY_MYSQL_SYNC_SCHEDULER_ID };
 
@@ -16,10 +20,10 @@ export type LegacyMysqlSyncConfig =
       database: typeof LEGACY_MYSQL_SOURCE.database;
       enabled: true;
       mysqlPassword: string;
-      sourceHost: typeof LEGACY_MYSQL_SOURCE.host;
+      sourceHost: string;
     };
 
-type LegacyMysqlSyncEnv = {
+type LegacyMysqlSyncEnv = LegacyMysqlConnectionEnv & {
   LEGACY_MYSQL_PASSWORD?: string;
   LEGACY_MYSQL_SYNC_CRON?: string;
   LEGACY_MYSQL_SYNC_ENABLED?: string;
@@ -53,6 +57,6 @@ export function legacyMysqlSyncConfigFromEnv(
     cron,
     database: LEGACY_MYSQL_SOURCE.database,
     mysqlPassword: env.LEGACY_MYSQL_PASSWORD,
-    sourceHost: LEGACY_MYSQL_SOURCE.host,
+    sourceHost: legacyMysqlHostFromEnv(env),
   };
 }

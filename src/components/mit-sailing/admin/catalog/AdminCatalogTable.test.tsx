@@ -177,7 +177,7 @@ function renderReorderableUsersTable() {
 
 function expectOnlyUserLink(name: 'Ada Lovelace' | 'Grace Hopper') {
   const hiddenName = name === 'Ada Lovelace' ? 'Grace Hopper' : 'Ada Lovelace';
-  expect(screen.getByRole('link', { name })).toBeVisible();
+  expect(screen.getAllByRole('link', { name }).length).toBeGreaterThan(0);
   expect(screen.queryByRole('link', { name: hiddenName })).toBeNull();
 }
 

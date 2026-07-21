@@ -11,6 +11,7 @@ export type SailingRatingSeed = {
   displayOrder: number;
   isVisible: boolean;
   isDeprecated: boolean;
+  legacyRatingType?: string;
 };
 
 export type SailingRatingRuleSeed = {
@@ -31,6 +32,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: 'swim-rating',
     name: 'Swim Rating',
     shortName: 'Swim',
+    legacyRatingType: '1',
     description:
       'The base rating that confirms a sailor has passed the MIT boating swim test or has certified an equivalent swimming ability.',
     category: 'Safety',
@@ -46,6 +48,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: 'tech-rating',
     name: 'Tech Rating',
     shortName: 'Tech',
+    legacyRatingType: '5',
     description:
       'First MIT sail rating earned from an Introduction class. It allows members to use Tech Dinghies and join Mashnee sails as crew, but not skipper them.',
     category: 'Dinghy',
@@ -61,6 +64,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: 'provisional-rating',
     name: 'Provisional Rating',
     shortName: 'Provisional',
+    legacyRatingType: '7',
     description:
       'Staff checkoff for safe Charles River sailing: basic maneuvers, rigging and unrigging, safety precautions, right-of-way rules, and care of the Tech dinghy.',
     category: 'Dinghy',
@@ -76,6 +80,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: 'crew-rating',
     name: 'Crew Rating',
     shortName: 'Crew',
+    legacyRatingType: '8',
     description:
       'General seamanship rating for nautical knowledge, terminology, knots, splices, and the material covered in the MIT Sailing booklet.',
     category: 'Seamanship',
@@ -91,6 +96,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: 'helmsman-rating',
     name: 'Helmsman Rating',
     shortName: 'Helmsman',
+    legacyRatingType: '10',
     description:
       'Strong-wind solo Tech dinghy rating for sailors who can sail upwind with good hiking technique, gybe downwind, and demonstrate man-overboard recovery.',
     category: 'Dinghy',
@@ -106,6 +112,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: 'lynx-catboat-rating',
     name: 'Lynx Catboat Rating',
     shortName: 'Lynx',
+    legacyRatingType: '16',
     description:
       'Clears sailors for Lynx Catboats in medium to strong winds and for moonlight sailing. Additional experience is needed to lead harbor trips.',
     category: 'Catboat',
@@ -121,6 +128,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: 'laser-basic-rating',
     name: 'Laser: Basic',
     shortName: 'Laser Basic',
+    legacyRatingType: '12',
     description:
       'Basic Laser rating for sailors who can rig the boat, handle capsize-prone single-handed sailing, and use Laser sail controls safely.',
     category: 'Racing',
@@ -151,6 +159,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: 'firefly-basic-rating',
     name: 'Firefly: Basic',
     shortName: 'Firefly Basic',
+    legacyRatingType: '18',
     description:
       'Basic Firefly rating for the Pavilion fleet of Firefly dinghies in medium to strong wind conditions.',
     category: 'Racing',
@@ -181,6 +190,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: '420-basic-rating',
     name: '420: Basic',
     shortName: '420 Basic',
+    legacyRatingType: '21',
     description:
       'Basic 420 rating for medium to strong wind sailing in Club 420s.',
     category: 'Racing',
@@ -211,6 +221,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: 'moth-basic-rating',
     name: 'Moth: Basic',
     shortName: 'Moth Basic',
+    legacyRatingType: '22',
     description:
       'Basic Moth rating for advanced sailors. Moth ratings are assigned only by the Dock Master.',
     category: 'Foiling',
@@ -241,6 +252,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: 'board-sailing-class-rating',
     name: 'Board Sailing Class',
     shortName: 'Board Class',
+    legacyRatingType: '20',
     description:
       'Introductory board sail rating earned from the windsurfing class. Sailors know basic rigging and elementary windsurfing and should check in with dock staff.',
     category: 'Windsurfing',
@@ -256,6 +268,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: 'board-sailing-basic-rating',
     name: 'Board Sailing: Basic',
     shortName: 'Board Basic',
+    legacyRatingType: '14',
     description:
       'Board sail rating for sailors who can rig beginner equipment, tack, and sail upwind in light to medium wind below 15 knots.',
     category: 'Windsurfing',
@@ -286,6 +299,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: 'bluewater-crew-rating',
     name: 'Bluewater Crew',
     shortName: 'Bluewater Crew',
+    legacyRatingType: '116',
     description:
       'Mashnee leadership rating for sailors who can assist the skipper in safe operation, including winch operation, sail trim, line handling, docking, safety, and navigation.',
     category: 'Bluewater',
@@ -301,6 +315,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: 'bluewater-skipper-rating',
     name: 'Bluewater Skipper',
     shortName: 'Bluewater Skipper',
+    legacyRatingType: '115',
     description:
       'Mashnee skipper rating for sailors approved to schedule trips and captain MIT Sailing bluewater sails in Boston Harbor.',
     category: 'Bluewater',
@@ -316,6 +331,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     slug: 'sailing-team-rating',
     name: 'Sailing Team',
     shortName: 'Sailing Team',
+    legacyRatingType: '15',
     description:
       'Team sail rating for sailors cleared for Sailing Team fleet use across Tech Dinghies, FJs, 420s, Fireflies, and Lasers.',
     category: 'Team',
@@ -327,6 +343,10 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     isDeprecated: false,
   },
 ];
+
+export const CATALOG_SAILING_RATING_IDS = SAILING_RATINGS.map(
+  (rating) => rating.id
+);
 
 export const SAILING_RATING_RULES: SailingRatingRuleSeed[] = [
   {
