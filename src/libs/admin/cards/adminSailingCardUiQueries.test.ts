@@ -4,19 +4,8 @@ import {
   sailingCardAgreement,
   sailingCardAgreementHash,
 } from '@/libs/mit-sailing/sailingCardAgreement';
-import type * as SailingCardValidityModule from '@/libs/mit-sailing/sailingCardValidity';
 
 vi.mock('server-only', () => ({}));
-
-vi.mock('@/libs/mit-sailing/sailingCardValidity', async () => {
-  const actual = await vi.importActual<typeof SailingCardValidityModule>(
-    '@/libs/mit-sailing/sailingCardValidity'
-  );
-  return {
-    ...actual,
-    getCurrentSailingCardYear: () => 2026,
-  };
-});
 
 const mocks = vi.hoisted(() => ({
   sailingCardRequestFindFirst: vi.fn(),

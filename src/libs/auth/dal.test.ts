@@ -104,7 +104,6 @@ const currentOnboardingLegalAcceptance = {
 };
 
 beforeEach(() => {
-  vi.useRealTimers();
   authGetSession.mockReset();
   headers.mockReset();
   prismaUserFindUnique.mockReset();

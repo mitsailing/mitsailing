@@ -14,6 +14,8 @@ alwaysApply: false
 
 **Vitest:** AAA; **`vi.fn()`** at boundaries only — not the unit under test; DI / fakes over deep **`vi.mock`**; **`beforeEach`** / **`afterEach`**; **`it.each`** for tables. Prefer pure logic, validators, server modules; RSC/actions → extract testable modules; avoid brittle render tests unless repo already patterns that.
 
+**Clock:** Tests never read the real calendar. [`tests/setup/clock.ts`](../../tests/setup/clock.ts) pins `TEST_NOW` for the `unit` + `component` projects and `TZ=UTC` is pinned in the `test` scripts, so date-dependent assertions stay stable across years and host zones. Call **`vi.setSystemTime`** in a suite only to exercise a specific boundary (for example the July 15 sailing-card rollover), and do not add **`vi.useFakeTimers`** just to pin a date — that puts async paths on fake timers. Never hard-code a calendar year to match the live clock; Playwright specs derive dates from the same helpers as production.
+
 **E2E:** **`npm run test:e2e`** “done” = **e2e-verification.mdc** (full run). Ratio targets optional unless CI says so.
 
 **Coverage:** Behavior over metrics; thresholds only if [`vitest.config.mts`](../../vitest.config.mts) / CI already set them.
