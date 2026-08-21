@@ -23,9 +23,6 @@ function composeVariable(value: string): string {
 const mailpitRoute = '/mail';
 const mailpitWebroot = `${mailpitRoute}/`;
 const mailpitRouteVariable = composeVariable('MAILPIT_ROUTE');
-const mailpitWebrootVariable = `${String.fromCodePoint(36)}${composeVariable(
-  'MP_WEBROOT:-/'
-)}`;
 const pgheroRoute = '/pghero';
 const pgheroRouteVariable = composeVariable('PGHERO_ROUTE');
 
@@ -290,7 +287,8 @@ describe('production docker compose', () => {
       `${productionDataRoot}/mailpit`,
       'target: /data',
       'create_host_path: false',
-      `http://127.0.0.1:8025${mailpitWebrootVariable}readyz`,
+      "'/mailpit', 'readyz'",
+      'start_period: 10s',
     ]);
     expect(mailpitBlock).not.toContain('ports:');
     expect(appBlock).toMatch(/mailpit:\s+condition: service_healthy/u);

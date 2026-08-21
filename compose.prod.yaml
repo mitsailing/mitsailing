@@ -207,13 +207,10 @@ services:
         bind:
           create_host_path: false
     healthcheck:
-      test:
-        [
-          'CMD-SHELL',
-          'wget --quiet --tries=1 --spider "http://127.0.0.1:8025$${MP_WEBROOT:-/}readyz"',
-        ]
+      test: ['CMD', '/mailpit', 'readyz']
       interval: 10s
       timeout: 5s
+      start_period: 10s
       retries: 6
     deploy:
       resources:
