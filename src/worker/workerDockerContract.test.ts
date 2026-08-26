@@ -40,6 +40,7 @@ describe('worker Docker contract', () => {
     expect(scripts['build:worker']).toContain(
       'esbuild src/worker/index.ts --bundle --platform=node --target=node24 --outfile=worker.mjs --format=esm'
     );
+    expect(scripts['build:worker']).toContain('--packages=external');
     expect(scripts['build:worker']).toContain(
       '--banner:js="import { createRequire } from \'node:module\'; const require = createRequire(import.meta.url);"'
     );
