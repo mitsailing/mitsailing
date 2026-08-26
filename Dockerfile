@@ -110,6 +110,11 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 
 RUN apk add --no-cache libc6-compat openssl
 
+# The node:24-alpine base ships its own npm (with bundled tar). Trivy scans that
+# copy separately from app/node_modules; align it with our npm override so tar
+# meets CVE-2026-59873 (fixed in npm 11.18+ / tar 7.5.19+).
+RUN npm install -g npm@11.19.0 --no-audit --no-fund
+
 # Non-root runtime — container breakouts that land on PID 1 only get a
 # restricted shell.
 RUN addgroup --system --gid 1001 nodejs \
