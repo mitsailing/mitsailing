@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { ActionForm, FormActions } from '@/components/ui/action-form';
 import { SubmitButton } from '@/components/ui/submit-button';
 import {
+  clearFormValidationSummaryInvalidState,
   collectInvalidFormControls,
   getFormControlLabel,
 } from '@/libs/forms/formValidationSummary';
@@ -30,6 +31,58 @@ describe('formValidationSummary', () => {
       controlId: 'name-field',
       label: 'Name',
     });
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('data-form-validation-summary-invalid');
+  });
+
+  it('clears helper-added invalid markers', () => {
+    render(
+      <form aria-label="Test form">
+        <label htmlFor="name-field">Name</label>
+        <input id="name-field" name="name" required type="text" />
+      </form>
+    );
+    const form = screen.getByRole('form', { name: 'Test form' });
+    if (!(form instanceof HTMLFormElement)) {
+      throw new TypeError('expected HTMLFormElement');
+    }
+    const input = screen.getByLabelText('Name');
+    collectInvalidFormControls(form);
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+
+    clearFormValidationSummaryInvalidState(form);
+
+    expect(input).not.toHaveAttribute('aria-invalid');
+    expect(input).not.toHaveAttribute('data-form-validation-summary-invalid');
+  });
+
+  it('preserves pre-existing aria-invalid values when clearing', () => {
+    render(
+      <form aria-label="Test form">
+        <label htmlFor="name-field">Name</label>
+        <input
+          aria-invalid="true"
+          id="name-field"
+          name="name"
+          required
+          type="text"
+        />
+      </form>
+    );
+    const form = screen.getByRole('form', { name: 'Test form' });
+    if (!(form instanceof HTMLFormElement)) {
+      throw new TypeError('expected HTMLFormElement');
+    }
+    collectInvalidFormControls(form);
+    clearFormValidationSummaryInvalidState(form);
+
+    expect(screen.getByLabelText('Name')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+    expect(screen.getByLabelText('Name')).not.toHaveAttribute(
+      'data-form-validation-summary-invalid'
+    );
   });
 
   it('reads aria-label when no associated label exists', () => {

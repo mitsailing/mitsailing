@@ -69,10 +69,35 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
   const [content, setContent] = useState(props.content);
   const [previewText, setPreviewText] = useState(props.previewText);
   const [subject, setSubject] = useState(props.subject);
+  const actionsRef = useRef(props);
+  actionsRef.current = props;
+  const prepareFormDataRef = useRef(async (_formData: FormData) => {
+    await Promise.resolve();
+  });
 
   function currentEditorContent() {
     return editorRef.current?.editor?.getHTML() ?? content;
   }
+
+  prepareFormDataRef.current = async (formData: FormData) => {
+    const bodyHtml =
+      (await editorRef.current?.getEmailHTML()) ?? currentEditorContent();
+    const text = (await editorRef.current?.getEmailText()) ?? '';
+    const json = editorRef.current?.getJSON() ?? null;
+    formData.set('editorBodyHtml', bodyHtml);
+    formData.set('renderedText', text);
+    formData.set('editorJson', JSON.stringify(json));
+  };
+
+  const saveFormAction = useRef(async (formData: FormData) => {
+    await prepareFormDataRef.current(formData);
+    await actionsRef.current.saveAction(formData);
+  }).current;
+
+  const sendTestFormAction = useRef(async (formData: FormData) => {
+    await prepareFormDataRef.current(formData);
+    await actionsRef.current.sendTestAction(formData);
+  }).current;
 
   function persistDraft(next: Partial<StoredDraft>) {
     globalThis.localStorage.setItem(
@@ -83,16 +108,6 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
         subject: next.subject ?? subject,
       })
     );
-  }
-
-  async function prepareFormData(formData: FormData) {
-    const bodyHtml =
-      (await editorRef.current?.getEmailHTML()) ?? currentEditorContent();
-    const text = (await editorRef.current?.getEmailText()) ?? '';
-    const json = editorRef.current?.getJSON() ?? null;
-    formData.set('editorBodyHtml', bodyHtml);
-    formData.set('renderedText', text);
-    formData.set('editorJson', JSON.stringify(json));
   }
 
   useEffect(() => {
@@ -111,13 +126,7 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
   }, [props.clearDraftOnMount, storageKey]);
 
   return (
-    <form
-      action={async (formData) => {
-        await prepareFormData(formData);
-        await props.saveAction(formData);
-      }}
-      className="flex flex-col gap-5"
-    >
+    <form className="flex flex-col gap-5">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="email-template-subject">
@@ -184,16 +193,18 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
         </div>
         <SubmitButton
           className="self-end"
-          formAction={async (formData) => {
-            await prepareFormData(formData);
-            await props.sendTestAction(formData);
-          }}
+          formAction={sendTestFormAction}
           pendingKind="sending"
           variant="outline"
         >
           {props.text.sendTest}
         </SubmitButton>
-        <SubmitButton className="self-end" pendingKind="saving" variant="mit">
+        <SubmitButton
+          className="self-end"
+          formAction={saveFormAction}
+          pendingKind="saving"
+          variant="mit"
+        >
           {props.text.saveDraft}
         </SubmitButton>
       </div>

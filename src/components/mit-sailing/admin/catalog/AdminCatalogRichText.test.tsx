@@ -1155,7 +1155,7 @@ describe('Admin catalog media fields', () => {
       originalFilename: 'hero.png',
       publicPath: '/cms-media/asset-5/hero.png',
     });
-    const saveAction = vi.fn(async (_formData: FormData) => {
+    const saveAction = vi.fn(async () => {
       await Promise.resolve();
     });
     const user = userEvent.setup();

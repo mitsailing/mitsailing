@@ -91,7 +91,10 @@ export function collectInvalidFormControls(
       continue;
     }
 
-    element.setAttribute('aria-invalid', 'true');
+    if (!element.hasAttribute('aria-invalid')) {
+      element.setAttribute('aria-invalid', 'true');
+      element.dataset.formValidationSummaryInvalid = '';
+    }
     entries.push({
       controlId,
       label: getFormControlLabel(element),
@@ -100,6 +103,25 @@ export function collectInvalidFormControls(
   }
 
   return entries;
+}
+
+/**
+ * Removes `aria-invalid` markers added by {@link collectInvalidFormControls}.
+ *
+ * @param form - Form whose controls should be reset
+ */
+export function clearFormValidationSummaryInvalidState(
+  form: HTMLFormElement
+): void {
+  for (const element of form.querySelectorAll(
+    '[data-form-validation-summary-invalid]'
+  )) {
+    if (!(element instanceof HTMLElement)) {
+      continue;
+    }
+    element.removeAttribute('aria-invalid');
+    delete element.dataset.formValidationSummaryInvalid;
+  }
 }
 
 /**

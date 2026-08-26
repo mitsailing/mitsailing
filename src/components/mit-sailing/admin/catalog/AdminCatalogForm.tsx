@@ -1041,7 +1041,12 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
   });
   const [cmsBlockGroupsEnabled, setCmsBlockGroupsEnabled] = useState(() => {
     const preview = initialCmsBlockPreviewState(props.row);
-    return { cta: preview.showCta, image: preview.showImage };
+    const { fieldErrors } = props;
+    return {
+      cta: preview.showCta || !!(fieldErrors?.ctaLabel ?? fieldErrors?.ctaUrl),
+      image:
+        preview.showImage || !!(fieldErrors?.imageAlt ?? fieldErrors?.imageSrc),
+    };
   });
   const [cmsPricingEditorState, setCmsPricingEditorState] = useState(() =>
     initialCmsPricingEditorState(props.row)

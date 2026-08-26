@@ -1,9 +1,12 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import type * as React from 'react';
+import * as React from 'react';
 import { AdminErrorAlert } from '@/components/mit-sailing/admin/AdminErrorAlert';
-import { FormErrorHandling } from '@/components/ui/form-error-handling';
+import {
+  FormErrorHandling,
+  FormSubmitTimeoutContext,
+} from '@/components/ui/form-error-handling';
 import { cn } from '@/lib/utils';
 import type { FormValidationSummaryEntry } from '@/libs/forms/formValidationSummary';
 
@@ -29,26 +32,30 @@ export type ActionFormProps = {
  */
 export function ActionForm(props: ActionFormProps) {
   const tCommon = useTranslations('Common');
+  const [submitTimedOut, setSubmitTimedOut] = React.useState(false);
 
   return (
-    <form
-      action={props.action}
-      autoComplete={props.autoComplete}
-      className={props.className}
-      onSubmit={props.onSubmit}
-    >
-      <FormErrorHandling
-        additionalErrors={props.additionalErrors}
-        formId={props.formId}
-        serverFieldErrors={props.serverFieldErrors}
-        summaryTitle={tCommon('form_error_summary_title')}
-        timeoutMessage={tCommon('form_error_submit_timeout')}
-      />
-      {props.formError ? (
-        <AdminErrorAlert className="mb-4">{props.formError}</AdminErrorAlert>
-      ) : null}
-      {props.children}
-    </form>
+    <FormSubmitTimeoutContext.Provider value={submitTimedOut}>
+      <form
+        action={props.action}
+        autoComplete={props.autoComplete}
+        className={props.className}
+        onSubmit={props.onSubmit}
+      >
+        <FormErrorHandling
+          additionalErrors={props.additionalErrors}
+          formId={props.formId}
+          onSubmitTimedOutChange={setSubmitTimedOut}
+          serverFieldErrors={props.serverFieldErrors}
+          summaryTitle={tCommon('form_error_summary_title')}
+          timeoutMessage={tCommon('form_error_submit_timeout')}
+        />
+        {props.formError ? (
+          <AdminErrorAlert className="mb-4">{props.formError}</AdminErrorAlert>
+        ) : null}
+        {props.children}
+      </form>
+    </FormSubmitTimeoutContext.Provider>
   );
 }
 

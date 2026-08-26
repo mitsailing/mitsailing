@@ -63,7 +63,6 @@ const baseConfig: NextConfig = {
     ? { deploymentId: process.env.DEPLOYMENT_VERSION }
     : {}),
   experimental: {
-    proxyClientMaxBodySize: '1mb',
     serverActions: {
       bodySizeLimit: '1mb',
     },

@@ -5,10 +5,14 @@ import * as React from 'react';
 import { useFormStatus } from 'react-dom';
 import { cn } from '@/lib/utils';
 import {
+  clearFormValidationSummaryInvalidState,
   collectInvalidFormControls,
   focusFormControl,
 } from '@/libs/forms/formValidationSummary';
 import type { FormValidationSummaryEntry } from '@/libs/forms/formValidationSummary';
+
+/** When true, {@link SubmitButton} stops treating the form as pending so users can retry. */
+export const FormSubmitTimeoutContext = React.createContext(false);
 
 /** Warn when a submit stays pending longer than users will realistically wait. */
 const DEFAULT_SUBMIT_TIMEOUT_MS = 5000;
@@ -16,6 +20,7 @@ const DEFAULT_SUBMIT_TIMEOUT_MS = 5000;
 export type FormErrorHandlingProps = {
   additionalErrors?: readonly FormValidationSummaryEntry[];
   formId: string;
+  onSubmitTimedOutChange?: (timedOut: boolean) => void;
   serverFieldErrors?: readonly FormValidationSummaryEntry[];
   submitTimeoutMs?: number;
   summaryTitle: string;
@@ -58,6 +63,12 @@ export function FormErrorHandling(props: FormErrorHandlingProps) {
     FormValidationSummaryEntry[]
   >([]);
   const [submitTimedOut, setSubmitTimedOut] = React.useState(false);
+  const onSubmitTimedOutChangeRef = React.useRef(props.onSubmitTimedOutChange);
+  onSubmitTimedOutChangeRef.current = props.onSubmitTimedOutChange;
+
+  React.useEffect(() => {
+    onSubmitTimedOutChangeRef.current?.(submitTimedOut);
+  }, [submitTimedOut]);
 
   const items = mergeSummaryEntries(
     props.serverFieldErrors,
@@ -75,10 +86,11 @@ export function FormErrorHandling(props: FormErrorHandlingProps) {
   );
 
   React.useEffect(() => {
-    const form = summaryRef.current?.closest('form');
-    if (!form) {
+    const formElement = summaryRef.current?.closest('form');
+    if (!(formElement instanceof HTMLFormElement)) {
       return;
     }
+    const form = formElement;
 
     function onInvalid(event: Event) {
       event.preventDefault();
@@ -99,6 +111,7 @@ export function FormErrorHandling(props: FormErrorHandlingProps) {
     }
 
     function onSubmit() {
+      clearFormValidationSummaryInvalidState(form);
       setValidationErrors([]);
       setSubmitTimedOut(false);
     }
@@ -164,18 +177,22 @@ export function FormErrorHandling(props: FormErrorHandlingProps) {
       <ul className="list-disc space-y-1 pl-5">
         {items.map((entry) => (
           <li key={entry.controlId}>
-            <button
-              className="text-left underline underline-offset-2"
-              onClick={() => {
-                const form = summaryRef.current?.closest('form');
-                if (form instanceof HTMLFormElement) {
-                  focusFormControl(form, entry.controlId);
-                }
-              }}
-              type="button"
-            >
-              {entry.label}: {entry.message}
-            </button>
+            {entry.controlId.endsWith('-submit-timeout') ? (
+              <span>{entry.message}</span>
+            ) : (
+              <button
+                className="text-left underline underline-offset-2"
+                onClick={() => {
+                  const form = summaryRef.current?.closest('form');
+                  if (form instanceof HTMLFormElement) {
+                    focusFormControl(form, entry.controlId);
+                  }
+                }}
+                type="button"
+              >
+                {entry.label}: {entry.message}
+              </button>
+            )}
           </li>
         ))}
       </ul>
