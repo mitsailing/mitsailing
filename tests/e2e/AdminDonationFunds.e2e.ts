@@ -64,9 +64,9 @@ test.describe('Admin donation funds', () => {
     await page.goto('/admin/donation_funds/new');
     await page.getByLabel('Designation ID').fill('e2e-validation-blocked');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(page.getByRole('alert')).toContainText(
-      'Fix the following errors'
-    );
+    await expect(
+      page.locator('[data-slot="form-error-summary"]')
+    ).toContainText('Fix the following errors');
     await expect(page.getByRole('button', { name: /Name:/u })).toBeVisible();
   });
 

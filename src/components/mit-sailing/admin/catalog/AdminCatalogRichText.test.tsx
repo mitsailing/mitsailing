@@ -1138,11 +1138,11 @@ describe('AdminRichTextEditor media controls', () => {
 describe('Admin catalog media fields', () => {
   function validationSummaryAlert(): HTMLElement {
     const title = screen.getByText('Fix the following errors');
-    const alert = title.closest('[role="alert"]');
-    if (!(alert instanceof HTMLElement)) {
+    const summary = title.closest('[data-slot="form-error-summary"]');
+    if (!(summary instanceof HTMLElement)) {
       throw new TypeError('Expected validation summary alert');
     }
-    return alert;
+    return summary;
   }
 
   function expectValidationSummaryFocused(): void {

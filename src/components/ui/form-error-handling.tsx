@@ -155,6 +155,7 @@ export function FormErrorHandling(props: FormErrorHandlingProps) {
         'flex flex-col gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive dark:bg-destructive/20',
         'outline-none focus-visible:ring-2 focus-visible:ring-ring'
       )}
+      data-slot="form-error-summary"
       ref={summaryRef}
       role="alert"
       tabIndex={-1}
