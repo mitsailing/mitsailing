@@ -44,8 +44,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Regenerate the Prisma client against the current schema so the build
-# includes its types.
-RUN npm exec --no -- prisma generate
+# includes its types. `--no-hints` suppresses the CLI banners and opt-in
+# prompts added in Prisma 7.10 so the build can never stall on stdin.
+RUN npm exec --no -- prisma generate --no-hints
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
