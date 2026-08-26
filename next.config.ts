@@ -62,6 +62,12 @@ const baseConfig: NextConfig = {
   ...(process.env.DEPLOYMENT_VERSION
     ? { deploymentId: process.env.DEPLOYMENT_VERSION }
     : {}),
+  experimental: {
+    proxyClientMaxBodySize: '1mb',
+    serverActions: {
+      bodySizeLimit: '1mb',
+    },
+  },
   // Sitemap is `force-dynamic` + `unstable_cache` (24h) on origin; shared caches
   // should hold the XML so crawlers do not stampede the app. Matches sitemap TTL.
   headers: () => [

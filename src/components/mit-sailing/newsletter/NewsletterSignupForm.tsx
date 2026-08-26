@@ -3,10 +3,9 @@
 import { MailPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { submitNewsletterSignupAction } from '@/libs/newsletter/newsletterActions';
 import type { NewsletterSignupFormState } from '@/libs/newsletter/newsletterActions';
 import { newsletterSignupFieldNames } from '@/libs/newsletter/newsletterValidation';
@@ -24,22 +23,6 @@ type NewsletterSignupFormProps = Readonly<{
 const initialNewsletterSignupFormState: NewsletterSignupFormState = {
   ok: false,
 };
-
-function SubmitButton() {
-  const t = useTranslations('NewsletterPage');
-  const status = useFormStatus();
-  return (
-    <Button
-      className="min-h-11 w-full gap-2 sm:w-auto"
-      disabled={status.pending}
-      type="submit"
-      variant="mit"
-    >
-      <MailPlus aria-hidden className="size-4" />
-      {status.pending ? t('signup_submit_pending') : t('signup_submit')}
-    </Button>
-  );
-}
 
 function emailErrorMessageKey(
   error: NonNullable<NewsletterSignupFormState['fieldErrors']>['email']
@@ -199,7 +182,15 @@ export function NewsletterSignupForm(props: NewsletterSignupFormProps) {
             <p className="m-0 text-sm leading-relaxed text-mit-text">
               {t('signup_privacy')}
             </p>
-            <SubmitButton />
+            <SubmitButton
+              className="min-h-11 w-full gap-2 sm:w-auto"
+              pendingKind="submitting"
+              pendingLabel={t('signup_submit_pending')}
+              variant="mit"
+            >
+              <MailPlus aria-hidden className="size-4" />
+              {t('signup_submit')}
+            </SubmitButton>
           </div>
         </>
       )}

@@ -57,6 +57,19 @@ test.describe('Admin donation funds', () => {
     );
   });
 
+  test('admin blocked submit shows validation summary on new fund form', async ({
+    page,
+  }) => {
+    await signInAsAdmin(page);
+    await page.goto('/admin/donation_funds/new');
+    await page.getByLabel('Designation ID').fill('e2e-validation-blocked');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText(
+      'Fix the following errors'
+    );
+    await expect(page.getByRole('button', { name: /Name:/u })).toBeVisible();
+  });
+
   test('toggling hidden fund visibility is reflected on public donate page', async ({
     page,
   }) => {

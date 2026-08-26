@@ -1,5 +1,5 @@
 import { Mail } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import { PaymentStatus } from '@/generated/prisma/enums';
 import type { PaymentStatus as PaymentStatusValue } from '@/generated/prisma/enums';
@@ -82,10 +82,15 @@ export function AdminEventRegistrationPaymentValue(props: {
       </div>
       {props.accessMode === 'editable' && payment.resendEligible ? (
         <form action={resendAction}>
-          <Button className="w-fit" size="sm" type="submit" variant="outline">
+          <SubmitButton
+            className="w-fit"
+            pendingKind="sending"
+            size="sm"
+            variant="outline"
+          >
             <Mail aria-hidden className="size-4" />
             {props.t('payment_resend_request')}
-          </Button>
+          </SubmitButton>
         </form>
       ) : null}
       {props.accessMode === 'editable' &&
@@ -98,9 +103,14 @@ export function AdminEventRegistrationPaymentValue(props: {
             placeholder={props.t('payment_manual_note_placeholder')}
             required
           />
-          <Button className="w-fit" size="sm" type="submit" variant="outline">
+          <SubmitButton
+            className="w-fit"
+            pendingKind="saving"
+            size="sm"
+            variant="outline"
+          >
             {props.t('payment_mark_handled')}
-          </Button>
+          </SubmitButton>
         </form>
       ) : null}
       {payment.manualHandledNote ? (

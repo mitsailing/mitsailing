@@ -5,6 +5,7 @@ import * as React from 'react';
 import { useActionState } from 'react';
 import { RegistrationBooleanSwitch } from '@/components/mit-sailing/events/RegistrationBooleanSwitch';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
@@ -60,9 +61,6 @@ type EventRegistrationFormProps = {
   labels: EventRegistrationFormLabels;
   locale: string;
 };
-
-const registrationSelectClassName =
-  'min-h-11 min-w-0 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-base text-mit-text transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:min-h-8 md:text-sm dark:bg-input-background dark:contrast-more:border-white';
 
 const initialRegistrationFormState: PublicEventRegistrationFormState = {
   code: null,
@@ -219,10 +217,10 @@ function QuestionField(props: {
           >
             {questionLabel}
           </label>
-          <select
+          <NativeSelect
             aria-describedby={describedBy}
             aria-invalid={errorMessage ? true : undefined}
-            className={registrationSelectClassName}
+            className="min-h-11 text-mit-text md:min-h-8"
             defaultValue={fieldValue(props.state, name)}
             id={controlId}
             name={name}
@@ -234,7 +232,7 @@ function QuestionField(props: {
                 {option}
               </option>
             ))}
-          </select>
+          </NativeSelect>
           <FieldError id={errorId} message={errorMessage} />
         </>
       ) : null}

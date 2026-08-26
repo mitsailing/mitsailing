@@ -10,9 +10,9 @@ import {
   adminEventFormErrorMessage,
 } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { EventDetailPageKind } from '@/generated/prisma/enums';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import { createAdminEventAction } from '@/libs/admin/events/eventAdminActions';
 import { adminEventsIndexPath } from '@/libs/admin/events/eventAdminPaths';
 import type { AdminEventCategoryOption } from '@/libs/admin/events/eventAdminQueries';
@@ -99,8 +99,7 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
               label={props.t('field_category')}
             >
               {(controlProps) => (
-                <select
-                  className={adminNativeSelectClassName}
+                <NativeSelect
                   defaultValue={props.categories[0]?.id ?? ''}
                   disabled={!hasCategories}
                   id="event-category"
@@ -118,7 +117,7 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
                       {category.name}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               )}
             </AdminEventField>
           </div>

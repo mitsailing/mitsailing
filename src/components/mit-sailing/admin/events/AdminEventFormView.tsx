@@ -30,6 +30,7 @@ import {
 } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -40,7 +41,6 @@ import {
   EventSailingCardRequirement,
   LearnToSailManagedClassKind,
 } from '@/generated/prisma/enums';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
   ADMIN_FORM_REDIRECT_TO_EDIT,
   ADMIN_FORM_REDIRECT_TO_FIELD,
@@ -280,8 +280,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
             htmlFor="event-category"
             label={props.t('field_category')}
           >
-            <select
-              className={adminNativeSelectClassName}
+            <NativeSelect
               defaultValue={props.event.eventCategoryId}
               id="event-category"
               name="eventCategoryId"
@@ -292,7 +291,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
                   {category.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </AdminEventField>
         </div>
 
@@ -501,8 +500,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
                   label={props.t('field_learn_to_sail_managed_class_kind')}
                 >
                   {(controlProps) => (
-                    <select
-                      className={adminNativeSelectClassName}
+                    <NativeSelect
                       defaultValue={
                         props.event.learnToSailManagedClassKind ??
                         LearnToSailManagedClassKind.none
@@ -528,7 +526,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
                       >
                         {props.t('learn_to_sail_managed_sunday_all_in_one')}
                       </option>
-                    </select>
+                    </NativeSelect>
                   )}
                 </AdminEventField>
                 <AdminEventField
@@ -552,8 +550,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
                   label={props.t('field_sailing_card_requirement')}
                 >
                   {(controlProps) => (
-                    <select
-                      className={adminNativeSelectClassName}
+                    <NativeSelect
                       defaultValue={props.event.sailingCardRequirement}
                       id="event-sailing-card-requirement"
                       name="sailingCardRequirement"
@@ -565,7 +562,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
                       <option value={EventSailingCardRequirement.CURRENT_CARD}>
                         {props.t('sailing_card_requirement_current_card')}
                       </option>
-                    </select>
+                    </NativeSelect>
                   )}
                 </AdminEventField>
               </>
@@ -1155,8 +1152,7 @@ function QuestionFields(props: {
           htmlFor={`question-type-${prefix}`}
           label={props.t('field_answer_type')}
         >
-          <select
-            className={adminNativeSelectClassName}
+          <NativeSelect
             defaultValue={props.question?.answerType ?? EventAnswerType.text}
             id={`question-type-${prefix}`}
             name="answerType"
@@ -1170,7 +1166,7 @@ function QuestionFields(props: {
             <option value={EventAnswerType.checkbox}>
               {props.t('question_type_checkbox')}
             </option>
-          </select>
+          </NativeSelect>
         </AdminEventField>
       </div>
       <div className="grid gap-3 md:grid-cols-[1fr_120px_auto] md:items-end">

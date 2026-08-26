@@ -33,7 +33,7 @@ import type { CmsMediaAsset } from '@/components/mit-sailing/admin/catalog/Admin
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
+import { NativeSelect } from '@/components/ui/native-select';
 
 export {
   cmsMediaAssetFromUnknown,
@@ -477,9 +477,9 @@ function AdminRichTextToolbar(props: {
 
   return (
     <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted/50 p-1.5 dark:bg-muted/30">
-      <select
+      <NativeSelect
         aria-label={t('rich_text_block_style')}
-        className={`${adminNativeSelectClassName} h-8 w-auto min-w-[9rem]`}
+        className="h-8 w-auto min-w-[9rem]"
         disabled={props.disabled}
         onChange={(event) => {
           selectEditorBlockStyle(props.editor, event.target.value);
@@ -490,7 +490,7 @@ function AdminRichTextToolbar(props: {
         <option value="h2">{t('rich_text_heading_2')}</option>
         <option value="h3">{t('rich_text_heading_3')}</option>
         <option value="h4">{t('rich_text_heading_4')}</option>
-      </select>
+      </NativeSelect>
       <AdminRichTextFormatControls
         disabled={props.disabled}
         editor={props.editor}
@@ -569,9 +569,9 @@ function AdminRichTextToolbar(props: {
       >
         <AlignRight aria-hidden />
       </Button>
-      <select
+      <NativeSelect
         aria-label={t('rich_text_image_size')}
-        className={`${adminNativeSelectClassName} h-8 w-auto min-w-[8.5rem]`}
+        className="h-8 w-auto min-w-[8.5rem]"
         disabled={props.disabled}
         onChange={(event) => {
           selectImageWidthValue(event.target.value, props.resizeImage);
@@ -587,7 +587,7 @@ function AdminRichTextToolbar(props: {
             {t(option.translationKey)}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       <input
         accept="image/jpeg,image/png,image/webp,image/gif"
         className="sr-only"

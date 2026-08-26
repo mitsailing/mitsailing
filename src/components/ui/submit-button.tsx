@@ -1,14 +1,27 @@
 'use client';
 
 import { LoaderCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 
+const pendingKindKeys = {
+  adding: 'pending_adding',
+  deleting: 'pending_deleting',
+  saving: 'pending_saving',
+  sending: 'pending_sending',
+  submitting: 'pending_submitting',
+} as const;
+
+type SubmitPendingKind = keyof typeof pendingKindKeys;
+
 type SubmitButtonProps = React.ComponentProps<typeof Button> & {
   pending?: boolean;
-  pendingLabel: string;
-};
+} & (
+    | { pendingLabel: string; pendingKind?: never }
+    | { pendingKind: SubmitPendingKind; pendingLabel?: string }
+  );
 
 const SubmitButton = React.forwardRef<HTMLButtonElement, SubmitButtonProps>(
   function SubmitButton(
@@ -16,16 +29,21 @@ const SubmitButton = React.forwardRef<HTMLButtonElement, SubmitButtonProps>(
       children,
       disabled,
       pending,
-      pendingLabel,
+      pendingKind,
+      pendingLabel: pendingLabelProp,
       title,
       'aria-describedby': ariaDescribedBy,
       ...props
     },
     ref
   ) {
+    const tCommon = useTranslations('Common');
     const formStatus = useFormStatus();
     const pendingDescriptionId = React.useId();
     const isPending = pending ?? formStatus.pending;
+    const pendingLabel =
+      pendingLabelProp ??
+      (pendingKind ? tCommon(pendingKindKeys[pendingKind]) : '');
     const describedBy = [
       ariaDescribedBy,
       isPending ? pendingDescriptionId : undefined,

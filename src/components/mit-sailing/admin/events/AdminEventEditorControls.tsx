@@ -1,11 +1,11 @@
 'use client';
 
 import * as React from 'react';
+import { NativeSelect } from '@/components/ui/native-select';
 import {
   EventDetailPageKind,
   EventRegistrationMode,
 } from '@/generated/prisma/enums';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 
 function registrationModeFromValue(value: string): EventRegistrationMode {
   if (value === EventRegistrationMode.external) {
@@ -155,8 +155,7 @@ export function AdminEventRegistrationModeFields(props: {
         controlId="event-registration-mode"
         label={props.fieldLabel}
       >
-        <select
-          className={adminNativeSelectClassName}
+        <NativeSelect
           id="event-registration-mode"
           name="registrationMode"
           onChange={(event) => {
@@ -171,7 +170,7 @@ export function AdminEventRegistrationModeFields(props: {
             {props.externalLabel}
           </option>
           <option value={EventRegistrationMode.none}>{props.noneLabel}</option>
-        </select>
+        </NativeSelect>
       </AdminEventFieldShell>
       {registrationMode === EventRegistrationMode.standard
         ? props.standardFields

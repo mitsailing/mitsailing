@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
 import {
   Table,
@@ -11,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
   adminCatalogResourceAssociationPath,
   adminCatalogResourceEditPath,
@@ -181,8 +181,7 @@ export default async function AdminSailingClassPrerequisitesPage(
               >
                 {t('assoc_select_prerequisite')}
               </Label>
-              <select
-                className={adminNativeSelectClassName}
+              <NativeSelect
                 id="assoc-prerequisite-select"
                 name="prerequisiteClassId"
                 required
@@ -193,7 +192,7 @@ export default async function AdminSailingClassPrerequisitesPage(
                     {c.classCategory.name}: {c.name} ({c.slug})
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
             <SubmitButton
               pendingLabel={tCommon('pending_adding')}

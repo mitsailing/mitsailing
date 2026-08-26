@@ -18,4 +18,15 @@ Use **`useActionState` + `<form action>`** when the submit is a Server Action. K
 
 A visual required marker must be backed by native semantics on the control when the browser or assistive tech should treat it as required. Put `required`, `aria-required`, `id`, and `aria-describedby` directly on `<input>`, `<select>`, `<textarea>`, or the shared control component call site.
 
-Do **not** use `React.cloneElement` to inject form props from a wrapper component; this codebase treats that as fragile and lint blocks it.
+## Unified action forms
+
+For Server Action and other `<form action>` mutations, use the shared stack:
+
+1. **`ActionForm`** — wraps `<form>`, wires `FormErrorHandling` (validation summary, 5s pending warning, Sentry on timeout), and optional form-level `AdminErrorAlert`.
+2. **`FormActions`** — footer row for submit buttons.
+3. **`SubmitButton`** — pending spinner via `useFormStatus`; pass `pendingLabel` or `pendingKind` (Common i18n keys).
+4. **`NativeSelect`** — styled native `<select>` matching `Input`/`Textarea` (shadcn/ui naming; distinct from a future Radix `Select`).
+
+Client SDK forms (for example `authClient.*`) stay on typed submit handlers; do not force them through Server Actions.
+
+**Exceptions:** GET filter forms keep plain `Button type="submit"` because `useFormStatus` does not apply. `useActionState` forms with custom validation (newsletter signup uses `noValidate`) may skip `ActionForm` but should still use `SubmitButton`.

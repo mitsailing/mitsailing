@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { connection } from 'next/server';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import { requirePermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
@@ -62,9 +62,9 @@ export default async function AdminNewsletterTemplateNewPage(props: PageProps) {
           </Label>
           <Textarea id="newsletter-template-description" name="description" />
         </div>
-        <Button type="submit" variant="mit">
+        <SubmitButton pendingKind="adding" variant="mit">
           {t('create')}
-        </Button>
+        </SubmitButton>
       </form>
     </div>
   );

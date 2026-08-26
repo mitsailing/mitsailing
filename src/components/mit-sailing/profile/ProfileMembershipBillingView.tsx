@@ -1,5 +1,7 @@
 import type { getTranslations } from 'next-intl/server';
 import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
+import { Textarea } from '@/components/ui/textarea';
 import type {
   MembershipCancellationReason,
   SailingCardType,
@@ -137,9 +139,9 @@ export function ProfileMembershipBillingView(
           </div>
           {props.canOpenBillingPortal ? (
             <form action={portalAction}>
-              <Button type="submit" variant="mit">
+              <SubmitButton pendingKind="submitting" variant="mit">
                 {props.t('membership_update_payment_method')}
-              </Button>
+              </SubmitButton>
             </form>
           ) : null}
         </div>
@@ -181,14 +183,15 @@ export function ProfileMembershipBillingView(
           </fieldset>
           <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
             {props.t('membership_cancel_note_label')}
-            <textarea
-              className="min-h-24 rounded-md border border-input bg-background px-3 py-2 text-sm font-normal text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              name="note"
-            />
+            <Textarea className="min-h-24 font-normal" name="note" />
           </label>
-          <Button className="w-fit" type="submit" variant="outline">
+          <SubmitButton
+            className="w-fit"
+            pendingKind="submitting"
+            variant="outline"
+          >
             {props.t('membership_turn_off_auto_renew')}
-          </Button>
+          </SubmitButton>
         </form>
       ) : null}
 

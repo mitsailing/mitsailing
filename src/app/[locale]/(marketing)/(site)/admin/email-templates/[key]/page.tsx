@@ -5,6 +5,7 @@ import { connection } from 'next/server';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { AdminEmailTemplateEditor } from '@/components/mit-sailing/admin/email-templates/AdminEmailTemplateEditor';
 import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import { requirePermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
@@ -222,9 +223,9 @@ export default async function AdminEmailTemplateDetailPage(props: PageProps) {
                     activeRevision.id
                   )}
                 >
-                  <Button type="submit" variant="mit">
+                  <SubmitButton pendingKind="submitting" variant="mit">
                     {t('publish')}
-                  </Button>
+                  </SubmitButton>
                 </form>
               ) : null}
             </div>

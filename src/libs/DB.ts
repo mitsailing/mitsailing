@@ -33,6 +33,7 @@ function createPrisma(): PrismaClient {
     globalThis.cachedPool ??
     new Pool({
       connectionString: Env.DATABASE_URL,
+      connectionTimeoutMillis: 10_000,
     });
 
   globalThis.cachedPool = pool;

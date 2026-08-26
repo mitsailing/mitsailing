@@ -4,8 +4,8 @@ import { EmailEditor } from '@react-email/editor';
 import type { EmailEditorRef } from '@react-email/editor';
 import type * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 
 type AdminNewsletterBroadcastEditorText = Readonly<{
   bodyLabel: string;
@@ -112,12 +112,22 @@ export function AdminNewsletterBroadcastEditor(
       <input name="bodyText" type="hidden" />
       <input name="bodyJson" type="hidden" />
       <div className="flex flex-wrap gap-2">
-        <Button name="intent" type="submit" value="draft" variant="outline">
+        <SubmitButton
+          name="intent"
+          pendingKind="saving"
+          value="draft"
+          variant="outline"
+        >
           {props.text.saveDraft}
-        </Button>
-        <Button name="intent" type="submit" value="queue" variant="mit">
+        </SubmitButton>
+        <SubmitButton
+          name="intent"
+          pendingKind="sending"
+          value="queue"
+          variant="mit"
+        >
           {props.text.queueBroadcast}
-        </Button>
+        </SubmitButton>
       </div>
     </form>
   );

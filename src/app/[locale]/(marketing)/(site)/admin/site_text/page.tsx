@@ -5,9 +5,9 @@ import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
   resetSiteTextOverrideAction,
   saveSiteTextOverrideAction,
@@ -277,8 +277,7 @@ export default async function AdminSiteTextPage(props: AdminSiteTextPageProps) {
           <Label className="text-foreground" htmlFor="site-text-namespace">
             {t('filter_label')}
           </Label>
-          <select
-            className={adminNativeSelectClassName}
+          <NativeSelect
             defaultValue={namespace}
             id="site-text-namespace"
             name="namespace"
@@ -289,7 +288,7 @@ export default async function AdminSiteTextPage(props: AdminSiteTextPageProps) {
                 {item}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
         <div className="flex flex-col gap-1.5">
           <Label className="text-foreground" htmlFor="site-text-search">

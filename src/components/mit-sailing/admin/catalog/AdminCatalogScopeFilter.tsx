@@ -1,6 +1,6 @@
 import Form from 'next/form';
+import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 
 type AdminCatalogScopeFilterOption = {
   value: string;
@@ -23,8 +23,7 @@ export function AdminCatalogScopeFilter(props: AdminCatalogScopeFilterProps) {
     <Form action={props.action} className="flex max-w-sm items-end gap-3">
       <label className="flex flex-1 flex-col gap-1.5 text-sm">
         <span className="font-medium text-mit-text">{props.label}</span>
-        <select
-          className={adminNativeSelectClassName}
+        <NativeSelect
           defaultValue={props.selectedValue}
           disabled={props.options.length === 0}
           name={props.queryParamName}
@@ -34,7 +33,7 @@ export function AdminCatalogScopeFilter(props: AdminCatalogScopeFilterProps) {
               {option.label}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       <SubmitButton
         disabled={props.options.length === 0}

@@ -2,8 +2,8 @@ import { ExternalLink, Search } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { PaymentStatus } from '@/generated/prisma/enums';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import type {
   AdminPaymentLedgerData,
   AdminPaymentLedgerFilters,
@@ -252,8 +252,7 @@ export function AdminPaymentsLedgerView(props: AdminPaymentsLedgerViewProps) {
           htmlFor="admin-payments-ledger-status"
         >
           {props.t('filter_status')}
-          <select
-            className={adminNativeSelectClassName}
+          <NativeSelect
             defaultValue={props.filters.status ?? 'all'}
             id="admin-payments-ledger-status"
             name="status"
@@ -264,7 +263,7 @@ export function AdminPaymentsLedgerView(props: AdminPaymentsLedgerViewProps) {
                 {paymentStatusLabel(status, props.t)}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <Button type="submit" variant="mit">
           <Search aria-hidden className="size-4" />

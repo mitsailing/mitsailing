@@ -26,6 +26,7 @@ import { AdminCatalogListCell } from '@/components/mit-sailing/admin/catalog/Adm
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import {
   Table,
   TableBody,
@@ -424,8 +425,8 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
               <Label htmlFor={`${props.resourceId}-${filter.field}-filter`}>
                 {t(filter.labelKey)}
               </Label>
-              <select
-                className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              <NativeSelect
+                className="mt-2"
                 id={`${props.resourceId}-${filter.field}-filter`}
                 onChange={(event) => {
                   const selectedValue = event.currentTarget.value;
@@ -442,7 +443,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
                     {t(option.labelKey)}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
           ))}
         </div>

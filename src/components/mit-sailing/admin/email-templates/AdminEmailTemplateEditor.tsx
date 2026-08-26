@@ -3,9 +3,9 @@
 import { EmailEditor } from '@react-email/editor';
 import type { EmailEditorRef } from '@react-email/editor';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 
 type AdminEmailTemplateEditorText = Readonly<{
   bodyLabel: string;
@@ -182,20 +182,20 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
             type="email"
           />
         </div>
-        <Button
+        <SubmitButton
           className="self-end"
           formAction={async (formData) => {
             await prepareFormData(formData);
             await props.sendTestAction(formData);
           }}
-          type="submit"
+          pendingKind="sending"
           variant="outline"
         >
           {props.text.sendTest}
-        </Button>
-        <Button className="self-end" type="submit" variant="mit">
+        </SubmitButton>
+        <SubmitButton className="self-end" pendingKind="saving" variant="mit">
           {props.text.saveDraft}
-        </Button>
+        </SubmitButton>
       </div>
     </form>
   );

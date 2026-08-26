@@ -18,6 +18,7 @@ import { useActionState, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -102,8 +103,6 @@ type SpaceOptionGroup = {
 };
 
 const mitAffiliationPersonas = ['mit_student', 'mit_community'] as const;
-const selectClassName =
-  'w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
 function updatePavilionReservationPersonaFromValue(props: {
   setPersona: (persona: PavilionReservationPersonaValue) => void;
@@ -2125,9 +2124,8 @@ function PavilionReservationContactStep(props: {
         </p>
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           <Field id="contact-persona" label={t('persona_title')} required>
-            <select
+            <NativeSelect
               aria-required
-              className={selectClassName}
               id="contact-persona"
               required
               value={props.persona}
@@ -2143,7 +2141,7 @@ function PavilionReservationContactStep(props: {
                   {t(`persona_${personaOption}_label`)}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
             <p className="mt-1.5 text-xs text-muted-foreground">
               {t('contact_persona_helper')}
             </p>
@@ -2420,9 +2418,8 @@ function PavilionReservationContactStep(props: {
                   label={t('field_mit_affiliation_type')}
                   required
                 >
-                  <select
+                  <NativeSelect
                     aria-required
-                    className={selectClassName}
                     id="mitAffiliationType"
                     required
                     value={props.persona}
@@ -2438,7 +2435,7 @@ function PavilionReservationContactStep(props: {
                         {t(`persona_${personaOption}_label`)}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </Field>
               </div>
               <Field id="mitId" label={t('field_mit_id')}>

@@ -13,12 +13,14 @@ import {
 } from '@/components/mit-sailing/admin/catalog/AdminCmsMediaControls';
 import { AdminRichTextEditor } from '@/components/mit-sailing/admin/catalog/AdminRichTextEditor';
 import { CmsPageBlockPreview } from '@/components/mit-sailing/cms/CmsPageBlocks';
+import { ActionForm, FormActions } from '@/components/ui/action-form';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
   ADMIN_FORM_REDIRECT_TO_EDIT,
   ADMIN_FORM_REDIRECT_TO_FIELD,
@@ -30,6 +32,7 @@ import type {
   CatalogResourceDefinition,
   CatalogRow,
 } from '@/libs/admin/catalog/types';
+import type { FormValidationSummaryEntry } from '@/libs/forms/formValidationSummary';
 import {
   CMS_HOME_OVERVIEW_MAX_EVENTS,
   CMS_HOME_OVERVIEW_MAX_SCHEDULE_ROWS,
@@ -97,6 +100,25 @@ function catalogResourceFormErrorMessage(
     return t('form_error_foreign_key');
   }
   return t('form_error_unknown');
+}
+
+function catalogServerFieldSummaryErrors(
+  fieldErrors: Record<string, string> | undefined,
+  definition: CatalogResourceDefinition,
+  translateLabel: (key: AdminFormFieldDef['labelKey']) => string
+): FormValidationSummaryEntry[] {
+  if (!fieldErrors) {
+    return [];
+  }
+
+  return Object.entries(fieldErrors).map(([field, message]) => {
+    const fieldDef = definition.formFields.find((item) => item.field === field);
+    return {
+      controlId: `catalog-field-${field}`,
+      label: fieldDef ? translateLabel(fieldDef.labelKey) : field,
+      message,
+    };
+  });
 }
 
 function usersAdminFormErrorMessage(
@@ -169,10 +191,9 @@ function catalogDynamicSelectField(props: {
       <Label className="text-foreground" htmlFor={props.fieldKey}>
         {props.label}
       </Label>
-      <select
+      <NativeSelect
         aria-describedby={props.errorMessage ? props.errorId : undefined}
         aria-invalid={props.errorMessage ? true : undefined}
-        className={adminNativeSelectClassName}
         defaultValue={props.defaultValue || undefined}
         id={props.fieldKey}
         name={props.fieldKey}
@@ -186,7 +207,7 @@ function catalogDynamicSelectField(props: {
             {opt.label}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       <CatalogFieldError id={props.errorId} message={props.errorMessage} />
     </div>
   );
@@ -212,10 +233,9 @@ function catalogStaticSelectField(props: {
       <Label className="text-foreground" htmlFor={props.fieldKey}>
         {props.label}
       </Label>
-      <select
+      <NativeSelect
         aria-describedby={props.errorMessage ? props.errorId : undefined}
         aria-invalid={props.errorMessage ? true : undefined}
-        className={adminNativeSelectClassName}
         defaultValue={props.defaultValue || undefined}
         id={props.fieldKey}
         name={props.fieldKey}
@@ -229,7 +249,7 @@ function catalogStaticSelectField(props: {
             {props.translateLabel(opt.labelKey)}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       <CatalogFieldError id={props.errorId} message={props.errorMessage} />
     </div>
   );
@@ -244,7 +264,7 @@ type AdminCatalogFormProps = {
   fieldErrors?: Record<string, string>;
   /** Use `AdminUsers` strings for `/admin/users` forms. */
   messageNamespace?: 'AdminCatalogResource' | 'AdminUsers';
-  /** Server-loaded `<select>` options (e.g. sailing classes for fleet `requiredClassId`). */
+  /** Server-loaded `<NativeSelect>` options (e.g. sailing classes for fleet `requiredClassId`). */
   dynamicSelectOptions?: Readonly<
     Record<string, readonly { value: string; label: string }[]>
   >;
@@ -653,14 +673,12 @@ function CatalogBooleanField(props: {
     return (
       <label className="flex cursor-pointer items-center gap-2 text-sm text-mit-text">
         <input name={props.fieldKey} type="hidden" value="false" />
-        <input
+        <Checkbox
           checked={props.checked}
-          className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
           name={props.fieldKey}
           onChange={(event) => {
             props.onToggle(event.target.checked);
           }}
-          type="checkbox"
           value="true"
         />
         <span className="font-medium">{props.label}</span>
@@ -672,14 +690,12 @@ function CatalogBooleanField(props: {
       <span className="text-sm font-medium text-mit-text">{props.label}</span>
       <input name={props.fieldKey} type="hidden" value="false" />
       <label className="flex cursor-pointer items-center gap-2 text-sm text-mit-text">
-        <input
+        <Checkbox
           checked={props.checked}
-          className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
           name={props.fieldKey}
           onChange={(event) => {
             props.onToggle(event.target.checked);
           }}
-          type="checkbox"
           value="true"
         />
         {props.checkboxLabel}
@@ -832,14 +848,12 @@ function AdminCmsOptionalGroup(props: {
       </legend>
       <input name={props.fieldName} type="hidden" value="false" />
       <label className="flex cursor-pointer items-center gap-2 text-sm text-mit-text">
-        <input
+        <Checkbox
           checked={props.enabled}
-          className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
           name={props.fieldName}
           onChange={(event) => {
             props.onToggle(event.target.checked);
           }}
-          type="checkbox"
           value="true"
         />
         <span>{props.toggleLabel}</span>
@@ -908,13 +922,25 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
         </p>
       ) : null}
 
-      <form
+      <ActionForm
         action={props.formAction}
         className="flex max-w-xl flex-col gap-4"
+        formId="catalog-event-categories"
         onSubmit={(event) => {
           // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the validation promise.
           void handleSubmit(event);
         }}
+        serverFieldErrors={
+          props.fieldErrors?.name
+            ? [
+                {
+                  controlId: 'catalog-field-name',
+                  label: tCatalog('field_name'),
+                  message: props.fieldErrors.name,
+                },
+              ]
+            : undefined
+        }
       >
         <div className="flex flex-col gap-1.5 text-sm">
           <Label className="text-foreground" htmlFor="catalog-field-name">
@@ -937,17 +963,12 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
           </span>
           <input name="isVisible" type="hidden" value="false" />
           <label className="flex cursor-pointer items-center gap-2 text-sm text-mit-text">
-            <input
-              className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
-              type="checkbox"
-              value="true"
-              {...form.register('isVisible')}
-            />
+            <Checkbox value="true" {...form.register('isVisible')} />
             {tc('column_visible')}
           </label>
         </div>
 
-        <div className="flex flex-wrap gap-3 pt-2">
+        <FormActions>
           <SubmitButton pendingLabel={tCommon('pending_saving')} variant="mit">
             {tCatalog('action_save')}
           </SubmitButton>
@@ -961,8 +982,8 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
               {tCatalog('action_save_and_continue_editing')}
             </SubmitButton>
           ) : null}
-        </div>
-      </form>
+        </FormActions>
+      </ActionForm>
     </div>
   );
 }
@@ -1040,6 +1061,49 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
     ? 'max-w-3xl'
     : 'max-w-xl';
 
+  const serverFieldSummaryErrors = catalogServerFieldSummaryErrors(
+    props.fieldErrors,
+    props.definition,
+    translateLabel
+  );
+
+  const cmsAdditionalErrors = (() => {
+    if (!isCmsBlockForm) {
+      return [];
+    }
+
+    const entries: FormValidationSummaryEntry[] = [];
+    if (cmsPairErrors.ctaLabel) {
+      entries.push({
+        controlId: 'catalog-field-ctaLabel',
+        label: translateLabel('field_cms_cta_label'),
+        message: tCatalog('field_error_cms_cta_label_required'),
+      });
+    }
+    if (cmsPairErrors.ctaUrl) {
+      entries.push({
+        controlId: 'catalog-field-ctaUrl',
+        label: translateLabel('field_cms_cta_url'),
+        message: tCatalog('field_error_cms_cta_url_required'),
+      });
+    }
+    if (cmsPairErrors.imageSrc) {
+      entries.push({
+        controlId: 'catalog-field-imageSrc',
+        label: translateLabel('field_cms_image_src'),
+        message: tCatalog('field_error_cms_image_src_required'),
+      });
+    }
+    if (cmsPairErrors.imageAlt) {
+      entries.push({
+        controlId: 'catalog-field-imageAlt',
+        label: translateLabel('field_cms_image_alt'),
+        message: tCatalog('field_error_cms_image_alt_required'),
+      });
+    }
+    return entries;
+  })();
+
   function cmsBlockStateWith(
     field: keyof CmsBlockPreviewState,
     value: string | boolean
@@ -1073,24 +1137,6 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
           : prev.imageSrc && imageSrc.length === 0,
       };
     });
-  }
-
-  function focusFirstCmsBlockPairError(errors: CmsBlockPairErrors) {
-    if (errors.ctaLabel) {
-      cmsCtaLabelInputRef.current?.focus();
-      return;
-    }
-    if (errors.ctaUrl) {
-      cmsCtaUrlInputRef.current?.focus();
-      return;
-    }
-    if (errors.imageSrc) {
-      cmsImageSrcUploadButtonRef.current?.focus();
-      return;
-    }
-    if (errors.imageAlt) {
-      cmsImageAltInputRef.current?.focus();
-    }
   }
 
   function setCmsPreviewField(
@@ -1577,9 +1623,8 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
                   />
                 </div>
                 <label className="flex items-center gap-2 pt-6 text-sm text-mit-text">
-                  <input
+                  <Checkbox
                     checked={plan.highlighted}
-                    className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
                     onChange={(event) => {
                       updateCmsPricingPlan({
                         field: 'highlighted',
@@ -1587,7 +1632,6 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
                         value: event.target.checked,
                       });
                     }}
-                    type="checkbox"
                   />
                   <span>{tCatalog('cms_pricing_highlighted')}</span>
                 </label>
@@ -2309,10 +2353,12 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
   }
 
   const formElement = (
-    <form
+    <ActionForm
       action={props.formAction}
+      additionalErrors={cmsAdditionalErrors}
       autoComplete={props.definition.id === 'site_alerts' ? 'off' : undefined}
       className={`flex ${formMaxWidth} flex-col gap-4`}
+      formId={`catalog-${props.definition.id}`}
       onSubmit={(event) => {
         if (!isCmsBlockForm) {
           return;
@@ -2324,13 +2370,19 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
         if (hasCmsBlockPairErrors(nextPairErrors)) {
           event.preventDefault();
           setCmsPairErrors(nextPairErrors);
-          focusFirstCmsBlockPairError(nextPairErrors);
+          if (nextPairErrors.ctaLabel || nextPairErrors.ctaUrl) {
+            setCmsOptionalGroupEnabled('cta', true);
+          }
+          if (nextPairErrors.imageAlt || nextPairErrors.imageSrc) {
+            setCmsOptionalGroupEnabled('image', true);
+          }
         }
       }}
+      serverFieldErrors={serverFieldSummaryErrors}
     >
       {renderCatalogFormFields()}
 
-      <div className="flex flex-wrap gap-3 pt-2">
+      <FormActions>
         <SubmitButton pendingLabel={tCommon('pending_saving')} variant="mit">
           {ns === 'AdminUsers'
             ? tUsers('action_save')
@@ -2348,8 +2400,8 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
               : tCatalog('action_save_and_continue_editing')}
           </SubmitButton>
         ) : null}
-      </div>
-    </form>
+      </FormActions>
+    </ActionForm>
   );
 
   return (
