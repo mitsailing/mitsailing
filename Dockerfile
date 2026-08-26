@@ -26,14 +26,12 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat openssl
 
 COPY package.json package-lock.json ./
-COPY prisma ./prisma
-# `postinstall` runs this script after `prisma generate`; it must exist here
-# even though the deps stage does not COPY the full repo yet.
-COPY scripts/playwright-postinstall.cjs ./scripts/playwright-postinstall.cjs
-# Skip Playwright browser download in the image (Alpine has no e2e browsers;
-# postinstall still runs `prisma generate` for a valid node_modules tree).
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-RUN npm ci --include=dev --no-audit --no-fund
+# `--ignore-scripts` keeps third-party lifecycle scripts out of the image build.
+# Nothing here needs them: Prisma 7 and esbuild ship their binaries as platform
+# packages rather than postinstall downloads, `builder` runs `prisma generate`
+# explicitly, and the only other postinstall step is the Playwright browser
+# download that Alpine can't use anyway.
+RUN npm ci --include=dev --ignore-scripts --no-audit --no-fund
 
 
 # ─────────────────────────────── builder ───────────────────────────────
