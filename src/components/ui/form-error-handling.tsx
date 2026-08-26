@@ -11,9 +11,6 @@ import {
 } from '@/libs/forms/formValidationSummary';
 import type { FormValidationSummaryEntry } from '@/libs/forms/formValidationSummary';
 
-/** When true, {@link SubmitButton} stops treating the form as pending so users can retry. */
-export const FormSubmitTimeoutContext = React.createContext(false);
-
 /** Warn when a submit stays pending longer than users will realistically wait. */
 const DEFAULT_SUBMIT_TIMEOUT_MS = 5000;
 

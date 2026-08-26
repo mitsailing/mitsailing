@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import type * as ReactDom from 'react-dom';
 import { describe, expect, it, vi } from 'vitest';
-import { FormSubmitTimeoutContext } from '@/components/ui/form-error-handling';
+import { FormSubmitTimeoutContext } from '@/components/ui/form-submit-timeout-context';
 import { SubmitButton } from '@/components/ui/submit-button';
 
 vi.mock('next-intl', () => ({

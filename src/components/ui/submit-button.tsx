@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
-import { FormSubmitTimeoutContext } from '@/components/ui/form-error-handling';
+import { FormSubmitTimeoutContext } from '@/components/ui/form-submit-timeout-context';
 
 const pendingKindKeys = {
   adding: 'pending_adding',

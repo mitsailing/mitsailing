@@ -3,10 +3,8 @@
 import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { AdminErrorAlert } from '@/components/mit-sailing/admin/AdminErrorAlert';
-import {
-  FormErrorHandling,
-  FormSubmitTimeoutContext,
-} from '@/components/ui/form-error-handling';
+import { FormErrorHandling } from '@/components/ui/form-error-handling';
+import { FormSubmitTimeoutContext } from '@/components/ui/form-submit-timeout-context';
 import { cn } from '@/lib/utils';
 import type { FormValidationSummaryEntry } from '@/libs/forms/formValidationSummary';
 
