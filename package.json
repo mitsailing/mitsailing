@@ -153,9 +153,9 @@
     "@types/react-dom": "^19.2.3",
     "@types/sanitize-html": "^2.16.1",
     "@vitejs/plugin-react": "^6.0.2",
-    "@vitest/browser": "^4.1.8",
-    "@vitest/browser-playwright": "^4.1.8",
-    "@vitest/coverage-v8": "^4.1.8",
+    "@vitest/browser": "^4.1.11",
+    "@vitest/browser-playwright": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.11",
     "@zenstackhq/cli": "3.7.2",
     "babel-plugin-react-compiler": "^1.0.0",
     "checkly": "7.15.0",
@@ -179,7 +179,7 @@
     "typescript": "^5.9.3",
     "ultracite": "7.3.2",
     "vite": "8.0.16",
-    "vitest": "^4.1.8",
+    "vitest": "^4.1.11",
     "wait-on": "9.0.10"
   },
   "overrides": {
@@ -196,7 +196,7 @@
     "next": {
       "postcss": "8.5.10"
     },
-    "npm": "11.15.0",
+    "npm": "11.19.0",
     "qs": "6.15.2",
     "resend": {
       "svix": "1.92.2"
