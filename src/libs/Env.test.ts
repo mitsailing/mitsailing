@@ -118,6 +118,7 @@ describe('Env legacy MySQL sync validation', () => {
     stubRequiredProductionEnv();
     stubRequiredStripeEnv();
     vi.stubEnv('LEGACY_MYSQL_SYNC_ENABLED', 'true');
+    vi.stubEnv('LEGACY_MYSQL_PASSWORD', '');
 
     await expect(import('@/libs/Env')).rejects.toThrow(
       'Invalid environment variables'

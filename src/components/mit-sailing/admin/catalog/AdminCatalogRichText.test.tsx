@@ -1136,6 +1136,19 @@ describe('AdminRichTextEditor media controls', () => {
 });
 
 describe('Admin catalog media fields', () => {
+  function validationSummaryAlert(): HTMLElement {
+    const title = screen.getByText('Fix the following errors');
+    const alert = title.closest('[role="alert"]');
+    if (!(alert instanceof HTMLElement)) {
+      throw new TypeError('Expected validation summary alert');
+    }
+    return alert;
+  }
+
+  function expectValidationSummaryFocused(): void {
+    expect(validationSummaryAlert()).toHaveFocus();
+  }
+
   it('requires alt text for cms block pictures', async () => {
     mockCmsMediaUploadFetch({
       assetId: 'asset-5',
@@ -1175,7 +1188,7 @@ describe('Admin catalog media fields', () => {
     expect(imageAltInput).toHaveAccessibleDescription(
       'Add image alt text before saving.'
     );
-    expect(imageAltInput).toHaveFocus();
+    expectValidationSummaryFocused();
     expect(imageAltError.id).toBeTruthy();
     expect(saveAction).not.toHaveBeenCalled();
 
@@ -1225,7 +1238,7 @@ describe('Admin catalog media fields', () => {
     expect(imageUploadButton).toHaveAccessibleDescription(
       'Add an image before saving.'
     );
-    expect(imageUploadButton).toHaveFocus();
+    expectValidationSummaryFocused();
     expect(saveAction).not.toHaveBeenCalled();
 
     await user.clear(imageAltInput);
@@ -1268,7 +1281,7 @@ describe('Admin catalog media fields', () => {
     expect(ctaUrlInput).toHaveAccessibleDescription(
       'Add a CTA URL before saving.'
     );
-    expect(ctaUrlInput).toHaveFocus();
+    expectValidationSummaryFocused();
     expect(saveAction).not.toHaveBeenCalled();
 
     await user.type(ctaUrlInput, '/classes');
@@ -1311,7 +1324,7 @@ describe('Admin catalog media fields', () => {
     expect(ctaLabelInput).toHaveAccessibleDescription(
       'Add a CTA label before saving.'
     );
-    expect(ctaLabelInput).toHaveFocus();
+    expectValidationSummaryFocused();
     expect(saveAction).not.toHaveBeenCalled();
 
     await user.type(ctaLabelInput, 'Learn more');
