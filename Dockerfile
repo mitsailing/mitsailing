@@ -47,7 +47,7 @@ COPY . .
 
 # Regenerate the Prisma client against the current schema so the build
 # includes its types.
-RUN npx prisma generate
+RUN npm exec --no -- prisma generate
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -113,7 +113,7 @@ RUN apk add --no-cache libc6-compat openssl
 # The node:24-alpine base ships its own npm (with bundled tar). Trivy scans that
 # copy separately from app/node_modules; align it with our npm override so tar
 # meets CVE-2026-59873 (fixed in npm 11.18+ / tar 7.5.19+).
-RUN npm install -g npm@11.19.0 --no-audit --no-fund
+RUN npm install -g npm@11.19.0 --ignore-scripts --no-audit --no-fund
 
 # Non-root runtime — container breakouts that land on PID 1 only get a
 # restricted shell.
