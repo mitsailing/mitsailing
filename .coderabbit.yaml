@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 #
-# Strict review defaults (assertive profile + request changes). Keep CodeRabbit
+# Strict review defaults (assertive profile), advisory verdict. Keep CodeRabbit
 # as review/comment input; write-producing finishing touches are disabled below.
 # Manual Autofix or stacked PR commands require an explicit user request.
 
@@ -10,7 +10,15 @@ inheritance: false
 
 reviews:
   profile: assertive
-  request_changes_workflow: true
+  # Comment-only verdict. With `true`, CodeRabbit submits real CHANGES_REQUESTED
+  # review events, and this repo has a single maintainer who is both the blocked
+  # party and the only one able to dismiss — the gate becomes a dismissal ritual
+  # rather than a check. Findings still post as review comments and still have to
+  # be answered, because the ruleset requires conversation resolution to merge.
+  # Nothing is lost on the approval side: `required_approving_review_count` is 0.
+  # Note this also makes `pre_merge_checks` `mode: error` advisory, and disables
+  # `@coderabbitai approve`.
+  request_changes_workflow: false
   poem: false
 
   high_level_summary: true
