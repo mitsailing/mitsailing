@@ -1,0 +1,34 @@
+---
+description: Prove production SSH remotes on the live host (dash) before push
+globs: .github/workflows/*.yml,.github/scripts/**,src/libs/deploy/**,docs/deploy.md,bin/deploy.sh
+alwaysApply: false
+---
+
+# POSIX remote SSH
+
+Do not trust local `/bin/sh`. macOS `sh` is bash. Production
+`sailing-dock.mit.edu` login shell is `/bin/sh` → dash.
+
+## Before push (required)
+
+SSH to production and run the **exact** remote payload (harmless `echo`, not
+`deploy.sh release`):
+
+```bash
+ssh -o BatchMode=yes sailing-dock.mit.edu 'sh -c "set -euo pipefail"'
+# must print: set: Illegal option -o pipefail
+
+ssh -o BatchMode=yes sailing-dock.mit.edu \
+  'set -eu; sock="/run/user/$(id -u)/docker.sock"; if [ -S "$sock" ]; then export DOCKER_HOST="unix://$sock"; fi; echo "host=$DOCKER_HOST"; docker version >/dev/null && echo docker_ok'
+# must print rootless unix:///run/user/…/docker.sock and docker_ok
+```
+
+Then `npm run test -- src/libs/deploy/dockerComposeContract.test.ts` (forbids
+`pipefail` / `[[` in ssh remotes). Local green is not enough without the SSH
+probe.
+
+`if [[ -S "$sock" ]]` on dash is `[[: not found` and the `if` is false — it
+does **not** fail the script; it skips `DOCKER_HOST`.
+
+Actions `run: |` may use bash. The quoted ssh command may not.
+`.cursor/rules/ghcr-rootless-deploy.mdc` still applies.

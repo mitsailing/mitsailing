@@ -258,7 +258,7 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -o ConnectTimeout=15 \
             "$PRODUCTION_SSH_TARGET" \
-            "set -euo pipefail; mkdir -p -m 700 ${remote_docker_config}; export DOCKER_CONFIG=${remote_docker_config}; sock=\"/run/user/\$(id -u)/docker.sock\"; if [[ -S \"\$sock\" ]]; then export DOCKER_HOST=\"unix://\$sock\"; fi; docker login ghcr.io -u ${remote_user} --password-stdin"
+            "set -eu; mkdir -p -m 700 ${remote_docker_config}; export DOCKER_CONFIG=${remote_docker_config}; sock=\"/run/user/\$(id -u)/docker.sock\"; if [ -S \"\$sock\" ]; then export DOCKER_HOST=\"unix://\$sock\"; fi; docker login ghcr.io -u ${remote_user} --password-stdin"
           unset GHCR_TOKEN
 
       - name: Release
@@ -289,7 +289,7 @@ jobs:
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "$PRODUCTION_SSH_TARGET" \
-            "set -euo pipefail; export DOCKER_CONFIG=${remote_docker_config}; sock=\"/run/user/\$(id -u)/docker.sock\"; if [[ -S \"\$sock\" ]]; then export DOCKER_HOST=\"unix://\$sock\"; fi; ${remote_data_root_assignment}DEPLOY_DIR=${remote_app_dir} ${remote_deploy_script} release ${remote_image_tag}"
+            "set -eu; export DOCKER_CONFIG=${remote_docker_config}; sock=\"/run/user/\$(id -u)/docker.sock\"; if [ -S \"\$sock\" ]; then export DOCKER_HOST=\"unix://\$sock\"; fi; ${remote_data_root_assignment}DEPLOY_DIR=${remote_app_dir} ${remote_deploy_script} release ${remote_image_tag}"
 
       - name: Log out of GHCR on production host
         if: ${{ always() && steps.ghcr_login.outcome == 'success' }}

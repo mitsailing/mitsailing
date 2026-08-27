@@ -180,6 +180,10 @@ host `~/.docker` auth), sets `DOCKER_HOST` to the rootless user socket when
 present, runs `bin/deploy.sh release`, then logs out and removes that config
 dir.
 
+The ssh remote payloads run under the host login shell (`/bin/sh`, dash). Keep
+them POSIX (`set -eu`, `[ -S "$sock" ]`). Bash-only `set -o pipefail` and `[[`
+belong in the Actions runner script, not in the quoted remote command.
+
 Do not leave a long-lived PAT on the host for routine deploys. For break-glass
 pulls when Actions cannot run:
 
@@ -197,6 +201,10 @@ docker pull ghcr.io/mitsailing/mitsailing:sha-abc123def456
 docker logout ghcr.io
 rm -rf "$DOCKER_CONFIG"
 ```
+
+Before pushing deploy workflow changes, SSH to the production host and run the
+quoted remote payload under `sh` (see `.cursor/rules/posix-remote-ssh.mdc`).
+Local macOS `sh` is bash and will not catch `pipefail`.
 
 ## Verify
 
