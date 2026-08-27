@@ -13,9 +13,10 @@ import {
 } from '@/components/mit-sailing/admin/catalog/AdminCmsMediaControls';
 import { AdminRichTextEditor } from '@/components/mit-sailing/admin/catalog/AdminRichTextEditor';
 import { CmsPageBlockPreview } from '@/components/mit-sailing/cms/CmsPageBlocks';
-import { ActionForm, FormActions } from '@/components/ui/action-form';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { FormErrorSummary } from '@/components/ui/form-error-summary';
+import type { FormValidationSummaryEntry } from '@/components/ui/form-error-summary';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -32,7 +33,6 @@ import type {
   CatalogResourceDefinition,
   CatalogRow,
 } from '@/libs/admin/catalog/types';
-import type { FormValidationSummaryEntry } from '@/libs/forms/formValidationSummary';
 import {
   CMS_HOME_OVERVIEW_MAX_EVENTS,
   CMS_HOME_OVERVIEW_MAX_SCHEDULE_ROWS,
@@ -896,12 +896,24 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
     props.errorCode,
     tCatalog
   );
+  const summaryEntries: FormValidationSummaryEntry[] = nameError
+    ? [
+        {
+          controlId: 'catalog-field-name',
+          label: tCatalog('field_name'),
+          message: nameError,
+        },
+      ]
+    : [];
+
   async function handleSubmit(event: { preventDefault: () => void }) {
     const parsed = eventCategoryUpdateSchema.safeParse(form.getValues());
-    if (!parsed.success) {
-      event.preventDefault();
-      await form.trigger();
+    if (parsed.success) {
+      return;
     }
+    event.preventDefault();
+    await form.trigger();
+    form.setFocus('name');
   }
 
   return (
@@ -922,26 +934,16 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
         </p>
       ) : null}
 
-      <ActionForm
+      <form
         action={props.formAction}
         className="flex max-w-xl flex-col gap-4"
-        formId="catalog-event-categories"
         onSubmit={(event) => {
           // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the validation promise.
           void handleSubmit(event);
         }}
-        serverFieldErrors={
-          props.fieldErrors?.name
-            ? [
-                {
-                  controlId: 'catalog-field-name',
-                  label: tCatalog('field_name'),
-                  message: props.fieldErrors.name,
-                },
-              ]
-            : undefined
-        }
       >
+        <FormErrorSummary entries={summaryEntries} />
+
         <div className="flex flex-col gap-1.5 text-sm">
           <Label className="text-foreground" htmlFor="catalog-field-name">
             {tCatalog('field_name')}
@@ -968,7 +970,7 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
           </label>
         </div>
 
-        <FormActions>
+        <div className="flex flex-wrap gap-3 pt-2">
           <SubmitButton pendingLabel={tCommon('pending_saving')} variant="mit">
             {tCatalog('action_save')}
           </SubmitButton>
@@ -982,8 +984,8 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
               {tCatalog('action_save_and_continue_editing')}
             </SubmitButton>
           ) : null}
-        </FormActions>
-      </ActionForm>
+        </div>
+      </form>
     </div>
   );
 }
@@ -2358,12 +2360,10 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
   }
 
   const formElement = (
-    <ActionForm
+    <form
       action={props.formAction}
-      additionalErrors={cmsAdditionalErrors}
       autoComplete={props.definition.id === 'site_alerts' ? 'off' : undefined}
       className={`flex ${formMaxWidth} flex-col gap-4`}
-      formId={`catalog-${props.definition.id}`}
       onSubmit={(event) => {
         if (!isCmsBlockForm) {
           return;
@@ -2383,11 +2383,14 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
           }
         }
       }}
-      serverFieldErrors={serverFieldSummaryErrors}
     >
+      <FormErrorSummary
+        entries={[...serverFieldSummaryErrors, ...cmsAdditionalErrors]}
+      />
+
       {renderCatalogFormFields()}
 
-      <FormActions>
+      <div className="flex flex-wrap gap-3 pt-2">
         <SubmitButton pendingLabel={tCommon('pending_saving')} variant="mit">
           {ns === 'AdminUsers'
             ? tUsers('action_save')
@@ -2405,8 +2408,8 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
               : tCatalog('action_save_and_continue_editing')}
           </SubmitButton>
         ) : null}
-      </FormActions>
-    </ActionForm>
+      </div>
+    </form>
   );
 
   return (

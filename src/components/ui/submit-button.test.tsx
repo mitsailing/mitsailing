@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import type * as ReactDom from 'react-dom';
 import { describe, expect, it, vi } from 'vitest';
-import { FormSubmitTimeoutContext } from '@/components/ui/form-submit-timeout-context';
 import { SubmitButton } from '@/components/ui/submit-button';
 
 vi.mock('next-intl', () => ({
@@ -105,22 +104,18 @@ describe('SubmitButton', () => {
     ).toBeDisabled();
   });
 
-  it('re-enables submit when the form submit timed out', async () => {
-    const { useFormStatus } = await import('react-dom');
-
-    vi.mocked(useFormStatus).mockReturnValue(pendingFormStatus(async () => {}));
-
+  it('merges the pending description into an existing aria-describedby', () => {
     render(
-      <FormSubmitTimeoutContext.Provider value={true}>
-        <form action={async () => {}}>
-          <SubmitButton pendingLabel="Saving...">Save</SubmitButton>
-        </form>
-      </FormSubmitTimeoutContext.Provider>
+      <>
+        <span id="save-hint">Saves the draft</span>
+        <SubmitButton aria-describedby="save-hint" pending pendingKind="saving">
+          Save
+        </SubmitButton>
+      </>
     );
 
-    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Save' })).not.toHaveAttribute(
-      'aria-busy'
-    );
+    expect(
+      screen.getByRole('button', { name: 'pending_saving' })
+    ).toHaveAccessibleDescription('Saves the draft pending_saving');
   });
 });

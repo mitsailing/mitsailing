@@ -4,6 +4,7 @@ import {
   visibleDonationFundsInDisplayOrder,
 } from '@/data/mit-sailing/donationFundsSeed';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
+import { formAlert } from '../helpers/e2e-alert';
 import { submitCatalogSave } from '../helpers/e2e-catalog-form';
 
 const hiddenFundName = donationFundHiddenForE2e().name;
@@ -57,17 +58,18 @@ test.describe('Admin donation funds', () => {
     );
   });
 
-  test('admin blocked submit shows validation summary on new fund form', async ({
-    page,
-  }) => {
+  test('native validation blocks submit on new fund form', async ({ page }) => {
     await signInAsAdmin(page);
     await page.goto('/admin/donation_funds/new');
     await page.getByLabel('Designation ID').fill('e2e-validation-blocked');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(
-      page.locator('[data-slot="form-error-summary"]')
-    ).toContainText('Fix the following errors');
-    await expect(page.getByRole('button', { name: /Name:/u })).toBeVisible();
+
+    await expect(page).toHaveURL(/\/admin\/donation_funds\/new$/);
+    await expect(page.getByLabel('Name', { exact: true })).toHaveJSProperty(
+      'validity.valid',
+      false
+    );
+    await expect(formAlert(page)).toHaveCount(0);
   });
 
   test('toggling hidden fund visibility is reflected on public donate page', async ({

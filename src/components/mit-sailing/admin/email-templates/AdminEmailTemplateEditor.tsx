@@ -38,6 +38,31 @@ function draftStorageKey(templateKey: string) {
   return `admin-email-template-draft:${templateKey}`;
 }
 
+/**
+ * Writes the rendered editor output into the hidden export fields.
+ *
+ * @param options - Editor handle, fallback body, and the submitted form data
+ */
+async function exportEditorFields(options: {
+  editor: EmailEditorRef | null;
+  fallbackContent: string;
+  formData: FormData;
+}) {
+  const bodyHtml =
+    (await options.editor?.getEmailHTML()) ??
+    options.editor?.editor?.getHTML() ??
+    options.fallbackContent;
+  options.formData.set('editorBodyHtml', bodyHtml);
+  options.formData.set(
+    'renderedText',
+    (await options.editor?.getEmailText()) ?? ''
+  );
+  options.formData.set(
+    'editorJson',
+    JSON.stringify(options.editor?.getJSON() ?? null)
+  );
+}
+
 function storedDraft(value: string | null): StoredDraft | null {
   if (!value) {
     return null;
@@ -69,35 +94,28 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
   const [content, setContent] = useState(props.content);
   const [previewText, setPreviewText] = useState(props.previewText);
   const [subject, setSubject] = useState(props.subject);
-  const actionsRef = useRef(props);
-  actionsRef.current = props;
-  const prepareFormDataRef = useRef(async (_formData: FormData) => {
-    await Promise.resolve();
-  });
+
+  async function saveFormAction(formData: FormData) {
+    await exportEditorFields({
+      editor: editorRef.current,
+      fallbackContent: content,
+      formData,
+    });
+    await props.saveAction(formData);
+  }
+
+  async function sendTestFormAction(formData: FormData) {
+    await exportEditorFields({
+      editor: editorRef.current,
+      fallbackContent: content,
+      formData,
+    });
+    await props.sendTestAction(formData);
+  }
 
   function currentEditorContent() {
     return editorRef.current?.editor?.getHTML() ?? content;
   }
-
-  prepareFormDataRef.current = async (formData: FormData) => {
-    const bodyHtml =
-      (await editorRef.current?.getEmailHTML()) ?? currentEditorContent();
-    const text = (await editorRef.current?.getEmailText()) ?? '';
-    const json = editorRef.current?.getJSON() ?? null;
-    formData.set('editorBodyHtml', bodyHtml);
-    formData.set('renderedText', text);
-    formData.set('editorJson', JSON.stringify(json));
-  };
-
-  const saveFormAction = useRef(async (formData: FormData) => {
-    await prepareFormDataRef.current(formData);
-    await actionsRef.current.saveAction(formData);
-  }).current;
-
-  const sendTestFormAction = useRef(async (formData: FormData) => {
-    await prepareFormDataRef.current(formData);
-    await actionsRef.current.sendTestAction(formData);
-  }).current;
 
   function persistDraft(next: Partial<StoredDraft>) {
     globalThis.localStorage.setItem(
@@ -191,14 +209,7 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
             type="email"
           />
         </div>
-        <SubmitButton
-          className="self-end"
-          formAction={sendTestFormAction}
-          pendingKind="sending"
-          variant="outline"
-        >
-          {props.text.sendTest}
-        </SubmitButton>
+        {/* Save stays first so implicit submission (Enter) uses its formAction. */}
         <SubmitButton
           className="self-end"
           formAction={saveFormAction}
@@ -206,6 +217,14 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
           variant="mit"
         >
           {props.text.saveDraft}
+        </SubmitButton>
+        <SubmitButton
+          className="self-end"
+          formAction={sendTestFormAction}
+          pendingKind="sending"
+          variant="outline"
+        >
+          {props.text.sendTest}
         </SubmitButton>
       </div>
     </form>

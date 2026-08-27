@@ -5,99 +5,86 @@ import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
-import { FormSubmitTimeoutContext } from '@/components/ui/form-submit-timeout-context';
-import {
-  isSubmitButtonPending,
-  resolveSubmitPendingLabel,
-  submitButtonChromeProps,
-  submitButtonPassthroughProps,
-} from '@/components/ui/submit-button-state';
-import type { SubmitButtonProps } from '@/components/ui/submit-button-state';
 
-function renderSubmitButtonLabel(options: {
-  children: React.ReactNode;
-  isPending: boolean;
-  pendingLabel: string;
-}): React.ReactNode {
-  if (options.isPending) {
-    return (
-      <>
-        <LoaderCircle
-          aria-hidden
-          className="size-4 animate-spin motion-reduce:animate-none"
-        />
-        {options.pendingLabel}
-      </>
-    );
-  }
-  return options.children;
-}
+const pendingKindKeys = {
+  adding: 'pending_adding',
+  deleting: 'pending_deleting',
+  saving: 'pending_saving',
+  sending: 'pending_sending',
+  submitting: 'pending_submitting',
+} as const;
 
-function renderSubmitButtonPendingDescription(options: {
-  id: string;
-  isPending: boolean;
-  label: string;
-}): React.ReactNode {
-  if (!options.isPending) {
-    return null;
-  }
+type SubmitPendingKind = keyof typeof pendingKindKeys;
+
+type SubmitButtonProps = React.ComponentProps<typeof Button> & {
+  pending?: boolean;
+} & (
+    | { pendingLabel: string; pendingKind?: never }
+    | { pendingKind: SubmitPendingKind; pendingLabel?: string }
+  );
+
+/**
+ * Submit control that renders a spinner while its own submit is in flight.
+ *
+ * Explicit `pending` wins. Otherwise the nearest form must be pending, and an
+ * optional `formAction` must match the action currently in flight so sibling
+ * submits stay interactive.
+ *
+ * @param props - Button props plus `pending`, `pendingKind`, or `pendingLabel`
+ * @returns Button with pending chrome and a polite pending announcement
+ */
+function SubmitButton(props: SubmitButtonProps) {
+  // Destructured so the SubmitButton-only props never reach the DOM button.
+  const { pending, pendingKind, pendingLabel, ...buttonProps } = props;
+  const tCommon = useTranslations('Common');
+  const formStatus = useFormStatus();
+  const pendingDescriptionId = React.useId();
+
+  const isPending =
+    pending ??
+    (formStatus.pending &&
+      (props.formAction === undefined ||
+        formStatus.action === props.formAction));
+
+  const resolvedPendingLabel =
+    pendingLabel ?? (pendingKind ? tCommon(pendingKindKeys[pendingKind]) : '');
+
+  const describedBy = [
+    props['aria-describedby'],
+    isPending ? pendingDescriptionId : undefined,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <span aria-live="polite" className="sr-only" id={options.id}>
-      {options.label}
-    </span>
+    <>
+      <Button
+        {...buttonProps}
+        aria-busy={isPending || undefined}
+        aria-describedby={describedBy || undefined}
+        disabled={isPending || Boolean(props.disabled)}
+        title={isPending ? resolvedPendingLabel : props.title}
+        type={props.type ?? 'submit'}
+      >
+        {isPending ? (
+          <>
+            <LoaderCircle
+              aria-hidden
+              className="size-4 animate-spin motion-reduce:animate-none"
+            />
+            {resolvedPendingLabel}
+          </>
+        ) : (
+          props.children
+        )}
+      </Button>
+      {isPending ? (
+        <span aria-live="polite" className="sr-only" id={pendingDescriptionId}>
+          {resolvedPendingLabel}
+        </span>
+      ) : null}
+    </>
   );
 }
-
-const SubmitButton = React.forwardRef<HTMLButtonElement, SubmitButtonProps>(
-  function SubmitButton(props: SubmitButtonProps, ref) {
-    const tCommon = useTranslations('Common');
-    const formStatus = useFormStatus();
-    const submitTimedOut = React.useContext(FormSubmitTimeoutContext);
-    const pendingDescriptionId = React.useId();
-    const isPending = isSubmitButtonPending({
-      formAction: props.formAction,
-      formPending: formStatus.pending,
-      formStatusAction: formStatus.action,
-      pendingProp: props.pending,
-      submitTimedOut,
-    });
-    const pendingLabel = resolveSubmitPendingLabel({
-      pendingKind: props.pendingKind,
-      pendingLabel: props.pendingLabel,
-      translate: tCommon,
-    });
-    const chromeProps = submitButtonChromeProps({
-      disabled: props.disabled,
-      isPending,
-      pendingDescriptionId,
-      pendingLabel,
-      propsAriaDescribedBy: props['aria-describedby'],
-      title: props.title,
-      type: props.type,
-    });
-
-    return (
-      <>
-        <Button
-          ref={ref}
-          {...submitButtonPassthroughProps(props)}
-          {...chromeProps}
-        >
-          {renderSubmitButtonLabel({
-            children: props.children,
-            isPending,
-            pendingLabel,
-          })}
-        </Button>
-        {renderSubmitButtonPendingDescription({
-          id: pendingDescriptionId,
-          isPending,
-          label: pendingLabel,
-        })}
-      </>
-    );
-  }
-);
-SubmitButton.displayName = 'SubmitButton';
 
 export { SubmitButton };
