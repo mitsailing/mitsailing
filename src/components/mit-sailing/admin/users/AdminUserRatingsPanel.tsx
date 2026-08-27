@@ -97,7 +97,11 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
               if (props.canAssignRatings && row.issuedAt) {
                 ratingAction = (
                   <form action={revokeAction}>
-                    <input name="sailingRatingId" type="hidden" value={row.id} />
+                    <input
+                      name="sailingRatingId"
+                      type="hidden"
+                      value={row.id}
+                    />
                     <SubmitButton
                       pendingKind="submitting"
                       size="sm"
@@ -110,10 +114,16 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
               } else if (props.canAssignRatings) {
                 ratingAction = (
                   <form action={grantAction}>
-                    <input name="sailingRatingId" type="hidden" value={row.id} />
+                    <input
+                      name="sailingRatingId"
+                      type="hidden"
+                      value={row.id}
+                    />
                     <SubmitButton
                       aria-describedby={
-                        grantDisabledMessage ? grantDisabledMessageId : undefined
+                        grantDisabledMessage
+                          ? grantDisabledMessageId
+                          : undefined
                       }
                       disabled={!row.eligibility.eligible}
                       pendingKind="adding"
