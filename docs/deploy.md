@@ -173,24 +173,30 @@ path exists.
 
 The production image lives at `ghcr.io/mitsailing/mitsailing`. Package visibility
 is independent of the public git repo and defaults to private. The deploy job
-grants `packages: read` on the short-lived `GITHUB_TOKEN`, logs the production
-host into GHCR over SSH with `--password-stdin` (token never on remote argv),
-runs `bin/deploy.sh release` using the host default Docker config (so rootless
-CLI context keeps working), then `docker logout ghcr.io` unless the job was
-cancelled (avoids wiping a newer deploy's login under `cancel-in-progress`).
+grants `packages: read` on the short-lived `GITHUB_TOKEN`, logs into GHCR over
+SSH with `--password-stdin` using a per-run `DOCKER_CONFIG` under
+`/tmp/mitsailing-ghcr-<run_id>-<run_attempt>/` (so Actions does not touch the
+host `~/.docker` auth), sets `DOCKER_HOST` to the rootless user socket when
+present, runs `bin/deploy.sh release`, then logs out and removes that config
+dir.
 
 Do not leave a long-lived PAT on the host for routine deploys. For break-glass
 pulls when Actions cannot run:
 
 ```bash
+# Prefer an isolated config so this does not fight Actions deploys
+export DOCKER_CONFIG="$(mktemp -d)"
+uid="$(id -u)"
+sock="/run/user/${uid}/docker.sock"
+if [[ -S "$sock" ]]; then
+  export DOCKER_HOST="unix://${sock}"
+fi
 # PAT with read:packages only; authorize org SSO if the org requires it
 printf '%s\n' "$GHCR_READ_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
 docker pull ghcr.io/mitsailing/mitsailing:sha-abc123def456
 docker logout ghcr.io
+rm -rf "$DOCKER_CONFIG"
 ```
-
-Stale GHCR credentials on the host can produce `denied: denied`. Prefer
-`docker logout ghcr.io` before retrying a manual login.
 
 ## Verify
 
@@ -244,8 +250,8 @@ Rollback switches app traffic. It does not reverse database migrations.
 Use direct SSH only after GitHub Actions has already synced the deploy files, or
 when you are intentionally rerunning the same host command. Pass
 `PRODUCTION_DATA_ROOT`; `.env.production` is not enough for deploy-script path
-checks. Log into GHCR first (see [GHCR pull auth](#ghcr-pull-auth)); the host
-does not keep registry credentials between Actions deploys.
+checks. Log into GHCR first (see [GHCR pull auth](#ghcr-pull-auth)); Actions
+uses an isolated `DOCKER_CONFIG` and does not rely on a persistent host login.
 
 ```bash
 export PRODUCTION_DATA_ROOT=/home/ak/mitsailing-data
