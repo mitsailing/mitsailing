@@ -5,23 +5,12 @@ import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
-
-const pendingKindKeys = {
-  adding: 'pending_adding',
-  deleting: 'pending_deleting',
-  saving: 'pending_saving',
-  sending: 'pending_sending',
-  submitting: 'pending_submitting',
-} as const;
-
-type SubmitPendingKind = keyof typeof pendingKindKeys;
-
-type SubmitButtonProps = React.ComponentProps<typeof Button> & {
-  pending?: boolean;
-} & (
-    | { pendingLabel: string; pendingKind?: never }
-    | { pendingKind: SubmitPendingKind; pendingLabel?: string }
-  );
+import {
+  resolveIsPending,
+  resolvePendingLabel,
+  submitButtonChrome,
+} from '@/components/ui/submit-button-state';
+import type { SubmitButtonProps } from '@/components/ui/submit-button-state';
 
 /**
  * Submit control that renders a spinner while its own submit is in flight.
@@ -40,31 +29,30 @@ function SubmitButton(props: SubmitButtonProps) {
   const formStatus = useFormStatus();
   const pendingDescriptionId = React.useId();
 
-  const isPending =
-    pending ??
-    (formStatus.pending &&
-      (props.formAction === undefined ||
-        formStatus.action === props.formAction));
-
-  const resolvedPendingLabel =
-    pendingLabel ?? (pendingKind ? tCommon(pendingKindKeys[pendingKind]) : '');
-
-  const describedBy = [
-    props['aria-describedby'],
-    isPending ? pendingDescriptionId : undefined,
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const isPending = resolveIsPending({
+    formAction: props.formAction,
+    formStatus,
+    pending,
+  });
+  const label = resolvePendingLabel({
+    pendingKind,
+    pendingLabel,
+    translate: tCommon,
+  });
 
   return (
     <>
       <Button
         {...buttonProps}
-        aria-busy={isPending || undefined}
-        aria-describedby={describedBy || undefined}
-        disabled={isPending || Boolean(props.disabled)}
-        title={isPending ? resolvedPendingLabel : props.title}
-        type={props.type ?? 'submit'}
+        {...submitButtonChrome({
+          ariaDescribedBy: props['aria-describedby'],
+          disabled: props.disabled,
+          isPending,
+          pendingDescriptionId,
+          pendingLabel: label,
+          title: props.title,
+          type: props.type,
+        })}
       >
         {isPending ? (
           <>
@@ -72,7 +60,7 @@ function SubmitButton(props: SubmitButtonProps) {
               aria-hidden
               className="size-4 animate-spin motion-reduce:animate-none"
             />
-            {resolvedPendingLabel}
+            {label}
           </>
         ) : (
           props.children
@@ -80,7 +68,7 @@ function SubmitButton(props: SubmitButtonProps) {
       </Button>
       {isPending ? (
         <span aria-live="polite" className="sr-only" id={pendingDescriptionId}>
-          {resolvedPendingLabel}
+          {label}
         </span>
       ) : null}
     </>
