@@ -21,6 +21,10 @@ alwaysApply: false
 
 **Not done:** one commit, one watch cycle, or “most comments replied.”
 
+**Never tell the user** a PR is “done / yes / merge-ready” while
+`agent-reviews --bots-only --unanswered` still lists actionable CODE threads, or
+while required checks are failing. Re-run that inventory before any done claim.
+
 ## Codacy triage (non-blocking lows)
 
 **PR loop gate:** **Low** and **Info** Codacy findings do **not** block merge readiness. Do not spawn workers or keep the loop open solely to clear them.

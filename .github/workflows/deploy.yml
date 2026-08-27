@@ -236,10 +236,9 @@ jobs:
 
       # GHCR package visibility is independent of the public git repo and defaults
       # to private. Prefer short-lived GITHUB_TOKEN (packages:read) over a host PAT.
-      # Pipe the token over SSH stdin into `docker login --password-stdin` so it never
-      # appears in remote argv/process list. Use a per-run DOCKER_CONFIG so
-      # cancel-in-progress logout cannot clear a newer deploy's credentials (shared
-      # ~/.docker/config.json), then remove that directory after Release.
+      # Pipe the token over SSH stdin into `docker login --password-stdin`.
+      # Per-run DOCKER_CONFIG keeps GHCR auth off the shared ~/.docker config;
+      # DOCKER_HOST points at the rootless socket when that context is not loaded.
       - name: Log in to GHCR on production host
         id: ghcr_login
         env:
@@ -259,7 +258,7 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -o ConnectTimeout=15 \
             "$PRODUCTION_SSH_TARGET" \
-            "mkdir -p -m 700 ${remote_docker_config} && DOCKER_CONFIG=${remote_docker_config} docker login ghcr.io -u ${remote_user} --password-stdin"
+            "set -euo pipefail; mkdir -p -m 700 ${remote_docker_config}; export DOCKER_CONFIG=${remote_docker_config}; sock=\"/run/user/\$(id -u)/docker.sock\"; if [[ -S \"\$sock\" ]]; then export DOCKER_HOST=\"unix://\$sock\"; fi; docker login ghcr.io -u ${remote_user} --password-stdin"
           unset GHCR_TOKEN
 
       - name: Release
@@ -290,7 +289,7 @@ jobs:
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "$PRODUCTION_SSH_TARGET" \
-            "${remote_data_root_assignment}DOCKER_CONFIG=${remote_docker_config} DEPLOY_DIR=${remote_app_dir} ${remote_deploy_script} release ${remote_image_tag}"
+            "set -euo pipefail; export DOCKER_CONFIG=${remote_docker_config}; sock=\"/run/user/\$(id -u)/docker.sock\"; if [[ -S \"\$sock\" ]]; then export DOCKER_HOST=\"unix://\$sock\"; fi; ${remote_data_root_assignment}DEPLOY_DIR=${remote_app_dir} ${remote_deploy_script} release ${remote_image_tag}"
 
       - name: Log out of GHCR on production host
         if: ${{ always() && steps.ghcr_login.outcome == 'success' }}

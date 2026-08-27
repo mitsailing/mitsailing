@@ -468,16 +468,19 @@ describe('production docker compose', () => {
     expect(deployWorkflow).toContain(
       `REMOTE_DOCKER_CONFIG: ${remoteDockerConfigPath}`
     );
+    // Login and release must share isolated DOCKER_CONFIG + rootless DOCKER_HOST
+    // on the same remote shell (do not assert these tokens loosely elsewhere).
+    const remoteDockerEnvSetup = `export DOCKER_CONFIG=${remoteDockerConfig}; sock=\\"/run/user/\\$(id -u)/docker.sock\\"; if [[ -S \\"\\$sock\\" ]]; then export DOCKER_HOST=\\"unix://\\$sock\\"; fi`;
     expect(deployWorkflow).toContain(
-      `mkdir -p -m 700 ${remoteDockerConfig} && DOCKER_CONFIG=${remoteDockerConfig} docker login ghcr.io -u ${remoteUser} --password-stdin`
+      `mkdir -p -m 700 ${remoteDockerConfig}; ${remoteDockerEnvSetup}; docker login ghcr.io -u ${remoteUser} --password-stdin`
+    );
+    expect(deployWorkflow).toContain(
+      `${remoteDockerEnvSetup}; ${escapedDataRootAssignment}DEPLOY_DIR=${escapedAppDir} ${escapedDeployScript} release ${escapedImageTag}`
     );
     expect(deployWorkflow).toContain(
       `printf '%s\\n' "${dollar}GHCR_TOKEN" | ssh \\`
     );
     expect(deployWorkflow).toContain('unset GHCR_TOKEN');
-    expect(deployWorkflow).toContain(
-      `${escapedDataRootAssignment}DOCKER_CONFIG=${remoteDockerConfig} DEPLOY_DIR=${escapedAppDir} ${escapedDeployScript} release ${escapedImageTag}`
-    );
     expect(deployWorkflow).toContain(`if: ${ghcrLoginOutcome}`);
     expect(deployWorkflow).toContain(
       `DOCKER_CONFIG=${remoteDockerConfig} docker logout ghcr.io; rm -rf ${remoteDockerConfig}`
