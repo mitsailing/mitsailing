@@ -69,7 +69,7 @@ describe('production docker compose', () => {
 
   it('defines one docker-only production stack', () => {
     expect(productionCompose).toContain('app:');
-    expect(productionCompose).toContain('image: nginx:1.29-alpine');
+    expect(productionCompose).toContain('image: nginx:1.31-alpine');
     expect(productionCompose).toContain('web_blue:');
     expect(productionCompose).toContain('web_green:');
     expect(productionCompose).toContain('worker:');
@@ -688,7 +688,7 @@ describe('local docker compose', () => {
       /tusd:[\s\S]*healthcheck:[\s\S]*start_period: 30s/u
     );
     expect(localCompose).toContain('media:');
-    expect(localCompose).toContain('image: nginx:1.29-alpine');
+    expect(localCompose).toContain('image: nginx:1.31-alpine');
     expect(localCompose).toContain(
       `'127.0.0.1:${composeVariable('MEDIA_PUBLIC_PUBLISH_PORT:-8088')}:8080'`
     );
