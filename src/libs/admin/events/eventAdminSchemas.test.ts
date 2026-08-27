@@ -337,11 +337,10 @@ describe('eventAdminSchemas', () => {
     expect(parsed.description).toBe('Entry fee');
   });
 
-  it('ignores stale deposit form data while mapping fee amounts', () => {
+  it('parses fee amounts from form data without deposit fields', () => {
     const formData = new FormData();
     formData.set('description', 'Entry fee');
     formData.set('amountDollars', '25');
-    formData.set('isDeposit', 'true');
     const raw = rawEventFeeFromFormData(formData);
     const parsed = eventFeeFormSchema.parse(raw);
 

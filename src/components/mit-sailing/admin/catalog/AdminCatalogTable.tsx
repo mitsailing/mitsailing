@@ -25,7 +25,6 @@ import { AdminTableContainer } from '@/components/mit-sailing/admin/AdminDataRow
 import { AdminCatalogListCell } from '@/components/mit-sailing/admin/catalog/AdminCatalogListCell';
 import { ImpersonateButton } from '@/components/mit-sailing/admin/ImpersonateButton';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import {
@@ -76,13 +75,6 @@ type AdminCatalogTableProps = {
   };
   /** Message bundle for column headers, mobile labels, and actions (not list cell pills). */
   messageNamespace?: 'AdminCatalogResource' | 'AdminUsers';
-  /** Optional client-side list filter for small admin directories such as users. */
-  search?: {
-    emptyKey: AdminTableMessageKey;
-    fields: readonly string[];
-    labelKey: AdminTableMessageKey;
-    placeholderKey: AdminTableMessageKey;
-  };
   /** Optional empty-state message when server-side filters return no rows. */
   emptyKey?: AdminTableMessageKey;
   /** Optional exact-match filters for secondary states that do not need table columns. */
@@ -211,31 +203,18 @@ function listColumnsWithNameFirst(
 function narrowCatalogTableRows(options: {
   filterValues: Record<string, string>;
   filters: AdminCatalogTableProps['filters'];
-  normalizedSearchQuery: string;
   orderedRows: CatalogRow[];
-  search: AdminCatalogTableProps['search'];
 }): CatalogRow[] {
-  const { filters, normalizedSearchQuery, orderedRows, search } = options;
-  if (!search && !filters) {
+  const { filters, orderedRows } = options;
+  if (!filters) {
     return orderedRows;
   }
-  return orderedRows.filter((row) => {
-    const matchesSearch =
-      !search ||
-      !normalizedSearchQuery ||
-      search.fields.some((field) =>
-        String(row[field] ?? '')
-          .toLowerCase()
-          .includes(normalizedSearchQuery)
-      );
-    const matchesFilters =
-      !filters ||
-      filters.every((filter) => {
-        const selected = options.filterValues[filter.field] ?? '';
-        return selected.length === 0 || String(row[filter.field]) === selected;
-      });
-    return matchesSearch && matchesFilters;
-  });
+  return orderedRows.filter((row) =>
+    filters.every((filter) => {
+      const selected = options.filterValues[filter.field] ?? '';
+      return selected.length === 0 || String(row[filter.field]) === selected;
+    })
+  );
 }
 
 function buildCatalogTablePagination(options: {
@@ -435,7 +414,6 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
   const [reorderError, setReorderError] = useState<string | null>(null);
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setOrderedIds(props.rows.map((r) => String(r.id)));
@@ -490,18 +468,15 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
   const displayColumns = listColumnsWithNameFirst(props.definition.listColumns);
   const canUpdate = props.definition.capabilities.update;
   const canDelete = props.definition.capabilities.delete;
-  const { filters, search } = props;
-  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
-  const hasActiveListNarrowing =
-    normalizedSearchQuery.length > 0 ||
-    Object.values(filterValues).some((value) => value.length > 0);
+  const { filters } = props;
+  const hasActiveListNarrowing = Object.values(filterValues).some(
+    (value) => value.length > 0
+  );
   const canDragReorder = canReorder && !hasActiveListNarrowing;
   const visibleRows = narrowCatalogTableRows({
     filterValues,
     filters,
-    normalizedSearchQuery,
     orderedRows,
-    search,
   });
   const {
     clientPaginationEnabled,
@@ -527,7 +502,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
           start: pageStart,
           total: visibleRows.length,
         });
-  const emptyMessageKey = props.search?.emptyKey ?? props.emptyKey;
+  const emptyMessageKey = props.emptyKey;
   const emptyRow = emptyMessageKey ? (
     <TableRow>
       <TableCell
@@ -558,27 +533,9 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      {props.search || props.filters ? (
+      {props.filters ? (
         <div className="flex flex-col gap-3 md:flex-row md:items-end">
-          {props.search ? (
-            <div className="w-full md:max-w-sm">
-              <Label htmlFor={`${props.resourceId}-admin-search`}>
-                {t(props.search.labelKey)}
-              </Label>
-              <Input
-                className="mt-2"
-                id={`${props.resourceId}-admin-search`}
-                onChange={(event) => {
-                  setSearchQuery(event.currentTarget.value);
-                  setCurrentPage(1);
-                }}
-                placeholder={t(props.search.placeholderKey)}
-                type="search"
-                value={searchQuery}
-              />
-            </div>
-          ) : null}
-          {props.filters?.map((filter) => (
+          {props.filters.map((filter) => (
             <div className="w-full md:max-w-56" key={filter.field}>
               <Label htmlFor={`${props.resourceId}-${filter.field}-filter`}>
                 {t(filter.labelKey)}

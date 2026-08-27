@@ -24,6 +24,7 @@ import {
   adminEventFormErrorMessage,
 } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { resendAllAdminEventPaymentRequestsAction } from '@/libs/admin/events/eventAdminActions';
 import {
   adminEventShowPath,
@@ -76,10 +77,10 @@ function PaymentRequestSummary(props: {
         {props.t('payment_requests_body')}
       </p>
       <form action={action}>
-        <Button type="submit" variant="outline">
+        <SubmitButton pendingKind="sending" variant="outline">
           <Mail aria-hidden className="size-4" />
           {props.t('payment_resend_all')}
-        </Button>
+        </SubmitButton>
       </form>
     </AdminEventFormSection>
   );

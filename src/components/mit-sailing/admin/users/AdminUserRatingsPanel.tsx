@@ -77,6 +77,16 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {props.rows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  className="px-3 py-4 text-sm text-muted-foreground"
+                  colSpan={4}
+                >
+                  {t('ratings_empty')}
+                </TableCell>
+              </TableRow>
+            ) : null}
             {props.rows.map((row) => {
               let grantDisabledMessage: string | null = null;
               if (!row.eligibility.eligible) {

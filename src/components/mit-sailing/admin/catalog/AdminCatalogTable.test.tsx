@@ -19,9 +19,6 @@ vi.mock('next-intl', () => ({
       column_sailing_card_number: 'Sailing card #',
       drag_handle_aria: 'Drag row',
       filter_empty: 'No users match that search.',
-      filter_search_label: 'Search users',
-      filter_search_placeholder:
-        'Search by name, email, MIT ID, sailing card number, or role',
       filter_email_status_all: 'All email statuses',
       filter_email_status_label: 'Email status',
       filter_sailing_card_status_all: 'All card statuses',
@@ -89,6 +86,33 @@ const reorderableUserDefinition = {
   },
 } as const satisfies CatalogResourceDefinition;
 
+const userFilters = [
+  {
+    allKey: 'filter_email_status_all',
+    field: 'emailDeliverabilityStatus',
+    labelKey: 'filter_email_status_label',
+    options: [
+      { labelKey: 'email_status_ok', value: 'ok' },
+      { labelKey: 'email_status_bounced', value: 'bounced' },
+    ],
+  },
+  {
+    allKey: 'filter_sailing_card_status_all',
+    field: 'sailingCardStatus',
+    labelKey: 'filter_sailing_card_status_label',
+    options: [
+      {
+        labelKey: 'filter_sailing_card_status_current',
+        value: 'current',
+      },
+      {
+        labelKey: 'filter_sailing_card_status_pending',
+        value: 'pending',
+      },
+    ],
+  },
+] as const;
+
 const userRows = [
   {
     appRole: 'admin',
@@ -127,42 +151,12 @@ function renderUsersTable() {
     <AdminCatalogTable
       adminBasePath="/admin/users"
       definition={userDefinition}
+      emptyKey="filter_empty"
+      filters={userFilters}
       locale="en"
       messageNamespace="AdminUsers"
       resourceId="users"
       rows={userRows}
-      search={{
-        emptyKey: 'filter_empty',
-        fields: ['email', 'name', 'mitId', 'sailingCardNumber', 'appRole'],
-        labelKey: 'filter_search_label',
-        placeholderKey: 'filter_search_placeholder',
-      }}
-      filters={[
-        {
-          allKey: 'filter_email_status_all',
-          field: 'emailDeliverabilityStatus',
-          labelKey: 'filter_email_status_label',
-          options: [
-            { labelKey: 'email_status_ok', value: 'ok' },
-            { labelKey: 'email_status_bounced', value: 'bounced' },
-          ],
-        },
-        {
-          allKey: 'filter_sailing_card_status_all',
-          field: 'sailingCardStatus',
-          labelKey: 'filter_sailing_card_status_label',
-          options: [
-            {
-              labelKey: 'filter_sailing_card_status_current',
-              value: 'current',
-            },
-            {
-              labelKey: 'filter_sailing_card_status_pending',
-              value: 'pending',
-            },
-          ],
-        },
-      ]}
     />
   );
 }
@@ -172,27 +166,13 @@ function renderReorderableUsersTable() {
     <AdminCatalogTable
       adminBasePath="/admin/users"
       definition={reorderableUserDefinition}
+      filters={userFilters}
       locale="en"
       messageNamespace="AdminUsers"
       resourceId="users"
       rows={userRows}
-      search={{
-        emptyKey: 'filter_empty',
-        fields: ['email', 'name', 'mitId', 'sailingCardNumber', 'appRole'],
-        labelKey: 'filter_search_label',
-        placeholderKey: 'filter_search_placeholder',
-      }}
     />
   );
-}
-
-async function searchUsers(
-  user: ReturnType<typeof userEvent.setup>,
-  query: string
-) {
-  const searchbox = screen.getByRole('searchbox', { name: 'Search users' });
-  await user.clear(searchbox);
-  await user.type(searchbox, query);
 }
 
 function expectOnlyUserLink(name: 'Ada Lovelace' | 'Grace Hopper') {
@@ -202,29 +182,6 @@ function expectOnlyUserLink(name: 'Ada Lovelace' | 'Grace Hopper') {
 }
 
 describe('AdminCatalogTable', () => {
-  it('filters users by configured search fields without navigation', async () => {
-    renderUsersTable();
-    const user = userEvent.setup();
-    const originalHref = globalThis.location.href;
-
-    await searchUsers(user, 'grace');
-
-    expectOnlyUserLink('Grace Hopper');
-    expect(globalThis.location.href).toBe(originalHref);
-
-    await searchUsers(user, 'admin');
-
-    expectOnlyUserLink('Ada Lovelace');
-
-    await searchUsers(user, '222222222');
-
-    expectOnlyUserLink('Grace Hopper');
-
-    await searchUsers(user, '61');
-
-    expectOnlyUserLink('Ada Lovelace');
-  });
-
   it('combines configured filters and empty state', async () => {
     renderUsersTable();
     const user = userEvent.setup();
@@ -240,7 +197,10 @@ describe('AdminCatalogTable', () => {
 
     expectOnlyUserLink('Grace Hopper');
 
-    await searchUsers(user, 'missing');
+    await user.selectOptions(
+      screen.getByLabelText('Sailing card status'),
+      'current'
+    );
 
     expect(screen.getByText('No users match that search.')).toBeVisible();
   });
@@ -251,7 +211,7 @@ describe('AdminCatalogTable', () => {
 
     expect(screen.getAllByRole('button', { name: 'Drag row' })).toHaveLength(2);
 
-    await searchUsers(user, 'grace');
+    await user.selectOptions(screen.getByLabelText('Email status'), 'bounced');
 
     expect(screen.queryByRole('button', { name: 'Drag row' })).toBeNull();
     expectOnlyUserLink('Grace Hopper');

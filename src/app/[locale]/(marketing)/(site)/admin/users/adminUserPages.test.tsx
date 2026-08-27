@@ -422,7 +422,6 @@ beforeEach(() => {
       },
     ],
     gymMembershipVerifiedAt: null,
-    paymentBypassRequest: null,
     sailingCardRequests: [],
     sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
     sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
@@ -483,16 +482,12 @@ function pendingCardSummary() {
       },
     ],
     gymMembershipVerifiedAt: null,
-    paymentBypassRequest: null,
     sailingCardRequests: [
       {
         cardType: SailingCardType.normal,
         cardYear: 2026,
         hasFitnessMembership: true,
         issuedCardNumber: null,
-        paymentBypassAt: null,
-        paymentBypassBy: null,
-        paymentBypassNote: null,
         requestedAt: new Date('2026-05-21T16:00:00.000Z'),
         sailingAffiliation: SailingAffiliation.MIT_STUDENT,
         status: SailingCardRequestStatus.pending,
@@ -523,30 +518,18 @@ function pendingRecreationVerificationCardSummary() {
   };
 }
 
-function paymentBypassCardSummary() {
-  const paymentBypassRequest = {
-    cardType: SailingCardType.racing,
-    cardYear: 2026,
-    hasFitnessMembership: true,
-    issuedCardNumber: 60,
-    paymentBypassAt: new Date('2026-05-21T17:00:00.000Z'),
-    paymentBypassBy: { name: 'Dock Master' },
-    paymentBypassNote: 'Admin issued sailing card without payment.',
-    requestedAt: new Date('2026-05-21T16:00:00.000Z'),
-    sailingAffiliation: 'OTHER',
-    status: SailingCardRequestStatus.approved,
-  };
-
+function issuedRacingCardSummary() {
   return {
     ...pendingCardSummary(),
-    paymentBypassRequest,
     sailingCardRequests: [
       {
-        ...paymentBypassRequest,
+        cardType: SailingCardType.racing,
+        cardYear: 2026,
+        hasFitnessMembership: true,
         issuedCardNumber: 61,
-        paymentBypassAt: null,
-        paymentBypassBy: null,
-        paymentBypassNote: null,
+        requestedAt: new Date('2026-05-21T16:00:00.000Z'),
+        sailingAffiliation: SailingAffiliation.OTHER_NON_STUDENT,
+        status: SailingCardRequestStatus.approved,
       },
     ],
     sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
@@ -739,7 +722,6 @@ describe('admin user pages', () => {
           agreementVersion: sailingCardAgreement.version,
         },
       ],
-      paymentBypassRequest: null,
       sailingCardRequests: [],
       sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
       sailingCardIssuedAt: new Date('2026-05-21T16:00:00.000Z'),
@@ -749,6 +731,7 @@ describe('admin user pages', () => {
       sailingCardSwimAgreementInitialedAt: new Date('2026-05-21T16:00:00.000Z'),
       sailingCardSwimAgreementInitials: 'AK',
       sailingCardYear: 2026,
+      gymMembershipVerifiedAt: null,
     });
     const { default: AdminUserShowPage } = await import('./[id]/page');
 
@@ -784,9 +767,9 @@ describe('admin user pages', () => {
     );
   });
 
-  it('does not show old admin payment bypass on the user sailing-card panel', async () => {
+  it('does not show removed payment-bypass copy on the sailing-card panel', async () => {
     mocks.getAdminUserSailingCardSummary.mockResolvedValue(
-      paymentBypassCardSummary()
+      issuedRacingCardSummary()
     );
     const { default: AdminUserShowPage } = await import('./[id]/page');
 
@@ -1018,9 +1001,9 @@ describe('admin user pages', () => {
     ).toHaveAttribute('href', '#membership-payment-status');
   });
 
-  it('keeps payment blockers when the card request records an old payment bypass', async () => {
+  it('keeps payment blockers when a disputed membership payment remains', async () => {
     mocks.getAdminUserSailingCardSummary.mockResolvedValue(
-      paymentBypassCardSummary()
+      issuedRacingCardSummary()
     );
     mockUserPaymentRows([
       {

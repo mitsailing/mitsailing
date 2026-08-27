@@ -192,6 +192,10 @@ export default async function AdminUsersIndexPage(
     filters.sailingCardStatus !== 'all' ||
     filters.cardType !== 'all' ||
     filters.membershipPaymentStatus !== 'all';
+  let emptyKey: 'filter_empty' | 'list_empty' | undefined;
+  if (usersPage.total === 0) {
+    emptyKey = hasActiveFilters ? 'filter_empty' : 'list_empty';
+  }
   const tr = await getTranslations({ locale, namespace: 'AdminUsers' });
   const t = await getTranslations({ locale, namespace: 'MitSailingRoutes' });
   const ta = await getTranslations({ locale, namespace: 'AdminPage' });
@@ -329,7 +333,7 @@ export default async function AdminUsersIndexPage(
             update: canEditUsers,
           },
         }}
-        emptyKey={hasActiveFilters ? 'filter_empty' : undefined}
+        emptyKey={emptyKey}
         locale={locale}
         messageNamespace="AdminUsers"
         resourceId={usersAdminDefinition.id}

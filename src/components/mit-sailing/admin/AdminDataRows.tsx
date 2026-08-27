@@ -135,7 +135,9 @@ export function AdminTableContainer(
   }>
 ) {
   return (
-    <div className={cn('border-y border-border', props.className)}>
+    <div
+      className={cn('overflow-x-auto border-y border-border', props.className)}
+    >
       {props.children}
     </div>
   );

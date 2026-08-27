@@ -152,6 +152,7 @@ export default async function AdminCatalogResourceIndexPage(props: PageProps) {
       ) : (
         <AdminCatalogTable
           definition={def}
+          emptyKey="list_empty"
           locale={locale}
           resourceId={resource}
           rows={rows}

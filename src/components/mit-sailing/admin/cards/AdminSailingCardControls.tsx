@@ -350,14 +350,14 @@ export function AdminSailingCardExpireForm(props: {
 
   return (
     <form action={formAction} className="flex flex-col gap-2">
-      <Button
+      <SubmitButton
         disabled={state.status === 'success'}
+        pendingKind="submitting"
         size="sm"
-        type="submit"
         variant="outline"
       >
         {t('action_expire')}
-      </Button>
+      </SubmitButton>
       {formError ? (
         <p className="m-0 text-xs text-destructive" role="alert">
           {t(formErrorMessageKeys[formError])}

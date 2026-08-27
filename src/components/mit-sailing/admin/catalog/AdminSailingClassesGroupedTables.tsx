@@ -65,6 +65,7 @@ export function AdminSailingClassesGroupedTables(
           </h2>
           <AdminCatalogTable
             definition={props.definition}
+            emptyKey="list_empty"
             locale={props.locale}
             reorderScope={{ classCategoryId: g.categoryId }}
             resourceId="sailing_classes"
