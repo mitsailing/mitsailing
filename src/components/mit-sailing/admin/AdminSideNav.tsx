@@ -105,7 +105,8 @@ export function AdminSideNav(props: { items: readonly AdminNavItem[] }) {
   return (
     <div
       className={cn(
-        'relative flex h-full min-h-0 grow flex-col overflow-y-auto transition-[width,padding]',
+        'relative flex min-h-0 flex-col overflow-y-auto transition-[width,padding]',
+        'md:sticky md:top-24 md:max-h-[calc(100dvh-6rem)]',
         'border-mit-line bg-card px-4 pt-2 pb-3 md:pt-3 md:pb-4',
         'border-b md:border-b-0 md:border-r',
         collapsed ? 'md:w-14 md:px-2' : 'md:w-72 md:px-5'
@@ -147,12 +148,12 @@ export function AdminSideNav(props: { items: readonly AdminNavItem[] }) {
       <nav
         aria-label={t('aria_label')}
         className={cn(
-          'relative flex min-h-0 flex-1 flex-col',
+          'relative flex min-h-0 flex-col',
           collapsed && 'md:hidden'
         )}
         id={ADMIN_SIDE_NAV_REGION_ID}
       >
-        <ul className="m-0 flex min-h-0 flex-1 list-none flex-col gap-y-2 p-0">
+        <ul className="m-0 flex min-h-0 list-none flex-col gap-y-2 p-0">
           <li>
             <ul className="m-0 -mx-2 list-none space-y-0.5 p-0">
               {props.items.map((item) => {
