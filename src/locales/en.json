@@ -9,6 +9,7 @@
     "pending_saving": "Saving...",
     "pending_sending": "Sending...",
     "pending_submitting": "Submitting...",
+    "form_error_summary_title": "Fix the following errors",
     "resend_wait": "You can request a new code in {seconds}"
   },
   "MitSailingHome": {

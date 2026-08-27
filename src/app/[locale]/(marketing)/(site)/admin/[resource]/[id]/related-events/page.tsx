@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
 import {
   Table,
@@ -11,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
   adminCatalogResourceAssociationPath,
   adminCatalogResourceEditPath,
@@ -168,19 +168,14 @@ export default async function AdminSailingClassRelatedEventsPage(
               <Label className="text-foreground" htmlFor="assoc-event-select">
                 {t('assoc_select_event')}
               </Label>
-              <select
-                className={adminNativeSelectClassName}
-                id="assoc-event-select"
-                name="eventId"
-                required
-              >
+              <NativeSelect id="assoc-event-select" name="eventId" required>
                 <option value="">—</option>
                 {candidateEvents.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.name} ({e.slug})
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
             <SubmitButton
               pendingLabel={tCommon('pending_adding')}

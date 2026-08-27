@@ -477,7 +477,7 @@ function paymentBypassCardSummary() {
     cardYear: 2026,
     hasFitnessMembership: true,
     issuedCardNumber: 60,
-    paymentBypassAt: new Date('2026-08-01T16:00:00.000Z'),
+    paymentBypassAt: new Date('2026-05-21T17:00:00.000Z'),
     paymentBypassBy: { name: 'Dock Master' },
     paymentBypassNote: 'Admin issued sailing card without payment.',
     requestedAt: new Date('2026-05-21T16:00:00.000Z'),
@@ -491,19 +491,18 @@ function paymentBypassCardSummary() {
     sailingCardRequests: [
       {
         ...paymentBypassRequest,
-        cardYear: 2027,
         issuedCardNumber: 61,
         paymentBypassAt: null,
         paymentBypassBy: null,
         paymentBypassNote: null,
       },
     ],
-    sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
-    sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
+    sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
+    sailingCardIssuedAt: new Date('2026-05-21T16:00:00.000Z'),
     sailingCardIssuedBy: { name: 'Dock Master' },
     sailingCardNumber: 61,
     sailingCardSwimAgreementInitialedAt: new Date('2026-05-21T16:00:00.000Z'),
-    sailingCardYear: 2027,
+    sailingCardYear: 2026,
   };
 }
 

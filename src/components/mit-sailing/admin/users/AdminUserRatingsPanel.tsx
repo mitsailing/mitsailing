@@ -1,5 +1,5 @@
 import { getFormatter, getTranslations } from 'next-intl/server';
-import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import {
   Table,
   TableBody,
@@ -96,25 +96,29 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
               ratingAction = (
                 <form action={revokeAction}>
                   <input name="sailingRatingId" type="hidden" value={row.id} />
-                  <Button size="sm" type="submit" variant="outline">
+                  <SubmitButton
+                    pendingKind="submitting"
+                    size="sm"
+                    variant="outline"
+                  >
                     {t('rating_action_revoke')}
-                  </Button>
+                  </SubmitButton>
                 </form>
               );
             } else if (props.canAssignRatings) {
               ratingAction = (
                 <form action={grantAction}>
                   <input name="sailingRatingId" type="hidden" value={row.id} />
-                  <Button
+                  <SubmitButton
                     aria-describedby={
                       grantDisabledMessage ? grantDisabledMessageId : undefined
                     }
                     disabled={!row.eligibility.eligible}
+                    pendingKind="adding"
                     size="sm"
-                    type="submit"
                   >
                     {t('rating_action_grant')}
-                  </Button>
+                  </SubmitButton>
                   {grantDisabledMessage ? (
                     <p
                       className="mt-1 mb-0 text-xs text-muted-foreground"

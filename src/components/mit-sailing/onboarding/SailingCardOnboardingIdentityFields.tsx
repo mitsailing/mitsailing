@@ -10,8 +10,8 @@ import type {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import { SailingAffiliation, SailingCardType } from '@/generated/prisma/enums';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
 import { getSailingAffiliationOptions } from '@/libs/mit-sailing/sailingAffiliations';
 import { sailingCardAgreement } from '@/libs/mit-sailing/sailingCardAgreementContent';
@@ -131,13 +131,12 @@ export function AffiliationSelect(props: {
           </p>
         </div>
         <div className="flex flex-col gap-1.5">
-          <select
+          <NativeSelect
             aria-describedby={describedBy([
               affiliationHelpId,
               showError ? fieldErrorId('affiliation') : undefined,
             ])}
             aria-invalid={showError ? true : undefined}
-            className={adminNativeSelectClassName}
             id="affiliation"
             name={registration.name}
             onBlur={handleAffiliationBlur}
@@ -152,7 +151,7 @@ export function AffiliationSelect(props: {
                 {t(affiliationLabelKey(option.value))}
               </option>
             ))}
-          </select>
+          </NativeSelect>
           <FieldError
             clientErrors={props.clientErrors}
             field="affiliation"

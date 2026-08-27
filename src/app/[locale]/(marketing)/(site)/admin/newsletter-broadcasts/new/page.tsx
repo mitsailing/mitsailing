@@ -5,7 +5,7 @@ import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader'
 import { AdminNewsletterBroadcastEditor } from '@/components/mit-sailing/admin/newsletters/AdminNewsletterBroadcastEditor';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
+import { NativeSelect } from '@/components/ui/native-select';
 import { requirePermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
 import { createNewsletterBroadcastAction } from '@/libs/newsletter/newsletterAdminActions';
@@ -139,8 +139,7 @@ export default async function AdminNewsletterBroadcastNewPage(
           <Label htmlFor="newsletter-broadcast-template">
             {t('field_template')}
           </Label>
-          <select
-            className={adminNativeSelectClassName}
+          <NativeSelect
             id="newsletter-broadcast-template"
             name="templateId"
             required
@@ -159,7 +158,7 @@ export default async function AdminNewsletterBroadcastNewPage(
                 ))}
               </>
             )}
-          </select>
+          </NativeSelect>
         </div>
         <fieldset className="space-y-3">
           <legend className="text-sm font-semibold text-foreground">

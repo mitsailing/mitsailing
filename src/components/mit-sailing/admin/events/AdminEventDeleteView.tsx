@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { deleteAdminEventAction } from '@/libs/admin/events/eventAdminActions';
 import {
   adminEventEditPath,
@@ -94,10 +95,10 @@ export function AdminEventDeleteView(props: AdminEventDeleteViewProps) {
               </Link>
             </Button>
             <form action={deleteAction}>
-              <Button type="submit" variant="destructive">
+              <SubmitButton pendingKind="deleting" variant="destructive">
                 <Trash2 aria-hidden className="size-4" />
                 {props.t('action_confirm_delete')}
-              </Button>
+              </SubmitButton>
             </form>
           </div>
         </CardContent>

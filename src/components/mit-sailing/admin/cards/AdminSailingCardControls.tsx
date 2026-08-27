@@ -6,6 +6,7 @@ import { useActionState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import { SailingCardType } from '@/generated/prisma/enums';
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
@@ -148,10 +149,10 @@ function AdminSailingCardNumberField(props: {
           step={1}
           type="number"
         />
-        <Button className="gap-2" size="sm" type="submit">
+        <SubmitButton className="gap-2" pendingKind="saving" size="sm">
           <CheckCircle2 aria-hidden className="size-4" />
           {props.actionLabel}
-        </Button>
+        </SubmitButton>
       </div>
     </>
   );

@@ -155,7 +155,9 @@ Secrets:
 - `PRODUCTION_SSH_PRIVATE_KEY`
 - `PRODUCTION_SSH_HOST_KEY`
 - `NEXT_PUBLIC_SENTRY_DSN`
-- `SENTRY_AUTH_TOKEN`
+- `SENTRY_AUTH_TOKEN` — reaches the image build as a BuildKit secret, not a
+  build-arg, because `provenance: mode=max` publishes build-arg values in the
+  image attestation.
 
 Variables:
 

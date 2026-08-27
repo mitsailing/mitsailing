@@ -1,6 +1,7 @@
 import { Check, MoreHorizontal, RotateCcw, X } from 'lucide-react';
 import type * as React from 'react';
-import { Button } from '@/components/ui/button';
+import type { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import { updateAdminEventRegistrationStatusAction } from '@/libs/admin/events/eventAdminActions';
 import type { AdminEventRegistrationDto } from '@/libs/admin/events/eventAdminQueries';
@@ -154,9 +155,13 @@ function RegistrationStatusAction(props: {
         <p className="text-sm text-foreground">{props.confirmBody}</p>
         <form action={action} className="mt-3 flex justify-end">
           <input name="status" type="hidden" value={props.status} />
-          <Button size="sm" type="submit" variant={props.variant ?? 'outline'}>
+          <SubmitButton
+            pendingKind="submitting"
+            size="sm"
+            variant={props.variant ?? 'outline'}
+          >
             {props.confirmActionLabel}
-          </Button>
+          </SubmitButton>
         </form>
       </div>
     </details>

@@ -3,9 +3,9 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import {
   Table,
   TableBody,
@@ -206,9 +206,9 @@ export default async function AdminNewsletterBroadcastDetailPage(
                 type="email"
               />
             </div>
-            <Button className="mt-3" type="submit" variant="mit">
+            <SubmitButton className="mt-3" pendingKind="sending" variant="mit">
               {t('send_test')}
-            </Button>
+            </SubmitButton>
           </form>
 
           <div className="rounded-lg border border-border bg-card p-4">

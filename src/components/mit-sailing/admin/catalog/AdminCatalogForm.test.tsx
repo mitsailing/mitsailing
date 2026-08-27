@@ -6,9 +6,11 @@ import { catalogResourceDefinitions } from '@/libs/admin/catalog/catalogDefiniti
 
 describe('AdminCatalogForm', () => {
   it('submits event category fields through the focused form branch', async () => {
-    const formAction = vi.fn(async (_formData: FormData) => {
-      await Promise.resolve();
-    });
+    const formAction = vi.fn<(formData: FormData) => Promise<void>>(
+      async () => {
+        await Promise.resolve();
+      }
+    );
     const user = userEvent.setup();
     render(
       <AdminCatalogForm
@@ -51,9 +53,11 @@ describe('AdminCatalogForm', () => {
   });
 
   it('offers a secondary save-and-continue submit on edit forms', async () => {
-    const formAction = vi.fn(async (_formData: FormData) => {
-      await Promise.resolve();
-    });
+    const formAction = vi.fn<(formData: FormData) => Promise<void>>(
+      async () => {
+        await Promise.resolve();
+      }
+    );
     const user = userEvent.setup();
     render(
       <AdminCatalogForm
@@ -108,9 +112,11 @@ describe('AdminCatalogForm', () => {
   });
 
   it('blocks invalid event category submissions before the action', async () => {
-    const formAction = vi.fn(async (_formData: FormData) => {
-      await Promise.resolve();
-    });
+    const formAction = vi.fn<(formData: FormData) => Promise<void>>(
+      async () => {
+        await Promise.resolve();
+      }
+    );
     const user = userEvent.setup();
     render(
       <AdminCatalogForm

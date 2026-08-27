@@ -14,11 +14,14 @@ import {
 import { AdminRichTextEditor } from '@/components/mit-sailing/admin/catalog/AdminRichTextEditor';
 import { CmsPageBlockPreview } from '@/components/mit-sailing/cms/CmsPageBlocks';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { FormErrorSummary } from '@/components/ui/form-error-summary';
+import type { FormValidationSummaryEntry } from '@/components/ui/form-error-summary';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
   ADMIN_FORM_REDIRECT_TO_EDIT,
   ADMIN_FORM_REDIRECT_TO_FIELD,
@@ -99,6 +102,25 @@ function catalogResourceFormErrorMessage(
   return t('form_error_unknown');
 }
 
+function catalogServerFieldSummaryErrors(
+  fieldErrors: Record<string, string> | undefined,
+  definition: CatalogResourceDefinition,
+  translateLabel: (key: AdminFormFieldDef['labelKey']) => string
+): FormValidationSummaryEntry[] {
+  if (!fieldErrors) {
+    return [];
+  }
+
+  return Object.entries(fieldErrors).map(([field, message]) => {
+    const fieldDef = definition.formFields.find((item) => item.field === field);
+    return {
+      controlId: `catalog-field-${field}`,
+      label: fieldDef ? translateLabel(fieldDef.labelKey) : field,
+      message,
+    };
+  });
+}
+
 function usersAdminFormErrorMessage(
   code: string | null | undefined,
   t: ReturnType<typeof useTranslations<'AdminUsers'>>
@@ -169,10 +191,9 @@ function catalogDynamicSelectField(props: {
       <Label className="text-foreground" htmlFor={props.fieldKey}>
         {props.label}
       </Label>
-      <select
+      <NativeSelect
         aria-describedby={props.errorMessage ? props.errorId : undefined}
         aria-invalid={props.errorMessage ? true : undefined}
-        className={adminNativeSelectClassName}
         defaultValue={props.defaultValue || undefined}
         id={props.fieldKey}
         name={props.fieldKey}
@@ -186,7 +207,7 @@ function catalogDynamicSelectField(props: {
             {opt.label}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       <CatalogFieldError id={props.errorId} message={props.errorMessage} />
     </div>
   );
@@ -212,10 +233,9 @@ function catalogStaticSelectField(props: {
       <Label className="text-foreground" htmlFor={props.fieldKey}>
         {props.label}
       </Label>
-      <select
+      <NativeSelect
         aria-describedby={props.errorMessage ? props.errorId : undefined}
         aria-invalid={props.errorMessage ? true : undefined}
-        className={adminNativeSelectClassName}
         defaultValue={props.defaultValue || undefined}
         id={props.fieldKey}
         name={props.fieldKey}
@@ -229,7 +249,7 @@ function catalogStaticSelectField(props: {
             {props.translateLabel(opt.labelKey)}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       <CatalogFieldError id={props.errorId} message={props.errorMessage} />
     </div>
   );
@@ -244,7 +264,7 @@ type AdminCatalogFormProps = {
   fieldErrors?: Record<string, string>;
   /** Use `AdminUsers` strings for `/admin/users` forms. */
   messageNamespace?: 'AdminCatalogResource' | 'AdminUsers';
-  /** Server-loaded `<select>` options (e.g. sailing classes for fleet `requiredClassId`). */
+  /** Server-loaded `<NativeSelect>` options (e.g. sailing classes for fleet `requiredClassId`). */
   dynamicSelectOptions?: Readonly<
     Record<string, readonly { value: string; label: string }[]>
   >;
@@ -653,14 +673,12 @@ function CatalogBooleanField(props: {
     return (
       <label className="flex cursor-pointer items-center gap-2 text-sm text-mit-text">
         <input name={props.fieldKey} type="hidden" value="false" />
-        <input
+        <Checkbox
           checked={props.checked}
-          className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
           name={props.fieldKey}
           onChange={(event) => {
             props.onToggle(event.target.checked);
           }}
-          type="checkbox"
           value="true"
         />
         <span className="font-medium">{props.label}</span>
@@ -672,14 +690,12 @@ function CatalogBooleanField(props: {
       <span className="text-sm font-medium text-mit-text">{props.label}</span>
       <input name={props.fieldKey} type="hidden" value="false" />
       <label className="flex cursor-pointer items-center gap-2 text-sm text-mit-text">
-        <input
+        <Checkbox
           checked={props.checked}
-          className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
           name={props.fieldKey}
           onChange={(event) => {
             props.onToggle(event.target.checked);
           }}
-          type="checkbox"
           value="true"
         />
         {props.checkboxLabel}
@@ -832,14 +848,12 @@ function AdminCmsOptionalGroup(props: {
       </legend>
       <input name={props.fieldName} type="hidden" value="false" />
       <label className="flex cursor-pointer items-center gap-2 text-sm text-mit-text">
-        <input
+        <Checkbox
           checked={props.enabled}
-          className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
           name={props.fieldName}
           onChange={(event) => {
             props.onToggle(event.target.checked);
           }}
-          type="checkbox"
           value="true"
         />
         <span>{props.toggleLabel}</span>
@@ -882,12 +896,24 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
     props.errorCode,
     tCatalog
   );
+  const summaryEntries: FormValidationSummaryEntry[] = nameError
+    ? [
+        {
+          controlId: 'catalog-field-name',
+          label: tCatalog('field_name'),
+          message: nameError,
+        },
+      ]
+    : [];
+
   async function handleSubmit(event: { preventDefault: () => void }) {
     const parsed = eventCategoryUpdateSchema.safeParse(form.getValues());
-    if (!parsed.success) {
-      event.preventDefault();
-      await form.trigger();
+    if (parsed.success) {
+      return;
     }
+    event.preventDefault();
+    await form.trigger();
+    form.setFocus('name');
   }
 
   return (
@@ -916,6 +942,8 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
           void handleSubmit(event);
         }}
       >
+        <FormErrorSummary entries={summaryEntries} />
+
         <div className="flex flex-col gap-1.5 text-sm">
           <Label className="text-foreground" htmlFor="catalog-field-name">
             {tCatalog('field_name')}
@@ -937,12 +965,7 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
           </span>
           <input name="isVisible" type="hidden" value="false" />
           <label className="flex cursor-pointer items-center gap-2 text-sm text-mit-text">
-            <input
-              className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
-              type="checkbox"
-              value="true"
-              {...form.register('isVisible')}
-            />
+            <Checkbox value="true" {...form.register('isVisible')} />
             {tc('column_visible')}
           </label>
         </div>
@@ -1020,7 +1043,12 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
   });
   const [cmsBlockGroupsEnabled, setCmsBlockGroupsEnabled] = useState(() => {
     const preview = initialCmsBlockPreviewState(props.row);
-    return { cta: preview.showCta, image: preview.showImage };
+    const { fieldErrors } = props;
+    return {
+      cta: preview.showCta || !!(fieldErrors?.ctaLabel ?? fieldErrors?.ctaUrl),
+      image:
+        preview.showImage || !!(fieldErrors?.imageAlt ?? fieldErrors?.imageSrc),
+    };
   });
   const [cmsPricingEditorState, setCmsPricingEditorState] = useState(() =>
     initialCmsPricingEditorState(props.row)
@@ -1039,6 +1067,49 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
   )
     ? 'max-w-3xl'
     : 'max-w-xl';
+
+  const serverFieldSummaryErrors = catalogServerFieldSummaryErrors(
+    props.fieldErrors,
+    props.definition,
+    translateLabel
+  );
+
+  const cmsAdditionalErrors = (() => {
+    if (!isCmsBlockForm) {
+      return [];
+    }
+
+    const entries: FormValidationSummaryEntry[] = [];
+    if (cmsPairErrors.ctaLabel) {
+      entries.push({
+        controlId: 'catalog-field-ctaLabel',
+        label: translateLabel('field_cms_cta_label'),
+        message: tCatalog('field_error_cms_cta_label_required'),
+      });
+    }
+    if (cmsPairErrors.ctaUrl) {
+      entries.push({
+        controlId: 'catalog-field-ctaUrl',
+        label: translateLabel('field_cms_cta_url'),
+        message: tCatalog('field_error_cms_cta_url_required'),
+      });
+    }
+    if (cmsPairErrors.imageSrc) {
+      entries.push({
+        controlId: 'catalog-field-imageSrc',
+        label: translateLabel('field_cms_image_src'),
+        message: tCatalog('field_error_cms_image_src_required'),
+      });
+    }
+    if (cmsPairErrors.imageAlt) {
+      entries.push({
+        controlId: 'catalog-field-imageAlt',
+        label: translateLabel('field_cms_image_alt'),
+        message: tCatalog('field_error_cms_image_alt_required'),
+      });
+    }
+    return entries;
+  })();
 
   function cmsBlockStateWith(
     field: keyof CmsBlockPreviewState,
@@ -1073,24 +1144,6 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
           : prev.imageSrc && imageSrc.length === 0,
       };
     });
-  }
-
-  function focusFirstCmsBlockPairError(errors: CmsBlockPairErrors) {
-    if (errors.ctaLabel) {
-      cmsCtaLabelInputRef.current?.focus();
-      return;
-    }
-    if (errors.ctaUrl) {
-      cmsCtaUrlInputRef.current?.focus();
-      return;
-    }
-    if (errors.imageSrc) {
-      cmsImageSrcUploadButtonRef.current?.focus();
-      return;
-    }
-    if (errors.imageAlt) {
-      cmsImageAltInputRef.current?.focus();
-    }
   }
 
   function setCmsPreviewField(
@@ -1577,9 +1630,8 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
                   />
                 </div>
                 <label className="flex items-center gap-2 pt-6 text-sm text-mit-text">
-                  <input
+                  <Checkbox
                     checked={plan.highlighted}
-                    className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
                     onChange={(event) => {
                       updateCmsPricingPlan({
                         field: 'highlighted',
@@ -1587,7 +1639,6 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
                         value: event.target.checked,
                       });
                     }}
-                    type="checkbox"
                   />
                   <span>{tCatalog('cms_pricing_highlighted')}</span>
                 </label>
@@ -2324,10 +2375,19 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
         if (hasCmsBlockPairErrors(nextPairErrors)) {
           event.preventDefault();
           setCmsPairErrors(nextPairErrors);
-          focusFirstCmsBlockPairError(nextPairErrors);
+          if (nextPairErrors.ctaLabel || nextPairErrors.ctaUrl) {
+            setCmsOptionalGroupEnabled('cta', true);
+          }
+          if (nextPairErrors.imageAlt || nextPairErrors.imageSrc) {
+            setCmsOptionalGroupEnabled('image', true);
+          }
         }
       }}
     >
+      <FormErrorSummary
+        entries={[...serverFieldSummaryErrors, ...cmsAdditionalErrors]}
+      />
+
       {renderCatalogFormFields()}
 
       <div className="flex flex-wrap gap-3 pt-2">

@@ -123,6 +123,18 @@ describe('AdminEmailTemplateEditor', () => {
     expect(formData.get('editorJson')).toBe('{"type":"doc"}');
   });
 
+  it('saves instead of sending a test when enter submits the subject field', async () => {
+    const user = userEvent.setup();
+    renderEditor();
+
+    await user.type(screen.getByLabelText('Subject'), '{Enter}');
+
+    await waitFor(() => {
+      expect(mocks.saveAction).toHaveBeenCalled();
+    });
+    expect(mocks.sendTestAction).not.toHaveBeenCalled();
+  });
+
   it('preserves draft content in local storage', async () => {
     const user = userEvent.setup();
     renderEditor();

@@ -6,7 +6,7 @@ name: Deploy (production)
 #   PRODUCTION_SSH_TARGET, PRODUCTION_SSH_PRIVATE_KEY, PRODUCTION_SSH_HOST_KEY,
 #   NEXT_PUBLIC_SENTRY_DSN, SENTRY_AUTH_TOKEN
 #   (see docs/deploy.md). The `build` job uses this environment so those values
-#   reach Docker build-args.
+#   reach the image build.
 #
 # Auto-deploy to the production host when main changes. We also
 # expose a manual `workflow_dispatch` trigger so operators can deploy an
@@ -57,6 +57,7 @@ jobs:
     outputs:
       image_tag: ${{ steps.meta.outputs.image_tag }}
       image_digest: ${{ steps.build.outputs.digest }}
+      deployment_version: ${{ steps.meta.outputs.deployment_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -102,8 +103,12 @@ jobs:
             NEXT_PUBLIC_APP_URL=https://mitsailing.com
             NEXT_PUBLIC_SENTRY_DSN=${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
             NEXT_PUBLIC_SENTRY_DISABLED=
-            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
             DEPLOYMENT_VERSION=${{ steps.meta.outputs.deployment_version }}
+          # `provenance: mode=max` below publishes build-arg values in the image
+          # attestation, so the source-map upload token goes in as a secret mount
+          # instead — those are excluded from provenance and from image layers.
+          secrets: |
+            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
           tags: |
             ${{ steps.meta.outputs.image_sha }}
             ${{ steps.meta.outputs.image_floating }}
@@ -251,3 +256,21 @@ jobs:
             -o ConnectTimeout=15 \
             "$PRODUCTION_SSH_TARGET" \
             "${remote_data_root_assignment}DEPLOY_DIR=${remote_app_dir} ${remote_deploy_script} release ${remote_image_tag}"
+
+      # Marks the release as deployed only after the host is actually serving
+      # it, which is what makes regressions and "resolved in next release"
+      # meaningful. `release` must match the DEPLOYMENT_VERSION the image was
+      # built with; the build plugin already created and finalized the release.
+      - name: Record Sentry deploy
+        uses: getsentry/action-release@ff07929a6537bac57790c3451cf4d364aca38528 # v3.7.0
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: mit-sailing
+          SENTRY_PROJECT: javascript-nextjs
+        with:
+          release: ${{ needs.build.outputs.deployment_version }}
+          environment: production
+          # The build plugin already created, finalized, and associated commits
+          # for this release; this step only adds the deploy.
+          finalize: false
+          set_commits: skip

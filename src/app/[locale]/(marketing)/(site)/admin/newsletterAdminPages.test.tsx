@@ -69,8 +69,8 @@ vi.mock('@/components/ui/textarea', () => ({
   Textarea: () => null,
 }));
 
-vi.mock('@/lib/mit-sailing/tokens', () => ({
-  adminNativeSelectClassName: 'select',
+vi.mock('@/components/ui/native-select', () => ({
+  NativeSelect: () => null,
 }));
 
 vi.mock('@/libs/I18nNavigation', () => ({

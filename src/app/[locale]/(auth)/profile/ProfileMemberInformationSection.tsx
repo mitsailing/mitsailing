@@ -8,9 +8,9 @@ import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
 import type { ProfileBannerState } from '@/components/auth/profile/profileBanner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
 import type { SailingAffiliation } from '@/generated/prisma/enums';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import { updateProfileDetailsAction } from '@/libs/auth/profileIdentityActions';
 import type { UpdateProfileDetailsResult } from '@/libs/auth/profileIdentityActions';
 import {
@@ -223,8 +223,7 @@ export function ProfileMemberInformationSection(props: {
             <Label className="text-foreground" htmlFor="sailingAffiliation">
               {t('affiliation')}
             </Label>
-            <select
-              className={adminNativeSelectClassName}
+            <NativeSelect
               disabled={props.mitIdentityLocked}
               id="sailingAffiliation"
               name="sailingAffiliation"
@@ -249,7 +248,7 @@ export function ProfileMemberInformationSection(props: {
                   {tOnboarding(affiliationLabelKey(option.value))}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
 
           {showMitId ? (

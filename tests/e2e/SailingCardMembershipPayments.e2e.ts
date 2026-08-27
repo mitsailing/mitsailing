@@ -2,7 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { Pool } from 'pg';
-import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
+import {
+  getCurrentSailingCardYear,
+  getSailingCardExpirationDate,
+} from '@/libs/mit-sailing/sailingCardValidity';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
 import { e2ePgConnectionString } from '../helpers/e2e-database-url';
 import { insertCurrentSailingCardOnboardingAcceptance } from '../helpers/e2e-sailing-card-onboarding';
@@ -198,16 +201,17 @@ async function createIssuedCardUser(cardNumber: number) {
     userAgent: 'e2e-membership-payments',
     userId,
   });
+  const cardYear = getCurrentSailingCardYear();
   await pool.query(
     `UPDATE "user"
      SET "sailing_card_year" = $2,
          "sailing_card_number" = $3,
          "sailing_card_issued_at" = NOW(),
-         "sailing_card_expires_on" = DATE '2026-07-15',
+         "sailing_card_expires_on" = $4,
          "sailing_card_requested_at" = NULL,
          "updated_at" = NOW()
      WHERE "id" = $1`,
-    [userId, getCurrentSailingCardYear(), cardNumber]
+    [userId, cardYear, cardNumber, getSailingCardExpirationDate(cardYear)]
   );
   await pool.query(
     `UPDATE "sailing_card_requests"
@@ -216,7 +220,7 @@ async function createIssuedCardUser(cardNumber: number) {
          "issued_card_number" = $2,
          "updated_at" = NOW()
      WHERE "user_id" = $1 AND "card_year" = $3`,
-    [userId, cardNumber, getCurrentSailingCardYear()]
+    [userId, cardNumber, cardYear]
   );
   return userId;
 }

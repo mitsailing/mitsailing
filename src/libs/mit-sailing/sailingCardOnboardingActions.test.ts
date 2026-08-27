@@ -12,7 +12,6 @@ import {
   sailingCardAgreementHash,
 } from '@/libs/mit-sailing/sailingCardAgreement';
 import type { SailingCardOnboardingFormValues } from '@/libs/mit-sailing/sailingCardOnboardingActions';
-import type * as SailingCardValidityModule from '@/libs/mit-sailing/sailingCardValidity';
 
 vi.mock('server-only', () => ({}));
 
@@ -158,16 +157,6 @@ vi.mock(
       mocks.createMembershipCheckoutUrlForOnboarding,
   })
 );
-
-vi.mock('@/libs/mit-sailing/sailingCardValidity', async () => {
-  const actual = await vi.importActual<typeof SailingCardValidityModule>(
-    '@/libs/mit-sailing/sailingCardValidity'
-  );
-  return {
-    ...actual,
-    getCurrentSailingCardYear: () => 2026,
-  };
-});
 
 function onboardingFormData() {
   const formData = new FormData();

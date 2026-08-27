@@ -107,17 +107,3 @@ export const adminEventListStatusBadgeToneClassName: Record<
     'border-mit-red-200 bg-mit-red-50 text-mit-red-900 dark:border-mit-red-700 dark:bg-mit-red-950/70 dark:text-mit-red-100',
   neutral: 'border-border bg-muted/60 text-mit-readable-ink',
 };
-
-/** Native `<select>` in admin catalog forms (server `FormData`; matches Input chrome). */
-export const adminNativeSelectClassName = [
-  'flex h-8 w-full cursor-pointer appearance-none rounded-lg border border-input bg-transparent bg-[length:1rem] bg-[right_0.5rem_center] bg-no-repeat px-2.5 py-1 pr-9 text-sm text-foreground outline-none transition-colors',
-  'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input-background dark:contrast-more:border-white',
-  "bg-[url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2724%27 height=%2724%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%2371717a%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpath d=%27m6 9 6 6 6-6%27/%3E%3C/svg%3E')]",
-].join(' ');
-
-/** Matches [`Input`](src/components/ui/input.tsx) styling for rare non-`Input` fields. */
-export const authInputClassName = [
-  'h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base text-foreground outline-none transition-colors',
-  'placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm',
-  'dark:bg-input-background dark:contrast-more:border-white',
-].join(' ');

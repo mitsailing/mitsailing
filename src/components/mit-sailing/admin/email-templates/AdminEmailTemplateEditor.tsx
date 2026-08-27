@@ -3,9 +3,9 @@
 import { EmailEditor } from '@react-email/editor';
 import type { EmailEditorRef } from '@react-email/editor';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 
 type AdminEmailTemplateEditorText = Readonly<{
   bodyLabel: string;
@@ -36,6 +36,31 @@ type AdminEmailTemplateEditorProps = Readonly<{
 
 function draftStorageKey(templateKey: string) {
   return `admin-email-template-draft:${templateKey}`;
+}
+
+/**
+ * Writes the rendered editor output into the hidden export fields.
+ *
+ * @param options - Editor handle, fallback body, and the submitted form data
+ */
+async function exportEditorFields(options: {
+  editor: EmailEditorRef | null;
+  fallbackContent: string;
+  formData: FormData;
+}) {
+  const bodyHtml =
+    (await options.editor?.getEmailHTML()) ??
+    options.editor?.editor?.getHTML() ??
+    options.fallbackContent;
+  options.formData.set('editorBodyHtml', bodyHtml);
+  options.formData.set(
+    'renderedText',
+    (await options.editor?.getEmailText()) ?? ''
+  );
+  options.formData.set(
+    'editorJson',
+    JSON.stringify(options.editor?.getJSON() ?? null)
+  );
 }
 
 function storedDraft(value: string | null): StoredDraft | null {
@@ -70,6 +95,24 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
   const [previewText, setPreviewText] = useState(props.previewText);
   const [subject, setSubject] = useState(props.subject);
 
+  async function saveFormAction(formData: FormData) {
+    await exportEditorFields({
+      editor: editorRef.current,
+      fallbackContent: content,
+      formData,
+    });
+    await props.saveAction(formData);
+  }
+
+  async function sendTestFormAction(formData: FormData) {
+    await exportEditorFields({
+      editor: editorRef.current,
+      fallbackContent: content,
+      formData,
+    });
+    await props.sendTestAction(formData);
+  }
+
   function currentEditorContent() {
     return editorRef.current?.editor?.getHTML() ?? content;
   }
@@ -83,16 +126,6 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
         subject: next.subject ?? subject,
       })
     );
-  }
-
-  async function prepareFormData(formData: FormData) {
-    const bodyHtml =
-      (await editorRef.current?.getEmailHTML()) ?? currentEditorContent();
-    const text = (await editorRef.current?.getEmailText()) ?? '';
-    const json = editorRef.current?.getJSON() ?? null;
-    formData.set('editorBodyHtml', bodyHtml);
-    formData.set('renderedText', text);
-    formData.set('editorJson', JSON.stringify(json));
   }
 
   useEffect(() => {
@@ -111,13 +144,7 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
   }, [props.clearDraftOnMount, storageKey]);
 
   return (
-    <form
-      action={async (formData) => {
-        await prepareFormData(formData);
-        await props.saveAction(formData);
-      }}
-      className="flex flex-col gap-5"
-    >
+    <form className="flex flex-col gap-5">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="email-template-subject">
@@ -182,20 +209,23 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
             type="email"
           />
         </div>
-        <Button
+        {/* Save stays first so implicit submission (Enter) uses its formAction. */}
+        <SubmitButton
           className="self-end"
-          formAction={async (formData) => {
-            await prepareFormData(formData);
-            await props.sendTestAction(formData);
-          }}
-          type="submit"
+          formAction={saveFormAction}
+          pendingKind="saving"
+          variant="mit"
+        >
+          {props.text.saveDraft}
+        </SubmitButton>
+        <SubmitButton
+          className="self-end"
+          formAction={sendTestFormAction}
+          pendingKind="sending"
           variant="outline"
         >
           {props.text.sendTest}
-        </Button>
-        <Button className="self-end" type="submit" variant="mit">
-          {props.text.saveDraft}
-        </Button>
+        </SubmitButton>
       </div>
     </form>
   );

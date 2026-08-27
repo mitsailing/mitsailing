@@ -2,11 +2,11 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { connection } from 'next/server';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import { requirePermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
 import { createNewsletterListAction } from '@/libs/newsletter/newsletterAdminActions';
@@ -70,27 +70,22 @@ export default async function AdminNewsletterListNewPage(props: PageProps) {
             <Label htmlFor="newsletter-list-default">
               {t('field_default_subscription')}
             </Label>
-            <select
-              className={adminNativeSelectClassName}
+            <NativeSelect
               id="newsletter-list-default"
               name="defaultSubscription"
             >
               <option value="opt_out">{t('default_opt_out')}</option>
               <option value="opt_in">{t('default_opt_in')}</option>
-            </select>
+            </NativeSelect>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="newsletter-list-visibility">
               {t('field_visibility')}
             </Label>
-            <select
-              className={adminNativeSelectClassName}
-              id="newsletter-list-visibility"
-              name="visibility"
-            >
+            <NativeSelect id="newsletter-list-visibility" name="visibility">
               <option value="public">{t('visibility_public')}</option>
               <option value="private">{t('visibility_private')}</option>
-            </select>
+            </NativeSelect>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="newsletter-list-resend">
@@ -99,9 +94,9 @@ export default async function AdminNewsletterListNewPage(props: PageProps) {
             <Input id="newsletter-list-resend" name="resendTopicId" />
           </div>
         </div>
-        <Button type="submit" variant="mit">
+        <SubmitButton pendingKind="adding" variant="mit">
           {t('create')}
-        </Button>
+        </SubmitButton>
       </form>
     </div>
   );

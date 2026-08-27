@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import type { AdminStatusSemanticTone } from '@/lib/mit-sailing/tokens';
 import {
@@ -179,11 +180,10 @@ export function AdminEventCheckbox(props: {
   return (
     <label className="flex cursor-pointer items-start gap-2 text-sm text-mit-readable-ink">
       <input name={props.name} type="hidden" value="false" />
-      <input
-        className="mt-0.5 size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+      <Checkbox
+        className="mt-0.5"
         defaultChecked={props.defaultChecked}
         name={props.name}
-        type="checkbox"
         value="true"
       />
       <span className="flex min-w-0 flex-col gap-0.5">

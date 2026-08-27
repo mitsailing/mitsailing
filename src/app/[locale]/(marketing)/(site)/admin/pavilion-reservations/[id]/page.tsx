@@ -3,11 +3,11 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Form from 'next/form';
 import { notFound } from 'next/navigation';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import { formatNyDateTimeLocalInput } from '@/lib/mit-sailing/nyTime';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import { updatePavilionReservationAdminAction } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminActions';
 import {
   adminPavilionReservationDetailPath,
@@ -54,8 +54,7 @@ function TimeSelect(props: {
     preserveLabel: props.formatOffGridTimeLabel,
   });
   return (
-    <select
-      className={adminNativeSelectClassName}
+    <NativeSelect
       defaultValue={props.defaultValue?.toString() ?? ''}
       name={props.name}
     >
@@ -65,7 +64,7 @@ function TimeSelect(props: {
           {option.label}
         </option>
       ))}
-    </select>
+    </NativeSelect>
   );
 }
 
@@ -158,17 +157,13 @@ export default async function AdminPavilionReservationDetailPage(
               </label>
               <label className="space-y-1.5 text-sm md:col-span-2">
                 <span className="font-medium">{t('field_persona')}</span>
-                <select
-                  className={adminNativeSelectClassName}
-                  defaultValue={reservation.persona}
-                  name="persona"
-                >
+                <NativeSelect defaultValue={reservation.persona} name="persona">
                   {PAVILION_RESERVATION_PERSONAS.map((persona) => (
                     <option key={persona} value={persona}>
                       {t(`persona_${persona}`)}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
             </div>
           </section>
@@ -284,8 +279,7 @@ export default async function AdminPavilionReservationDetailPage(
                   <div className="grid gap-3 md:grid-cols-[1.3fr_1fr_1fr_1fr_1fr]">
                     <label className="space-y-1.5 text-sm">
                       <span className="font-medium">{t('field_space')}</span>
-                      <select
-                        className={adminNativeSelectClassName}
+                      <NativeSelect
                         defaultValue={slot.item.id}
                         name="slotItemId"
                       >
@@ -294,7 +288,7 @@ export default async function AdminPavilionReservationDetailPage(
                             {item.name}
                           </option>
                         ))}
-                      </select>
+                      </NativeSelect>
                     </label>
                     <label className="space-y-1.5 text-sm">
                       <span className="font-medium">{t('field_date')}</span>
@@ -367,17 +361,14 @@ export default async function AdminPavilionReservationDetailPage(
                 <div className="mt-3 grid gap-3 md:grid-cols-[1.3fr_1fr_1fr_1fr_1fr]">
                   <label className="space-y-1.5 text-sm">
                     <span className="font-medium">{t('field_space')}</span>
-                    <select
-                      className={adminNativeSelectClassName}
-                      name="slotItemId"
-                    >
+                    <NativeSelect name="slotItemId">
                       <option value="">{t('blank')}</option>
                       {spaceOptions.map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </label>
                   <label className="space-y-1.5 text-sm">
                     <span className="font-medium">{t('field_date')}</span>
@@ -499,22 +490,17 @@ export default async function AdminPavilionReservationDetailPage(
             </h2>
             <label className="mt-4 block space-y-1.5 text-sm">
               <span className="font-medium">{t('column_status')}</span>
-              <select
-                className={adminNativeSelectClassName}
-                defaultValue={reservation.status}
-                name="status"
-              >
+              <NativeSelect defaultValue={reservation.status} name="status">
                 {adminPavilionReservationStatuses.map((status) => (
                   <option key={status} value={status}>
                     {t(`status_${status}`)}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             <label className="mt-4 block space-y-1.5 text-sm">
               <span className="font-medium">{t('field_payment_status')}</span>
-              <select
-                className={adminNativeSelectClassName}
+              <NativeSelect
                 defaultValue={reservation.paymentStatus}
                 name="paymentStatus"
               >
@@ -525,7 +511,7 @@ export default async function AdminPavilionReservationDetailPage(
                     </option>
                   )
                 )}
-              </select>
+              </NativeSelect>
             </label>
             <label className="mt-4 block space-y-1.5 text-sm">
               <span className="font-medium">{t('field_paid_at')}</span>
@@ -548,19 +534,23 @@ export default async function AdminPavilionReservationDetailPage(
               />
             </label>
             <div className="mt-4 grid grid-cols-2 gap-2">
-              <Button className="col-span-2" type="submit" variant="secondary">
+              <SubmitButton
+                className="col-span-2"
+                pendingKind="saving"
+                variant="secondary"
+              >
                 {t('action_save')}
-              </Button>
+              </SubmitButton>
               {adminPavilionReservationStatuses.map((status) => (
-                <Button
+                <SubmitButton
                   key={status}
                   name="workflowStatus"
-                  type="submit"
+                  pendingKind="submitting"
                   value={status}
                   variant={status === 'approved' ? 'mit' : 'outline'}
                 >
                   {t(`action_status_${status}`)}
-                </Button>
+                </SubmitButton>
               ))}
             </div>
           </section>

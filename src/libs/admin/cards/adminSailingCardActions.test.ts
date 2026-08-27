@@ -898,12 +898,7 @@ describe('adminSailingCardActions', () => {
     const { expireSailingCardAction } =
       await import('@/libs/admin/cards/adminSailingCardActions');
 
-    await expireSailingCardAction(
-      'en',
-      'user-1',
-      { fieldErrors: {}, status: 'idle' },
-      new FormData()
-    );
+    await expireSailingCardAction('en', 'user-1');
 
     expect(mocks.requirePermission).toHaveBeenCalledWith(
       Permission.CARDS_EXPIRE,
@@ -930,14 +925,7 @@ describe('adminSailingCardActions', () => {
     const { expireSailingCardAction } =
       await import('@/libs/admin/cards/adminSailingCardActions');
 
-    await expect(
-      expireSailingCardAction(
-        'en',
-        'user-1',
-        { fieldErrors: {}, status: 'idle' },
-        new FormData()
-      )
-    ).resolves.toEqual({
+    await expect(expireSailingCardAction('en', 'user-1')).resolves.toEqual({
       fieldErrors: {},
       formError: 'no_current_card',
       status: 'error',
@@ -953,12 +941,7 @@ describe('adminSailingCardActions', () => {
       await import('@/libs/admin/cards/adminSailingCardActions');
 
     await expect(
-      expireSailingCardAction(
-        'en',
-        'missing-user',
-        { fieldErrors: {}, status: 'idle' },
-        new FormData()
-      )
+      expireSailingCardAction('en', 'missing-user')
     ).resolves.toEqual({
       fieldErrors: {},
       formError: 'not_found',

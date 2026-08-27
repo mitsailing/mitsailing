@@ -6,7 +6,7 @@ import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader'
 import { AdminEventListStatusBadge } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
+import { NativeSelect } from '@/components/ui/native-select';
 import {
   adminEventShowPath,
   adminEventsIndexPath,
@@ -241,21 +241,16 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
           <span className="font-medium text-foreground">
             {props.t('filter_scope_label')}
           </span>
-          <select
-            className={adminNativeSelectClassName}
-            defaultValue={scope}
-            name="scope"
-          >
+          <NativeSelect defaultValue={scope} name="scope">
             <option value="my">{props.t('filter_scope_my')}</option>
             <option value="all">{props.t('filter_scope_all')}</option>
-          </select>
+          </NativeSelect>
         </label>
         <label className="flex min-w-0 flex-col gap-1.5 text-sm">
           <span className="font-medium text-foreground">
             {props.t('filter_category_label')}
           </span>
-          <select
-            className={adminNativeSelectClassName}
+          <NativeSelect
             defaultValue={props.filters.categoryId ?? ''}
             name="category"
           >
@@ -265,7 +260,7 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
                 {category.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <div className="flex items-end gap-2">
           <Button type="submit" variant="outline">

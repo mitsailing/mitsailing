@@ -2,6 +2,7 @@ import { ArrowRight, Check, Clock, CreditCard, LogIn, X } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
 import type * as React from 'react';
 import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { PaymentStatus } from '@/generated/prisma/enums';
 import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
@@ -120,9 +121,14 @@ function CancelRegistrationForm(props: {
 }) {
   return (
     <form action={props.action} className="w-full sm:w-auto">
-      <Button className="min-h-11 px-0" size="sm" type="submit" variant="link">
+      <SubmitButton
+        className="min-h-11 px-0"
+        pendingKind="submitting"
+        size="sm"
+        variant="link"
+      >
         {props.t('registration_cancel_button')}
-      </Button>
+      </SubmitButton>
     </form>
   );
 }

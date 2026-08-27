@@ -1,5 +1,5 @@
 ---
-description: React 19 forms — native semantics, current event types, no cloneElement prop injection
+description: React 19 forms — native semantics, react-hook-form for client validation, no cloneElement prop injection
 globs: **/*.tsx
 alwaysApply: false
 ---
@@ -18,4 +18,19 @@ Use **`useActionState` + `<form action>`** when the submit is a Server Action. K
 
 A visual required marker must be backed by native semantics on the control when the browser or assistive tech should treat it as required. Put `required`, `aria-required`, `id`, and `aria-describedby` directly on `<input>`, `<select>`, `<textarea>`, or the shared control component call site.
 
-Do **not** use `React.cloneElement` to inject form props from a wrapper component; this codebase treats that as fragile and lint blocks it.
+## Validation
+
+Two supported paths — do not build a third:
+
+1. **Client-validated forms use `react-hook-form` + `zodResolver`** (already installed; see [`AdminCatalogForm.tsx`](../../src/components/mit-sailing/admin/catalog/AdminCatalogForm.tsx) and [`SailingCardOnboardingForm.tsx`](../../src/components/mit-sailing/onboarding/SailingCardOnboardingForm.tsx)). `formState.errors` is the error source, `aria-invalid={errors.x ? true : undefined}` stays derived, and `shouldFocusError` / `setFocus` handles focus. Do not add another form library.
+2. **Everything else relies on native browser validation** plus server-returned field errors rendered from props. The browser blocks the submit and focuses the first invalid control on its own.
+
+Never collect errors by walking the DOM for `:invalid` controls, and never write `aria-invalid` imperatively.
+
+## Shared primitives
+
+1. **`SubmitButton`** — pending spinner via `useFormStatus`; pass `pendingLabel` or `pendingKind` (Common i18n keys). Pass `formAction` when a form has more than one submit so only the clicked button shows pending, and keep the primary submit first in DOM order so implicit (Enter) submission uses it.
+2. **`FormErrorSummary`** — presentational `role="alert"` list; it renders the entries it is given (react-hook-form state or server field errors) and never inspects the DOM.
+3. **`NativeSelect`** — styled native `<select>` matching `Input`/`Textarea` (shadcn/ui naming; distinct from a future Radix `Select`).
+
+**Exceptions:** GET filter forms keep plain `Button type="submit"` because `useFormStatus` does not apply.

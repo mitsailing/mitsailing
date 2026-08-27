@@ -1136,13 +1136,26 @@ describe('AdminRichTextEditor media controls', () => {
 });
 
 describe('Admin catalog media fields', () => {
+  function validationSummaryAlert(): HTMLElement {
+    const title = screen.getByText('Fix the following errors');
+    const summary = title.closest('[data-slot="form-error-summary"]');
+    if (!(summary instanceof HTMLElement)) {
+      throw new TypeError('Expected validation summary alert');
+    }
+    return summary;
+  }
+
+  function expectValidationSummaryFocused(): void {
+    expect(validationSummaryAlert()).toHaveFocus();
+  }
+
   it('requires alt text for cms block pictures', async () => {
     mockCmsMediaUploadFetch({
       assetId: 'asset-5',
       originalFilename: 'hero.png',
       publicPath: '/cms-media/asset-5/hero.png',
     });
-    const saveAction = vi.fn(async (_formData: FormData) => {
+    const saveAction = vi.fn(async () => {
       await Promise.resolve();
     });
     const user = userEvent.setup();
@@ -1175,7 +1188,7 @@ describe('Admin catalog media fields', () => {
     expect(imageAltInput).toHaveAccessibleDescription(
       'Add image alt text before saving.'
     );
-    expect(imageAltInput).toHaveFocus();
+    expectValidationSummaryFocused();
     expect(imageAltError.id).toBeTruthy();
     expect(saveAction).not.toHaveBeenCalled();
 
@@ -1225,7 +1238,7 @@ describe('Admin catalog media fields', () => {
     expect(imageUploadButton).toHaveAccessibleDescription(
       'Add an image before saving.'
     );
-    expect(imageUploadButton).toHaveFocus();
+    expectValidationSummaryFocused();
     expect(saveAction).not.toHaveBeenCalled();
 
     await user.clear(imageAltInput);
@@ -1268,7 +1281,7 @@ describe('Admin catalog media fields', () => {
     expect(ctaUrlInput).toHaveAccessibleDescription(
       'Add a CTA URL before saving.'
     );
-    expect(ctaUrlInput).toHaveFocus();
+    expectValidationSummaryFocused();
     expect(saveAction).not.toHaveBeenCalled();
 
     await user.type(ctaUrlInput, '/classes');
@@ -1311,7 +1324,7 @@ describe('Admin catalog media fields', () => {
     expect(ctaLabelInput).toHaveAccessibleDescription(
       'Add a CTA label before saving.'
     );
-    expect(ctaLabelInput).toHaveFocus();
+    expectValidationSummaryFocused();
     expect(saveAction).not.toHaveBeenCalled();
 
     await user.type(ctaLabelInput, 'Learn more');
@@ -1322,9 +1335,11 @@ describe('Admin catalog media fields', () => {
   });
 
   it('submits disabled optional cms block groups with partial draft values', async () => {
-    const saveAction = vi.fn(async (_formData: FormData) => {
-      await Promise.resolve();
-    });
+    const saveAction = vi.fn<(formData: FormData) => Promise<void>>(
+      async () => {
+        await Promise.resolve();
+      }
+    );
     const user = userEvent.setup();
     render(
       <AdminCatalogForm

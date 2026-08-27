@@ -8,9 +8,9 @@ import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import { contactTopics } from '@/libs/mit-sailing/contactForm';
 import type { ContactTopic } from '@/libs/mit-sailing/contactForm';
 
@@ -210,8 +210,7 @@ function ContactForm(
         <Label className={labelClassName} htmlFor="topic">
           {t('field_topic')}
         </Label>
-        <select
-          className={adminNativeSelectClassName}
+        <NativeSelect
           defaultValue={props.topic}
           id="topic"
           name="topic"
@@ -223,7 +222,7 @@ function ContactForm(
               {contactTopicLabel(t, topic)}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </div>
       <div className="grid gap-5 md:grid-cols-2">
         <div className={fieldClassName}>

@@ -1,4 +1,7 @@
-# syntax=docker/dockerfile:1.9
+# syntax=docker/dockerfile:1.10
+#
+# 1.10 is the floor for `--mount=type=secret,env=`, used to keep
+# SENTRY_AUTH_TOKEN out of build args (see the builder stage).
 #
 # Multi-stage build with three "leaf" targets so one Dockerfile serves the
 # local-dev, CI-test, and production stacks:
@@ -26,14 +29,12 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat openssl
 
 COPY package.json package-lock.json ./
-COPY prisma ./prisma
-# `postinstall` runs this script after `prisma generate`; it must exist here
-# even though the deps stage does not COPY the full repo yet.
-COPY scripts/playwright-postinstall.cjs ./scripts/playwright-postinstall.cjs
-# Skip Playwright browser download in the image (Alpine has no e2e browsers;
-# postinstall still runs `prisma generate` for a valid node_modules tree).
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-RUN npm ci --include=dev --no-audit --no-fund
+# `--ignore-scripts` keeps third-party lifecycle scripts out of the image build.
+# Nothing here needs them: Prisma 7 and esbuild ship their binaries as platform
+# packages rather than postinstall downloads, `builder` runs `prisma generate`
+# explicitly, and the only other postinstall step is the Playwright browser
+# download that Alpine can't use anyway.
+RUN npm ci --include=dev --ignore-scripts --no-audit --no-fund
 
 
 # ─────────────────────────────── builder ───────────────────────────────
@@ -46,20 +47,21 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Regenerate the Prisma client against the current schema so the build
-# includes its types.
-RUN npx prisma generate
+# includes its types. `--no-hints` suppresses the CLI banners and opt-in
+# prompts added in Prisma 7.10 so the build can never stall on stdin.
+RUN npm exec --no -- prisma generate --no-hints
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Sentry: defaults keep SDK + webpack plugin off for local/PR builds. Production
-# CI passes empty `NEXT_PUBLIC_SENTRY_DISABLED`, `NEXT_PUBLIC_SENTRY_DSN`, and
-# `SENTRY_AUTH_TOKEN` (builder only — not copied to the `prod` stage).
+# CI passes empty `NEXT_PUBLIC_SENTRY_DISABLED` and a real `NEXT_PUBLIC_SENTRY_DSN`.
+# Both are public by design — `NEXT_PUBLIC_*` is inlined into the client bundle.
+# The source-map upload token is a secret mount on `build:next`, never a build
+# arg: `provenance: mode=max` records build-arg *values* in the image attestation.
 ARG NEXT_PUBLIC_SENTRY_DISABLED=1
 ENV NEXT_PUBLIC_SENTRY_DISABLED=${NEXT_PUBLIC_SENTRY_DISABLED}
 ARG NEXT_PUBLIC_SENTRY_DSN=
 ENV NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN}
-ARG SENTRY_AUTH_TOKEN=
-ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
 
 # `NEXT_PUBLIC_*` is inlined at `next build`. Production CI must pass
 # `--build-arg NEXT_PUBLIC_APP_URL=https://your.domain` so the client bundle
@@ -77,7 +79,10 @@ ENV DATABASE_URL=postgresql://build:build@localhost:5432/build?sslmode=disable
 # local Docker Desktop builders. Builder stage only; not copied to prod runtime.
 ENV NODE_OPTIONS=--max-old-space-size=4096
 
-RUN npm run build:next
+# The secret is optional: without it `next build` still succeeds and Sentry
+# simply skips the source-map upload, which is what local and PR builds want.
+RUN --mount=type=secret,id=sentry_auth_token,env=SENTRY_AUTH_TOKEN \
+  npm run build:next
 RUN npm run build:worker
 
 
@@ -109,6 +114,11 @@ ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 
 RUN apk add --no-cache libc6-compat openssl
+
+# The node:24-alpine base ships its own npm (with bundled tar). Trivy scans that
+# copy separately from app/node_modules; align it with our npm override so tar
+# meets CVE-2026-59873 (fixed in npm 11.18+ / tar 7.5.19+).
+RUN npm install -g npm@11.19.0 --ignore-scripts --no-audit --no-fund
 
 # Non-root runtime — container breakouts that land on PID 1 only get a
 # restricted shell.

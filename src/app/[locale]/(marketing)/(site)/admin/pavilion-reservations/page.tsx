@@ -4,6 +4,7 @@ import Form from 'next/form';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import {
   Table,
   TableBody,
@@ -12,7 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
   adminPavilionReservationDetailPath,
   adminPavilionReservationIndexPath,
@@ -200,35 +200,27 @@ export default async function AdminPavilionReservationsPage(
           <span className="font-medium text-foreground">
             {t('filter_status_label')}
           </span>
-          <select
-            className={adminNativeSelectClassName}
-            defaultValue={status ?? ''}
-            name="status"
-          >
+          <NativeSelect defaultValue={status ?? ''} name="status">
             <option value="">{t('filter_status_all')}</option>
             {adminPavilionReservationStatuses.map((statusOption) => (
               <option key={statusOption} value={statusOption}>
                 {t(`status_${statusOption}`)}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label className="flex min-w-0 flex-col gap-1.5 text-sm">
           <span className="font-medium text-foreground">
             {t('filter_payment_label')}
           </span>
-          <select
-            className={adminNativeSelectClassName}
-            defaultValue={paymentStatus ?? ''}
-            name="paymentStatus"
-          >
+          <NativeSelect defaultValue={paymentStatus ?? ''} name="paymentStatus">
             <option value="">{t('filter_payment_all')}</option>
             {adminPavilionReservationPaymentStatuses.map((paymentOption) => (
               <option key={paymentOption} value={paymentOption}>
                 {t(`payment_${paymentOption}`)}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label className="flex min-w-0 flex-col gap-1.5 text-sm">
           <span className="font-medium text-foreground">

@@ -36,6 +36,7 @@ export default defineConfig({
           include: ['src/**/*.test.{js,ts}'],
           exclude: ['src/hooks/**/*.test.ts'],
           environment: 'node',
+          setupFiles: ['tests/setup/clock.ts'],
         },
       },
       {
@@ -44,7 +45,7 @@ export default defineConfig({
           name: 'component',
           include: ['src/**/*.test.{jsx,tsx}', 'emails/**/*.test.{jsx,tsx}'],
           environment: 'jsdom',
-          setupFiles: ['tests/setup/component.tsx'],
+          setupFiles: ['tests/setup/clock.ts', 'tests/setup/component.tsx'],
         },
       },
       {
