@@ -10,7 +10,7 @@ vi.mock('@/libs/admin/catalog/catalogActions', () => ({
   reorderCatalogResourceAction: vi.fn(),
 }));
 
-async function noopFormAction(_formData: FormData): Promise<void> {
+async function noopFormAction(): Promise<void> {
   await Promise.resolve();
 }
 

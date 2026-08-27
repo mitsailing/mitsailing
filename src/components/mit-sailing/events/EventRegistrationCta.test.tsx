@@ -10,7 +10,7 @@ import {
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
 import messages from '@/locales/en.json';
 
-const noopCancelAction = vi.fn((_formData: FormData) => {});
+const noopCancelAction = vi.fn(() => {});
 
 const minimalEvent: PublicEventDetail = {
   admins: [],

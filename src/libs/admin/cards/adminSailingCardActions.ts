@@ -648,9 +648,7 @@ export async function issueSailingCardAction(
 
 export async function expireSailingCardAction(
   locale: string,
-  targetUserId: string,
-  _previousState: AdminSailingCardActionState,
-  _formData: FormData
+  targetUserId: string
 ): Promise<AdminSailingCardActionState> {
   const session = await requirePermission(Permission.CARDS_EXPIRE, locale);
   try {
