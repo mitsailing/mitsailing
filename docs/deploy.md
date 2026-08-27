@@ -180,6 +180,10 @@ host `~/.docker` auth), sets `DOCKER_HOST` to the rootless user socket when
 present, runs `bin/deploy.sh release`, then logs out and removes that config
 dir.
 
+Login and release ssh remotes wrap the script in `bash -c` because the deploy
+user login shell is `/bin/sh` (dash). Isolated `DOCKER_CONFIG` and rootless
+`DOCKER_HOST` still apply inside that bash.
+
 Do not leave a long-lived PAT on the host for routine deploys. For break-glass
 pulls when Actions cannot run:
 

@@ -21,6 +21,10 @@ Canonical prose: [docs/deploy.md](../../docs/deploy.md) § GHCR pull auth. Contr
    `DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock` on the **same** remote
    shell as login and release.
 
+The deploy user login shell is `/bin/sh` (dash). `chsh` needs a password from
+this key, so login and release ssh remotes must run `bash -c '…'` (bash is
+installed). Do not put `set -o pipefail` or `[[` in the dash payload.
+
 ## Anti-thrash (learned from #191 / #192)
 
 | Tempting “fix” | Why it fails |

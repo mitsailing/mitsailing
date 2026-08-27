@@ -1,6 +1,47 @@
 import { spawnSync } from 'node:child_process';
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { readRepoFile } from '@/libs/test/readRepoFile';
+
+const minProductionSshRemotes = 5;
+
+function sshRemoteCommandBodies(workflowYaml: string): string[] {
+  const bodies: string[] = [];
+  let inSsh = false;
+
+  for (const line of workflowYaml.split('\n')) {
+    if (/\bssh\s+\\$/u.test(line)) {
+      inSsh = true;
+      continue;
+    }
+    if (!inSsh) {
+      continue;
+    }
+
+    const continuation = line.trimEnd().endsWith('\\');
+    const quoted = /^\s+"(.*)"\s*\\?$/u.exec(line);
+    const remoteCommand = quoted === null ? undefined : quoted[1];
+    if (remoteCommand !== undefined && !continuation) {
+      bodies.push(remoteCommand);
+      inSsh = false;
+      continue;
+    }
+    if (!continuation && line.trim() !== '') {
+      inSsh = false;
+    }
+  }
+
+  return bodies;
+}
+
+function unescapeGithubActionsRemote(remote: string): string {
+  return remote
+    .replaceAll('\\"', '"')
+    .replaceAll('\\$(', '$(')
+    .replaceAll('\\$', '$');
+}
 
 function readYamlServiceBlock(source: string, service: string): string {
   const marker = `\n  ${service}:`;
@@ -472,10 +513,10 @@ describe('production docker compose', () => {
     // on the same remote shell (do not assert these tokens loosely elsewhere).
     const remoteDockerEnvSetup = `export DOCKER_CONFIG=${remoteDockerConfig}; sock=\\"/run/user/\\$(id -u)/docker.sock\\"; if [[ -S \\"\\$sock\\" ]]; then export DOCKER_HOST=\\"unix://\\$sock\\"; fi`;
     expect(deployWorkflow).toContain(
-      `mkdir -p -m 700 ${remoteDockerConfig}; ${remoteDockerEnvSetup}; docker login ghcr.io -u ${remoteUser} --password-stdin`
+      `bash -c 'set -euo pipefail; mkdir -p -m 700 ${remoteDockerConfig}; ${remoteDockerEnvSetup}; docker login ghcr.io -u ${remoteUser} --password-stdin'`
     );
     expect(deployWorkflow).toContain(
-      `${remoteDockerEnvSetup}; ${escapedDataRootAssignment}DEPLOY_DIR=${escapedAppDir} ${escapedDeployScript} release ${escapedImageTag}`
+      `bash -c 'set -euo pipefail; ${remoteDockerEnvSetup}; ${escapedDataRootAssignment}DEPLOY_DIR=${escapedAppDir} ${escapedDeployScript} release ${escapedImageTag}'`
     );
     expect(deployWorkflow).toContain(
       `printf '%s\\n' "${dollar}GHCR_TOKEN" | ssh \\`
@@ -490,6 +531,60 @@ describe('production docker compose', () => {
     expect(deployWorkflow).toContain('RequestTTY=no');
     expect(deployWorkflow).toContain(`GHCR_TOKEN: ${githubTokenExpression}`);
     expect(deployWorkflow).toContain(`GHCR_USERNAME: ${githubActorExpression}`);
+  });
+
+  it('runs ghcr login and release remotes through bash -c', () => {
+    const remotes = sshRemoteCommandBodies(deployWorkflow);
+    const loginRemote = remotes.find((remote) =>
+      remote.includes('docker login ghcr.io')
+    );
+    const releaseRemote = remotes.find(
+      (remote) =>
+        remote.includes(composeVariable('remote_deploy_script')) &&
+        remote.includes(' release ')
+    );
+
+    expect(remotes.length).toBeGreaterThanOrEqual(minProductionSshRemotes);
+    expect(loginRemote).toBeDefined();
+    expect(releaseRemote).toBeDefined();
+    expect(loginRemote?.startsWith('bash -c ')).toBe(true);
+    expect(releaseRemote?.startsWith('bash -c ')).toBe(true);
+  });
+
+  it('runs the ghcr login remote payload under the login shell', () => {
+    const remotes = sshRemoteCommandBodies(deployWorkflow);
+    const loginRemote = remotes.find((remote) =>
+      remote.includes('docker login ghcr.io')
+    );
+    expect(loginRemote).toBeDefined();
+    if (loginRemote === undefined) {
+      throw new TypeError('missing ghcr login remote command');
+    }
+
+    const stubDir = mkdtempSync(path.join(tmpdir(), 'mitsailing-posix-sh-'));
+    const dockerConfigDir = path.join(stubDir, 'docker-config');
+    writeFileSync(
+      path.join(stubDir, 'docker'),
+      '#!/bin/sh\ncat >/dev/null\necho Login Succeeded\n'
+    );
+    chmodSync(path.join(stubDir, 'docker'), 0o755);
+
+    const remoteScript = unescapeGithubActionsRemote(loginRemote)
+      .replaceAll(composeVariable('remote_docker_config'), dockerConfigDir)
+      .replaceAll(composeVariable('remote_user'), 'contract-user');
+
+    const result = spawnSync('/bin/sh', ['-c', remoteScript], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${stubDir}:/bin:/usr/bin`,
+      },
+      input: 'fake-token\n',
+    });
+    rmSync(stubDir, { force: true, recursive: true });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('Login Succeeded');
   });
 
   it('rejects unsafe remote app directory values', () => {
