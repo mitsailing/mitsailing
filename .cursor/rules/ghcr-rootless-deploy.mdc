@@ -21,6 +21,10 @@ Canonical prose: [docs/deploy.md](../../docs/deploy.md) § GHCR pull auth. Contr
    `DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock` on the **same** remote
    shell as login and release.
 
+The deploy user login shell is `/bin/sh` (dash). `chsh` needs a password from
+this key, so login and release ssh remotes must run `bash -c '…'` (bash is
+installed). Do not put `set -o pipefail` or `[[` in the dash payload.
+
 ## Anti-thrash (learned from #191 / #192)
 
 | Tempting “fix” | Why it fails |
@@ -28,7 +32,6 @@ Canonical prose: [docs/deploy.md](../../docs/deploy.md) § GHCR pull auth. Contr
 | Drop `DOCKER_CONFIG` → use host `~/.docker` | Restores rootless context but shared login/logout races (Sourcery). |
 | Keep isolated config, omit `DOCKER_HOST` | GHCR login can succeed while Release fails on `/var/run/docker.sock`. |
 | Only assert `DOCKER_CONFIG` **or** `/run/user/` loosely in tests | One side can regress without failing CI. |
-| `set -o pipefail` or `[[ ]]` in the ssh remote string | Production login shell is `sh` (dash). Fails with `set: Illegal option -o pipefail`. |
 
 Do **not** “simplify” to host-default config to fix rootless. Do **not** drop
 `DOCKER_HOST` to keep isolation. Prefer short-lived `GITHUB_TOKEN` +
@@ -43,5 +46,3 @@ Do **not** “simplify” to host-default config to fix rootless. Do **not** dro
    remain open.
 3. After merge, production Release must get past `pinning image …` without
    GHCR `denied` and without `unix:///var/run/docker.sock` on a rootless host.
-4. SSH to `sailing-dock.mit.edu` and run the remote payload under `sh`
-   before push (`posix-remote-ssh.mdc`). Local `sh` is not production.

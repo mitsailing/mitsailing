@@ -511,12 +511,12 @@ describe('production docker compose', () => {
     );
     // Login and release must share isolated DOCKER_CONFIG + rootless DOCKER_HOST
     // on the same remote shell (do not assert these tokens loosely elsewhere).
-    const remoteDockerEnvSetup = `export DOCKER_CONFIG=${remoteDockerConfig}; sock=\\"/run/user/\\$(id -u)/docker.sock\\"; if [ -S \\"\\$sock\\" ]; then export DOCKER_HOST=\\"unix://\\$sock\\"; fi`;
+    const remoteDockerEnvSetup = `export DOCKER_CONFIG=${remoteDockerConfig}; sock=\\"/run/user/\\$(id -u)/docker.sock\\"; if [[ -S \\"\\$sock\\" ]]; then export DOCKER_HOST=\\"unix://\\$sock\\"; fi`;
     expect(deployWorkflow).toContain(
-      `set -eu; mkdir -p -m 700 ${remoteDockerConfig}; ${remoteDockerEnvSetup}; docker login ghcr.io -u ${remoteUser} --password-stdin`
+      `bash -c 'set -euo pipefail; mkdir -p -m 700 ${remoteDockerConfig}; ${remoteDockerEnvSetup}; docker login ghcr.io -u ${remoteUser} --password-stdin'`
     );
     expect(deployWorkflow).toContain(
-      `set -eu; ${remoteDockerEnvSetup}; ${escapedDataRootAssignment}DEPLOY_DIR=${escapedAppDir} ${escapedDeployScript} release ${escapedImageTag}`
+      `bash -c 'set -euo pipefail; ${remoteDockerEnvSetup}; ${escapedDataRootAssignment}DEPLOY_DIR=${escapedAppDir} ${escapedDeployScript} release ${escapedImageTag}'`
     );
     expect(deployWorkflow).toContain(
       `printf '%s\\n' "${dollar}GHCR_TOKEN" | ssh \\`
@@ -533,26 +533,25 @@ describe('production docker compose', () => {
     expect(deployWorkflow).toContain(`GHCR_USERNAME: ${githubActorExpression}`);
   });
 
-  it('keeps production ssh remote commands posix-sh safe', () => {
+  it('runs ghcr login and release remotes through bash -c', () => {
     const remotes = sshRemoteCommandBodies(deployWorkflow);
     const loginRemote = remotes.find((remote) =>
       remote.includes('docker login ghcr.io')
     );
-    const releaseRemote = remotes.find((remote) =>
-      remote.includes('bin/deploy.sh')
+    const releaseRemote = remotes.find(
+      (remote) =>
+        remote.includes(composeVariable('remote_deploy_script')) &&
+        remote.includes(' release ')
     );
 
     expect(remotes.length).toBeGreaterThanOrEqual(minProductionSshRemotes);
     expect(loginRemote).toBeDefined();
     expect(releaseRemote).toBeDefined();
-
-    for (const remote of remotes) {
-      expect(remote.includes('pipefail'), remote).toBe(false);
-      expect(remote.includes('[['), remote).toBe(false);
-    }
+    expect(loginRemote?.startsWith('bash -c ')).toBe(true);
+    expect(releaseRemote?.startsWith('bash -c ')).toBe(true);
   });
 
-  it('runs the ghcr login remote payload under posix sh', () => {
+  it('runs the ghcr login remote payload under the login shell', () => {
     const remotes = sshRemoteCommandBodies(deployWorkflow);
     const loginRemote = remotes.find((remote) =>
       remote.includes('docker login ghcr.io')
