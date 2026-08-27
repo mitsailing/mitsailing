@@ -443,7 +443,7 @@ describe('production docker compose', () => {
       'printf -v remote_image_tag \'%q\' "$IMAGE_TAG"'
     );
     expect(deployWorkflow).toContain(
-      `"${escapedDataRootAssignment}DEPLOY_DIR=${escapedAppDir} ${escapedDeployScript} release ${escapedImageTag}"`
+      'printf -v remote_docker_config \'%q\' "$REMOTE_DOCKER_CONFIG"'
     );
     expect(deployWorkflow).not.toContain(`"mkdir -p '${remoteAppDir}/bin'`);
     expect(deployWorkflow).toContain('checked_out_sha="$(git rev-parse HEAD)"');
@@ -457,6 +457,36 @@ describe('production docker compose', () => {
     expect(deployWorkflow).not.toContain(
       `DEPLOYMENT_VERSION=${githubShaExpression}`
     );
+    const remoteUser = composeVariable('remote_user');
+    const remoteDockerConfig = composeVariable('remote_docker_config');
+    const ghcrLoginOutcome = `${dollar}{{ always() && steps.ghcr_login.outcome == 'success' }}`;
+    const githubTokenExpression = `${dollar}{{ secrets.GITHUB_TOKEN }}`;
+    const githubActorExpression = `${dollar}{{ github.actor }}`;
+    const remoteDockerConfigPath = `/tmp/mitsailing-ghcr-${dollar}{{ github.run_id }}-${dollar}{{ github.run_attempt }}`;
+    expect(deployWorkflow).toContain('packages: read');
+    expect(deployWorkflow).toContain('id: ghcr_login');
+    expect(deployWorkflow).toContain(
+      `REMOTE_DOCKER_CONFIG: ${remoteDockerConfigPath}`
+    );
+    expect(deployWorkflow).toContain(
+      `mkdir -p -m 700 ${remoteDockerConfig} && DOCKER_CONFIG=${remoteDockerConfig} docker login ghcr.io -u ${remoteUser} --password-stdin`
+    );
+    expect(deployWorkflow).toContain(
+      `printf '%s\\n' "${dollar}GHCR_TOKEN" | ssh \\`
+    );
+    expect(deployWorkflow).toContain('unset GHCR_TOKEN');
+    expect(deployWorkflow).toContain(
+      `${escapedDataRootAssignment}DOCKER_CONFIG=${remoteDockerConfig} DEPLOY_DIR=${escapedAppDir} ${escapedDeployScript} release ${escapedImageTag}`
+    );
+    expect(deployWorkflow).toContain(`if: ${ghcrLoginOutcome}`);
+    expect(deployWorkflow).toContain(
+      `DOCKER_CONFIG=${remoteDockerConfig} docker logout ghcr.io; rm -rf ${remoteDockerConfig}`
+    );
+    expect(deployWorkflow).toContain('StrictHostKeyChecking=yes');
+    expect(deployWorkflow).toContain('IdentitiesOnly=yes');
+    expect(deployWorkflow).toContain('RequestTTY=no');
+    expect(deployWorkflow).toContain(`GHCR_TOKEN: ${githubTokenExpression}`);
+    expect(deployWorkflow).toContain(`GHCR_USERNAME: ${githubActorExpression}`);
   });
 
   it('rejects unsafe remote app directory values', () => {

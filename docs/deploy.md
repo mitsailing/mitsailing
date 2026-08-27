@@ -169,6 +169,34 @@ PRODUCTION_DATA_ROOT=/home/ak/mitsailing-data
 Use `/srv/mitsailing-data` for `PRODUCTION_DATA_ROOT` after the long-term host
 path exists.
 
+## GHCR pull auth
+
+The production image lives at `ghcr.io/mitsailing/mitsailing`. Package visibility
+is independent of the public git repo and defaults to private. The deploy job
+grants `packages: read` on the short-lived `GITHUB_TOKEN`, logs the production
+host into GHCR over SSH with `--password-stdin` (token never on remote argv),
+runs `bin/deploy.sh release` with a per-run `DOCKER_CONFIG` under
+`/tmp/mitsailing-ghcr-<run_id>-<run_attempt>/`, then logs out and removes that
+directory. Isolating credentials this way keeps `cancel-in-progress` cleanup from
+clearing a newer deploy's login, and avoids writing into the host user's default
+`~/.docker/config.json`.
+
+Do not leave a long-lived PAT on the host for routine deploys. For break-glass
+pulls when Actions cannot run:
+
+```bash
+# Prefer an isolated config dir so this does not fight Actions deploys
+export DOCKER_CONFIG="$(mktemp -d)"
+# PAT with read:packages only; authorize org SSO if the org requires it
+printf '%s\n' "$GHCR_READ_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+docker pull ghcr.io/mitsailing/mitsailing:sha-abc123def456
+docker logout ghcr.io
+rm -rf "$DOCKER_CONFIG"
+```
+
+Stale GHCR credentials in a shared Docker config can produce `denied: denied`.
+Prefer a fresh `DOCKER_CONFIG` directory before retrying.
+
 ## Verify
 
 Check the workflow first. The `Release production` job should pass.
@@ -221,7 +249,8 @@ Rollback switches app traffic. It does not reverse database migrations.
 Use direct SSH only after GitHub Actions has already synced the deploy files, or
 when you are intentionally rerunning the same host command. Pass
 `PRODUCTION_DATA_ROOT`; `.env.production` is not enough for deploy-script path
-checks.
+checks. Log into GHCR first (see [GHCR pull auth](#ghcr-pull-auth)); the host
+does not keep registry credentials between Actions deploys.
 
 ```bash
 export PRODUCTION_DATA_ROOT=/home/ak/mitsailing-data
