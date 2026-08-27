@@ -262,7 +262,7 @@ jobs:
       # meaningful. `release` must match the DEPLOYMENT_VERSION the image was
       # built with; the build plugin already created and finalized the release.
       - name: Record Sentry deploy
-        uses: getsentry/action-release@v3.7.0
+        uses: getsentry/action-release@ff07929a6537bac57790c3451cf4d364aca38528 # v3.7.0
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: mit-sailing
