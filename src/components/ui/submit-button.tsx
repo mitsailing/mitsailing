@@ -6,6 +6,7 @@ import * as React from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import {
+  buttonPassthroughProps,
   resolveIsPending,
   resolvePendingLabel,
   submitButtonChrome,
@@ -23,8 +24,6 @@ import type { SubmitButtonProps } from '@/components/ui/submit-button-state';
  * @returns Button with pending chrome and a polite pending announcement
  */
 function SubmitButton(props: SubmitButtonProps) {
-  // Destructured so the SubmitButton-only props never reach the DOM button.
-  const { pending, pendingKind, pendingLabel, ...buttonProps } = props;
   const tCommon = useTranslations('Common');
   const formStatus = useFormStatus();
   const pendingDescriptionId = React.useId();
@@ -32,18 +31,18 @@ function SubmitButton(props: SubmitButtonProps) {
   const isPending = resolveIsPending({
     formAction: props.formAction,
     formStatus,
-    pending,
+    pending: props.pending,
   });
   const label = resolvePendingLabel({
-    pendingKind,
-    pendingLabel,
+    pendingKind: props.pendingKind,
+    pendingLabel: props.pendingLabel,
     translate: tCommon,
   });
 
   return (
     <>
       <Button
-        {...buttonProps}
+        {...buttonPassthroughProps(props)}
         {...submitButtonChrome({
           ariaDescribedBy: props['aria-describedby'],
           disabled: props.disabled,

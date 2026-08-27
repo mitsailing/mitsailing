@@ -28,6 +28,24 @@ export type SubmitButtonProps = React.ComponentProps<typeof Button> & {
 type FormStatus = ReturnType<typeof useFormStatus>;
 
 /**
+ * Separates the pending-only props from the props the DOM button accepts.
+ *
+ * @param props - Submit button props including the pending-only fields
+ * @returns Props to spread onto the underlying button
+ */
+export function buttonPassthroughProps(props: SubmitButtonProps) {
+  const buttonProps: React.ComponentProps<typeof Button> & {
+    pending?: boolean;
+    pendingKind?: SubmitPendingKind;
+    pendingLabel?: string;
+  } = { ...props };
+  delete buttonProps.pending;
+  delete buttonProps.pendingKind;
+  delete buttonProps.pendingLabel;
+  return buttonProps;
+}
+
+/**
  * Resolves whether this control's own submit is the one in flight.
  *
  * @param options - Explicit pending flag, form status, and optional form action
