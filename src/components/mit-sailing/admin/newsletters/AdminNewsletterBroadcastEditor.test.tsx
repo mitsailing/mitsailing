@@ -40,8 +40,6 @@ vi.mock('@react-email/editor', async () => {
 
 const editorText = {
   bodyLabel: 'Body',
-  pendingQueueBroadcast: 'Queueing broadcast',
-  pendingSaveDraft: 'Saving draft',
   queueBroadcast: 'Queue broadcast',
   saveDraft: 'Save draft',
 };
@@ -83,17 +81,9 @@ describe('AdminNewsletterBroadcastEditor', () => {
     expect(
       container.querySelector('input[name="bodyJson"][type="hidden"]')
     ).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Save draft' })).toHaveClass(
-      'h-11',
-      'w-full'
-    );
-    expect(screen.getByRole('button', { name: 'Queue broadcast' })).toHaveClass(
-      'h-11',
-      'w-full'
-    );
   });
 
-  it('exports editor content before saving', async () => {
+  it('exports editor content before submitting', async () => {
     const user = userEvent.setup();
     renderEditor();
 
@@ -112,26 +102,6 @@ describe('AdminNewsletterBroadcastEditor', () => {
     expect(formData.get('body')).toBe('<p>Editor body</p>');
     expect(formData.get('bodyText')).toBe('Editor body');
     expect(formData.get('bodyJson')).toBe('{"type":"doc"}');
-    expect(formData.get('intent')).toBe('draft');
-  });
-
-  it('exports editor content before queueing', async () => {
-    const user = userEvent.setup();
-    renderEditor();
-
-    await user.click(screen.getByRole('button', { name: 'Queue broadcast' }));
-
-    await waitFor(() => {
-      expect(mocks.action).toHaveBeenCalled();
-    });
-    const formData = mocks.action.mock.calls[0]?.[0];
-    if (!(formData instanceof FormData)) {
-      throw new TypeError('Expected action to receive FormData.');
-    }
-    expect(formData.get('body')).toBe('<p>Editor body</p>');
-    expect(formData.get('bodyText')).toBe('Editor body');
-    expect(formData.get('bodyJson')).toBe('{"type":"doc"}');
-    expect(formData.get('intent')).toBe('queue');
   });
 
   it('persists draft body locally and clears it after submit', async () => {

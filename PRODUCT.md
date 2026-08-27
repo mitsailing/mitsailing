@@ -54,16 +54,6 @@ Email is the MVP notification path for this event-registration slice. SMS is a s
 
 The current product slice is the event page and its registration surfaces: the event detail shell, the sticky registration panel, the normal `/events/[slug]/register` form, Storybook state coverage for event actions, and the registration/status copy those surfaces show. It is not a new home page, standalone waitlist dashboard, or separate Learn-to-Sail microsite.
 
-## Current Focus: Admin Operations
-
-The admin area is the task surface for staff and volunteers who need to find records quickly, inspect status, and take narrow actions without decoding the data model. It should feel closer to a well-run operations console than a content-heavy marketing page.
-
-Admin pages should use a shared index-table pattern where each page passes its columns, rows, actions, and empty state into a common table shell. Desktop pages should favor scan-friendly rows; mobile pages should collapse into labeled row groups without losing field names or actions.
-
-View pages should not look editable. Editing belongs on explicit edit pages or narrow inline controls where the user is clearly changing one object. User, event, payment, card, newsletter, and pavilion reservation pages should put identity, status, payment state, and next action near the top.
-
-Newsletter editing is a staff composition workflow. The message editor must be large enough for drafting real emails, grow or provide useful room as content expands, autosave draft content when possible, and keep save/queue actions obvious without crowding the writing area.
-
 ## Brand Personality
 
 Friendly, direct, kinetic, civic, competent.

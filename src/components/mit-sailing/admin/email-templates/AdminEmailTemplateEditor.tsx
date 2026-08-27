@@ -1,8 +1,8 @@
 'use client';
 
+import { EmailEditor } from '@react-email/editor';
 import type { EmailEditorRef } from '@react-email/editor';
 import { useEffect, useRef, useState } from 'react';
-import { AdminEmailEditorSurface } from '@/components/mit-sailing/admin/AdminEmailEditorSurface';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
@@ -178,14 +178,20 @@ export function AdminEmailTemplateEditor(props: AdminEmailTemplateEditorProps) {
         </div>
       </div>
 
-      <AdminEmailEditorSurface
-        content={content}
-        editorRef={editorRef}
-        label={props.text.bodyLabel}
-        onUpdate={(ref) => {
-          persistDraft({ content: ref.editor?.getHTML() ?? content });
-        }}
-      />
+      <div className="flex flex-col gap-1.5">
+        <Label>{props.text.bodyLabel}</Label>
+        <div className="min-h-[420px] rounded-lg border border-border bg-card p-3">
+          <EmailEditor
+            content={content}
+            key={content}
+            onUpdate={(ref) => {
+              persistDraft({ content: ref.editor?.getHTML() ?? content });
+            }}
+            ref={editorRef}
+            theme="basic"
+          />
+        </div>
+      </div>
 
       <input name="editorBodyHtml" type="hidden" />
       <input name="renderedText" type="hidden" />

@@ -653,7 +653,7 @@ function EventMetadataSection(props: {
     >
       <dl className="grid gap-4 md:grid-cols-2">
         <div>
-          <dt className="text-xs font-medium text-muted-foreground">
+          <dt className="text-xs font-semibold text-mit-readable-ink uppercase">
             {props.t('metadata_created_at')}
           </dt>
           <dd className="mt-1 text-sm font-medium">
@@ -661,7 +661,7 @@ function EventMetadataSection(props: {
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-medium text-muted-foreground">
+          <dt className="text-xs font-semibold text-mit-readable-ink uppercase">
             {props.t('metadata_registrations')}
           </dt>
           <dd className="mt-1 text-sm font-medium">
@@ -683,7 +683,7 @@ function ReadOnlyValue(props: {
 }) {
   return (
     <div>
-      <dt className="text-xs font-medium text-muted-foreground">
+      <dt className="text-xs font-semibold text-mit-readable-ink uppercase">
         {props.label}
       </dt>
       <dd className="mt-1 text-sm text-foreground">{props.children}</dd>
@@ -1683,8 +1683,11 @@ export function AdminEventFormView(props: AdminEventFormViewProps) {
       </AdminEventBackLink>
 
       <header className="flex flex-col gap-2">
+        <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-white">
+          {props.t('edit_eyebrow')}
+        </p>
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
             {props.accessMode === 'editable'
               ? props.t('edit_title')
               : props.event.name}

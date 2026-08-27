@@ -222,22 +222,6 @@ MIT Sailing should feel modern without relying on soft "ghost cards." Depth come
 - **Footer:** can be redesigned for clarity, contact, location, key paths, and MIT identity. Avoid a dense legacy link dump.
 - **Admin navigation:** dense and predictable, with strong active states and keyboard-visible focus.
 
-### Admin Index Tables
-
-Admin index pages use one shared table pattern. Pages pass columns, row cells, row keys, and empty states; the shared shell owns borders, header rhythm, mobile labels, empty-row treatment, and table responsiveness. Desktop should remain row-first and easy to scan. Mobile should collapse each row into labeled fields with the action still reachable at the end of the row.
-
-Avoid card-per-record layouts for normal admin indexes. Cards are reserved for genuinely framed tools, destructive confirmations, modals, or repeated items whose content is not naturally tabular.
-
-### Admin Detail Rows
-
-Admin show pages should read as inspection surfaces, not edit forms. Use compact summary rows, metric strips, and read-only detail rows for identity, state, payment, and card information. Put explicit edit controls on edit pages or narrow action forms. Do not show password fields, editable profile inputs, or large framed card-status boxes on read-only user pages.
-
-### Newsletter Editor
-
-Newsletter compose pages should put metadata fields first, then give the message editor enough vertical space for drafting a full email. The editor should have a minimum working height of at least 60vh on desktop and a stable mobile height that does not collapse below a useful writing area. If the editor exposes a text surface, it should grow with typed content or otherwise provide clear internal room without trapping the user in a tiny box.
-
-Save draft and queue actions should remain visible after the editor and use the normal button vocabulary. Draft persistence is a functional part of the editor, not decorative polish.
-
 ### Signature Component: Event-Page Registration Panel
 
 The event-page registration panel is the signature product pattern for this slice. It must adapt to the event's registration mode: standard local registration, approval-required request, external registration, no-registration information, opening later, closed, full, pending, accepted, payment due, success, and error states.

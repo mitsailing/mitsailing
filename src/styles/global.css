@@ -74,31 +74,6 @@
     opacity: 1;
   }
 
-  [data-admin-email-editor]
-    :is(.ProseMirror, .tiptap, [contenteditable='true']) {
-    min-height: 30rem;
-  }
-
-  [data-admin-email-editor] textarea {
-    field-sizing: content;
-    min-height: 30rem;
-    resize: vertical;
-    width: 100%;
-  }
-
-  @media (min-width: 768px) {
-    [data-admin-email-editor]
-      :is(.ProseMirror, .tiptap, [contenteditable='true']) {
-      min-height: max(30rem, calc(60vh - 3rem));
-    }
-  }
-
-  [data-admin-email-editor]
-    :is(.ProseMirror, .tiptap, [contenteditable='true']):focus-visible {
-    outline: 2px solid var(--ring);
-    outline-offset: 2px;
-  }
-
   .cms-rich-text {
     color: inherit;
     line-height: 1.7;

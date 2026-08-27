@@ -1,4 +1,3 @@
-import { AdminTableContainer } from '@/components/mit-sailing/admin/AdminDataRows';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -31,7 +30,7 @@ export function AdminEmailTemplateList(
   }>
 ) {
   return (
-    <AdminTableContainer>
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
       <Table>
         <TableHeader>
           <TableRow>
@@ -82,6 +81,6 @@ export function AdminEmailTemplateList(
           )}
         </TableBody>
       </Table>
-    </AdminTableContainer>
+    </div>
   );
 }
