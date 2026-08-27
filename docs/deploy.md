@@ -175,27 +175,22 @@ The production image lives at `ghcr.io/mitsailing/mitsailing`. Package visibilit
 is independent of the public git repo and defaults to private. The deploy job
 grants `packages: read` on the short-lived `GITHUB_TOKEN`, logs the production
 host into GHCR over SSH with `--password-stdin` (token never on remote argv),
-runs `bin/deploy.sh release` with a per-run `DOCKER_CONFIG` under
-`/tmp/mitsailing-ghcr-<run_id>-<run_attempt>/`, then logs out and removes that
-directory. Isolating credentials this way keeps `cancel-in-progress` cleanup from
-clearing a newer deploy's login, and avoids writing into the host user's default
-`~/.docker/config.json`.
+runs `bin/deploy.sh release` using the host default Docker config (so rootless
+CLI context keeps working), then `docker logout ghcr.io` unless the job was
+cancelled (avoids wiping a newer deploy's login under `cancel-in-progress`).
 
 Do not leave a long-lived PAT on the host for routine deploys. For break-glass
 pulls when Actions cannot run:
 
 ```bash
-# Prefer an isolated config dir so this does not fight Actions deploys
-export DOCKER_CONFIG="$(mktemp -d)"
 # PAT with read:packages only; authorize org SSO if the org requires it
 printf '%s\n' "$GHCR_READ_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
 docker pull ghcr.io/mitsailing/mitsailing:sha-abc123def456
 docker logout ghcr.io
-rm -rf "$DOCKER_CONFIG"
 ```
 
-Stale GHCR credentials in a shared Docker config can produce `denied: denied`.
-Prefer a fresh `DOCKER_CONFIG` directory before retrying.
+Stale GHCR credentials on the host can produce `denied: denied`. Prefer
+`docker logout ghcr.io` before retrying a manual login.
 
 ## Verify
 
