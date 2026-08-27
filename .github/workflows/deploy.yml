@@ -237,17 +237,20 @@ jobs:
       # GHCR package visibility is independent of the public git repo and defaults
       # to private. Prefer short-lived GITHUB_TOKEN (packages:read) over a host PAT.
       # Pipe the token over SSH stdin into `docker login --password-stdin` so it never
-      # appears in remote argv/process list; logout after Release so config.json does
-      # not keep a dead job token (stale GHCR creds also produce `denied: denied`).
+      # appears in remote argv/process list. Use a per-run DOCKER_CONFIG so
+      # cancel-in-progress logout cannot clear a newer deploy's credentials (shared
+      # ~/.docker/config.json), then remove that directory after Release.
       - name: Log in to GHCR on production host
         id: ghcr_login
         env:
           PRODUCTION_SSH_TARGET: ${{ secrets.PRODUCTION_SSH_TARGET }}
           GHCR_USERNAME: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REMOTE_DOCKER_CONFIG: /tmp/mitsailing-ghcr-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -euo pipefail
           printf -v remote_user '%q' "$GHCR_USERNAME"
+          printf -v remote_docker_config '%q' "$REMOTE_DOCKER_CONFIG"
           printf '%s\n' "$GHCR_TOKEN" | ssh \
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
@@ -256,7 +259,7 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -o ConnectTimeout=15 \
             "$PRODUCTION_SSH_TARGET" \
-            "docker login ghcr.io -u ${remote_user} --password-stdin"
+            "mkdir -p -m 700 ${remote_docker_config} && DOCKER_CONFIG=${remote_docker_config} docker login ghcr.io -u ${remote_user} --password-stdin"
           unset GHCR_TOKEN
 
       - name: Release
@@ -265,6 +268,7 @@ jobs:
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
           REMOTE_APP_DIR: ${{ vars.PRODUCTION_REMOTE_APP_DIR || 'apps/mitsailing' }}
           PRODUCTION_DATA_ROOT: ${{ vars.PRODUCTION_DATA_ROOT }}
+          REMOTE_DOCKER_CONFIG: /tmp/mitsailing-ghcr-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -euo pipefail
 
@@ -279,20 +283,23 @@ jobs:
           printf -v remote_app_dir '%q' "$REMOTE_APP_DIR"
           printf -v remote_deploy_script '%q' "${REMOTE_APP_DIR}/bin/deploy.sh"
           printf -v remote_image_tag '%q' "$IMAGE_TAG"
+          printf -v remote_docker_config '%q' "$REMOTE_DOCKER_CONFIG"
 
           ssh \
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "$PRODUCTION_SSH_TARGET" \
-            "${remote_data_root_assignment}DEPLOY_DIR=${remote_app_dir} ${remote_deploy_script} release ${remote_image_tag}"
+            "${remote_data_root_assignment}DOCKER_CONFIG=${remote_docker_config} DEPLOY_DIR=${remote_app_dir} ${remote_deploy_script} release ${remote_image_tag}"
 
       - name: Log out of GHCR on production host
         if: ${{ always() && steps.ghcr_login.outcome == 'success' }}
         env:
           PRODUCTION_SSH_TARGET: ${{ secrets.PRODUCTION_SSH_TARGET }}
+          REMOTE_DOCKER_CONFIG: /tmp/mitsailing-ghcr-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -euo pipefail
+          printf -v remote_docker_config '%q' "$REMOTE_DOCKER_CONFIG"
           ssh \
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
@@ -301,7 +308,7 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -o ConnectTimeout=15 \
             "$PRODUCTION_SSH_TARGET" \
-            'docker logout ghcr.io'
+            "DOCKER_CONFIG=${remote_docker_config} docker logout ghcr.io; rm -rf ${remote_docker_config}"
 
       # Marks the release as deployed only after the host is actually serving
       # it, which is what makes regressions and "resolved in next release"
