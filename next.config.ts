@@ -101,6 +101,16 @@ export default process.env.NEXT_PUBLIC_SENTRY_DISABLED
       project: 'javascript-nextjs',
       authToken: process.env.SENTRY_AUTH_TOKEN,
 
+      // `.dockerignore` excludes `.git`, so inside the image build the plugin
+      // has no repository to auto-detect a release from and production events
+      // ship with `release: null`. deploy.yml passes the full commit SHA as
+      // DEPLOYMENT_VERSION; reuse it so events, source maps, and the release
+      // created during the build all carry the same identifier. Local builds
+      // leave it unset and keep git auto-detection.
+      ...(process.env.DEPLOYMENT_VERSION
+        ? { release: { name: process.env.DEPLOYMENT_VERSION } }
+        : {}),
+
       silent: !process.env.CI,
       widenClientFileUpload: true,
       tunnelRoute: '/monitoring',
