@@ -1,0 +1,44 @@
+---
+description: Production GHCR auth + rootless Docker — both constraints required; do not thrash
+globs: .github/workflows/deploy.yml,bin/deploy.sh,docs/deploy.md,src/libs/deploy/dockerComposeContract.test.ts
+alwaysApply: false
+---
+
+# Production GHCR + rootless Docker
+
+Canonical prose: [docs/deploy.md](../../docs/deploy.md) § GHCR pull auth. Contract:
+[dockerComposeContract.test.ts](../../src/libs/deploy/dockerComposeContract.test.ts).
+
+## Two constraints (both required)
+
+1. **Isolated auth** — Actions must use per-run
+   `DOCKER_CONFIG=/tmp/mitsailing-ghcr-<run_id>-<attempt>` for login, release, and
+   logout. Do **not** write GHCR creds into shared host `~/.docker` (clobbers
+   operators / concurrent deploys on logout).
+2. **Rootless daemon** — An empty/isolated config has no rootless CLI context, so
+   the CLI defaults to `/var/run/docker.sock`. When
+   `/run/user/$(id -u)/docker.sock` exists, set
+   `DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock` on the **same** remote
+   shell as login and release.
+
+## Anti-thrash (learned from #191 / #192)
+
+| Tempting “fix” | Why it fails |
+| --- | --- |
+| Drop `DOCKER_CONFIG` → use host `~/.docker` | Restores rootless context but shared login/logout races (Sourcery). |
+| Keep isolated config, omit `DOCKER_HOST` | GHCR login can succeed while Release fails on `/var/run/docker.sock`. |
+| Only assert `DOCKER_CONFIG` **or** `/run/user/` loosely in tests | One side can regress without failing CI. |
+
+Do **not** “simplify” to host-default config to fix rootless. Do **not** drop
+`DOCKER_HOST` to keep isolation. Prefer short-lived `GITHUB_TOKEN` +
+`packages: read` over a long-lived host PAT for routine deploys.
+
+## Before claiming deploy PR done
+
+1. Contract tests assert the **login and release** remote snippets both set
+   `DOCKER_CONFIG` and the rootless `DOCKER_HOST` sock check together.
+2. Unanswered actionable bot threads (Sourcery/CodeRabbit/etc.) are fixed or
+   won’t-fixed with a reply — do not tell the user the PR is done while those
+   remain open.
+3. After merge, production Release must get past `pinning image …` without
+   GHCR `denied` and without `unix:///var/run/docker.sock` on a rootless host.
