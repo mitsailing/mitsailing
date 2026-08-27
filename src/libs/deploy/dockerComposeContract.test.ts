@@ -457,6 +457,26 @@ describe('production docker compose', () => {
     expect(deployWorkflow).not.toContain(
       `DEPLOYMENT_VERSION=${githubShaExpression}`
     );
+    const remoteUser = composeVariable('remote_user');
+    const ghcrLoginOutcome = `${dollar}{{ always() && steps.ghcr_login.outcome == 'success' }}`;
+    const githubTokenExpression = `${dollar}{{ secrets.GITHUB_TOKEN }}`;
+    const githubActorExpression = `${dollar}{{ github.actor }}`;
+    expect(deployWorkflow).toContain('packages: read');
+    expect(deployWorkflow).toContain('id: ghcr_login');
+    expect(deployWorkflow).toContain(
+      `docker login ghcr.io -u ${remoteUser} --password-stdin`
+    );
+    expect(deployWorkflow).toContain(
+      `printf '%s\\n' "${dollar}GHCR_TOKEN" | ssh \\`
+    );
+    expect(deployWorkflow).toContain('unset GHCR_TOKEN');
+    expect(deployWorkflow).toContain(`if: ${ghcrLoginOutcome}`);
+    expect(deployWorkflow).toContain("'docker logout ghcr.io'");
+    expect(deployWorkflow).toContain('StrictHostKeyChecking=yes');
+    expect(deployWorkflow).toContain('IdentitiesOnly=yes');
+    expect(deployWorkflow).toContain('RequestTTY=no');
+    expect(deployWorkflow).toContain(`GHCR_TOKEN: ${githubTokenExpression}`);
+    expect(deployWorkflow).toContain(`GHCR_USERNAME: ${githubActorExpression}`);
   });
 
   it('rejects unsafe remote app directory values', () => {

@@ -157,6 +157,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     timeout-minutes: 35
+    # Host `docker pull` of the private GHCR package needs packages:read.
+    # Build already pushed with packages:write; this job only pulls.
+    permissions:
+      contents: read
+      packages: read
     environment:
       name: production
       url: https://mitsailing.com
@@ -229,6 +234,31 @@ jobs:
             "$PRODUCTION_SSH_TARGET" \
             "chmod 755 ${remote_app_dir}/bin ${remote_app_dir}/docker ${remote_app_dir}/docker/postgres ${remote_app_dir}/docker/nginx && chmod 700 ${remote_app_dir}/bin/deploy.sh && chmod 644 ${remote_app_dir}/compose.yaml ${remote_app_dir}/compose.prod.yaml ${remote_app_dir}/docker/postgres/init.sql ${remote_app_dir}/docker/nginx/media.conf"
 
+      # GHCR package visibility is independent of the public git repo and defaults
+      # to private. Prefer short-lived GITHUB_TOKEN (packages:read) over a host PAT.
+      # Pipe the token over SSH stdin into `docker login --password-stdin` so it never
+      # appears in remote argv/process list; logout after Release so config.json does
+      # not keep a dead job token (stale GHCR creds also produce `denied: denied`).
+      - name: Log in to GHCR on production host
+        id: ghcr_login
+        env:
+          PRODUCTION_SSH_TARGET: ${{ secrets.PRODUCTION_SSH_TARGET }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf -v remote_user '%q' "$GHCR_USERNAME"
+          printf '%s\n' "$GHCR_TOKEN" | ssh \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o RequestTTY=no \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=15 \
+            "$PRODUCTION_SSH_TARGET" \
+            "docker login ghcr.io -u ${remote_user} --password-stdin"
+          unset GHCR_TOKEN
+
       - name: Release
         env:
           PRODUCTION_SSH_TARGET: ${{ secrets.PRODUCTION_SSH_TARGET }}
@@ -256,6 +286,22 @@ jobs:
             -o ConnectTimeout=15 \
             "$PRODUCTION_SSH_TARGET" \
             "${remote_data_root_assignment}DEPLOY_DIR=${remote_app_dir} ${remote_deploy_script} release ${remote_image_tag}"
+
+      - name: Log out of GHCR on production host
+        if: ${{ always() && steps.ghcr_login.outcome == 'success' }}
+        env:
+          PRODUCTION_SSH_TARGET: ${{ secrets.PRODUCTION_SSH_TARGET }}
+        run: |
+          set -euo pipefail
+          ssh \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o RequestTTY=no \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=15 \
+            "$PRODUCTION_SSH_TARGET" \
+            'docker logout ghcr.io'
 
       # Marks the release as deployed only after the host is actually serving
       # it, which is what makes regressions and "resolved in next release"
