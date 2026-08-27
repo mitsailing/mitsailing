@@ -1335,9 +1335,11 @@ describe('Admin catalog media fields', () => {
   });
 
   it('submits disabled optional cms block groups with partial draft values', async () => {
-    const saveAction = vi.fn(async (_formData: FormData) => {
-      await Promise.resolve();
-    });
+    const saveAction = vi.fn<(formData: FormData) => Promise<void>>(
+      async () => {
+        await Promise.resolve();
+      }
+    );
     const user = userEvent.setup();
     render(
       <AdminCatalogForm

@@ -6,33 +6,46 @@ import * as React from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { FormSubmitTimeoutContext } from '@/components/ui/form-submit-timeout-context';
+import {
+  isSubmitButtonPending,
+  resolveSubmitPendingLabel,
+  submitButtonChromeProps,
+  submitButtonPassthroughProps,
+} from '@/components/ui/submit-button-state';
+import type { SubmitButtonProps } from '@/components/ui/submit-button-state';
 
-const pendingKindKeys = {
-  adding: 'pending_adding',
-  deleting: 'pending_deleting',
-  saving: 'pending_saving',
-  sending: 'pending_sending',
-  submitting: 'pending_submitting',
-} as const;
+function renderSubmitButtonLabel(options: {
+  children: React.ReactNode;
+  isPending: boolean;
+  pendingLabel: string;
+}): React.ReactNode {
+  if (options.isPending) {
+    return (
+      <>
+        <LoaderCircle
+          aria-hidden
+          className="size-4 animate-spin motion-reduce:animate-none"
+        />
+        {options.pendingLabel}
+      </>
+    );
+  }
+  return options.children;
+}
 
-type SubmitPendingKind = keyof typeof pendingKindKeys;
-
-type SubmitButtonProps = React.ComponentProps<typeof Button> & {
-  pending?: boolean;
-} & (
-    | { pendingLabel: string; pendingKind?: never }
-    | { pendingKind: SubmitPendingKind; pendingLabel?: string }
+function renderSubmitButtonPendingDescription(options: {
+  id: string;
+  isPending: boolean;
+  label: string;
+}): React.ReactNode {
+  if (!options.isPending) {
+    return null;
+  }
+  return (
+    <span aria-live="polite" className="sr-only" id={options.id}>
+      {options.label}
+    </span>
   );
-
-function submitButtonPassthroughProps(
-  props: SubmitButtonProps
-): React.ComponentProps<typeof Button> {
-  const buttonProps = { ...props } as Record<string, unknown>;
-  delete buttonProps.children;
-  delete buttonProps.pending;
-  delete buttonProps.pendingKind;
-  delete buttonProps.pendingLabel;
-  return buttonProps as React.ComponentProps<typeof Button>;
 }
 
 const SubmitButton = React.forwardRef<HTMLButtonElement, SubmitButtonProps>(
@@ -41,55 +54,46 @@ const SubmitButton = React.forwardRef<HTMLButtonElement, SubmitButtonProps>(
     const formStatus = useFormStatus();
     const submitTimedOut = React.useContext(FormSubmitTimeoutContext);
     const pendingDescriptionId = React.useId();
-    const isPending =
-      props.pending ??
-      (formStatus.pending &&
-        !submitTimedOut &&
-        (props.formAction === undefined
-          ? true
-          : formStatus.action === props.formAction));
-    const pendingLabel =
-      props.pendingLabel ??
-      (props.pendingKind ? tCommon(pendingKindKeys[props.pendingKind]) : '');
-    const describedBy = [
-      props['aria-describedby'],
-      isPending ? pendingDescriptionId : undefined,
-    ]
-      .filter(Boolean)
-      .join(' ');
+    const isPending = isSubmitButtonPending({
+      formAction: props.formAction,
+      formPending: formStatus.pending,
+      formStatusAction: formStatus.action,
+      pendingProp: props.pending,
+      submitTimedOut,
+    });
+    const pendingLabel = resolveSubmitPendingLabel({
+      pendingKind: props.pendingKind,
+      pendingLabel: props.pendingLabel,
+      translate: tCommon,
+    });
+    const chromeProps = submitButtonChromeProps({
+      disabled: props.disabled,
+      isPending,
+      pendingDescriptionId,
+      pendingLabel,
+      propsAriaDescribedBy: props['aria-describedby'],
+      title: props.title,
+      type: props.type,
+    });
 
     return (
       <>
         <Button
-          aria-busy={isPending || undefined}
-          aria-describedby={describedBy.length > 0 ? describedBy : undefined}
           ref={ref}
           {...submitButtonPassthroughProps(props)}
-          disabled={isPending ? true : props.disabled}
-          title={isPending ? pendingLabel : props.title}
-          type={props.type ?? 'submit'}
+          {...chromeProps}
         >
-          {isPending ? (
-            <>
-              <LoaderCircle
-                aria-hidden
-                className="size-4 animate-spin motion-reduce:animate-none"
-              />
-              {pendingLabel}
-            </>
-          ) : (
-            props.children
-          )}
+          {renderSubmitButtonLabel({
+            children: props.children,
+            isPending,
+            pendingLabel,
+          })}
         </Button>
-        {isPending ? (
-          <span
-            aria-live="polite"
-            className="sr-only"
-            id={pendingDescriptionId}
-          >
-            {pendingLabel}
-          </span>
-        ) : null}
+        {renderSubmitButtonPendingDescription({
+          id: pendingDescriptionId,
+          isPending,
+          label: pendingLabel,
+        })}
       </>
     );
   }
