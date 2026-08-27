@@ -335,9 +335,7 @@ async function insertLegacyPaidMembershipPayment(props: {
   );
 }
 
-test('admin searches users without leaving the users page', async ({
-  page,
-}) => {
+test('admin searches users from the users page', async ({ page }) => {
   const email = fixtureEmail('user-search');
   await createBaseUser({
     email,
@@ -346,16 +344,17 @@ test('admin searches users without leaving the users page', async ({
   });
   await signInAsAdmin(page);
   await page.goto('/admin/users');
-  const originalUrl = page.url();
 
   await page.getByRole('searchbox', { name: 'Search users' }).fill(email);
+  await page.getByRole('button', { name: 'Filter' }).click();
 
+  await expect(page).toHaveURL(/q=/);
   await expect(page.getByRole('row').filter({ hasText: email })).toBeVisible();
-  await expect(page).toHaveURL(originalUrl);
 
   await page
     .getByRole('searchbox', { name: 'Search users' })
     .fill('not-a-real-sailor');
+  await page.getByRole('button', { name: 'Filter' }).click();
   await expect(page.getByText('No users match that search.')).toBeVisible();
 });
 
