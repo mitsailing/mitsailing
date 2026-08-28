@@ -68,7 +68,7 @@
   },
   "dependencies": {
     "@arcjet/next": "^1.4.0",
-    "@better-auth/i18n": "^1.6.13",
+    "@better-auth/i18n": "~1.6.30",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -94,7 +94,7 @@
     "@zenstackhq/plugin-policy": "3.7.2",
     "@zenstackhq/server": "3.7.2",
     "@zenstackhq/zod": "3.7.2",
-    "better-auth": "^1.6.13",
+    "better-auth": "~1.6.30",
     "better-auth-audit-logs": "^0.3.0",
     "bullmq": "^5.78.0",
     "class-variance-authority": "^0.7.1",
@@ -162,6 +162,7 @@
     "cross-env": "^10.1.0",
     "dotenv-cli": "^11.0.0",
     "esbuild": "^0.28.0",
+    "happy-dom": "^20.11.12",
     "jsdom": "^29.1.1",
     "knip": "6.15.0",
     "lefthook": "2.1.9",
@@ -183,7 +184,9 @@
     "wait-on": "9.0.10"
   },
   "overrides": {
+    "@better-auth/core": "1.6.30",
     "@hono/node-server": "1.19.15",
+    "better-auth": "$better-auth",
     "brace-expansion": "5.0.9",
     "checkly": {
       "glob": "13.0.6"
