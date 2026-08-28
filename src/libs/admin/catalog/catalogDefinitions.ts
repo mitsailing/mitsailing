@@ -1,5 +1,62 @@
 import type { CatalogResourceDefinition } from '@/libs/admin/catalog/types';
 
+const catalogColumnName = {
+  field: 'name',
+  kind: 'string',
+  headerKey: 'column_name_label',
+} as const;
+
+const catalogColumnStatus = {
+  field: 'isVisible',
+  kind: 'visibility',
+  headerKey: 'column_status',
+} as const;
+
+const catalogColumnDisplayOrder = {
+  field: 'displayOrder',
+  kind: 'number',
+  headerKey: 'column_display_order_label',
+} as const;
+
+const catalogFieldName = {
+  field: 'name',
+  kind: 'string',
+  required: true,
+  labelKey: 'field_name',
+} as const;
+
+const catalogFieldSlug = {
+  field: 'slug',
+  kind: 'string',
+  required: true,
+  labelKey: 'field_slug',
+} as const;
+
+const catalogFieldDescriptionText = {
+  field: 'description',
+  kind: 'text',
+  labelKey: 'field_description',
+} as const;
+
+const catalogFieldImagePaths = {
+  field: 'imagePaths',
+  kind: 'imageList',
+  labelKey: 'field_image_paths',
+} as const;
+
+const catalogFieldVisible = {
+  field: 'isVisible',
+  kind: 'boolean',
+  labelKey: 'field_visible',
+} as const;
+
+const catalogCapabilitiesCrudReorder = {
+  create: true,
+  update: true,
+  delete: true,
+  reorder: true,
+} as const;
+
 /**
  * Static UI definitions for catalog admin resources (serializable; safe to pass
  * from server components into client field renderers).
@@ -71,37 +128,12 @@ const eventCategoriesDefinition = {
   metaTitleKey: 'meta_title_admin_event_categories',
   hubLabelKey: 'hub_label_event_categories',
   listColumns: [
-    { field: 'name', kind: 'string', headerKey: 'column_name_label' },
-    {
-      field: 'isVisible',
-      kind: 'visibility',
-      headerKey: 'column_status',
-    },
-    {
-      field: 'displayOrder',
-      kind: 'number',
-      headerKey: 'column_display_order_label',
-    },
+    catalogColumnName,
+    catalogColumnStatus,
+    catalogColumnDisplayOrder,
   ],
-  formFields: [
-    {
-      field: 'name',
-      kind: 'string',
-      required: true,
-      labelKey: 'field_name',
-    },
-    {
-      field: 'isVisible',
-      kind: 'boolean',
-      labelKey: 'field_visible',
-    },
-  ],
-  capabilities: {
-    create: true,
-    update: true,
-    delete: true,
-    reorder: true,
-  },
+  formFields: [catalogFieldName, catalogFieldVisible],
+  capabilities: catalogCapabilitiesCrudReorder,
 } as const satisfies CatalogResourceDefinition;
 
 const classCategoriesDefinition = {
@@ -111,43 +143,12 @@ const classCategoriesDefinition = {
   hubLabelKey: 'hub_label_class_categories',
   listColumns: [
     { field: 'slug', kind: 'string', headerKey: 'column_slug_label' },
-    { field: 'name', kind: 'string', headerKey: 'column_name_label' },
-    {
-      field: 'isVisible',
-      kind: 'visibility',
-      headerKey: 'column_status',
-    },
-    {
-      field: 'displayOrder',
-      kind: 'number',
-      headerKey: 'column_display_order_label',
-    },
+    catalogColumnName,
+    catalogColumnStatus,
+    catalogColumnDisplayOrder,
   ],
-  formFields: [
-    {
-      field: 'slug',
-      kind: 'string',
-      required: true,
-      labelKey: 'field_slug',
-    },
-    {
-      field: 'name',
-      kind: 'string',
-      required: true,
-      labelKey: 'field_name',
-    },
-    {
-      field: 'isVisible',
-      kind: 'boolean',
-      labelKey: 'field_visible',
-    },
-  ],
-  capabilities: {
-    create: true,
-    update: true,
-    delete: true,
-    reorder: true,
-  },
+  formFields: [catalogFieldSlug, catalogFieldName, catalogFieldVisible],
+  capabilities: catalogCapabilitiesCrudReorder,
 } as const satisfies CatalogResourceDefinition;
 
 const fleetDefinition = {
@@ -256,12 +257,8 @@ const sailingClassesDefinition = {
   metaTitleKey: 'meta_title_admin_catalog_sailing_classes',
   hubLabelKey: 'hub_label_sailing_classes',
   listColumns: [
-    { field: 'name', kind: 'string', headerKey: 'column_name_label' },
-    {
-      field: 'isVisible',
-      kind: 'visibility',
-      headerKey: 'column_status',
-    },
+    catalogColumnName,
+    catalogColumnStatus,
     { field: 'slug', kind: 'string', headerKey: 'column_slug_label' },
     { field: 'level', kind: 'string', headerKey: 'column_level_label' },
     {
@@ -284,25 +281,11 @@ const sailingClassesDefinition = {
       kind: 'number',
       headerKey: 'column_unlocked_boats_count',
     },
-    {
-      field: 'displayOrder',
-      kind: 'number',
-      headerKey: 'column_display_order_label',
-    },
+    catalogColumnDisplayOrder,
   ],
   formFields: [
-    {
-      field: 'name',
-      kind: 'string',
-      required: true,
-      labelKey: 'field_name',
-    },
-    {
-      field: 'slug',
-      kind: 'string',
-      required: true,
-      labelKey: 'field_slug',
-    },
+    catalogFieldName,
+    catalogFieldSlug,
     {
       field: 'classCategoryId',
       kind: 'select',
@@ -320,23 +303,10 @@ const sailingClassesDefinition = {
       kind: 'richText',
       labelKey: 'field_description',
     },
-    {
-      field: 'imagePaths',
-      kind: 'imageList',
-      labelKey: 'field_image_paths',
-    },
-    {
-      field: 'isVisible',
-      kind: 'boolean',
-      labelKey: 'field_visible',
-    },
+    catalogFieldImagePaths,
+    catalogFieldVisible,
   ],
-  capabilities: {
-    create: true,
-    update: true,
-    delete: true,
-    reorder: true,
-  },
+  capabilities: catalogCapabilitiesCrudReorder,
 } as const satisfies CatalogResourceDefinition;
 
 const siteAlertsDefinition = {
@@ -675,6 +645,127 @@ const cmsMenuItemsDefinition = {
   capabilities: { create: true, update: true, delete: true, reorder: true },
 } as const satisfies CatalogResourceDefinition;
 
+const pavilionSpacesDefinition = {
+  id: 'pavilion_spaces',
+  titleKey: 'title_admin_catalog_pavilion_spaces',
+  metaTitleKey: 'meta_title_admin_catalog_pavilion_spaces',
+  hubLabelKey: 'hub_label_pavilion_spaces',
+  listColumns: [
+    catalogColumnName,
+    { field: 'kind', kind: 'string', headerKey: 'column_kind_label' },
+    {
+      field: 'publicGroup',
+      kind: 'string',
+      headerKey: 'column_public_group_label',
+    },
+    catalogColumnStatus,
+    catalogColumnDisplayOrder,
+    {
+      field: 'priceHint',
+      kind: 'string',
+      headerKey: 'column_price_hint_label',
+    },
+  ],
+  formFields: [
+    catalogFieldName,
+    catalogFieldSlug,
+    {
+      field: 'kind',
+      kind: 'select',
+      required: true,
+      labelKey: 'field_kind',
+      selectOptions: [
+        { value: 'space', labelKey: 'option_kind_space' },
+        { value: 'service', labelKey: 'option_kind_service' },
+      ],
+    },
+    {
+      field: 'publicGroup',
+      kind: 'select',
+      labelKey: 'field_public_group',
+      selectOptions: [
+        { value: '', labelKey: 'option_public_group_none' },
+        { value: 'venue', labelKey: 'option_public_group_venue' },
+        {
+          value: 'event_options',
+          labelKey: 'option_public_group_event_options',
+        },
+        { value: 'programs', labelKey: 'option_public_group_programs' },
+      ],
+    },
+    catalogFieldDescriptionText,
+    {
+      field: 'pricingType',
+      kind: 'select',
+      required: true,
+      labelKey: 'field_pricing_type',
+      selectOptions: [
+        { value: 'hourly', labelKey: 'option_pricing_type_hourly' },
+        { value: 'flat', labelKey: 'option_pricing_type_flat' },
+      ],
+    },
+    {
+      field: 'minDurationHours',
+      kind: 'number',
+      labelKey: 'field_min_duration_hours',
+    },
+    {
+      field: 'priceMitAcademic',
+      kind: 'number',
+      labelKey: 'field_price_mit_academic',
+    },
+    {
+      field: 'priceMitStudent',
+      kind: 'number',
+      labelKey: 'field_price_mit_student',
+    },
+    {
+      field: 'priceMitCommunity',
+      kind: 'number',
+      labelKey: 'field_price_mit_community',
+    },
+    {
+      field: 'priceNonMit',
+      kind: 'number',
+      labelKey: 'field_price_non_mit',
+    },
+    catalogFieldImagePaths,
+    catalogFieldVisible,
+  ],
+  formSections: [
+    {
+      fields: [
+        'name',
+        'slug',
+        'kind',
+        'publicGroup',
+        'description',
+        'isVisible',
+      ],
+      headingKey: 'pavilion_spaces_form_section_basics',
+    },
+    {
+      fields: [
+        'pricingType',
+        'minDurationHours',
+        'priceMitAcademic',
+        'priceMitStudent',
+        'priceMitCommunity',
+        'priceNonMit',
+      ],
+      headingKey: 'pavilion_spaces_form_section_pricing',
+      helperKey: 'pavilion_spaces_form_section_pricing_helper',
+    },
+    {
+      fields: ['imagePaths'],
+      headingKey: 'pavilion_spaces_form_section_media',
+      helperKey: 'pavilion_spaces_form_section_media_helper',
+    },
+  ],
+  capabilities: catalogCapabilitiesCrudReorder,
+  publicViewHrefField: 'publicSpaceUrl',
+} as const satisfies CatalogResourceDefinition;
+
 export const CATALOG_RESOURCE_IDS = [
   'donation_funds',
   'event_categories',
@@ -684,6 +775,7 @@ export const CATALOG_RESOURCE_IDS = [
   'sailing_rating_rules',
   'fleet',
   'site_alerts',
+  'pavilion_spaces',
   'cms_pages',
   'cms_page_blocks',
   'cms_menus',
@@ -704,6 +796,7 @@ export const catalogResourceDefinitions: Record<
   sailing_rating_rules: sailingRatingRulesDefinition,
   fleet: fleetDefinition,
   site_alerts: siteAlertsDefinition,
+  pavilion_spaces: pavilionSpacesDefinition,
   cms_pages: cmsPagesDefinition,
   cms_page_blocks: cmsPageBlocksDefinition,
   cms_menus: cmsMenusDefinition,

@@ -1,6 +1,9 @@
-import type { WebhookEventPayload } from 'resend';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleResendAccountEmailWebhook } from '@/libs/email/accountEmailWebhooks';
+import {
+  buildResendBouncedWebhookEvent,
+  buildResendComplainedWebhookEvent,
+} from '@/libs/email/resendWebhookTestFixtures';
 
 const mocks = vi.hoisted(() => ({
   logger: {
@@ -25,41 +28,6 @@ vi.mock('@/libs/Logger', () => ({
   logger: mocks.logger,
 }));
 
-function bouncedEvent() {
-  return {
-    created_at: '2026-05-14T14:30:00.000Z',
-    data: {
-      bounce: {
-        message: 'Mailbox unavailable',
-        subType: 'General',
-        type: 'Permanent',
-      },
-      created_at: '2026-05-14T14:29:59.000Z',
-      email_id: 'email_123',
-      from: 'MIT Sailing <accounts@mitsailing.test>',
-      message_id: '<email_123@mitsailing.test>',
-      subject: 'Account notice',
-      to: ['Sailor@Example.com'],
-    },
-    type: 'email.bounced',
-  } satisfies Extract<WebhookEventPayload, { type: 'email.bounced' }>;
-}
-
-function complainedEvent() {
-  return {
-    created_at: '2026-05-14T14:30:00.000Z',
-    data: {
-      created_at: '2026-05-14T14:29:59.000Z',
-      email_id: 'email_123',
-      from: 'MIT Sailing <accounts@mitsailing.test>',
-      message_id: '<email_123@mitsailing.test>',
-      subject: 'Account notice',
-      to: ['Sailor@Example.com'],
-    },
-    type: 'email.complained',
-  } satisfies Extract<WebhookEventPayload, { type: 'email.complained' }>;
-}
-
 describe('handleResendAccountEmailWebhook', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -67,7 +35,7 @@ describe('handleResendAccountEmailWebhook', () => {
   });
 
   it('records bounces without marking the account suppressed', async () => {
-    await handleResendAccountEmailWebhook(bouncedEvent());
+    await handleResendAccountEmailWebhook(buildResendBouncedWebhookEvent());
 
     expect(mocks.prisma.user.updateMany).toHaveBeenCalledWith({
       data: {
@@ -86,7 +54,7 @@ describe('handleResendAccountEmailWebhook', () => {
   });
 
   it('guards suppressed account updates by suppression timestamp', async () => {
-    await handleResendAccountEmailWebhook(complainedEvent());
+    await handleResendAccountEmailWebhook(buildResendComplainedWebhookEvent());
 
     expect(mocks.prisma.user.updateMany).toHaveBeenCalledWith({
       data: {
@@ -129,7 +97,7 @@ describe('handleResendAccountEmailWebhook', () => {
       },
     };
 
-    await handleResendAccountEmailWebhook(bouncedEvent(), {
+    await handleResendAccountEmailWebhook(buildResendBouncedWebhookEvent(), {
       client,
       providerEventId: null,
     });
@@ -139,7 +107,7 @@ describe('handleResendAccountEmailWebhook', () => {
   });
 
   it('skips malformed email events without recipients', async () => {
-    const event = bouncedEvent();
+    const event = buildResendBouncedWebhookEvent();
     Reflect.deleteProperty(event.data, 'to');
 
     await handleResendAccountEmailWebhook(event);

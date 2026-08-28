@@ -15,6 +15,7 @@ import {
   updateSailingCardNumberAction,
 } from '@/libs/admin/cards/adminSailingCardActions';
 import type { AdminSailingCardActionState } from '@/libs/admin/cards/adminSailingCardActions';
+import { ariaInvalidWhenShown } from '@/utils/ariaInvalidWhenShown';
 
 export type AdminSailingCardPaymentAccess = 'blocked' | 'none' | 'paid';
 
@@ -136,7 +137,10 @@ function AdminSailingCardNumberField(props: {
       <div className="flex flex-wrap gap-2">
         <Input
           aria-describedby={props.errorId}
-          aria-invalid={props.error ? true : undefined}
+          aria-invalid={ariaInvalidWhenShown({
+            shown: Boolean(props.error),
+            invalid: true,
+          })}
           className="h-7 w-24 flex-none"
           defaultValue={props.defaultValue}
           id={props.inputId}

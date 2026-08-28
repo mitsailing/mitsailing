@@ -5,8 +5,17 @@ type TestTransactionClient = {
   $executeRaw: typeof txExecuteRaw;
   pavilionReservationRequest: {
     create: typeof requestCreate;
+    deleteMany: typeof requestDeleteMany;
     findFirst: typeof findFirstReservation;
+    findMany: typeof requestFindMany;
     findUnique: typeof findUniqueReservation;
+    update: typeof requestUpdate;
+  };
+  pavilionReservationService: {
+    deleteMany: typeof serviceDeleteMany;
+  };
+  pavilionReservationSlot: {
+    deleteMany: typeof slotDeleteMany;
   };
 };
 
@@ -15,6 +24,7 @@ type TestTransactionRunner = (tx: TestTransactionClient) => Promise<unknown>;
 const {
   after,
   afterCallbacks,
+  cancelPavilionReservationAbandonEmailJobs,
   findFirstReservation,
   findUniqueReservation,
   defaultQueue,
@@ -24,6 +34,11 @@ const {
   loggerError,
   revalidatePath,
   requestCreate,
+  requestDeleteMany,
+  requestFindMany,
+  requestUpdate,
+  serviceDeleteMany,
+  slotDeleteMany,
   transaction,
   txExecuteRaw,
 } = vi.hoisted(() => ({
@@ -31,15 +46,21 @@ const {
     afterCallbacks.push(scheduledWork);
   }),
   afterCallbacks: [] as (() => Promise<void> | void)[],
+  cancelPavilionReservationAbandonEmailJobs: vi.fn(),
   findFirstReservation: vi.fn(),
   findUniqueReservation: vi.fn(),
-  defaultQueue: { add: vi.fn() },
+  defaultQueue: { add: vi.fn(), getJob: vi.fn() },
   enqueuePavilionReservationSubmittedEmail: vi.fn(),
   getDefaultQueue: vi.fn(),
   listVisiblePavilionReservableItems: vi.fn(),
   loggerError: vi.fn(),
   revalidatePath: vi.fn(),
   requestCreate: vi.fn(),
+  requestDeleteMany: vi.fn(),
+  requestFindMany: vi.fn(),
+  requestUpdate: vi.fn(),
+  serviceDeleteMany: vi.fn(),
+  slotDeleteMany: vi.fn(),
   transaction: vi.fn(),
   txExecuteRaw: vi.fn(),
 }));
@@ -74,6 +95,10 @@ vi.mock('@/worker/defaultQueue', () => ({
 
 vi.mock('@/worker/pavilionReservationSubmittedEmailJob', () => ({
   enqueuePavilionReservationSubmittedEmail,
+}));
+
+vi.mock('@/worker/pavilionReservationAbandonEmailJob', () => ({
+  cancelPavilionReservationAbandonEmailJobs,
 }));
 
 vi.mock('@/libs/mit-sailing/pavilionReservationQueries', () => ({
@@ -127,6 +152,7 @@ function setPavilionReservationSystemTime() {
 beforeEach(() => {
   after.mockClear();
   afterCallbacks.length = 0;
+  cancelPavilionReservationAbandonEmailJobs.mockReset();
   findFirstReservation.mockReset();
   findUniqueReservation.mockReset();
   defaultQueue.add.mockReset();
@@ -136,11 +162,24 @@ beforeEach(() => {
   loggerError.mockClear();
   revalidatePath.mockClear();
   requestCreate.mockReset();
+  requestDeleteMany.mockReset();
+  requestFindMany.mockReset();
+  requestUpdate.mockReset();
+  serviceDeleteMany.mockReset();
+  slotDeleteMany.mockReset();
   transaction.mockReset();
   txExecuteRaw.mockReset();
 
   findFirstReservation.mockResolvedValue(null);
   findUniqueReservation.mockResolvedValue(null);
+  requestFindMany.mockResolvedValue([]);
+  requestDeleteMany.mockResolvedValue({ count: 0 });
+  requestUpdate.mockResolvedValue({ id: 'draft-1' });
+  slotDeleteMany.mockResolvedValue({ count: 0 });
+  serviceDeleteMany.mockResolvedValue({ count: 0 });
+  cancelPavilionReservationAbandonEmailJobs.mockImplementation(async () => {
+    await Promise.resolve();
+  });
   listVisiblePavilionReservableItems.mockResolvedValue([
     {
       description: 'A casual pavilion reservation space.',
@@ -148,6 +187,8 @@ beforeEach(() => {
       id: 'space-1',
       imageUrl: null,
       kind: 'space',
+      publicGroup: 'venue',
+      media: [],
       minDurationHours: null,
       name: 'Casual party space',
       prices: {
@@ -178,8 +219,17 @@ beforeEach(() => {
         $executeRaw: txExecuteRaw,
         pavilionReservationRequest: {
           create: requestCreate,
+          deleteMany: requestDeleteMany,
           findFirst: findFirstReservation,
+          findMany: requestFindMany,
           findUnique: findUniqueReservation,
+          update: requestUpdate,
+        },
+        pavilionReservationService: {
+          deleteMany: serviceDeleteMany,
+        },
+        pavilionReservationSlot: {
+          deleteMany: slotDeleteMany,
         },
       };
       const result = await runInTransaction(tx);
@@ -281,6 +331,7 @@ describe('submitPavilionReservationRequestAction', () => {
           mode: 'insensitive',
         },
         requesterEmail: 'pavilion-requester@example.com',
+        status: { not: 'draft' },
       },
     });
     expect(txExecuteRaw.mock.calls[0]?.[1]).toContain(
@@ -290,6 +341,7 @@ describe('submitPavilionReservationRequestAction', () => {
       data: expect.objectContaining({
         eventName: 'Late Night Pavilion Booking',
       }),
+      select: { id: true },
     });
   });
 
@@ -307,7 +359,7 @@ describe('submitPavilionReservationRequestAction', () => {
     expect(result.status).toBe('confirmed');
     expect(after).toHaveBeenCalledTimes(1);
     await afterCallbacks[0]?.();
-    expect(getDefaultQueue).toHaveBeenCalledTimes(1);
+    expect(getDefaultQueue).toHaveBeenCalledTimes(2);
     expect(enqueuePavilionReservationSubmittedEmail).toHaveBeenCalledWith(
       defaultQueue,
       {
@@ -380,6 +432,8 @@ describe('submitPavilionReservationRequestAction', () => {
         id: 'space-1',
         imageUrl: null,
         kind: 'space',
+        publicGroup: 'venue',
+        media: [],
         minDurationHours: null,
         name: 'Casual party space',
         prices: {
@@ -397,6 +451,8 @@ describe('submitPavilionReservationRequestAction', () => {
         id: 'service-hourly',
         imageUrl: null,
         kind: 'service',
+        publicGroup: null,
+        media: [],
         minDurationHours: null,
         name: 'Event staffing',
         prices: {
@@ -434,7 +490,56 @@ describe('submitPavilionReservationRequestAction', () => {
           ],
         },
       }),
+      select: { id: true },
     });
+  });
+
+  it('promotes an existing draft when resume token matches', async () => {
+    setPavilionReservationSystemTime();
+    findFirstReservation.mockImplementation(
+      (args: { where?: Record<string, unknown> }) => {
+        if (args.where && 'resumeToken' in args.where) {
+          return {
+            id: 'draft-1',
+            referenceCode: 'PAV-DRAFT01',
+            requesterEmail: 'pavilion-requester@example.com',
+            resumeToken: 'resume-token-1',
+            status: 'draft',
+          };
+        }
+        return null;
+      }
+    );
+
+    const { submitPavilionReservationRequestAction } =
+      await import('@/libs/mit-sailing/pavilionReservationActions');
+
+    const formData = validFormData();
+    formData.set('resumeToken', 'resume-token-1');
+    formData.set('draftRequestId', 'draft-1');
+
+    const result = await submitPavilionReservationRequestAction(
+      'en',
+      { errors: [], status: 'idle' } satisfies PavilionReservationSubmitState,
+      formData
+    );
+
+    expect(result.status).toBe('confirmed');
+    expect(result.referenceCode).toBe('PAV-DRAFT01');
+    expect(requestCreate).not.toHaveBeenCalled();
+    expect(requestUpdate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        resumeToken: null,
+        status: 'pending',
+      }),
+      where: { id: 'draft-1' },
+    });
+    expect(after).toHaveBeenCalledTimes(1);
+    await afterCallbacks[0]?.();
+    expect(cancelPavilionReservationAbandonEmailJobs).toHaveBeenCalledWith(
+      defaultQueue,
+      ['draft-1']
+    );
   });
 
   it('deduplicates repeated hourly service ids before pricing', async () => {
@@ -446,6 +551,8 @@ describe('submitPavilionReservationRequestAction', () => {
         id: 'space-1',
         imageUrl: null,
         kind: 'space',
+        publicGroup: 'venue',
+        media: [],
         minDurationHours: null,
         name: 'Casual party space',
         prices: {
@@ -463,6 +570,8 @@ describe('submitPavilionReservationRequestAction', () => {
         id: 'service-hourly',
         imageUrl: null,
         kind: 'service',
+        publicGroup: null,
+        media: [],
         minDurationHours: null,
         name: 'Event staffing',
         prices: {
@@ -498,6 +607,7 @@ describe('submitPavilionReservationRequestAction', () => {
           ],
         },
       }),
+      select: { id: true },
     });
   });
 });

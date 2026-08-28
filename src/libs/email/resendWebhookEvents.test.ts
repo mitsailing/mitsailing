@@ -1,33 +1,16 @@
-import type { WebhookEventPayload } from 'resend';
 import { describe, expect, it } from 'vitest';
 import {
   resendEmailProviderEventIdFromParts,
   resendProviderEventIdForWebhook,
 } from '@/libs/email/resendWebhookEvents';
-
-function deliveredEvent(params: {
-  createdAt?: string;
-  emailId?: string;
-  id?: string;
-}): WebhookEventPayload {
-  return {
-    created_at: params.createdAt ?? '2026-05-14T14:30:00.000Z',
-    data: {
-      created_at: '2026-05-14T14:29:59.000Z',
-      email_id: params.emailId ?? 'email_123',
-      from: 'MIT Sailing <news@mitsailing.test>',
-      message_id: '<email_123@mitsailing.test>',
-      subject: 'Spring sailing',
-      to: ['sailor@example.com'],
-    },
-    ...(params.id ? { id: params.id } : {}),
-    type: 'email.delivered',
-  } as WebhookEventPayload;
-}
+import {
+  RESEND_TEST_EMAIL_ID,
+  buildResendDeliveredWebhookPayload,
+} from '@/libs/email/resendWebhookTestFixtures';
 
 describe('resendProviderEventIdForWebhook', () => {
   it('prefers explicit svix ids', () => {
-    const event = deliveredEvent({});
+    const event = buildResendDeliveredWebhookPayload({});
 
     expect(
       resendProviderEventIdForWebhook({
@@ -38,7 +21,7 @@ describe('resendProviderEventIdForWebhook', () => {
   });
 
   it('falls back to the verified webhook event id', () => {
-    const event = deliveredEvent({ id: 'event_123' });
+    const event = buildResendDeliveredWebhookPayload({ id: 'event_123' });
 
     expect(
       resendProviderEventIdForWebhook({
@@ -49,51 +32,54 @@ describe('resendProviderEventIdForWebhook', () => {
   });
 
   it('derives the same composite id from the event payload', () => {
-    const event = deliveredEvent({});
+    const event = buildResendDeliveredWebhookPayload({});
 
     expect(resendProviderEventIdForWebhook({ event })).toBe(
-      'email_123:email.delivered:2026-05-14T14:30:00.000Z'
+      `${RESEND_TEST_EMAIL_ID}:email.delivered:2026-05-14T14:30:00.000Z`
     );
   });
 
   it('derives the same composite id when handlers pass parsed timestamp parts', () => {
-    const event = deliveredEvent({ createdAt: 'not-a-date' });
+    const event = buildResendDeliveredWebhookPayload({
+      createdAt: 'not-a-date',
+    });
     const occurredAt = new Date('2026-05-14T14:30:00.000Z');
 
     expect(
       resendProviderEventIdForWebhook({
         event,
         occurredAt,
-        providerMessageId: 'email_123',
+        providerMessageId: RESEND_TEST_EMAIL_ID,
       })
     ).toBe(
       resendEmailProviderEventIdFromParts({
         occurredAt,
-        providerMessageId: 'email_123',
+        providerMessageId: RESEND_TEST_EMAIL_ID,
         type: event.type,
       })
     );
   });
 
   it('matches the email ledger fallback when context omits a provider id', () => {
-    const event = deliveredEvent({ createdAt: 'not-a-date' });
+    const event = buildResendDeliveredWebhookPayload({
+      createdAt: 'not-a-date',
+    });
     const occurredAt = new Date('2026-05-14T14:30:00.000Z');
-    const providerMessageId = 'email_123';
 
     const fromWebhook = resendProviderEventIdForWebhook({
       event,
       occurredAt,
-      providerMessageId,
+      providerMessageId: RESEND_TEST_EMAIL_ID,
     });
     const fromParts = resendEmailProviderEventIdFromParts({
       occurredAt,
-      providerMessageId,
+      providerMessageId: RESEND_TEST_EMAIL_ID,
       type: event.type,
     });
 
     expect(fromWebhook).toBe(fromParts);
     expect(fromWebhook).toBe(
-      'email_123:email.delivered:2026-05-14T14:30:00.000Z'
+      `${RESEND_TEST_EMAIL_ID}:email.delivered:2026-05-14T14:30:00.000Z`
     );
   });
 });

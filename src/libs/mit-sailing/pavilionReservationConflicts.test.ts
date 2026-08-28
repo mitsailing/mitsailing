@@ -26,6 +26,7 @@ describe('pavilionReservationConflicts', () => {
     expect(getPavilionReservationAdminConflictSeverity('cancelled')).toBe(
       'none'
     );
+    expect(getPavilionReservationAdminConflictSeverity('draft')).toBe('none');
   });
 
   it('lists overlapping hard and soft conflicts for the same item', () => {

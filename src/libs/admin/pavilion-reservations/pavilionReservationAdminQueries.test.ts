@@ -223,3 +223,46 @@ describe('listAdminPavilionReservationRows', () => {
     expect(result.rows[0]?.conflictSeverity).toBe('hard');
   });
 });
+
+describe('listAdminPavilionReservationRows draft visibility', () => {
+  beforeEach(() => {
+    pavilionReservationRequestFindMany.mockReset();
+    pavilionReservationSlotFindMany.mockReset();
+    pavilionReservationRequestFindMany.mockResolvedValue([]);
+    pavilionReservationSlotFindMany.mockResolvedValue([]);
+  });
+
+  it('excludes drafts from the default submitted list', async () => {
+    await listAdminPavilionReservationRows(
+      { sort: 'createdAt', direction: 'desc' },
+      []
+    );
+
+    expect(pavilionReservationRequestFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: { not: 'draft' } }),
+      })
+    );
+  });
+
+  it('includes drafts when staff search is active', async () => {
+    await listAdminPavilionReservationRows(
+      { search: 'dock', sort: 'createdAt', direction: 'desc' },
+      []
+    );
+
+    const call = pavilionReservationRequestFindMany.mock.calls[0]?.[0];
+    expect(call?.where).not.toEqual(
+      expect.objectContaining({ status: { not: 'draft' } })
+    );
+    expect(call?.where).toEqual(
+      expect.objectContaining({
+        OR: expect.arrayContaining([
+          expect.objectContaining({
+            eventName: { contains: 'dock', mode: 'insensitive' },
+          }),
+        ]),
+      })
+    );
+  });
+});

@@ -12,6 +12,7 @@ import type {
   SailingCardOnboardingFormState,
   SailingCardOnboardingFormValues,
 } from '@/libs/mit-sailing/sailingCardOnboardingActions';
+import { ariaInvalidWhenShown } from '@/utils/ariaInvalidWhenShown';
 import {
   formatPhoneAsYouType,
   normalizeInternationalPhone,
@@ -80,7 +81,7 @@ function DateOfBirthField(props: {
       </Label>
       <Input
         aria-describedby={dateOfBirthAriaDescribedBy}
-        aria-invalid={showError ? true : undefined}
+        aria-invalid={ariaInvalidWhenShown({ shown: showError, invalid: true })}
         autoComplete="bday"
         id="dateOfBirth"
         inputMode="numeric"
@@ -140,7 +141,7 @@ function PhoneField(props: {
           phoneHelpId,
           showError ? fieldErrorId('phone') : undefined,
         ])}
-        aria-invalid={showError ? true : undefined}
+        aria-invalid={ariaInvalidWhenShown({ shown: showError, invalid: true })}
         autoComplete="section-user tel"
         id="phone"
         inputMode="tel"
@@ -182,7 +183,7 @@ function EmergencyContactNameField(props: {
         aria-describedby={
           showError ? fieldErrorId('emergencyContactName') : undefined
         }
-        aria-invalid={showError ? true : undefined}
+        aria-invalid={ariaInvalidWhenShown({ shown: showError, invalid: true })}
         autoCapitalize="words"
         autoComplete="section-emergency name"
         id="emergencyContactName"
@@ -234,7 +235,7 @@ function EmergencyContactPhoneField(props: {
         aria-describedby={
           showError ? fieldErrorId('emergencyContactPhone') : undefined
         }
-        aria-invalid={showError ? true : undefined}
+        aria-invalid={ariaInvalidWhenShown({ shown: showError, invalid: true })}
         autoComplete="section-emergency tel"
         id="emergencyContactPhone"
         inputMode="tel"

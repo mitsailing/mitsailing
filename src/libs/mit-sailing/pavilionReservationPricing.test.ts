@@ -219,7 +219,7 @@ describe('personaPriceDisplay', () => {
           },
         },
         persona: 'mit_academic',
-        tbdLabel: 'Pricing confirmed after review',
+        onRequestLabel: 'Price on request',
       })
     ).toEqual({
       available: true,
@@ -241,11 +241,11 @@ describe('personaPriceDisplay', () => {
           },
         },
         persona: 'mit_academic',
-        tbdLabel: 'Pricing confirmed after review',
+        onRequestLabel: 'Price on request',
       })
     ).toEqual({
       available: false,
-      label: 'Pricing confirmed after review',
+      label: 'Price on request',
       priceCents: null,
     });
   });
@@ -265,7 +265,7 @@ describe('priceLabelForPersona', () => {
           },
         },
         persona: 'mit_academic',
-        tbdLabel: 'Pricing confirmed after review',
+        onRequestLabel: 'Price on request',
       })
     ).toBe('$0');
   });
@@ -283,9 +283,9 @@ describe('priceLabelForPersona', () => {
           },
         },
         persona: 'mit_academic',
-        tbdLabel: 'Pricing confirmed after review',
+        onRequestLabel: 'Price on request',
       })
-    ).toBe('Pricing confirmed after review');
+    ).toBe('Price on request');
   });
 });
 
@@ -295,7 +295,7 @@ describe('priceLabel', () => {
       priceLabel({
         amountCents: 0,
         pricingType: 'flat',
-        tbdLabel: 'Pricing confirmed after review',
+        onRequestLabel: 'Price on request',
       })
     ).toBe('$0');
   });
@@ -305,8 +305,8 @@ describe('priceLabel', () => {
       priceLabel({
         amountCents: null,
         pricingType: 'flat',
-        tbdLabel: 'Pricing confirmed after review',
+        onRequestLabel: 'Price on request',
       })
-    ).toBe('Pricing confirmed after review');
+    ).toBe('Price on request');
   });
 });

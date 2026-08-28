@@ -10,14 +10,12 @@ import {
   SAILING_CLASSES,
 } from '../../src/data/mit-sailing/classesFleetSeed';
 import { DONATION_FUND_SEED_ROWS } from '../../src/data/mit-sailing/donationFundsSeed';
-import { PAVILION_RESERVABLE_ITEM_SEED_ROWS } from '../../src/data/mit-sailing/pavilionReservationCatalogSeed';
 import {
   SAILING_RATING_RULES,
   SAILING_RATINGS,
 } from '../../src/data/mit-sailing/sailingRatingsSeed';
 import { SITE_ALERT_SEED_ROWS } from '../../src/data/mit-sailing/siteAlertsSeed';
 import type { Prisma, PrismaClient } from '../../src/generated/prisma/client';
-import { PAVILION_RESERVATION_PERSONAS } from '../../src/libs/mit-sailing/pavilionReservationPersonas';
 export { seedCmsContent } from './cmsSteps';
 export {
   seedEventCategories,
@@ -338,55 +336,6 @@ export async function seedDonationFunds(p: PrismaClient): Promise<void> {
         isVisible: row.isVisible,
       },
     });
-  }
-}
-
-/**
- * @param p - Prisma client
- */
-export async function seedPavilionReservationCatalog(
-  p: PrismaClient
-): Promise<void> {
-  for (const row of PAVILION_RESERVABLE_ITEM_SEED_ROWS) {
-    await p.pavilionReservableItem.upsert({
-      where: { id: row.id },
-      create: {
-        id: row.id,
-        slug: row.slug,
-        kind: row.kind,
-        name: row.name,
-        description: row.description,
-        imageUrl: row.imageUrl,
-        pricingType: row.pricingType,
-        minDurationHours: row.minDurationHours,
-        displayOrder: row.displayOrder,
-        isVisible: row.isVisible,
-      },
-      update: {
-        slug: row.slug,
-        kind: row.kind,
-        name: row.name,
-        description: row.description,
-        imageUrl: row.imageUrl,
-        pricingType: row.pricingType,
-        minDurationHours: row.minDurationHours,
-        displayOrder: row.displayOrder,
-        isVisible: row.isVisible,
-      },
-    });
-
-    for (const persona of PAVILION_RESERVATION_PERSONAS) {
-      const amountCents = row.prices[persona];
-      await p.pavilionReservableItemPrice.upsert({
-        where: { itemId_persona: { itemId: row.id, persona } },
-        create: {
-          itemId: row.id,
-          persona,
-          amountCents,
-        },
-        update: { amountCents },
-      });
-    }
   }
 }
 

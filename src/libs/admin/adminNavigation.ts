@@ -34,6 +34,12 @@ export const ADMIN_SITE_NAV_ITEMS: AdminNavItem[] = [
     permissions: [Permission.PAVILION_RESERVATIONS_MANAGE],
   },
   {
+    href: '/admin/pavilion_spaces',
+    labelKey: 'nav_pavilion_spaces',
+    match: 'prefix',
+    permissions: [Permission.PAVILION_RESERVATIONS_MANAGE],
+  },
+  {
     href: '/admin/newsletter-subscribers',
     labelKey: 'nav_newsletter_subscribers',
     match: 'prefix',

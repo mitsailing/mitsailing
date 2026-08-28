@@ -9,6 +9,8 @@ import {
 } from '@/worker/eventPaymentEmailJob';
 import type * as LegacyMysqlSyncJobModule from '@/worker/legacyMysqlSyncJob';
 import { LEGACY_MYSQL_SYNC_JOB_NAME } from '@/worker/legacyMysqlSyncJob';
+import type * as PavilionReservationAbandonEmailJobModule from '@/worker/pavilionReservationAbandonEmailJob';
+import { PAVILION_RESERVATION_ABANDON_EMAIL_JOB_NAME } from '@/worker/pavilionReservationAbandonEmailJob';
 import type * as PavilionReservationSubmittedEmailJobModule from '@/worker/pavilionReservationSubmittedEmailJob';
 import { PAVILION_RESERVATION_SUBMITTED_EMAIL_JOB_NAME } from '@/worker/pavilionReservationSubmittedEmailJob';
 import type * as SailingCardAnnualClearingJobModule from '@/worker/sailingCardAnnualClearingJob';
@@ -19,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   processEventPaymentEmailJob: vi.fn(),
   processLegacyMysqlSyncJob: vi.fn(),
   processNewsletterBroadcast: vi.fn(),
+  processPavilionReservationAbandonEmailJob: vi.fn(),
   processPavilionReservationSubmittedEmailJob: vi.fn(),
   processSailingCardAnnualClearingJob: vi.fn(),
 }));
@@ -52,6 +55,19 @@ vi.mock('@/worker/legacyMysqlSyncJob', async (importOriginal) => {
     processLegacyMysqlSyncJob: mocks.processLegacyMysqlSyncJob,
   };
 });
+
+vi.mock(
+  '@/worker/pavilionReservationAbandonEmailJob',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<typeof PavilionReservationAbandonEmailJobModule>();
+    return {
+      ...actual,
+      processPavilionReservationAbandonEmailJob:
+        mocks.processPavilionReservationAbandonEmailJob,
+    };
+  }
+);
 
 vi.mock(
   '@/worker/pavilionReservationSubmittedEmailJob',
@@ -127,6 +143,7 @@ describe('worker dispatch', () => {
     const { processDefaultQueueJob } = await import('@/worker/workerDispatch');
     const mediaData = { assetId: 'asset-1' };
     const reservationData = { reservationId: 'reservation-1' };
+    const abandonData = { requestId: 'request-1' };
 
     await processDefaultQueueJob(
       { data: mediaData, name: CMS_MEDIA_PROCESSING_JOB_NAME },
@@ -140,6 +157,13 @@ describe('worker dispatch', () => {
       queueMock()
     );
     await processDefaultQueueJob(
+      {
+        data: abandonData,
+        name: PAVILION_RESERVATION_ABANDON_EMAIL_JOB_NAME,
+      },
+      queueMock()
+    );
+    await processDefaultQueueJob(
       { data: {}, name: LEGACY_MYSQL_SYNC_JOB_NAME },
       queueMock()
     );
@@ -148,6 +172,9 @@ describe('worker dispatch', () => {
     expect(
       mocks.processPavilionReservationSubmittedEmailJob
     ).toHaveBeenCalledWith(reservationData);
+    expect(
+      mocks.processPavilionReservationAbandonEmailJob
+    ).toHaveBeenCalledWith(abandonData);
     expect(mocks.processLegacyMysqlSyncJob).toHaveBeenCalledOnce();
   });
 

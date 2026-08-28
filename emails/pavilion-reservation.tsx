@@ -13,6 +13,11 @@ export type PavilionReservationEmailCopy = {
   status_subject: string;
   status_heading: string;
   status_body: string;
+  abandon_preview: string;
+  abandon_subject: string;
+  abandon_heading: string;
+  abandon_body: string;
+  abandon_cta: string;
   field_reference: string;
   field_event: string;
   field_status: string;

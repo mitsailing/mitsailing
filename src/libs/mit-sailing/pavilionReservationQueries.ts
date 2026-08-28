@@ -1,4 +1,5 @@
 import 'server-only';
+import type { Prisma } from '@/generated/prisma/client';
 import { addNyCalendarDays, nyYmd } from '@/lib/mit-sailing/nyTime';
 import { prisma } from '@/libs/DB';
 import {
@@ -21,6 +22,42 @@ export type PavilionReservationBlockedRangeDto = {
   endMinutes: number;
 };
 
+const pavilionReservableItemSelect = {
+  id: true,
+  slug: true,
+  kind: true,
+  name: true,
+  description: true,
+  imageUrl: true,
+  pricingType: true,
+  minDurationHours: true,
+  publicGroup: true,
+  displayOrder: true,
+  prices: {
+    where: { persona: { in: [...PAVILION_RESERVATION_PERSONAS] } },
+    select: { persona: true, amountCents: true },
+  },
+  media: {
+    orderBy: { displayOrder: 'asc' },
+    select: {
+      id: true,
+      caption: true,
+      displayOrder: true,
+      mediaAsset: {
+        select: {
+          publicPath: true,
+          mediaKind: true,
+          status: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.PavilionReservableItemSelect;
+
+type PavilionReservableItemRow = Prisma.PavilionReservableItemGetPayload<{
+  select: typeof pavilionReservableItemSelect;
+}>;
+
 function priceMapFromRows(
   rows: {
     persona: keyof PavilionReservationPriceMap;
@@ -34,41 +71,65 @@ function priceMapFromRows(
   return prices;
 }
 
+function mapPavilionReservableItemRow(
+  row: PavilionReservableItemRow
+): PavilionReservableItemDto {
+  const media = row.media
+    .filter((entry) => entry.mediaAsset.status === 'ready')
+    .map((entry) => ({
+      id: entry.id,
+      publicPath: entry.mediaAsset.publicPath,
+      mediaKind: entry.mediaAsset.mediaKind,
+      caption: entry.caption,
+      displayOrder: entry.displayOrder,
+    }));
+  return {
+    id: row.id,
+    slug: row.slug,
+    kind: row.kind,
+    name: row.name,
+    description: row.description,
+    imageUrl:
+      media.find((entry) => entry.mediaKind === 'image')?.publicPath ??
+      row.imageUrl,
+    pricingType: row.pricingType,
+    minDurationHours: row.minDurationHours,
+    publicGroup: row.publicGroup,
+    displayOrder: row.displayOrder,
+    prices: priceMapFromRows(row.prices),
+    media,
+  };
+}
+
 export async function listVisiblePavilionReservableItems(): Promise<
   PavilionReservableItemDto[]
 > {
   const rows = await prisma.pavilionReservableItem.findMany({
     where: { isVisible: true },
     orderBy: [{ kind: 'asc' }, { displayOrder: 'asc' }, { name: 'asc' }],
-    select: {
-      id: true,
-      slug: true,
-      kind: true,
-      name: true,
-      description: true,
-      imageUrl: true,
-      pricingType: true,
-      minDurationHours: true,
-      displayOrder: true,
-      prices: {
-        where: { persona: { in: [...PAVILION_RESERVATION_PERSONAS] } },
-        select: { persona: true, amountCents: true },
-      },
-    },
+    select: pavilionReservableItemSelect,
   });
 
-  return rows.map((row) => ({
-    id: row.id,
-    slug: row.slug,
-    kind: row.kind,
-    name: row.name,
-    description: row.description,
-    imageUrl: row.imageUrl,
-    pricingType: row.pricingType,
-    minDurationHours: row.minDurationHours,
-    displayOrder: row.displayOrder,
-    prices: priceMapFromRows(row.prices),
-  }));
+  return rows.map(mapPavilionReservableItemRow);
+}
+
+/**
+ * Loads one visible pavilion space by slug for the public detail page.
+ *
+ * @param slug - Unique catalog slug
+ * @returns Item DTO or null when missing/hidden/not a space
+ */
+export async function getVisiblePavilionSpaceBySlug(
+  slug: string
+): Promise<PavilionReservableItemDto | null> {
+  const row = await prisma.pavilionReservableItem.findFirst({
+    where: { slug, isVisible: true, kind: 'space' },
+    select: pavilionReservableItemSelect,
+  });
+  if (!row) {
+    return null;
+  }
+  return mapPavilionReservableItemRow(row);
 }
 
 /** Default inclusive end offset from the resolved start date (venue calendar days). */

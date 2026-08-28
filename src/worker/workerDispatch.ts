@@ -19,6 +19,10 @@ import {
   processMembershipPaymentReminderJob,
 } from '@/worker/membershipPaymentReminderJob';
 import {
+  PAVILION_RESERVATION_ABANDON_EMAIL_JOB_NAME,
+  processPavilionReservationAbandonEmailJob,
+} from '@/worker/pavilionReservationAbandonEmailJob';
+import {
   PAVILION_RESERVATION_SUBMITTED_EMAIL_JOB_NAME,
   processPavilionReservationSubmittedEmailJob,
 } from '@/worker/pavilionReservationSubmittedEmailJob';
@@ -37,6 +41,10 @@ export async function processDefaultQueueJob(
   }
   if (job.name === PAVILION_RESERVATION_SUBMITTED_EMAIL_JOB_NAME) {
     await processPavilionReservationSubmittedEmailJob(job.data);
+    return;
+  }
+  if (job.name === PAVILION_RESERVATION_ABANDON_EMAIL_JOB_NAME) {
+    await processPavilionReservationAbandonEmailJob(job.data);
     return;
   }
   if (job.name === CMS_MEDIA_PROCESSING_JOB_NAME) {

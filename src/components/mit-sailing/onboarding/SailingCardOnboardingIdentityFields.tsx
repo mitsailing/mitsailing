@@ -20,6 +20,7 @@ import type {
   SailingCardOnboardingFormState,
   SailingCardOnboardingFormValues,
 } from '@/libs/mit-sailing/sailingCardOnboardingActions';
+import { ariaInvalidWhenShown } from '@/utils/ariaInvalidWhenShown';
 import { FieldError } from './SailingCardOnboardingFieldError';
 import {
   fieldErrorId,
@@ -136,7 +137,10 @@ export function AffiliationSelect(props: {
               affiliationHelpId,
               showError ? fieldErrorId('affiliation') : undefined,
             ])}
-            aria-invalid={showError ? true : undefined}
+            aria-invalid={ariaInvalidWhenShown({
+              shown: showError,
+              invalid: true,
+            })}
             id="affiliation"
             name={registration.name}
             onBlur={handleAffiliationBlur}
@@ -188,7 +192,7 @@ function MitIdField(props: {
           mitIdHelpId,
           showError ? fieldErrorId('mitId') : undefined,
         ])}
-        aria-invalid={showError ? true : undefined}
+        aria-invalid={ariaInvalidWhenShown({ shown: showError, invalid: true })}
         autoComplete="off"
         id="mitId"
         inputMode="numeric"
@@ -237,7 +241,7 @@ function ManualNameField(props: {
       </Label>
       <Input
         aria-describedby={showError ? fieldErrorId(props.field) : undefined}
-        aria-invalid={showError ? true : undefined}
+        aria-invalid={ariaInvalidWhenShown({ shown: showError, invalid: true })}
         autoComplete={props.autoComplete}
         id={props.field}
         required={props.required}
@@ -371,7 +375,10 @@ function AgreementCheckbox(props: {
           aria-describedby={
             showError ? fieldErrorId('swimAgreementAccepted') : undefined
           }
-          aria-invalid={showError ? true : undefined}
+          aria-invalid={ariaInvalidWhenShown({
+            shown: showError,
+            invalid: true,
+          })}
           className="mt-1 size-4 shrink-0 rounded border-input text-mit-red"
           id="swimAgreementAccepted"
           required

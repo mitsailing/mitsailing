@@ -19,6 +19,7 @@ import type {
   SailingCardOnboardingFormState,
   SailingCardOnboardingFormValues,
 } from '@/libs/mit-sailing/sailingCardOnboardingActions';
+import { ariaInvalidWhenShown } from '@/utils/ariaInvalidWhenShown';
 import { FieldError } from './SailingCardOnboardingFieldError';
 import { fieldErrorId } from './SailingCardOnboardingFormHelpers';
 
@@ -209,7 +210,10 @@ function FitnessMembershipQuestion(props: {
     <fieldset
       className="flex flex-col gap-2"
       aria-describedby={describedBy}
-      aria-invalid={error || clientError ? true : undefined}
+      aria-invalid={ariaInvalidWhenShown({
+        shown: Boolean(error ?? clientError),
+        invalid: true,
+      })}
     >
       <legend className="font-medium text-foreground">
         {t('fitness_membership_label')}
@@ -380,7 +384,10 @@ function CardTypeSelect(props: {
           ? fieldErrorId('cardType')
           : undefined
       )}
-      aria-invalid={cardTypeError || cardTypeClientError ? true : undefined}
+      aria-invalid={ariaInvalidWhenShown({
+        shown: Boolean(cardTypeError ?? cardTypeClientError),
+        invalid: true,
+      })}
       className="flex flex-col gap-2"
     >
       <legend className="font-medium text-foreground">

@@ -272,6 +272,9 @@ function statusLabel(status: PavilionReservationStatusValue): string {
     case 'pending': {
       return enMessages.AdminPavilionReservations.status_pending;
     }
+    case 'draft': {
+      return enMessages.AdminPavilionReservations.status_draft;
+    }
     default: {
       return status satisfies never;
     }
@@ -422,6 +425,11 @@ export async function updatePavilionReservationAdminAction(
     if (!before) {
       throw new Error('Pavilion reservation not found');
     }
+    if (before.status === 'draft' || status === 'draft') {
+      throw new Error(
+        'Incomplete pavilion reservation drafts cannot be reviewed'
+      );
+    }
     const statusChanged = before.status !== status;
     const scheduleChanged =
       slotSignature(before.slots) !== slotSignature(slotRows);
@@ -541,7 +549,7 @@ export async function updatePavilionReservationAdminAction(
               itemName: itemNameById.get(slot.itemId) ?? 'Pavilion space',
             }))
           ),
-          status,
+          status: status === 'draft' ? 'pending' : status,
           statusLabel: statusLabel(status),
         });
       } catch (error) {
