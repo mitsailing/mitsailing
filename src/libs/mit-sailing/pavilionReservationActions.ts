@@ -1,6 +1,5 @@
 'use server';
 
-import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { unstable_rethrow } from 'next/navigation';
 import { after } from 'next/server';
@@ -14,6 +13,10 @@ import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
 import {
+  generatePavilionReservationReferenceCode,
+  mapPavilionReservableItemsById,
+} from '@/libs/mit-sailing/pavilionReservationCatalogHelpers';
+import {
   deleteSupersededPavilionReservationDrafts,
   findPavilionReservationDraftByResumeTokenRow,
 } from '@/libs/mit-sailing/pavilionReservationDraftCleanup';
@@ -25,7 +28,6 @@ import { listVisiblePavilionReservableItems } from '@/libs/mit-sailing/pavilionR
 import { parsePavilionReservationFormData } from '@/libs/mit-sailing/pavilionReservationSchemas';
 import type {
   PavilionReservationErrorKey,
-  PavilionReservableItemDto,
   PavilionReservationSlotInput,
   PavilionReservationSubmitState,
 } from '@/libs/mit-sailing/pavilionReservationTypes';
@@ -35,35 +37,10 @@ import { getDefaultQueue } from '@/worker/defaultQueue';
 import { cancelPavilionReservationAbandonEmailJobs } from '@/worker/pavilionReservationAbandonEmailJob';
 import { enqueuePavilionReservationSubmittedEmail } from '@/worker/pavilionReservationSubmittedEmailJob';
 
-const PAVILION_REFERENCE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MIN_NOTICE_HOURS = 48;
 const DUPLICATE_REQUEST_WINDOW_MINUTES = 5;
 const PAVILION_RESERVATION_SUBMIT_TX_MAX_WAIT_MS = 5000;
 const PAVILION_RESERVATION_SUBMIT_TX_TIMEOUT_MS = 10_000;
-
-function referenceCodeFromBytes(bytes: Buffer): string {
-  const chars = Array.from(bytes, (byte) => {
-    const index = byte % PAVILION_REFERENCE_ALPHABET.length;
-    return PAVILION_REFERENCE_ALPHABET[index] ?? 'X';
-  }).join('');
-  return `PAV-${chars}`;
-}
-
-async function generateReferenceCode(
-  db: Pick<PrismaClient, 'pavilionReservationRequest'>
-): Promise<string> {
-  for (let attempts = 0; attempts < 10; attempts += 1) {
-    const referenceCode = referenceCodeFromBytes(randomBytes(8));
-    const existing = await db.pavilionReservationRequest.findUnique({
-      where: { referenceCode },
-      select: { id: true },
-    });
-    if (!existing) {
-      return referenceCode;
-    }
-  }
-  return referenceCodeFromBytes(randomBytes(12));
-}
 
 function slotStartInstant(slot: PavilionReservationSlotInput): Date | null {
   const dateKey =
@@ -93,12 +70,6 @@ function slotsSatisfyNoticeRule(
     const instant = slotStartInstant(slot);
     return instant !== null && instant.getTime() >= minimumStart;
   });
-}
-
-function mapItemsById(
-  items: PavilionReservableItemDto[]
-): Map<string, PavilionReservableItemDto> {
-  return new Map(items.map((item) => [item.id, item]));
 }
 
 function fieldErrorsFromParseError(): PavilionReservationErrorKey[] {
@@ -170,7 +141,7 @@ export async function submitPavilionReservationRequestAction(
   }
 
   const catalog = await listVisiblePavilionReservableItems();
-  const itemById = mapItemsById(catalog);
+  const itemById = mapPavilionReservableItemsById(catalog);
   const { slots } = parsed.data;
   const serviceIds = [...new Set(parsed.data.services)];
 
@@ -347,7 +318,8 @@ export async function submitPavilionReservationRequestAction(
           };
         }
 
-        const nextReferenceCode = await generateReferenceCode(tx);
+        const nextReferenceCode =
+          await generatePavilionReservationReferenceCode(tx);
         const created = await tx.pavilionReservationRequest.create({
           data: {
             referenceCode: nextReferenceCode,

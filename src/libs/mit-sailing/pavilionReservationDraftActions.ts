@@ -6,6 +6,10 @@ import type { PrismaClient } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
+import {
+  generatePavilionReservationReferenceCode,
+  mapPavilionReservableItemsById,
+} from '@/libs/mit-sailing/pavilionReservationCatalogHelpers';
 import { findPavilionReservationDraftByResumeTokenRow } from '@/libs/mit-sailing/pavilionReservationDraftCleanup';
 import { findPavilionReservationDraftByResumeToken } from '@/libs/mit-sailing/pavilionReservationDraftQueries';
 import type { PavilionReservationResumeSeed } from '@/libs/mit-sailing/pavilionReservationDraftQueries';
@@ -14,7 +18,6 @@ import type {
   UpsertPavilionReservationDraftResult,
 } from '@/libs/mit-sailing/pavilionReservationDraftTypes';
 import { listVisiblePavilionReservableItems } from '@/libs/mit-sailing/pavilionReservationQueries';
-import type { PavilionReservableItemDto } from '@/libs/mit-sailing/pavilionReservationTypes';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import {
   isValidEmailAddress,
@@ -28,46 +31,14 @@ export type {
   UpsertPavilionReservationDraftResult,
 } from '@/libs/mit-sailing/pavilionReservationDraftTypes';
 
-const PAVILION_REFERENCE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
 type DraftRow = Readonly<{
   id: string;
   resumeToken: string | null;
   status: string;
 }>;
 
-function referenceCodeFromBytes(bytes: Buffer): string {
-  const chars = Array.from(bytes, (byte) => {
-    const index = byte % PAVILION_REFERENCE_ALPHABET.length;
-    return PAVILION_REFERENCE_ALPHABET[index] ?? 'X';
-  }).join('');
-  return `PAV-${chars}`;
-}
-
-async function generateReferenceCode(
-  db: Pick<PrismaClient, 'pavilionReservationRequest'>
-): Promise<string> {
-  for (let attempts = 0; attempts < 10; attempts += 1) {
-    const referenceCode = referenceCodeFromBytes(randomBytes(8));
-    const existing = await db.pavilionReservationRequest.findUnique({
-      select: { id: true },
-      where: { referenceCode },
-    });
-    if (!existing) {
-      return referenceCode;
-    }
-  }
-  return referenceCodeFromBytes(randomBytes(12));
-}
-
 function newResumeToken(): string {
   return randomBytes(32).toString('hex');
-}
-
-function mapItemsById(
-  items: PavilionReservableItemDto[]
-): Map<string, PavilionReservableItemDto> {
-  return new Map(items.map((item) => [item.id, item]));
 }
 
 function groupSizeFromDraft(raw: string): number | null {
@@ -136,7 +107,7 @@ export async function upsertPavilionReservationDraftAction(
 
   try {
     const catalog = await listVisiblePavilionReservableItems();
-    const itemById = mapItemsById(catalog);
+    const itemById = mapPavilionReservableItemsById(catalog);
     const { contact } = input;
     const slotRows = input.slots.flatMap((slot, index) => {
       const item = itemById.get(slot.itemId);
@@ -223,7 +194,7 @@ export async function upsertPavilionReservationDraftAction(
         return { requestId: existing.id, resumeToken: nextResumeToken };
       }
 
-      const referenceCode = await generateReferenceCode(tx);
+      const referenceCode = await generatePavilionReservationReferenceCode(tx);
       const resumeToken = newResumeToken();
       const created = await tx.pavilionReservationRequest.create({
         data: {
