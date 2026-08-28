@@ -157,6 +157,10 @@ vi.mock('@/components/mit-sailing/site/AuthCenterBrandMark', () => ({
   AuthCenterBrandMark: () => <div data-testid="auth-center-brand" />,
 }));
 
+vi.mock('@/components/mit-sailing/site/SitePreviewBannerSlot', () => ({
+  SitePreviewBannerSlot: () => null,
+}));
+
 vi.mock('@/components/auth/profile/ProfileSettingsChrome', () => ({
   ProfileSettingsChrome: (props: {
     children: React.ReactNode;

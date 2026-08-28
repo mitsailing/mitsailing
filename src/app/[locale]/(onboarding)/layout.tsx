@@ -1,6 +1,7 @@
 import { setRequestLocale } from 'next-intl/server';
 import type * as React from 'react';
 import { SailingCardOnboardingDraftProvider } from '@/components/mit-sailing/onboarding/SailingCardOnboardingDraftProvider';
+import { SitePreviewBannerSlot } from '@/components/mit-sailing/site/SitePreviewBannerSlot';
 
 /**
  * Focused onboarding chrome. Sailing-card onboarding is a task flow, so it
@@ -20,6 +21,7 @@ export default async function OnboardingSegmentLayout(props: {
 
   return (
     <SailingCardOnboardingDraftProvider>
+      <SitePreviewBannerSlot />
       {props.children}
     </SailingCardOnboardingDraftProvider>
   );

@@ -1,0 +1,5 @@
+# Preview / pre-go-live: allow crawl so Google can see page noindex.
+# Do not list a Sitemap here. Delete this file at go-live and restore
+# src/app/robots.ts from main (Allow + Sitemap).
+User-Agent: *
+Allow: /
