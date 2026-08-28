@@ -131,11 +131,30 @@ and is not proxied through app nginx. PgHero owns HTTP basic auth through
 and use those credentials.
 
 PgHero uses a dedicated `PGHERO_DATABASE_URL`; do not point it at the app
-superuser URL. Follow PgHero's permissions guide for the exact monitoring role
-setup, then set `PGHERO_DATABASE_URL`, `PGHERO_USERNAME`, and
-`PGHERO_PASSWORD` in `.env.production`. Query stats use PgHero's documented
+superuser URL. The `enable_pghero_historical_stats` migration creates PgHero 4
+historical tables, the `pghero` schema helpers from PgHero's permissions guide,
+and a login `pghero` role with no password in source. After the first migrate,
+set the role password to match `PGHERO_DATABASE_URL` if the role did not already
+exist:
+
+```bash
+docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production \
+  exec postgres \
+  psql -U postgres -d "$POSTGRES_DB" \
+  -c "ALTER ROLE pghero WITH PASSWORD 'the-pghero-database-password';"
+```
+
+Set `PGHERO_DATABASE_URL`, `PGHERO_USERNAME`, and `PGHERO_PASSWORD` in
+`.env.production`. Live query stats use PgHero's documented
 `pg_stat_statements` settings in Compose plus the
-`CREATE EXTENSION IF NOT EXISTS pg_stat_statements` migration. The built-in
+`CREATE EXTENSION IF NOT EXISTS pg_stat_statements` migration. Historical query
+stats are captured every five minutes by `pghero_query_stats` with
+`bin/rake pghero:capture_query_stats`. Historical space stats are captured daily
+by `pghero_space_stats` with `bin/rake pghero:capture_space_stats`, then old
+rows are pruned (`KEEP_DAYS=14` for queries, `KEEP_DAYS=90` for space). Those
+capture jobs share the PgHero image and `PGHERO_DATABASE_URL`; they are not
+published and are started with `--no-recreate`. The dashboard container is still
+force-recreated so compose/env changes apply. The built-in
 PgHero Tune page links to `https://pgtune.leopard.in.ua/`; use that with the
 actual host RAM/CPU and PostgreSQL version before changing Postgres tuning in a
 reviewed Compose PR. Do not hand-edit production-only Postgres settings.

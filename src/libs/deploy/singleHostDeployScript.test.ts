@@ -126,7 +126,7 @@ describe('single host deploy script', () => {
       'compose up --detach --no-recreate postgres redis'
     );
     expect(script).toContain(
-      'compose up --detach --no-recreate postgres redis mailpit tusd media'
+      'compose up --detach --no-recreate postgres redis mailpit pghero_query_stats pghero_space_stats tusd media'
     );
     expect(script).not.toContain(
       'compose up --detach --no-recreate postgres redis mailpit pghero tusd media'
@@ -135,7 +135,7 @@ describe('single host deploy script', () => {
       /ensure_ingress_services\(\) \{[\s\S]*compose up --detach --no-deps --force-recreate pghero[\s\S]*wait_for_service_health pghero "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"/u
     );
     expect(script).toMatch(
-      /ensure_ingress_services\(\) \{[\s\S]*wait_for_service_health mailpit "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health pghero "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health tusd "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*verify_production_bind_mounts/u
+      /ensure_ingress_services\(\) \{[\s\S]*wait_for_service_health mailpit "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health pghero_query_stats "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health pghero_space_stats "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health pghero "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health tusd "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*verify_production_bind_mounts/u
     );
     expect(script).toContain('compose up --detach --no-deps cloudflared');
     expect(script).toMatch(

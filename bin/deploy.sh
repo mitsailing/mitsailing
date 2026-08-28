@@ -397,10 +397,12 @@ run_migrations_for_service() {
 
 ensure_ingress_services() {
   log "ensuring data, mail, upload, and media services are running"
-  compose up --detach --no-recreate postgres redis mailpit tusd media
+  compose up --detach --no-recreate postgres redis mailpit pghero_query_stats pghero_space_stats tusd media
   wait_for_service_health postgres "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health redis "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health mailpit "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  wait_for_service_health pghero_query_stats "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  wait_for_service_health pghero_space_stats "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   log "recreating stateless PgHero so compose and env changes apply"
   compose up --detach --no-deps --force-recreate pghero
   wait_for_service_health pghero "$DEPLOY_HEALTH_TIMEOUT_SECONDS"

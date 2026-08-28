@@ -101,10 +101,11 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 
 | Check | Status | Current evidence |
 | --- | --- | --- |
-| PgHero stays in its own container and is not published on a host port. | Pass | `compose.prod.yaml` runs `ankane/pghero:v3.8.0` on the internal network with no `ports:` mapping; Cloudflare Tunnel publishes `pghero.mitsailing.com`. |
+| PgHero stays in its own container and is not published on a host port. | Pass | `compose.prod.yaml` runs `ankane/pghero:v4.0.1` on the internal network with no `ports:` mapping; Cloudflare Tunnel publishes `pghero.mitsailing.com`. |
 | PgHero is protected by PgHero basic auth and has CPU/memory limits. | Pass | Cloudflare Tunnel routes `pghero.mitsailing.com` to `pghero:8080`, and Compose requires `PGHERO_USERNAME` plus `PGHERO_PASSWORD`. Compose limits PgHero to `0.25` CPU and `512M` memory with `0.05` CPU and `128M` reservations. |
 | PgHero uses a dedicated database URL. | Pass | `PGHERO_DATABASE_URL` is required separately from `DATABASE_URL`; the env examples use a `pghero` role. |
 | Query stats can be enabled without production-only drift. | Pass | Compose preloads `pg_stat_statements` with PgHero's documented settings, and the Prisma migration creates the extension. |
+| Historical query and space stats are captured on a schedule. | Pass | `compose.prod.yaml` runs `ankane/pghero:v4.0.1` capture sidecars: query stats every five minutes (`bin/rake pghero:capture_query_stats`) and space stats daily (`bin/rake pghero:capture_space_stats`) with `KEEP_DAYS=14` / `KEEP_DAYS=90` cleanup. The Prisma migration creates the PgHero 4 tables and monitoring grants. Capture jobs have the same CPU/memory limits as the dashboard (`0.25` CPU / `512M`). |
 | PostgreSQL tuning changes stay reviewable. | Watch | PgHero's Tune page links PgTune; operators should use `https://pgtune.leopard.in.ua/` with actual host RAM/CPU and PostgreSQL version, then commit reviewed Compose/Postgres config changes instead of hand-editing production. |
 | PgHero image updates are automated. | Pass | Dependabot monitors Docker Compose service images, so `ankane/pghero` updates arrive as PRs with CI and image scanning. |
 
@@ -115,7 +116,8 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | The app image uses multi-stage builds. | Pass | `Dockerfile` has `deps`, `builder`, `dev`, and `prod` stages. |
 | The runtime container runs as a non-root user with a stable UID/GID. | Pass | `Dockerfile` creates and uses `nextjs` with UID/GID `1001`. |
 | Docker build context excludes local secrets and heavy generated artifacts. | Pass | `.dockerignore` excludes `.env*` except examples, `node_modules`, build outputs, `.git`, logs, and local reports. |
-| Production services have healthchecks. | Pass | `compose.prod.yaml` defines healthchecks for web, worker, media, tusd, Redis, and Postgres. |
+| Production services have healthchecks. | Pass | `compose.prod.yaml` defines healthchecks for web, worker, media, tusd, Redis, Postgres, Mailpit, PgHero, and the PgHero capture sidecars. |
+| Every Compose image has CPU and memory limits. | Pass | Base Postgres/Redis, production app/web/worker/Mailpit/PgHero/capture/tusd/media/cloudflared, and local Mailpit/tusd/media all set `deploy.resources` limits plus reservations. Tusd is capped at `0.25` CPU / `256M`; media nginx matches app nginx at `0.25` CPU / `128M`. Redis `--maxmemory 256mb` stays below the `384M` container limit. |
 | Service dependencies wait for health, not just container start. | Pass | `compose.prod.yaml` uses `depends_on.condition: service_healthy` for production dependencies. |
 | Stateful production mounts are explicit and do not auto-create missing host paths. | Pass | Production bind mounts use `create_host_path: false` for data paths that must exist. |
 | Shutdown gets a grace period. | Pass | Production web, worker, media, tusd, Redis, and Postgres services set `stop_grace_period`. |
