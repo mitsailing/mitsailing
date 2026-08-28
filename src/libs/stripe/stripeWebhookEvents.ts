@@ -23,6 +23,7 @@ import {
 } from '@/libs/stripe/stripePaymentDiscountMetadata';
 import {
   paymentDisputeUpdateFromStripe,
+  parseStripeRefundLedger,
   paymentRefundUpdateFromStripe,
   stripeDisputeIdFromObject,
 } from '@/libs/stripe/stripeRefundMetadata';
@@ -687,7 +688,7 @@ async function applyPaymentRefundFromStripe(options: {
   }
   const refundUpdate = paymentRefundUpdateFromStripe({
     existingRefundedAmountCents: payment.refundedAmountCents ?? null,
-    existingStripeRefundId: payment.stripeRefundId ?? null,
+    existingRefundLedger: parseStripeRefundLedger(payment.stripeRefundId),
     object: options.object,
     payment: {
       amountCents: payment.amountCents,

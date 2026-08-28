@@ -1,35 +1,89 @@
 import { describe, expect, it } from 'vitest';
 import { PaymentStatus } from '@/generated/prisma/enums';
 import {
+  parseStripeRefundLedger,
   paymentDisputeUpdateFromStripe,
   paymentRefundUpdateFromStripe,
   stripeCumulativeRefundedAmountCents,
 } from '@/libs/stripe/stripeRefundMetadata';
 
+describe('parseStripeRefundLedger', () => {
+  it('parses serialized refund id and amount pairs', () => {
+    expect(parseStripeRefundLedger('re_1:1000,re_2:1500')).toEqual([
+      { amountCents: 1000, id: 're_1' },
+      { amountCents: 1500, id: 're_2' },
+    ]);
+  });
+
+  it('supports legacy single refund ids without amounts', () => {
+    expect(parseStripeRefundLedger('re_123')).toEqual([
+      { amountCents: 0, id: 're_123' },
+    ]);
+  });
+});
+
 describe('stripeCumulativeRefundedAmountCents', () => {
   it('reads cumulative amount_refunded from charge objects', () => {
     expect(
       stripeCumulativeRefundedAmountCents({ amount_refunded: 2500 }, null)
-    ).toBe(2500);
+    ).toEqual({
+      amount: 2500,
+      ledger: [],
+    });
+  });
+
+  it('reads cumulative amount_refunded from expanded charge objects', () => {
+    expect(
+      stripeCumulativeRefundedAmountCents(
+        {
+          amount: 1500,
+          charge: { amount_refunded: 4000 },
+          id: 're_2',
+          object: 'refund',
+        },
+        2500,
+        [{ amountCents: 1000, id: 're_1' }]
+      )
+    ).toEqual({
+      amount: 4000,
+      ledger: [
+        { amountCents: 1000, id: 're_1' },
+        { amountCents: 1500, id: 're_2' },
+      ],
+    });
   });
 
   it('adds incremental refund amounts from refund objects', () => {
     expect(
       stripeCumulativeRefundedAmountCents(
-        { amount: 1500, object: 'refund' },
-        1000
+        { amount: 1500, id: 're_2', object: 'refund' },
+        1000,
+        [{ amountCents: 1000, id: 're_1' }]
       )
-    ).toBe(2500);
+    ).toEqual({
+      amount: 2500,
+      ledger: [
+        { amountCents: 1000, id: 're_1' },
+        { amountCents: 1500, id: 're_2' },
+      ],
+    });
   });
 
-  it('does not double-count refund.updated for the same refund id', () => {
+  it('does not double-count when the same refund id is seen again', () => {
+    const ledger = [
+      { amountCents: 1000, id: 're_1' },
+      { amountCents: 1500, id: 're_2' },
+    ];
     expect(
       stripeCumulativeRefundedAmountCents(
-        { amount: 1500, id: 're_123', object: 'refund' },
+        { amount: 1000, id: 're_1', object: 'refund' },
         2500,
-        're_123'
+        ledger
       )
-    ).toBe(2500);
+    ).toEqual({
+      amount: 2500,
+      ledger,
+    });
   });
 });
 
@@ -57,28 +111,62 @@ describe('paymentRefundUpdateFromStripe', () => {
       paymentRefundUpdateFromStripe({
         clearActiveCheckoutKeyOnFullRefund: true,
         existingRefundedAmountCents: 2000,
-        object: { amount: 5000, object: 'refund' },
+        existingRefundLedger: [{ amountCents: 2000, id: 're_prior' }],
+        object: { amount: 5000, id: 're_full', object: 'refund' },
         payment,
       })
     ).toEqual({
       activeCheckoutKey: null,
       refundedAmountCents: 7000,
       status: PaymentStatus.refunded,
+      stripeRefundId: 're_prior:2000,re_full:5000',
     });
   });
 
-  it('ignores duplicate refund.updated events for the same refund id', () => {
+  it('tracks re_1, re_2, then re_1 again without increasing refundedAmountCents', () => {
+    let refundedAmountCents: number | null = null;
+    let stripeRefundId: string | null = null;
+
     expect(
       paymentRefundUpdateFromStripe({
-        existingRefundedAmountCents: 2500,
-        existingStripeRefundId: 're_123',
-        object: { amount: 1500, id: 're_123', object: 'refund' },
+        existingRefundedAmountCents: refundedAmountCents,
+        object: { amount: 1000, id: 're_1', object: 'refund' },
+        payment,
+      })
+    ).toEqual({
+      refundedAmountCents: 1000,
+      status: PaymentStatus.paid,
+      stripeRefundId: 're_1:1000',
+    });
+    refundedAmountCents = 1000;
+    stripeRefundId = 're_1:1000';
+
+    expect(
+      paymentRefundUpdateFromStripe({
+        existingRefundedAmountCents: refundedAmountCents,
+        existingRefundLedger: parseStripeRefundLedger(stripeRefundId),
+        object: { amount: 1500, id: 're_2', object: 'refund' },
         payment,
       })
     ).toEqual({
       refundedAmountCents: 2500,
       status: PaymentStatus.paid,
-      stripeRefundId: 're_123',
+      stripeRefundId: 're_1:1000,re_2:1500',
+    });
+    refundedAmountCents = 2500;
+    stripeRefundId = 're_1:1000,re_2:1500';
+
+    expect(
+      paymentRefundUpdateFromStripe({
+        existingRefundedAmountCents: refundedAmountCents,
+        existingRefundLedger: parseStripeRefundLedger(stripeRefundId),
+        object: { amount: 1000, id: 're_1', object: 'refund' },
+        payment,
+      })
+    ).toEqual({
+      refundedAmountCents: 2500,
+      status: PaymentStatus.paid,
+      stripeRefundId: 're_1:1000,re_2:1500',
     });
   });
 });
