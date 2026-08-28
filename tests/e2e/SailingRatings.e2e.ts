@@ -93,7 +93,7 @@ async function waitForTechRatingRowPresent(present: boolean) {
     .toBe(present);
 }
 
-test.describe('Sailing ratings', () => {
+test.describe('Sail ratings', () => {
   // Override root `fullyParallel`: shared `username` / `rating-tech` rows must not
   // race with concurrent hooks/tests from this file on other workers.
   test.describe.configure({ mode: 'serial' });
@@ -110,7 +110,7 @@ test.describe('Sailing ratings', () => {
     await page.goto('/ratings');
 
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Sailing ratings' })
+      page.getByRole('heading', { level: 1, name: 'Sail ratings' })
     ).toBeVisible();
     await expect(
       page.getByRole('rowheader', { name: /Tech Rating/ })
@@ -257,7 +257,7 @@ test.describe('Sailing ratings', () => {
 
       await page.goto('/profile/ratings');
       await expect(
-        page.getByRole('heading', { name: 'Sailing ratings' })
+        page.getByRole('heading', { name: 'Sail ratings' })
       ).toBeVisible();
       await expect(
         page.getByRole('rowheader', { name: 'Tech Rating' })

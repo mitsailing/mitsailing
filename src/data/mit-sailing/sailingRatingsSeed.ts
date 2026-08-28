@@ -47,7 +47,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     name: 'Tech Rating',
     shortName: 'Tech',
     description:
-      'First MIT Sailing rating earned from an Introduction class. It allows members to use Tech Dinghies and join Mashnee sails as crew, but not skipper them.',
+      'First MIT sail rating earned from an Introduction class. It allows members to use Tech Dinghies and join Mashnee sails as crew, but not skipper them.',
     category: 'Dinghy',
     level: '1',
     windCondition: 'Low',
@@ -242,7 +242,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     name: 'Board Sailing Class',
     shortName: 'Board Class',
     description:
-      'Introductory board sailing rating earned from the windsurfing class. Sailors know basic rigging and elementary windsurfing and should check in with dock staff.',
+      'Introductory board sail rating earned from the windsurfing class. Sailors know basic rigging and elementary windsurfing and should check in with dock staff.',
     category: 'Windsurfing',
     level: '2',
     windCondition: 'Medium-strong',
@@ -257,7 +257,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     name: 'Board Sailing: Basic',
     shortName: 'Board Basic',
     description:
-      'Board sailing rating for sailors who can rig beginner equipment, tack, and sail upwind in light to medium wind below 15 knots.',
+      'Board sail rating for sailors who can rig beginner equipment, tack, and sail upwind in light to medium wind below 15 knots.',
     category: 'Windsurfing',
     level: '2',
     windCondition: 'Medium',
@@ -272,7 +272,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     name: 'Board Sailing: Advanced',
     shortName: 'Board Advanced',
     description:
-      'Advanced board sailing rating for shaped sails, harness use, tacking, jibing, upwind sailing, and strong wind over 15 knots.',
+      'Advanced board sail rating for shaped sails, harness use, tacking, jibing, upwind sailing, and strong wind over 15 knots.',
     category: 'Windsurfing',
     level: '3',
     windCondition: 'Medium-strong',
@@ -317,7 +317,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     name: 'Sailing Team',
     shortName: 'Sailing Team',
     description:
-      'Team sailing rating for sailors cleared for Sailing Team fleet use across Tech Dinghies, FJs, 420s, Fireflies, and Lasers.',
+      'Team sail rating for sailors cleared for Sailing Team fleet use across Tech Dinghies, FJs, 420s, Fireflies, and Lasers.',
     category: 'Team',
     level: null,
     windCondition: null,
