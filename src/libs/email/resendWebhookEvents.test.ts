@@ -16,7 +16,6 @@ function deliveredEvent(params: {
       created_at: '2026-05-14T14:29:59.000Z',
       email_id: params.emailId ?? 'email_123',
       from: 'MIT Sailing <news@mitsailing.test>',
-      message_id: '<email_123@mitsailing.test>',
       subject: 'Spring sailing',
       to: ['sailor@example.com'],
     },
