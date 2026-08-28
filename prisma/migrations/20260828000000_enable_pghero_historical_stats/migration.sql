@@ -103,6 +103,7 @@ ALTER ROLE pghero SET lock_timeout = '1s';
 
 GRANT USAGE ON SCHEMA pghero TO pghero;
 GRANT SELECT ON ALL TABLES IN SCHEMA pghero TO pghero;
+REVOKE ALL ON ALL FUNCTIONS IN SCHEMA pghero FROM PUBLIC;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pghero TO pghero;
 GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO pghero;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE pghero_queries, pghero_query_stats, pghero_space_stats TO pghero;

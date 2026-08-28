@@ -449,8 +449,19 @@ describe('production docker compose', () => {
       'CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public',
       'ALTER EXTENSION pg_stat_statements SET SCHEMA public',
       'CREATE ROLE pghero',
+      'REVOKE ALL ON ALL FUNCTIONS IN SCHEMA pghero FROM PUBLIC',
+      'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pghero TO pghero',
       'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE pghero_queries',
     ]);
+    expect(
+      pgheroHistoricalStatsMigration.indexOf(
+        'REVOKE ALL ON ALL FUNCTIONS IN SCHEMA pghero FROM PUBLIC'
+      )
+    ).toBeLessThan(
+      pgheroHistoricalStatsMigration.indexOf(
+        'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pghero TO pghero'
+      )
+    );
     expect(pgheroHistoricalStatsMigration).not.toContain("PASSWORD 'secret'");
     expect(pgheroHistoricalStatsMigration).not.toContain(
       'ALTER TABLE pghero_query_stats ADD COLUMN query_id'
