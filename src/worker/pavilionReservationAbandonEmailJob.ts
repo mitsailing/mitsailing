@@ -23,6 +23,24 @@ const PAVILION_RESERVATION_ABANDON_EMAIL_JOB_OPTS: JobsOptions = {
   removeOnFail: { count: 100 },
 };
 
+const abandonEmailReservationSelect = {
+  abandonEmailSentAt: true,
+  eventName: true,
+  referenceCode: true,
+  requesterEmail: true,
+  resumeToken: true,
+  status: true,
+} as const;
+
+type AbandonEmailReservation = {
+  abandonEmailSentAt: Date | null;
+  eventName: string;
+  referenceCode: string;
+  requesterEmail: string;
+  resumeToken: string | null;
+  status: string;
+};
+
 export type PavilionReservationAbandonEmailJobData = z.infer<
   typeof pavilionReservationAbandonEmailJobDataSchema
 >;
@@ -34,6 +52,72 @@ export type PavilionReservationAbandonEmailQueue = Pick<
 
 function abandonEmailJobId(requestId: string): string {
   return `${PAVILION_RESERVATION_ABANDON_EMAIL_JOB_NAME}-${requestId}`;
+}
+
+function pavilionReservationResumeUrl(resumeToken: string): string {
+  return `${Env.NEXT_PUBLIC_APP_URL}/reserve?resume=${encodeURIComponent(resumeToken)}`;
+}
+
+function isEligibleForAbandonEmail(
+  reservation: AbandonEmailReservation
+): reservation is AbandonEmailReservation & { resumeToken: string } {
+  return (
+    reservation.status === 'draft' &&
+    reservation.abandonEmailSentAt === null &&
+    reservation.resumeToken !== null &&
+    reservation.resumeToken !== ''
+  );
+}
+
+function canSendAbandonEmailAfterClaim(
+  reservation: AbandonEmailReservation
+): reservation is AbandonEmailReservation & { resumeToken: string } {
+  return (
+    reservation.status === 'draft' &&
+    reservation.resumeToken !== null &&
+    reservation.resumeToken !== ''
+  );
+}
+
+async function claimAbandonEmailSend(requestId: string): Promise<boolean> {
+  const claim = await prisma.pavilionReservationRequest.updateMany({
+    data: { abandonEmailSentAt: new Date() },
+    where: {
+      abandonEmailSentAt: null,
+      id: requestId,
+      resumeToken: { not: null },
+      status: 'draft',
+    },
+  });
+  return claim.count > 0;
+}
+
+async function rollbackAbandonEmailClaim(requestId: string): Promise<void> {
+  await prisma.pavilionReservationRequest.updateMany({
+    data: { abandonEmailSentAt: null },
+    where: {
+      abandonEmailSentAt: { not: null },
+      id: requestId,
+      status: 'draft',
+    },
+  });
+}
+
+async function sendClaimedAbandonEmail(
+  reservation: AbandonEmailReservation & { resumeToken: string },
+  requestId: string
+): Promise<void> {
+  try {
+    await sendPavilionReservationAbandonEmail({
+      eventName: reservation.eventName,
+      referenceCode: reservation.referenceCode,
+      requesterEmail: reservation.requesterEmail,
+      resumeUrl: pavilionReservationResumeUrl(reservation.resumeToken),
+    });
+  } catch (error) {
+    await rollbackAbandonEmailClaim(requestId);
+    throw error;
+  }
 }
 
 /**
@@ -96,60 +180,27 @@ export async function processPavilionReservationAbandonEmailJob(
   const params = pavilionReservationAbandonEmailJobDataSchema.parse(data);
   try {
     const reservation = await prisma.pavilionReservationRequest.findUnique({
-      select: {
-        abandonEmailSentAt: true,
-        eventName: true,
-        referenceCode: true,
-        requesterEmail: true,
-        resumeToken: true,
-        status: true,
-      },
+      select: abandonEmailReservationSelect,
       where: { id: params.requestId },
     });
-    if (!reservation) {
+    if (!reservation || !isEligibleForAbandonEmail(reservation)) {
       return;
     }
-    if (
-      reservation.status !== 'draft' ||
-      reservation.abandonEmailSentAt !== null ||
-      reservation.resumeToken === null ||
-      reservation.resumeToken === ''
-    ) {
+    const claimed = await claimAbandonEmailSend(params.requestId);
+    if (!claimed) {
       return;
     }
-
-    const claim = await prisma.pavilionReservationRequest.updateMany({
-      data: { abandonEmailSentAt: new Date() },
-      where: {
-        abandonEmailSentAt: null,
-        id: params.requestId,
-        resumeToken: { not: null },
-        status: 'draft',
-      },
-    });
-    if (claim.count === 0) {
+    const freshReservation = await prisma.pavilionReservationRequest.findUnique(
+      {
+        select: abandonEmailReservationSelect,
+        where: { id: params.requestId },
+      }
+    );
+    if (!freshReservation || !canSendAbandonEmailAfterClaim(freshReservation)) {
+      await rollbackAbandonEmailClaim(params.requestId);
       return;
     }
-
-    const resumeUrl = `${Env.NEXT_PUBLIC_APP_URL}/reserve?resume=${encodeURIComponent(reservation.resumeToken)}`;
-    try {
-      await sendPavilionReservationAbandonEmail({
-        eventName: reservation.eventName,
-        referenceCode: reservation.referenceCode,
-        requesterEmail: reservation.requesterEmail,
-        resumeUrl,
-      });
-    } catch (error) {
-      await prisma.pavilionReservationRequest.updateMany({
-        data: { abandonEmailSentAt: null },
-        where: {
-          abandonEmailSentAt: { not: null },
-          id: params.requestId,
-          status: 'draft',
-        },
-      });
-      throw error;
-    }
+    await sendClaimedAbandonEmail(freshReservation, params.requestId);
   } catch (error) {
     logger.error(
       '[pavilion-reservation:abandon-email] request_id={requestId} error_name={errorName} error_code={errorCode}',

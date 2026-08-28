@@ -1,5 +1,5 @@
-import type { WebhookEventPayload } from 'resend';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildResendDeliveredWebhookEvent } from '@/libs/email/resendWebhookTestFixtures';
 
 const mocks = vi.hoisted(() => ({
   prisma: {
@@ -94,15 +94,13 @@ describe('email messages', () => {
       await import('@/libs/email/emailMessages');
 
     const result = await handleResendEmailMessageWebhook({
-      created_at: 'not-a-date',
-      data: {
-        created_at: '2026-05-14T14:30:00.000Z',
-        email_id: 'message_1',
+      ...buildResendDeliveredWebhookEvent({
+        createdAt: 'not-a-date',
+        emailId: 'message_1',
         from: 'launch@mitsailing.example',
         subject: 'Spring sailing',
         to: ['sailor@example.com'],
-      },
-      type: 'email.delivered',
+      }),
     });
 
     expect(result).toBe(false);
@@ -119,17 +117,14 @@ describe('email messages', () => {
     const { handleResendEmailMessageWebhook } =
       await import('@/libs/email/emailMessages');
 
-    const result = await handleResendEmailMessageWebhook({
-      created_at: '2026-05-14T14:30:00.000Z',
-      data: {
-        created_at: '2026-05-14T14:29:59.000Z',
-        email_id: 'message_1',
+    const result = await handleResendEmailMessageWebhook(
+      buildResendDeliveredWebhookEvent({
+        emailId: 'message_1',
         from: 'launch@mitsailing.example',
         subject: 'Spring sailing',
         to: ['Sailor@Example.com'],
-      },
-      type: 'email.delivered',
-    });
+      })
+    );
 
     expect(result).toBe(true);
     expect(capturedSqlAt(1)).toContain('INSERT INTO "email_messages"');
@@ -143,17 +138,12 @@ describe('email messages', () => {
   it('creates deterministic fallback ids for Resend events without provider ids', async () => {
     const { recordResendEmailMessageEvent } =
       await import('@/libs/email/emailMessages');
-    const event = {
-      created_at: '2026-05-14T14:30:00.000Z',
-      data: {
-        created_at: '2026-05-14T14:29:59.000Z',
-        email_id: 'message_1',
-        from: 'launch@mitsailing.example',
-        subject: 'Spring sailing',
-        to: ['sailor@example.com'],
-      },
-      type: 'email.delivered',
-    } satisfies Extract<WebhookEventPayload, { type: 'email.delivered' }>;
+    const event = buildResendDeliveredWebhookEvent({
+      emailId: 'message_1',
+      from: 'launch@mitsailing.example',
+      subject: 'Spring sailing',
+      to: ['sailor@example.com'],
+    });
 
     await recordResendEmailMessageEvent({
       emailMessageId: 'email_message_1',

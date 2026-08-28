@@ -56,7 +56,7 @@ async function resolveDraftForUpsert(
     requestId: string | null;
     resumeToken: string | null;
   }
-): Promise<DraftRow | null> {
+): Promise<DraftRow | null | 'mismatch'> {
   const trimmedToken = props.resumeToken?.trim() ?? null;
   if (!trimmedToken) {
     return null;
@@ -72,7 +72,7 @@ async function resolveDraftForUpsert(
 
   const requestId = props.requestId?.trim() ?? null;
   if (requestId && byToken.id !== requestId) {
-    return null;
+    return 'mismatch';
   }
 
   return byToken;
@@ -172,6 +172,9 @@ export async function upsertPavilionReservationDraftAction(
         requestId: existingId,
         resumeToken: input.resumeToken ?? null,
       });
+      if (existing === 'mismatch') {
+        return null;
+      }
 
       if (existing?.status === 'draft') {
         const nextResumeToken = existing.resumeToken ?? newResumeToken();

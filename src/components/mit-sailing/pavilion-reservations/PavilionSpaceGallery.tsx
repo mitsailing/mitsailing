@@ -8,6 +8,12 @@ type PavilionSpaceGalleryProps = {
   readonly media: readonly PavilionReservableItemMediaDto[];
 };
 
+function pavilionMediaCaptionTrackSrc(caption: string): string {
+  const cueText = caption.replaceAll('\n', ' ').replaceAll('-->', '').trim();
+  const vtt = `WEBVTT\n\n00:00.000 --> 99:59.000\n${cueText}\n`;
+  return `data:text/vtt;charset=utf-8,${encodeURIComponent(vtt)}`;
+}
+
 /**
  * Shared photo/video gallery for /reserve overlays and /spaces/[slug].
  *
@@ -27,7 +33,6 @@ export function PavilionSpaceGallery(props: PavilionSpaceGalleryProps) {
           key={item.id}
         >
           {item.mediaKind === 'video' ? (
-            // eslint-disable-next-line jsx-a11y/media-has-caption -- staff venue clips; optional caption text shown below when present
             <video
               aria-label={item.caption ?? props.alt}
               className="aspect-video w-full object-cover"
@@ -35,7 +40,15 @@ export function PavilionSpaceGallery(props: PavilionSpaceGalleryProps) {
               playsInline
               preload="metadata"
               src={item.publicPath}
-            />
+            >
+              <track
+                default
+                kind="captions"
+                label="Captions"
+                src={pavilionMediaCaptionTrackSrc(item.caption ?? props.alt)}
+                srcLang="en"
+              />
+            </video>
           ) : (
             <div className="relative aspect-video w-full">
               <Image

@@ -375,6 +375,7 @@ export async function handleResendEmailMessageWebhook(
     return true;
   }
 
+  // Resend send id (`email_id`), not the SMTP Message-ID header (`message_id`).
   const providerMessageId = event.data.email_id;
   const client = context?.client ?? prisma;
   const occurredAt = resendWebhookOccurredAt(event);

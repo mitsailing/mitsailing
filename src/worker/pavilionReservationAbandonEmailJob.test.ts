@@ -121,4 +121,67 @@ describe('processPavilionReservationAbandonEmailJob', () => {
 
     expect(mocks.sendPavilionReservationAbandonEmail).not.toHaveBeenCalled();
   });
+
+  it('rolls back claim when send fails', async () => {
+    mocks.findUnique.mockResolvedValue({
+      abandonEmailSentAt: null,
+      eventName: 'Dock party',
+      referenceCode: 'PAV-TEST1234',
+      requesterEmail: 'sailor@mit.edu',
+      resumeToken: 'resume-token',
+      status: 'draft',
+    });
+    mocks.sendPavilionReservationAbandonEmail.mockRejectedValue(
+      new Error('smtp down')
+    );
+
+    const { processPavilionReservationAbandonEmailJob } =
+      await import('@/worker/pavilionReservationAbandonEmailJob');
+    await expect(
+      processPavilionReservationAbandonEmailJob({ requestId: 'req-1' })
+    ).rejects.toThrow('smtp down');
+
+    expect(mocks.updateMany).toHaveBeenCalledWith({
+      data: { abandonEmailSentAt: null },
+      where: {
+        abandonEmailSentAt: { not: null },
+        id: 'req-1',
+        status: 'draft',
+      },
+    });
+  });
+
+  it('skips send when draft promoted after claim', async () => {
+    mocks.findUnique
+      .mockResolvedValueOnce({
+        abandonEmailSentAt: null,
+        eventName: 'Dock party',
+        referenceCode: 'PAV-TEST1234',
+        requesterEmail: 'sailor@mit.edu',
+        resumeToken: 'resume-token',
+        status: 'draft',
+      })
+      .mockResolvedValueOnce({
+        abandonEmailSentAt: expect.any(Date),
+        eventName: 'Dock party',
+        referenceCode: 'PAV-TEST1234',
+        requesterEmail: 'sailor@mit.edu',
+        resumeToken: null,
+        status: 'pending',
+      });
+
+    const { processPavilionReservationAbandonEmailJob } =
+      await import('@/worker/pavilionReservationAbandonEmailJob');
+    await processPavilionReservationAbandonEmailJob({ requestId: 'req-1' });
+
+    expect(mocks.sendPavilionReservationAbandonEmail).not.toHaveBeenCalled();
+    expect(mocks.updateMany).toHaveBeenLastCalledWith({
+      data: { abandonEmailSentAt: null },
+      where: {
+        abandonEmailSentAt: { not: null },
+        id: 'req-1',
+        status: 'draft',
+      },
+    });
+  });
 });
