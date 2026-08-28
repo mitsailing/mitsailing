@@ -101,8 +101,8 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 
 | Check | Status | Current evidence |
 | --- | --- | --- |
-| PgHero stays in its own container and is not published externally. | Pass | `compose.prod.yaml` runs `ankane/pghero:v3.8.0` on the internal network with no `ports:` mapping. |
-| PgHero is protected by PgHero basic auth and has CPU/memory limits. | Pass | app nginx proxies `/pghero/` to the internal service, and Compose requires `PGHERO_USERNAME` plus `PGHERO_PASSWORD`. Compose limits PgHero to `0.25` CPU and `512M` memory with `0.05` CPU and `128M` reservations. |
+| PgHero stays in its own container and is not published on a host port. | Pass | `compose.prod.yaml` runs `ankane/pghero:v3.8.0` on the internal network with no `ports:` mapping; Cloudflare Tunnel publishes `pghero.mitsailing.com`. |
+| PgHero is protected by PgHero basic auth and has CPU/memory limits. | Pass | Cloudflare Tunnel routes `pghero.mitsailing.com` to `pghero:8080`, and Compose requires `PGHERO_USERNAME` plus `PGHERO_PASSWORD`. Compose limits PgHero to `0.25` CPU and `512M` memory with `0.05` CPU and `128M` reservations. |
 | PgHero uses a dedicated database URL. | Pass | `PGHERO_DATABASE_URL` is required separately from `DATABASE_URL`; the env examples use a `pghero` role. |
 | Query stats can be enabled without production-only drift. | Pass | Compose preloads `pg_stat_statements` with PgHero's documented settings, and the Prisma migration creates the extension. |
 | PostgreSQL tuning changes stay reviewable. | Watch | PgHero's Tune page links PgTune; operators should use `https://pgtune.leopard.in.ua/` with actual host RAM/CPU and PostgreSQL version, then commit reviewed Compose/Postgres config changes instead of hand-editing production. |

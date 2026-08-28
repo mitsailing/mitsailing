@@ -44,7 +44,6 @@ readonly DEPLOY_HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
 # outside the blue/green web cutover, and nginx upload timeouts track this value.
 readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-120}"
 readonly MAILPIT_ROUTE="/mail"
-readonly PGHERO_ROUTE="/pghero"
 # A server admin must create the default root-owned tree before deploy. Rootless
 # hosts may set PRODUCTION_DATA_ROOT to a prepared deploy-user-owned path.
 readonly PRODUCTION_DATA_ROOT_WAS_SET="${PRODUCTION_DATA_ROOT+x}"
@@ -297,29 +296,6 @@ server {
     proxy_set_header Connection \$connection_upgrade;
   }
 
-  location = ${PGHERO_ROUTE} {
-    return 308 ${PGHERO_ROUTE}/;
-  }
-
-  location ${PGHERO_ROUTE}/ {
-    proxy_pass http://pghero:8080;
-    proxy_http_version 1.1;
-    proxy_request_buffering off;
-    proxy_buffering off;
-    proxy_connect_timeout 30s;
-    proxy_send_timeout ${DEPLOY_DRAIN_SECONDS}s;
-    proxy_read_timeout ${DEPLOY_DRAIN_SECONDS}s;
-    proxy_next_upstream off;
-    proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Host \$host;
-    proxy_set_header X-Forwarded-Proto \$forwarded_proto;
-    proxy_set_header X-Forwarded-Prefix ${PGHERO_ROUTE};
-    proxy_set_header Upgrade \$http_upgrade;
-    proxy_set_header Connection \$connection_upgrade;
-  }
-
   location / {
     proxy_pass http://mitsailing_next;
     proxy_http_version 1.1;
@@ -360,7 +336,10 @@ wait_for_service_health() {
         return 0
       fi
       if [[ "$status" == "unhealthy" || "$status" == "exited" || "$status" == "dead" ]]; then
-        log "$service status is $status"
+        log "$service status is $status; dumping logs and health check output"
+        docker logs --tail 50 "$container" >&2 || true
+        docker inspect --format '{{json .State.Health.Log}}' "$container" >&2 || true
+        fail "$service failed healthcheck"
       fi
     fi
     sleep 2
@@ -369,6 +348,7 @@ wait_for_service_health() {
   if [[ -n "${container:-}" ]]; then
     log "$service did not become healthy; tail of last 50 lines:"
     docker logs --tail 50 "$container" >&2 || true
+    docker inspect --format '{{json .State.Health.Log}}' "$container" >&2 || true
   fi
   fail "$service failed healthcheck"
 }
@@ -412,10 +392,12 @@ run_migrations_for_service() {
 
 ensure_ingress_services() {
   log "ensuring data, mail, upload, and media services are running"
-  compose up --detach --no-recreate postgres redis mailpit pghero tusd media
+  compose up --detach --no-recreate postgres redis mailpit tusd media
   wait_for_service_health postgres "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health redis "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health mailpit "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  log "recreating stateless PgHero so compose and env changes apply"
+  compose up --detach --no-deps --force-recreate pghero
   wait_for_service_health pghero "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health tusd "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health media "$DEPLOY_HEALTH_TIMEOUT_SECONDS"

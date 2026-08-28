@@ -64,8 +64,7 @@ function composeVariable(value: string): string {
 const mailpitRoute = '/mail';
 const mailpitWebroot = `${mailpitRoute}/`;
 const mailpitRouteVariable = composeVariable('MAILPIT_ROUTE');
-const pgheroRoute = '/pghero';
-const pgheroRouteVariable = composeVariable('PGHERO_ROUTE');
+const pgheroOrigin = 'https://pghero.mitsailing.com';
 
 function expectMailpitRelayEnvExample(envExample: string): void {
   for (const fragment of [
@@ -275,11 +274,14 @@ describe('production docker compose', () => {
     expect(cloudflaredBlock).toContain('app:');
     expect(cloudflaredBlock).toContain('tusd:');
     expect(cloudflaredBlock).toContain('media:');
+    expect(cloudflaredBlock).toContain('pghero:');
     expect(cloudflaredBlock).toMatch(/tusd:\s+condition: service_healthy/u);
+    expect(cloudflaredBlock).toMatch(/pghero:\s+condition: service_healthy/u);
     expect(cloudflaredBlock).not.toContain('ports:');
     expect(deployRunbook).toContain('service: http://tusd:1080');
     expect(deployRunbook).toContain('service: http://media:8080');
     expect(deployRunbook).toContain('service: http://app:3000');
+    expect(deployRunbook).toContain('service: http://pghero:8080');
   });
 
   it('automates container image update PRs', () => {
@@ -339,6 +341,10 @@ describe('production docker compose', () => {
 
   it('runs PgHero as a private basic-auth operations service', () => {
     const appBlock = readYamlServiceBlock(productionCompose, 'app');
+    const cloudflaredBlock = readYamlServiceBlock(
+      productionCompose,
+      'cloudflared'
+    );
     const pgheroBlock = readYamlServiceBlock(productionCompose, 'pghero');
 
     expectContainsFragments(pgheroBlock, [
@@ -346,17 +352,17 @@ describe('production docker compose', () => {
       `DATABASE_URL: ${composeVariable('PGHERO_DATABASE_URL:?set PGHERO_DATABASE_URL')}`,
       `PGHERO_USERNAME: ${composeVariable('PGHERO_USERNAME:?set PGHERO_USERNAME')}`,
       `PGHERO_PASSWORD: ${composeVariable('PGHERO_PASSWORD:?set PGHERO_PASSWORD')}`,
-      `RAILS_RELATIVE_URL_ROOT: ${pgheroRoute}`,
-      'ENV.fetch("RAILS_RELATIVE_URL_ROOT", "")',
-      '/health',
+      'http://127.0.0.1:8080/health',
       "cpus: '0.25'",
       'memory: 512M',
       "cpus: '0.05'",
       'memory: 128M',
     ]);
+    expect(pgheroBlock).not.toContain('RAILS_RELATIVE_URL_ROOT');
     expect(pgheroBlock).not.toContain('ports:');
-    expect(appBlock).toMatch(/pghero:\s+condition: service_healthy/u);
-    expect(deployRunbook).toContain(`PgHero is served at \`${pgheroRoute}/\``);
+    expect(appBlock).not.toMatch(/pghero:\s+condition: service_healthy/u);
+    expect(cloudflaredBlock).toMatch(/pghero:\s+condition: service_healthy/u);
+    expect(deployRunbook).toContain(`PgHero is served at \`${pgheroOrigin}\``);
     expect(deployRunbook).toContain('PGHERO_USERNAME');
     expect(deployRunbook).toContain('PGHERO_PASSWORD');
     expect(deployRunbook).toContain('https://pgtune.leopard.in.ua/');
@@ -372,6 +378,15 @@ describe('production docker compose', () => {
     );
     expect(deployRunbook).not.toContain(
       'curl -fsSI https://mitsailing.com/mail/'
+    );
+  });
+
+  it('documents protected PgHero subdomain verification', () => {
+    expect(deployRunbook).toContain(
+      `pghero_status="$(curl -sS -o /dev/null -w '%{http_code}' -I ${pgheroOrigin}/)"`
+    );
+    expect(deployRunbook).toContain(
+      'ERROR: PgHero accepted an unauthenticated request'
     );
   });
 
@@ -740,23 +755,10 @@ describe('production deploy script', () => {
 
   it('generates subpath routes for production operations services', () => {
     expect(deployScript).toContain(`readonly MAILPIT_ROUTE="${mailpitRoute}"`);
-    expect(deployScript).toContain(`readonly PGHERO_ROUTE="${pgheroRoute}"`);
     expect(deployScript).toContain(`location = ${mailpitRouteVariable}`);
     expect(deployScript).toContain(`return 308 ${mailpitRouteVariable}/;`);
     expect(deployScript).toContain(`location ${mailpitRouteVariable}/`);
     expect(deployScript).toContain('proxy_pass http://mailpit:8025;');
-    expect(deployScript).toContain(`location = ${pgheroRouteVariable}`);
-    expect(deployScript).toContain(`return 308 ${pgheroRouteVariable}/;`);
-    expect(deployScript).toContain(`location ${pgheroRouteVariable}/`);
-    expect(deployScript).toContain('proxy_pass http://pghero:8080;');
-    expect(deployScript).toContain(
-      `proxy_set_header X-Forwarded-Prefix ${pgheroRouteVariable};`
-    );
-    expect(deployScript).not.toContain(
-      'auth_request /api/internal/pghero-auth'
-    );
-    expect(deployScript).not.toContain('location = /api/internal/pghero-auth');
-    expect(deployScript).not.toContain('/_ops/harbor-watch');
   });
 
   it('verifies production data mounts before running migrations', () => {

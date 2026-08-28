@@ -11,19 +11,10 @@ function shellVariable(value: string): string {
 }
 
 const mailpitRoute = shellVariable('MAILPIT_ROUTE');
-const pgheroRoute = shellVariable('PGHERO_ROUTE');
 
 const mailpitProxyHeaders = [
   String.raw`proxy_set_header Host \$host;`,
   String.raw`proxy_set_header X-Forwarded-Proto \$forwarded_proto;`,
-  String.raw`proxy_set_header Upgrade \$http_upgrade;`,
-  String.raw`proxy_set_header Connection \$connection_upgrade;`,
-];
-
-const pgheroProxyHeaders = [
-  String.raw`proxy_set_header Host \$host;`,
-  String.raw`proxy_set_header X-Forwarded-Proto \$forwarded_proto;`,
-  `proxy_set_header X-Forwarded-Prefix ${pgheroRoute};`,
   String.raw`proxy_set_header Upgrade \$http_upgrade;`,
   String.raw`proxy_set_header Connection \$connection_upgrade;`,
 ];
@@ -135,7 +126,13 @@ describe('single host deploy script', () => {
       'compose up --detach --no-recreate postgres redis'
     );
     expect(script).toContain(
+      'compose up --detach --no-recreate postgres redis mailpit tusd media'
+    );
+    expect(script).not.toContain(
       'compose up --detach --no-recreate postgres redis mailpit pghero tusd media'
+    );
+    expect(script).toMatch(
+      /ensure_ingress_services\(\) \{[\s\S]*compose up --detach --no-deps --force-recreate pghero[\s\S]*wait_for_service_health pghero "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"/u
     );
     expect(script).toMatch(
       /ensure_ingress_services\(\) \{[\s\S]*wait_for_service_health mailpit "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health pghero "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health tusd "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*verify_production_bind_mounts/u
@@ -150,6 +147,12 @@ describe('single host deploy script', () => {
     expect(script).not.toMatch(/release_ref\(\)[\s\S]*--force-recreate media/u);
   });
 
+  it('fails immediately when a service is unhealthy and dumps health logs', () => {
+    expect(script).toMatch(
+      /wait_for_service_health\(\) \{[\s\S]*if \[\[ "\$status" == "unhealthy" \|\| "\$status" == "exited" \|\| "\$status" == "dead" \]\]; then[\s\S]*docker logs --tail 50 "\$container"[\s\S]*State\.Health\.Log[\s\S]*fail "\$service failed healthcheck"/u
+    );
+  });
+
   it('proxies authenticated Mailpit UI at /mail', () => {
     expect(script).toContain('readonly MAILPIT_ROUTE="/mail"');
     expect(script).toContain(`location = ${mailpitRoute}`);
@@ -159,19 +162,6 @@ describe('single host deploy script', () => {
     expect(script).toContain(`proxy_send_timeout ${deployDrainSeconds};`);
     expect(script).toContain(`proxy_read_timeout ${deployDrainSeconds};`);
     for (const header of mailpitProxyHeaders) {
-      expect(script).toContain(header);
-    }
-  });
-
-  it('proxies PgHero behind PgHero basic auth at /pghero', () => {
-    expect(script).toContain('readonly PGHERO_ROUTE="/pghero"');
-    expect(script).toContain(`location = ${pgheroRoute}`);
-    expect(script).toContain(`return 308 ${pgheroRoute}/;`);
-    expect(script).toContain(`location ${pgheroRoute}/`);
-    expect(script).toContain('proxy_pass http://pghero:8080;');
-    expect(script).not.toContain('auth_request /api/internal/pghero-auth;');
-    expect(script).not.toContain('location = /api/internal/pghero-auth');
-    for (const header of pgheroProxyHeaders) {
       expect(script).toContain(header);
     }
   });
