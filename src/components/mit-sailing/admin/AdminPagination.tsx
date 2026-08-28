@@ -1,5 +1,6 @@
 import type * as React from 'react';
 import { Link } from '@/libs/I18nNavigation';
+import { isAppRelativeCmsHref } from '@/libs/mit-sailing/cmsHref';
 
 type AdminPaginationParams = Record<string, string | number | null | undefined>;
 
@@ -43,7 +44,8 @@ function PaginationLink(props: {
 }) {
   const className =
     'inline-flex h-9 items-center rounded-md border border-input px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted';
-  return props.disabled ? (
+  const href = isAppRelativeCmsHref(props.href) ? props.href : null;
+  return props.disabled || !href ? (
     <span
       aria-disabled="true"
       className={`${className} cursor-not-allowed opacity-50`}
@@ -51,7 +53,7 @@ function PaginationLink(props: {
       {props.children}
     </span>
   ) : (
-    <Link className={className} href={props.href}>
+    <Link className={className} href={href}>
       {props.children}
     </Link>
   );

@@ -13,7 +13,8 @@ import {
 } from '@/libs/admin/users/adminUserListMembershipPayment';
 import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
 
-const cardYear = getCurrentSailingCardYear();
+// Resolve after tests/setup/clock.ts pins TEST_NOW, not at import time.
+const currentCardYear = () => getCurrentSailingCardYear();
 
 describe('adminUserMembershipPaymentListStatus', () => {
   it('returns not applicable without a paid-card pending request', () => {
@@ -23,7 +24,7 @@ describe('adminUserMembershipPaymentListStatus', () => {
         sailingCardRequests: [
           {
             cardType: SailingCardType.normal,
-            cardYear,
+            cardYear: currentCardYear(),
             status: SailingCardRequestStatus.pending,
           },
         ],
@@ -38,7 +39,7 @@ describe('adminUserMembershipPaymentListStatus', () => {
         sailingCardRequests: [
           {
             cardType: SailingCardType.racing,
-            cardYear,
+            cardYear: currentCardYear(),
             status: SailingCardRequestStatus.pending,
           },
         ],
@@ -52,7 +53,7 @@ describe('adminUserMembershipPaymentListStatus', () => {
         payments: [
           {
             cardType: SailingCardType.racing,
-            cardYear,
+            cardYear: currentCardYear(),
             createdAt: new Date('2026-01-02T00:00:00.000Z'),
             purpose: PaymentPurpose.membership,
             status: PaymentStatus.checkout_created,
@@ -61,7 +62,7 @@ describe('adminUserMembershipPaymentListStatus', () => {
         sailingCardRequests: [
           {
             cardType: SailingCardType.racing,
-            cardYear,
+            cardYear: currentCardYear(),
             status: SailingCardRequestStatus.pending,
           },
         ],
@@ -77,7 +78,7 @@ describe('pendingCardTypeFromUser', () => {
         sailingCardRequests: [
           {
             cardType: SailingCardType.team_racing,
-            cardYear,
+            cardYear: currentCardYear(),
             status: SailingCardRequestStatus.pending,
           },
         ],
@@ -92,7 +93,7 @@ describe('membershipPaymentStatusFilterWhere', () => {
       payments: {
         none: {
           cardType: 'racing',
-          cardYear,
+          cardYear: currentCardYear(),
           purpose: PaymentPurpose.membership,
           status: PaymentStatus.paid,
         },
@@ -100,7 +101,7 @@ describe('membershipPaymentStatusFilterWhere', () => {
       sailingCardRequests: {
         some: {
           cardType: 'racing',
-          cardYear,
+          cardYear: currentCardYear(),
           status: SailingCardRequestStatus.pending,
         },
       },

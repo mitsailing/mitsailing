@@ -8,6 +8,7 @@ import {
 } from '@/generated/prisma/enums';
 import { Link } from '@/libs/I18nNavigation';
 import type { UserPaymentRow } from '@/libs/mit-sailing/userPaymentQueries';
+import { safeStripeHostedPaymentHref } from '@/libs/stripe/stripeHostedPaymentHref';
 
 type ProfilePaymentsTranslations = Awaited<
   ReturnType<typeof getTranslations<'UserProfilePage'>>
@@ -138,14 +139,13 @@ function ProfilePaymentReceipt(props: {
   readonly payment: UserPaymentRow;
   readonly t: ProfilePaymentsTranslations;
 }) {
-  if (
-    props.payment.receiptUrl &&
-    props.payment.status !== PaymentStatus.handled
-  ) {
+  const receiptHref = safeStripeHostedPaymentHref(props.payment.receiptUrl);
+  if (receiptHref && props.payment.status !== PaymentStatus.handled) {
     return (
+      // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- safeStripeHostedPaymentHref restricts receipt links to Stripe-hosted HTTPS payment URLs.
       <a
         className="inline-flex items-center gap-1 font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-        href={props.payment.receiptUrl}
+        href={receiptHref}
         rel="noopener noreferrer"
         target="_blank"
       >

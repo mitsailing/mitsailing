@@ -94,6 +94,26 @@ describe('ProfilePaymentsView', () => {
     expect(receiptLink).toHaveAttribute('target', '_blank');
   });
 
+  it('hides a receipt link when the stored url is not stripe-hosted https', () => {
+    render(
+      <ProfilePaymentsView
+        locale="en"
+        payments={[
+          {
+            ...basePayment,
+            event: { name: 'Firefly Clinic', slug: 'firefly-clinic' },
+            receiptUrl: ['java', 'script:alert(1)'].join(''),
+            status: PaymentStatus.paid,
+          },
+        ]}
+        t={t}
+      />
+    );
+
+    expect(screen.queryByRole('link', { name: 'Receipt' })).toBeNull();
+    expect(screen.getByText('None')).toBeVisible();
+  });
+
   it('links the payment title to the event page', () => {
     render(
       <ProfilePaymentsView
