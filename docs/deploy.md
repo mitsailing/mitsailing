@@ -147,13 +147,17 @@ docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production \
 Set `PGHERO_DATABASE_URL`, `PGHERO_USERNAME`, and `PGHERO_PASSWORD` in
 `.env.production`. Live query stats use PgHero's documented
 `pg_stat_statements` settings in Compose plus the
-`CREATE EXTENSION IF NOT EXISTS pg_stat_statements` migration. Historical query
-stats are captured every five minutes by `pghero_query_stats` with
-`bin/rake pghero:capture_query_stats`. Historical space stats are captured daily
-by `pghero_space_stats` with `bin/rake pghero:capture_space_stats`, then old
-rows are pruned (`KEEP_DAYS=14` for queries, `KEEP_DAYS=90` for space). Those
-capture jobs share the PgHero image and `PGHERO_DATABASE_URL`; they are not
-published and are started with `--no-recreate`. The dashboard container is still
+`CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public`
+migration. Historical query stats are captured every five minutes by
+`pghero_query_stats` with `bin/rake pghero:capture_query_stats`. Historical
+space stats are captured daily by `pghero_space_stats` with
+`bin/rake pghero:capture_space_stats`, then old rows are pruned (`KEEP_DAYS=14`
+for queries, `KEEP_DAYS=90` for space). Using package PgHero because it provides
+the historical capture and cleanup rake tasks, and using the existing
+single-host Compose service pattern because these jobs must run beside the
+production PgHero container. Those capture jobs share the PgHero image and
+`PGHERO_DATABASE_URL`; they are not published and are force-recreated on deploy
+so credential and image changes apply. The dashboard container is still
 force-recreated so compose/env changes apply. The built-in
 PgHero Tune page links to `https://pgtune.leopard.in.ua/`; use that with the
 actual host RAM/CPU and PostgreSQL version before changing Postgres tuning in a
@@ -174,7 +178,9 @@ To inspect `/mail/` 401s, use app nginx access logs:
 
 Do not expose Mailpit SMTP or POP3 on a public hostname. Recreating the Mailpit
 container is safe for `/mail/` because app nginx re-resolves `mailpit` through
-Docker DNS.
+Docker DNS with a 1-second resolver cache and retries a failed connect. After
+replacing Mailpit, request `/mail/` immediately; it should still return 401 or
+403, not 502.
 
 Protect `pghero.mitsailing.com` with PgHero basic auth plus that PgHero-only
 rate-limit rule. There is no Cloudflare Access application on PgHero.

@@ -428,11 +428,13 @@ describe('production docker compose', () => {
     expect(pgheroCaptureDefaultsBlock).not.toContain('PGHERO_USERNAME');
     expectContainsFragments(pgheroQueryStatsBlock, [
       '<<: *pghero-capture',
+      'set -eu',
       'bin/rake pghero:capture_query_stats',
       'sleep 300',
     ]);
     expectContainsFragments(pgheroSpaceStatsBlock, [
       '<<: *pghero-capture',
+      'set -eu',
       'bin/rake pghero:capture_space_stats',
       'bin/rake pghero:clean_query_stats KEEP_DAYS=14',
       'bin/rake pghero:clean_space_stats KEEP_DAYS=90',
@@ -444,6 +446,8 @@ describe('production docker compose', () => {
       'query_id bigint',
       'CREATE TABLE pghero_space_stats',
       'CREATE SCHEMA IF NOT EXISTS pghero',
+      'CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public',
+      'ALTER EXTENSION pg_stat_statements SET SCHEMA public',
       'CREATE ROLE pghero',
       'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE pghero_queries',
     ]);
@@ -506,6 +510,10 @@ describe('production docker compose', () => {
     expect(deployRunbook).not.toContain(
       'curl -fsSI https://mitsailing.com/mail/'
     );
+    expect(deployRunbook).toContain(
+      'request `/mail/` immediately; it should still return 401 or'
+    );
+    expect(deployRunbook).toContain('not 502');
   });
 
   it('documents protected PgHero subdomain verification', () => {
@@ -886,13 +894,16 @@ describe('production deploy script', () => {
     expect(deployScript).toContain(`return 308 ${mailpitRouteVariable}/;`);
     expect(deployScript).toContain(`location ${mailpitRouteVariable}/`);
     expect(deployScript).toContain('port_in_redirect off;');
-    expect(deployScript).toContain('resolver 127.0.0.11 valid=10s ipv6=off;');
+    expect(deployScript).toContain('resolver 127.0.0.11 valid=1s ipv6=off;');
     expect(deployScript).toContain(
       String.raw`set \$mailpit_upstream mailpit:8025;`
     );
     expect(deployScript).toContain(
       String.raw`proxy_pass http://\$mailpit_upstream;`
     );
+    expect(deployScript).toContain('proxy_connect_timeout 2s;');
+    expect(deployScript).toContain('proxy_next_upstream error timeout;');
+    expect(deployScript).toContain('proxy_next_upstream_tries 2;');
   });
 
   it('verifies production data mounts before running migrations', () => {

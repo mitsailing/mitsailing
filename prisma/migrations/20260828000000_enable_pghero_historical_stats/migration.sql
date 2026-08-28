@@ -33,6 +33,25 @@ CREATE INDEX ON pghero_space_stats (database, captured_at);
 
 CREATE SCHEMA IF NOT EXISTS pghero;
 
+-- Pin pg_stat_statements in public so pghero.pg_stat_statements() matches
+-- PgHero's permissions guide. Relocate an existing relocatable install.
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public;
+DO $$
+DECLARE
+  current_schema_name text;
+BEGIN
+  SELECT n.nspname
+  INTO current_schema_name
+  FROM pg_extension e
+  JOIN pg_namespace n ON n.oid = e.extnamespace
+  WHERE e.extname = 'pg_stat_statements';
+
+  IF current_schema_name IS NOT NULL AND current_schema_name <> 'public' THEN
+    EXECUTE 'ALTER EXTENSION pg_stat_statements SET SCHEMA public';
+  END IF;
+END
+$$;
+
 CREATE OR REPLACE FUNCTION pghero.pg_stat_activity() RETURNS SETOF pg_stat_activity AS
 $$
   SELECT * FROM pg_catalog.pg_stat_activity;

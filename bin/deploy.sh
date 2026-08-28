@@ -271,7 +271,7 @@ server {
   port_in_redirect off;
 
   # Docker embedded DNS so Mailpit recreates do not leave a stale upstream IP.
-  resolver 127.0.0.11 valid=10s ipv6=off;
+  resolver 127.0.0.11 valid=1s ipv6=off;
 
   client_max_body_size 500m;
   client_body_timeout ${DEPLOY_DRAIN_SECONDS}s;
@@ -288,10 +288,11 @@ server {
     proxy_http_version 1.1;
     proxy_request_buffering off;
     proxy_buffering off;
-    proxy_connect_timeout 30s;
+    proxy_connect_timeout 2s;
     proxy_send_timeout ${DEPLOY_DRAIN_SECONDS}s;
     proxy_read_timeout ${DEPLOY_DRAIN_SECONDS}s;
-    proxy_next_upstream off;
+    proxy_next_upstream error timeout;
+    proxy_next_upstream_tries 2;
     proxy_set_header Host \$host;
     proxy_set_header X-Real-IP \$remote_addr;
     proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -397,10 +398,12 @@ run_migrations_for_service() {
 
 ensure_ingress_services() {
   log "ensuring data, mail, upload, and media services are running"
-  compose up --detach --no-recreate postgres redis mailpit pghero_query_stats pghero_space_stats tusd media
+  compose up --detach --no-recreate postgres redis mailpit tusd media
   wait_for_service_health postgres "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health redis "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health mailpit "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  log "recreating PgHero capture jobs so compose and credential changes apply"
+  compose up --detach --no-deps --force-recreate pghero_query_stats pghero_space_stats
   wait_for_service_health pghero_query_stats "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health pghero_space_stats "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   log "recreating stateless PgHero so compose and env changes apply"

@@ -25,7 +25,12 @@
     "typescript/strict-boolean-expressions": "off",
     "typescript/consistent-type-definitions": ["error", "type"], // Use `type` instead of `interface`
     "typescript/no-misused-promises": "off", // React Hook Form's handleSubmit returns a Promise-typed handler
-    "typescript/no-deprecated": "off", // Keep next-intl setRequestLocale until a root-params migration
+    "typescript/no-deprecated": [
+      "error",
+      {
+        "allow": ["setRequestLocale", "requestLocale"]
+      }
+    ], // Keep next-intl request locale APIs until a root-params migration
 
     "react-perf/jsx-no-new-function-as-prop": "off",
 
