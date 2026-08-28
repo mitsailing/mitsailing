@@ -79,6 +79,34 @@ async function resolveDraftForUpsert(
 }
 
 /**
+ * Schedules BullMQ abandon-email enqueue after the Server Action response.
+ *
+ * Next.js 16 `after()` only covers post-response work in this Node process.
+ * The 1-hour delay and durable retries live in Redis/BullMQ (worker), not here.
+ *
+ * @param requestId - Saved draft request id
+ * @see https://nextjs.org/docs/app/api-reference/functions/after
+ */
+function scheduleAbandonEmailEnqueueAfterResponse(requestId: string): void {
+  after(async () => {
+    try {
+      await enqueuePavilionReservationAbandonEmail(getDefaultQueue(), {
+        requestId,
+      });
+    } catch (error) {
+      logger.error(
+        '[pavilion-reservation:abandon-email-enqueue] request_id={requestId} error_name={errorName} error_code={errorCode}',
+        {
+          errorCode: safeErrorCode(error) ?? 'unknown',
+          errorName: safeErrorName(error),
+          requestId,
+        }
+      );
+    }
+  });
+}
+
+/**
  * Loads a draft seed for same-tab session resume using a stored token.
  *
  * @param resumeToken - Opaque resume token from sessionStorage
@@ -217,22 +245,7 @@ export async function upsertPavilionReservationDraftAction(
       return { ok: false };
     }
 
-    after(async () => {
-      try {
-        await enqueuePavilionReservationAbandonEmail(getDefaultQueue(), {
-          requestId: saved.requestId,
-        });
-      } catch (error) {
-        logger.error(
-          '[pavilion-reservation:abandon-email-enqueue] request_id={requestId} error_name={errorName} error_code={errorCode}',
-          {
-            errorCode: safeErrorCode(error) ?? 'unknown',
-            errorName: safeErrorName(error),
-            requestId: saved.requestId,
-          }
-        );
-      }
-    });
+    scheduleAbandonEmailEnqueueAfterResponse(saved.requestId);
 
     return {
       ok: true,

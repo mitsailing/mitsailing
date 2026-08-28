@@ -185,3 +185,80 @@ describe('processPavilionReservationAbandonEmailJob', () => {
     });
   });
 });
+
+describe('enqueuePavilionReservationAbandonEmail', () => {
+  it('slides delay when an existing job is delayed', async () => {
+    const changeDelay = vi.fn().mockReturnValue(Promise.resolve());
+    const queue = {
+      add: vi.fn(),
+      getJob: vi.fn().mockResolvedValue({
+        changeDelay,
+        getState: vi.fn().mockResolvedValue('delayed'),
+        remove: vi.fn(),
+      }),
+    };
+
+    const {
+      PAVILION_RESERVATION_ABANDON_EMAIL_DELAY_MS,
+      enqueuePavilionReservationAbandonEmail,
+    } = await import('@/worker/pavilionReservationAbandonEmailJob');
+
+    await enqueuePavilionReservationAbandonEmail(queue, {
+      requestId: 'req-1',
+    });
+
+    expect(changeDelay).toHaveBeenCalledWith(
+      PAVILION_RESERVATION_ABANDON_EMAIL_DELAY_MS
+    );
+    expect(queue.add).not.toHaveBeenCalled();
+  });
+
+  it('removes waiting jobs then adds a fresh delayed job', async () => {
+    const remove = vi.fn().mockReturnValue(Promise.resolve());
+    const add = vi.fn().mockReturnValue(Promise.resolve());
+    const queue = {
+      add,
+      getJob: vi.fn().mockResolvedValue({
+        changeDelay: vi.fn(),
+        getState: vi.fn().mockResolvedValue('waiting'),
+        remove,
+      }),
+    };
+
+    const {
+      PAVILION_RESERVATION_ABANDON_EMAIL_JOB_NAME,
+      enqueuePavilionReservationAbandonEmail,
+    } = await import('@/worker/pavilionReservationAbandonEmailJob');
+
+    await enqueuePavilionReservationAbandonEmail(queue, {
+      requestId: 'req-2',
+    });
+
+    expect(remove).toHaveBeenCalledOnce();
+    expect(add).toHaveBeenCalledWith(
+      PAVILION_RESERVATION_ABANDON_EMAIL_JOB_NAME,
+      { requestId: 'req-2' },
+      expect.objectContaining({
+        delay: expect.any(Number),
+        jobId: 'pavilion-reservation-abandon-email-req-2',
+      })
+    );
+  });
+
+  it('adds a delayed job when none exists', async () => {
+    const add = vi.fn().mockReturnValue(Promise.resolve());
+    const queue = {
+      add,
+      getJob: vi.fn().mockResolvedValue(null),
+    };
+
+    const { enqueuePavilionReservationAbandonEmail } =
+      await import('@/worker/pavilionReservationAbandonEmailJob');
+
+    await enqueuePavilionReservationAbandonEmail(queue, {
+      requestId: 'req-3',
+    });
+
+    expect(add).toHaveBeenCalledOnce();
+  });
+});

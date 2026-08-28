@@ -162,10 +162,17 @@ async function attemptAbandonEmailSend(requestId: string): Promise<void> {
   await sendAbandonEmailAfterFreshClaim(requestId);
 }
 
+const REMOVABLE_ABANDON_EMAIL_JOB_STATES = new Set([
+  'prioritized',
+  'waiting',
+  'waiting-children',
+]);
+
 /**
  * Slides a delayed abandon job, or replaces a non-delayed duplicate.
  *
- * BullMQ `changeDelay` only applies to jobs in the delayed state.
+ * BullMQ `changeDelay` only applies to jobs in the delayed state; waiting
+ * duplicates are removed so a fresh delayed job can be added.
  *
  * @param queue - Default BullMQ queue
  * @param jobId - Stable abandon-email job id
@@ -185,11 +192,7 @@ async function rescheduleOrReplaceAbandonEmailJob(
     await existing.changeDelay(PAVILION_RESERVATION_ABANDON_EMAIL_DELAY_MS);
     return true;
   }
-  if (
-    state === 'waiting' ||
-    state === 'prioritized' ||
-    state === 'waiting-children'
-  ) {
+  if (REMOVABLE_ABANDON_EMAIL_JOB_STATES.has(state)) {
     await existing.remove();
   }
   return false;
