@@ -162,7 +162,7 @@
     "cross-env": "^10.1.0",
     "dotenv-cli": "^11.0.0",
     "esbuild": "^0.28.0",
-    "happy-dom": "^20.11.12",
+    "happy-dom": "20.11.12",
     "jsdom": "^29.1.1",
     "knip": "6.15.0",
     "lefthook": "2.1.9",
@@ -197,11 +197,17 @@
     "ip-address": "10.3.1",
     "kysely": "0.28.17",
     "lodash-es": "4.18.1",
+    "@react-email/ui": {
+      "next": {
+        "postcss": "$postcss"
+      },
+      "postcss": "$postcss"
+    },
     "next": {
-      "postcss": "8.5.26"
+      "postcss": "$postcss"
     },
     "npm": "11.19.0",
-    "postcss": "8.5.26",
+    "postcss": "$postcss",
     "qs": "6.15.2",
     "resend": {
       "svix": "1.92.2"
