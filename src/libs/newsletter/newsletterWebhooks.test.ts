@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => {
     ensureEmailMessageIdForResendEvent: vi.fn(),
     recordResendEmailMessageEvent: vi.fn(),
     logger: {
+      error: vi.fn(),
       info: vi.fn(),
       warn: vi.fn(),
     },
@@ -307,7 +308,7 @@ describe('handleResendNewsletterWebhook', () => {
     expect(mocks.tx.newsletterDelivery.updateMany).not.toHaveBeenCalled();
     expect(mocks.tx.newsletterDelivery.findFirst).not.toHaveBeenCalled();
     expect(mocks.tx.newsletterEvent.create).not.toHaveBeenCalled();
-    expect(mocks.logger.warn).toHaveBeenCalledWith(
+    expect(mocks.logger.error).toHaveBeenCalledWith(
       'Skipping newsletter webhook with invalid timestamp',
       expect.objectContaining({ timestamp: 'not-a-date' })
     );

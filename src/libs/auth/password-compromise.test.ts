@@ -6,6 +6,10 @@ const mockEnv = vi.hoisted(() => ({
   NODE_ENV: 'production' as 'development' | 'production' | 'test',
 }));
 
+const mockLogger = vi.hoisted(() => ({
+  error: vi.fn(),
+}));
+
 const MockAPIError = vi.hoisted(
   () =>
     class APIError extends Error {
@@ -33,23 +37,22 @@ const MockAPIError = vi.hoisted(
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/libs/Env', () => ({ Env: mockEnv }));
+vi.mock('@/libs/Logger', () => ({ logger: mockLogger }));
 vi.mock('better-auth/api', () => ({ APIError: MockAPIError }));
 
 describe('assertPasswordNotCompromised', () => {
   let fetchSpy: MockInstance<(typeof globalThis)['fetch']>;
-  let warnSpy: MockInstance<typeof console.warn>;
 
   beforeEach(() => {
     vi.resetModules();
     mockEnv.IS_E2E = undefined;
     mockEnv.NODE_ENV = 'production';
+    mockLogger.error.mockClear();
     fetchSpy = vi.spyOn(globalThis, 'fetch');
-    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
     vi.useRealTimers();
-    warnSpy.mockRestore();
     fetchSpy.mockRestore();
   });
 
@@ -135,22 +138,27 @@ describe('assertPasswordNotCompromised', () => {
     await expect(assertPasswordNotCompromised('password')).resolves.toBe(
       undefined
     );
-    expect(warnSpy).toHaveBeenCalledWith('Password breach lookup failed.', {
-      status: 503,
-    });
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      'Password breach lookup failed',
+      {
+        status: 503,
+      }
+    );
   });
 
   it('continue when breach lookup has network failure', async () => {
-    fetchSpy.mockRejectedValue(new TypeError('network down'));
+    const networkError = new TypeError('network down');
+    fetchSpy.mockRejectedValue(networkError);
     const { assertPasswordNotCompromised } =
       await import('@/libs/auth/password-compromise');
 
     await expect(assertPasswordNotCompromised('password')).resolves.toBe(
       undefined
     );
-    expect(warnSpy).toHaveBeenCalledWith('Password breach lookup failed.', {
-      message: 'network down',
-    });
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      'Password breach lookup failed',
+      { error: networkError }
+    );
   });
 
   it('continue when breach lookup rejects without error object', async () => {
@@ -161,21 +169,24 @@ describe('assertPasswordNotCompromised', () => {
     await expect(assertPasswordNotCompromised('password')).resolves.toBe(
       undefined
     );
-    expect(warnSpy).toHaveBeenCalledWith('Password breach lookup failed.', {
-      message: 'network down',
-    });
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      'Password breach lookup failed',
+      { error: 'network down' }
+    );
   });
 
   it('continue when breach lookup times out', async () => {
-    fetchSpy.mockRejectedValue(new DOMException('Timed out', 'AbortError'));
+    const abortError = new DOMException('Timed out', 'AbortError');
+    fetchSpy.mockRejectedValue(abortError);
     const { assertPasswordNotCompromised } =
       await import('@/libs/auth/password-compromise');
 
     await expect(assertPasswordNotCompromised('password')).resolves.toBe(
       undefined
     );
-    expect(warnSpy).toHaveBeenCalledWith(
-      'Password breach lookup timed out or aborted.'
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      'Password breach lookup timed out or aborted',
+      { error: abortError }
     );
   });
 
@@ -189,8 +200,9 @@ describe('assertPasswordNotCompromised', () => {
     await expect(assertPasswordNotCompromised('password')).resolves.toBe(
       undefined
     );
-    expect(warnSpy).toHaveBeenCalledWith(
-      'Password breach lookup timed out or aborted.'
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      'Password breach lookup timed out or aborted',
+      { error: abortError }
     );
   });
 

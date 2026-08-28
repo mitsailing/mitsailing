@@ -388,7 +388,7 @@ export async function handleResendNewsletterWebhook(
   }
   const occurredAt = resendWebhookOccurredAt(event);
   if (!occurredAt) {
-    logger.warn('Skipping newsletter webhook with invalid timestamp', {
+    logger.error('Skipping newsletter webhook with invalid timestamp', {
       providerMessageId,
       timestamp: event.created_at,
       type: event.type,
@@ -402,7 +402,7 @@ export async function handleResendNewsletterWebhook(
     providerMessageId,
   });
   if (!providerEventId) {
-    logger.warn('Skipping newsletter webhook without provider event id', {
+    logger.error('Skipping newsletter webhook without provider event id', {
       providerMessageId,
       timestamp: event.created_at,
       type: event.type,

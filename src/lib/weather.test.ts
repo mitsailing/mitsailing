@@ -183,7 +183,7 @@ describe('fetchWeatherHeaderData', () => {
     expect(mockWarn).not.toHaveBeenCalled();
   });
 
-  it('logs parse warning when prepared upstream body is empty', async () => {
+  it('logs parse error when prepared upstream body is empty', async () => {
     fetchSpy.mockResolvedValue(new Response('<html></html>', { status: 200 }));
 
     const { fetchWeatherHeaderData } = await import('@/lib/weather');
@@ -196,12 +196,12 @@ describe('fetchWeatherHeaderData', () => {
       sunsetText: null,
       isFallback: true,
     });
-    expect(mockWarn).toHaveBeenCalledTimes(1);
-    expect(mockWarn.mock.calls[0]?.[0]).toMatch(/reason=empty_body/u);
-    expect(mockError).not.toHaveBeenCalled();
+    expect(mockError).toHaveBeenCalledTimes(1);
+    expect(mockError.mock.calls[0]?.[0]).toMatch(/reason=empty_body/u);
+    expect(mockWarn).not.toHaveBeenCalled();
   });
 
-  it('logs incomplete quartet warning and returns partial display fields', async () => {
+  it('logs incomplete quartet error and returns partial display fields', async () => {
     fetchSpy.mockResolvedValue(
       new Response('Wind calm, Air 50°F, Water 55°F', {
         headers: {
@@ -222,12 +222,12 @@ describe('fetchWeatherHeaderData', () => {
       isFallback: true,
       sourceTimestamp: 'Fri, 03 Jan 2025 00:00:00 GMT',
     });
-    expect(mockWarn).toHaveBeenCalledTimes(1);
-    expect(mockWarn.mock.calls[0]?.[0]).toMatch(/reason=incomplete_quartet/u);
-    expect(mockError).not.toHaveBeenCalled();
+    expect(mockError).toHaveBeenCalledTimes(1);
+    expect(mockError.mock.calls[0]?.[0]).toMatch(/reason=incomplete_quartet/u);
+    expect(mockWarn).not.toHaveBeenCalled();
   });
 
-  it('logs one operational warn on non-OK without error-level noise', async () => {
+  it('logs error on non-OK upstream status', async () => {
     fetchSpy.mockResolvedValue(new Response(null, { status: 503 }));
 
     const { fetchWeatherHeaderData } = await import('@/lib/weather');
@@ -235,15 +235,15 @@ describe('fetchWeatherHeaderData', () => {
 
     expect(result.isFallback).toBe(true);
     expect(result.windText).toBeNull();
-    expect(mockWarn).toHaveBeenCalledTimes(1);
-    const fetchWarnFirst = mockWarn.mock.calls[0]?.[0];
-    expect(fetchWarnFirst).toBeDefined();
-    expect(fetchWarnFirst).toMatch(/\[mit-weather:fetch\]/u);
-    expect(fetchWarnFirst).toMatch(/status=503/u);
-    expect(mockError).not.toHaveBeenCalled();
+    expect(mockError).toHaveBeenCalledTimes(1);
+    const fetchErrorFirst = mockError.mock.calls[0]?.[0];
+    expect(fetchErrorFirst).toBeDefined();
+    expect(fetchErrorFirst).toMatch(/\[mit-weather:fetch\]/u);
+    expect(fetchErrorFirst).toMatch(/status=503/u);
+    expect(mockWarn).not.toHaveBeenCalled();
   });
 
-  it('logs warn on AbortError paths without error-level spam', async () => {
+  it('logs error on AbortError paths', async () => {
     const abortErr = Object.assign(new Error('Aborted'), {
       name: 'AbortError',
     });
@@ -252,25 +252,37 @@ describe('fetchWeatherHeaderData', () => {
     const { fetchWeatherHeaderData } = await import('@/lib/weather');
     await fetchWeatherHeaderData();
 
-    expect(mockWarn).toHaveBeenCalledTimes(1);
-    const abortWarnFirst = mockWarn.mock.calls[0]?.[0];
-    expect(abortWarnFirst).toBeDefined();
-    expect(abortWarnFirst).toMatch(/timeout_or_abort/u);
-    expect(mockError).not.toHaveBeenCalled();
+    expect(mockError).toHaveBeenCalledTimes(1);
+    const abortErrorFirst = mockError.mock.calls[0]?.[0];
+    expect(abortErrorFirst).toBeDefined();
+    expect(abortErrorFirst).toMatch(/timeout_or_abort/u);
+    expect(mockError.mock.calls[0]?.[1]).toMatchObject({ error: abortErr });
+    expect(mockWarn).not.toHaveBeenCalled();
   });
 
-  it('logs warn only for generic failures and returns fallback quartet', async () => {
-    fetchSpy.mockRejectedValue(new TypeError('network down'));
+  it('logs error for generic failures including cause fields and returns fallback', async () => {
+    const networkError = new TypeError('fetch failed', {
+      cause: Object.assign(
+        new Error('unable to verify the first certificate'),
+        {
+          code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+        }
+      ),
+    });
+    fetchSpy.mockRejectedValue(networkError);
 
     const { fetchWeatherHeaderData } = await import('@/lib/weather');
     const result = await fetchWeatherHeaderData();
 
     expect(result.isFallback).toBe(true);
-    expect(mockWarn).toHaveBeenCalledTimes(1);
-    const errWarnFirst = mockWarn.mock.calls[0]?.[0];
-    expect(errWarnFirst).toBeDefined();
-    expect(errWarnFirst).toMatch(/TypeError/u);
-    expect(mockError).not.toHaveBeenCalled();
+    expect(mockError).toHaveBeenCalledTimes(1);
+    const [errPayload] = mockError.mock.calls;
+    expect(errPayload?.[0]).toMatch(/TypeError/u);
+    expect(errPayload?.[1]).toMatchObject({
+      causeCode: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+      error: networkError,
+    });
+    expect(mockWarn).not.toHaveBeenCalled();
   });
 
   it('logs non-Error failures as string details', async () => {
@@ -280,8 +292,8 @@ describe('fetchWeatherHeaderData', () => {
     const result = await fetchWeatherHeaderData();
 
     expect(result.isFallback).toBe(true);
-    expect(mockWarn).toHaveBeenCalledTimes(1);
-    expect(mockWarn.mock.calls[0]?.[0]).toMatch(/message=offline/u);
-    expect(mockError).not.toHaveBeenCalled();
+    expect(mockError).toHaveBeenCalledTimes(1);
+    expect(mockError.mock.calls[0]?.[0]).toMatch(/message=offline/u);
+    expect(mockWarn).not.toHaveBeenCalled();
   });
 });

@@ -52,15 +52,44 @@ let weatherHeaderCache: WeatherHeaderCacheEntry | null = null;
 /** Shared in-flight refresh promise so concurrent requests await one upstream fetch; cleared when refresh completes. */
 let weatherHeaderRefresh: Promise<WeatherHeaderData> | null = null;
 
+function errorCauseFields(error: unknown): Record<string, string> {
+  if (!(error instanceof Error) || error.cause === undefined) {
+    return {};
+  }
+
+  const { cause } = error;
+  if (cause instanceof Error) {
+    const fields: Record<string, string> = {
+      causeName: cause.name,
+      causeMessage: cause.message,
+    };
+    if (
+      'code' in cause &&
+      (typeof cause.code === 'string' || typeof cause.code === 'number')
+    ) {
+      fields.causeCode = String(cause.code);
+    }
+
+    return fields;
+  }
+
+  if (typeof cause === 'string') {
+    return { causeMessage: cause };
+  }
+
+  return {};
+}
+
 /**
- * Operational `warn` — single-line `{key=value}` suffix for grep; avoids `error`/Sentry for routine upstream issues.
+ * Logs a weather brownout at error level so the LogTape Sentry sink opens an Issue.
  *
  * @param options - `where` narrows the code path; `detail` is serialized as `k=v` pairs
  */
-function logMitWeatherWarn(
+function reportMitWeatherFailure(
   options: Readonly<{
     where: string;
     detail: Record<string, string | number>;
+    error?: unknown;
   }>
 ): void {
   const bits = [`[mit-weather:${options.where}]`];
@@ -68,7 +97,12 @@ function logMitWeatherWarn(
     bits.push(`${k}=${String(v)}`);
   }
 
-  logger.warn(bits.join(' '));
+  const message = bits.join(' ');
+  if (options.error !== undefined) {
+    logger.error(message, { error: options.error, ...options.detail });
+    return;
+  }
+  logger.error(message, options.detail);
 }
 
 /**
@@ -84,10 +118,11 @@ async function fetchFreshWeatherHeaderData(): Promise<WeatherHeaderData> {
     });
 
     if (!response.ok) {
-      logMitWeatherWarn({
+      reportMitWeatherFailure({
         where: 'fetch',
         detail: {
           url: MIT_WEATHER_TXT_URL,
+          reason: 'http_not_ok',
           status: response.status,
         },
       });
@@ -97,7 +132,7 @@ async function fetchFreshWeatherHeaderData(): Promise<WeatherHeaderData> {
     const rawBody = await response.text();
     const normalized = prepareMitWeatherUpstreamText(rawBody);
     if (!normalized) {
-      logMitWeatherWarn({
+      reportMitWeatherFailure({
         where: 'parse',
         detail: {
           url: MIT_WEATHER_TXT_URL,
@@ -118,7 +153,7 @@ async function fetchFreshWeatherHeaderData(): Promise<WeatherHeaderData> {
     const complete = segmentsQuartetComplete(parsed);
 
     if (!complete) {
-      logMitWeatherWarn({
+      reportMitWeatherFailure({
         where: 'parse',
         detail: {
           url: MIT_WEATHER_TXT_URL,
@@ -143,12 +178,13 @@ async function fetchFreshWeatherHeaderData(): Promise<WeatherHeaderData> {
       (error.name === 'AbortError' || error.message.includes('abort'));
 
     if (aborted) {
-      logMitWeatherWarn({
+      reportMitWeatherFailure({
         where: 'fetch',
         detail: {
           url: MIT_WEATHER_TXT_URL,
           reason: 'timeout_or_abort',
         },
+        error,
       });
       return FALLBACK_BROWNOUT;
     }
@@ -158,13 +194,15 @@ async function fetchFreshWeatherHeaderData(): Promise<WeatherHeaderData> {
         ? `${error.name}: ${error.message}`
         : String(error);
 
-    logMitWeatherWarn({
+    reportMitWeatherFailure({
       where: 'fetch',
       detail: {
         url: MIT_WEATHER_TXT_URL,
         reason: 'failure',
         message: failureDetail,
+        ...errorCauseFields(error),
       },
+      error,
     });
 
     return FALLBACK_BROWNOUT;

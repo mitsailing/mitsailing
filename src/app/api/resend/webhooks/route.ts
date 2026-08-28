@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/nextjs';
 import { NextResponse } from 'next/server';
 import type { WebhookEventPayload } from 'resend';
 import { Resend } from 'resend';
@@ -57,7 +56,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     logger.error('Failed to verify Resend webhook: {error}', { error });
-    Sentry.captureException(error);
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
@@ -89,7 +87,6 @@ export async function POST(request: Request) {
       providerEventId: context.providerEventId,
       type: event.type,
     });
-    Sentry.captureException(error);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
