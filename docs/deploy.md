@@ -140,24 +140,18 @@ PgHero Tune page links to `https://pgtune.leopard.in.ua/`; use that with the
 actual host RAM/CPU and PostgreSQL version before changing Postgres tuning in a
 reviewed Compose PR. Do not hand-edit production-only Postgres settings.
 
-Protect `/mail/` with two gates: Cloudflare Access, then Mailpit HTTP basic
-auth (`MAILPIT_UI_AUTH`). Access application `Mailpit` covers
-`mitsailing.com/mail*` and `www.mitsailing.com/mail*` and allows only
-`ak@callred.com`. Cloudflare logs Access sign-ins. Mailpit does not log failed
+Protect `/mail/` with Mailpit HTTP basic auth (`MAILPIT_UI_AUTH`) only. There
+is no Cloudflare Access application on `/mail/`. Mailpit does not log failed
 HTTP basic-auth attempts in its UI (the changelog “failed login tracking” is
 POP3 only; production does not expose POP3).
 
 This zone’s Cloudflare plan allows one rate-limit rule, a 10-second counting
 window, and a 10-second block. That cannot lock out after a few failed
-passwords, so it is not used as the Mailpit brute-force control. The zone rule
-only covers `pghero.mitsailing.com` (20 requests / 10 seconds / IP, 10-second
-block).
+passwords. The zone rule only covers `pghero.mitsailing.com` (20 requests /
+10 seconds / IP, 10-second block).
 
-To inspect `/mail/` access:
-
-- Cloudflare Zero Trust Access logs for the `Mailpit` application.
-- App nginx access logs: `docker logs mitsailing-app-1` for `/mail/` `401`
-  lines after Access has already passed.
+To inspect `/mail/` 401s, use app nginx access logs:
+`docker logs mitsailing-app-1`.
 
 Do not expose Mailpit SMTP or POP3 on a public hostname. Recreating the Mailpit
 container is safe for `/mail/` because app nginx re-resolves `mailpit` through

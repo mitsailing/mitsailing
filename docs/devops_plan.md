@@ -55,8 +55,7 @@ Mailpit owns selective pass-through with `MP_SMTP_RELAY_MATCHING` and Resend
 SMTP relay settings. The website does not inspect recipients or decide whether a
 message leaves Mailpit.
 
-Protect `/mail/` with Cloudflare Access (`ak@callred.com`) and Mailpit basic
-auth (`MAILPIT_UI_AUTH`).
+Protect `/mail/` with Mailpit basic auth (`MAILPIT_UI_AUTH`).
 
 ## Deploy Model
 

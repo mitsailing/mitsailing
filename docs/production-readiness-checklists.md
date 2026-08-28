@@ -94,7 +94,7 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | E2E standalone runtime has a complete SMTP sender config. | Pass | `playwright.config.ts` defaults `EMAIL_FROM` to `MIT Sailing <noreply@mitsailing.test>` before starting the standalone server. |
 | Tests isolate reads through recipient-scoped API queries. | Pass | `findLatestMessageToMatching` searches Mailpit with `to:<email>` and fetches full messages by ID before assertions. |
 | Test cleanup uses Mailpit API deletion. | Pass | `deleteAllMessages()` calls `DELETE /api/v1/messages`; individual tests also use unique recipient addresses to avoid parallel-worker collisions. |
-| Unauthenticated Mailpit is limited to local development. | Pass | Local Compose accepts any SMTP credentials only on loopback. Shared staging/production capture uses `MAILPIT_UI_AUTH`, app nginx proxies Mailpit at `/mail/`, and Cloudflare Access restricts the path to `ak@callred.com`. |
+| Unauthenticated Mailpit is limited to local development. | Pass | Local Compose accepts any SMTP credentials only on loopback. Shared staging/production capture uses `MAILPIT_UI_AUTH`, and app nginx proxies Mailpit at `/mail/`. |
 | Mailpit CORS is not opened broadly. | Pass | No `MP_API_CORS=*` or browser cross-origin Mailpit API access is configured; tests call the API server-side from Playwright helpers. |
 
 ## PgHero
