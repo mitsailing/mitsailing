@@ -188,6 +188,8 @@ export async function listAdminUserPaymentHistoryPage(options: {
   };
 }
 
+export const ADMIN_USER_MEMBERSHIP_PAYMENT_ACCESS_HISTORY_LIMIT = 10;
+
 export async function listAdminUserCurrentMembershipPaymentAccessHistory(options: {
   readonly cardYear: number;
   readonly userId: string;
@@ -195,7 +197,7 @@ export async function listAdminUserCurrentMembershipPaymentAccessHistory(options
   const rows = await prisma.payment.findMany({
     orderBy: { createdAt: 'desc' },
     select: paymentHistorySelect,
-    take: 10,
+    take: ADMIN_USER_MEMBERSHIP_PAYMENT_ACCESS_HISTORY_LIMIT,
     where: {
       cardType: {
         in: [SailingCardType.racing, SailingCardType.team_racing],

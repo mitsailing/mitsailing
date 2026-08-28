@@ -4,12 +4,14 @@ import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader'
 import {
   AdminPagination,
   adminPaginationPage,
+  adminPaginationRange,
 } from '@/components/mit-sailing/admin/AdminPagination';
 import { AdminPrimaryActionLink } from '@/components/mit-sailing/admin/AdminPrimaryActionLink';
 import { AdminCatalogTable } from '@/components/mit-sailing/admin/catalog/AdminCatalogTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import type {
   AdminUsersCardTypeFilter,
   AdminUsersMembershipPaymentStatusFilter,
@@ -107,14 +109,7 @@ function adminUsersPaginationSummary(props: {
   readonly pageSize: number;
   readonly total: number;
 }) {
-  if (props.total === 0) {
-    return { end: 0, start: 0 };
-  }
-  const start = (props.page - 1) * props.pageSize + 1;
-  return {
-    end: Math.min(props.total, start + props.pageSize - 1),
-    start,
-  };
+  return adminPaginationRange(props);
 }
 
 function adminUsersFilterParams(filters: AdminUsersListFilters) {
@@ -232,8 +227,8 @@ export default async function AdminUsersIndexPage(
           <Label htmlFor="admin-users-email-status">
             {tr('filter_email_status_label')}
           </Label>
-          <select
-            className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          <NativeSelect
+            className="mt-2"
             defaultValue={filters.emailStatus}
             id="admin-users-email-status"
             name="emailStatus"
@@ -242,14 +237,14 @@ export default async function AdminUsersIndexPage(
             <option value="ok">{tr('email_status_ok')}</option>
             <option value="bounced">{tr('email_status_bounced')}</option>
             <option value="suppressed">{tr('email_status_suppressed')}</option>
-          </select>
+          </NativeSelect>
         </div>
         <div>
           <Label htmlFor="admin-users-card-status">
             {tr('filter_sailing_card_status_label')}
           </Label>
-          <select
-            className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          <NativeSelect
+            className="mt-2"
             defaultValue={filters.sailingCardStatus}
             id="admin-users-card-status"
             name="sailingCardStatus"
@@ -267,14 +262,14 @@ export default async function AdminUsersIndexPage(
             <option value="none">
               {tr('filter_sailing_card_status_none')}
             </option>
-          </select>
+          </NativeSelect>
         </div>
         <div>
           <Label htmlFor="admin-users-card-type">
             {tr('filter_card_type_label')}
           </Label>
-          <select
-            className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          <NativeSelect
+            className="mt-2"
             defaultValue={filters.cardType}
             id="admin-users-card-type"
             name="cardType"
@@ -285,14 +280,14 @@ export default async function AdminUsersIndexPage(
             <option value="team_racing">
               {tr('list_card_type_team_racing')}
             </option>
-          </select>
+          </NativeSelect>
         </div>
         <div>
           <Label htmlFor="admin-users-membership-payment-status">
             {tr('filter_membership_payment_status_label')}
           </Label>
-          <select
-            className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          <NativeSelect
+            className="mt-2"
             defaultValue={filters.membershipPaymentStatus}
             id="admin-users-membership-payment-status"
             name="membershipPaymentStatus"
@@ -310,7 +305,7 @@ export default async function AdminUsersIndexPage(
               {tr('list_membership_payment_past_due')}
             </option>
             <option value="paid">{tr('list_membership_payment_paid')}</option>
-          </select>
+          </NativeSelect>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="submit">{tr('filter_submit')}</Button>

@@ -15,31 +15,6 @@ function isRefundObject(object: StripeRefundObject): boolean {
 }
 
 /**
- * Returns cumulative refunded cents from a Stripe charge or refund object.
- *
- * @param object - Stripe charge.refunded or refund.* event object
- * @param existingRefundedAmountCents - Current stored refunded amount
- * @returns Cumulative refunded cents when known
- */
-export function stripeCumulativeRefundedAmountCents(
-  object: StripeRefundObject,
-  existingRefundedAmountCents: number | null
-): number | null {
-  const amountRefunded = numberValue(object.amount_refunded);
-  if (amountRefunded !== null) {
-    return amountRefunded;
-  }
-  const refundAmount = numberValue(object.amount);
-  if (refundAmount === null) {
-    return existingRefundedAmountCents;
-  }
-  if (isRefundObject(object)) {
-    return (existingRefundedAmountCents ?? 0) + refundAmount;
-  }
-  return refundAmount;
-}
-
-/**
  * Returns the Stripe refund id when the webhook object is a refund.
  *
  * @param object - Stripe refund event object
@@ -50,6 +25,41 @@ function stripeRefundIdFromObject(object: StripeRefundObject): string | null {
     return null;
   }
   return stringValue(object.id);
+}
+
+/**
+ * Returns cumulative refunded cents from a Stripe charge or refund object.
+ *
+ * @param object - Stripe charge.refunded or refund.* event object
+ * @param existingRefundedAmountCents - Current stored refunded amount
+ * @param existingStripeRefundId - Stored Stripe refund id for idempotent updates
+ * @returns Cumulative refunded cents when known
+ */
+export function stripeCumulativeRefundedAmountCents(
+  object: StripeRefundObject,
+  existingRefundedAmountCents: number | null,
+  existingStripeRefundId: string | null = null
+): number | null {
+  const amountRefunded = numberValue(object.amount_refunded);
+  if (amountRefunded !== null) {
+    return amountRefunded;
+  }
+  const refundAmount = numberValue(object.amount);
+  if (refundAmount === null) {
+    return existingRefundedAmountCents;
+  }
+  if (isRefundObject(object)) {
+    const refundId = stripeRefundIdFromObject(object);
+    if (
+      refundId !== null &&
+      existingStripeRefundId !== null &&
+      refundId === existingStripeRefundId
+    ) {
+      return existingRefundedAmountCents;
+    }
+    return (existingRefundedAmountCents ?? 0) + refundAmount;
+  }
+  return refundAmount;
 }
 
 function paidBasisCents(payment: {
@@ -78,6 +88,7 @@ function paymentIsFullyRefunded(options: {
 export function paymentRefundUpdateFromStripe(options: {
   readonly clearActiveCheckoutKeyOnFullRefund?: boolean;
   readonly existingRefundedAmountCents: number | null;
+  readonly existingStripeRefundId?: string | null;
   readonly object: StripeRefundObject;
   readonly payment: {
     readonly amountCents: number;
@@ -86,7 +97,8 @@ export function paymentRefundUpdateFromStripe(options: {
 }) {
   const refundedAmountCents = stripeCumulativeRefundedAmountCents(
     options.object,
-    options.existingRefundedAmountCents
+    options.existingRefundedAmountCents,
+    options.existingStripeRefundId ?? null
   );
   const stripeRefundId = stripeRefundIdFromObject(options.object);
   if (refundedAmountCents === null) {

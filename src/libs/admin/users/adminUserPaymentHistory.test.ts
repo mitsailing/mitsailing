@@ -195,3 +195,36 @@ describe('listAdminUserPaymentHistory', () => {
     });
   });
 });
+
+describe('listAdminUserCurrentMembershipPaymentAccessHistory', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('loads only current-year paid racing membership rows with a fixed cap', async () => {
+    mocks.eventPaymentFindMany.mockResolvedValue([]);
+    const { listAdminUserCurrentMembershipPaymentAccessHistory } =
+      await import('@/libs/admin/users/adminUserPaymentHistory');
+    const { ADMIN_USER_MEMBERSHIP_PAYMENT_ACCESS_HISTORY_LIMIT } =
+      await import('@/libs/admin/users/adminUserPaymentHistory');
+
+    await listAdminUserCurrentMembershipPaymentAccessHistory({
+      cardYear: 2026,
+      userId: 'user-1',
+    });
+
+    expect(mocks.eventPaymentFindMany).toHaveBeenCalledWith({
+      orderBy: { createdAt: 'desc' },
+      select: expect.any(Object),
+      take: ADMIN_USER_MEMBERSHIP_PAYMENT_ACCESS_HISTORY_LIMIT,
+      where: {
+        cardType: {
+          in: [SailingCardType.racing, SailingCardType.team_racing],
+        },
+        cardYear: 2026,
+        purpose: PaymentPurpose.membership,
+        userId: 'user-1',
+      },
+    });
+  });
+});

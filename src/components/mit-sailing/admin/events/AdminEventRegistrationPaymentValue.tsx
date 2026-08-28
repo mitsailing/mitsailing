@@ -58,21 +58,19 @@ export function AdminEventRegistrationPaymentValue(props: {
         <AdminEventListStatusBadge tone="neutral">
           {paymentStatusLabel(payment.status, props.t)}
         </AdminEventListStatusBadge>
-        <span className="text-sm text-mit-readable-ink">
-          <PaymentAmountDisplay
-            labels={{
-              amountPaidOfTotal: (values) =>
-                props.t('payment_amount_paid_of_total', values),
-              discountApplied: props.t('payment_discount_applied'),
-              discountSummary: (values) =>
-                props.t('payment_discount_summary', values),
-              partialRefundSummary: (values) =>
-                props.t('payment_amount_partial_refund', values),
-            }}
-            locale={props.locale}
-            payment={payment}
-          />
-        </span>
+        <PaymentAmountDisplay
+          labels={{
+            amountPaidOfTotal: (values) =>
+              props.t('payment_amount_paid_of_total', values),
+            discountApplied: props.t('payment_discount_applied'),
+            discountSummary: (values) =>
+              props.t('payment_discount_summary', values),
+            partialRefundSummary: (values) =>
+              props.t('payment_amount_partial_refund', values),
+          }}
+          locale={props.locale}
+          payment={payment}
+        />
       </div>
       {props.accessMode === 'editable' && payment.resendEligible ? (
         <form action={resendAction}>

@@ -261,7 +261,9 @@ describe('handleMembershipStripeWebhookEvent', () => {
       }),
       where: { id: 'payment_1', status: PaymentStatus.paid },
     });
+  });
 
+  it('records dispute events', async () => {
     const disputeDb = db(membershipPayment(PaymentStatus.paid));
     await handleMembershipStripeWebhookEvent({
       db: disputeDb,

@@ -919,6 +919,50 @@ describe('submitSailingCardOnboardingAction', () => {
     expect(mocks.redirect).not.toHaveBeenCalledWith('/onboarding/success');
   });
 
+  it('redirects without checkout when membership payment is not required', async () => {
+    mocks.createMembershipCheckoutUrlForOnboarding.mockResolvedValue({
+      status: 'not_eligible',
+    });
+    const submitSailingCardOnboardingAction =
+      await loadSubmitSailingCardOnboardingAction();
+
+    await expect(
+      submitSailingCardOnboardingAction(
+        idleState,
+        paidRacingOnboardingFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+
+    expect(
+      mocks.createMembershipCheckoutUrlForOnboarding
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  it('redirects without checkout when recreation membership waives paid racing', async () => {
+    mocks.prismaUserFindUnique.mockResolvedValue(
+      currentUserFixture({
+        gymMembershipVerifiedAt: new Date('2026-05-01T12:00:00Z'),
+      })
+    );
+    const submitSailingCardOnboardingAction =
+      await loadSubmitSailingCardOnboardingAction();
+
+    await expect(
+      submitSailingCardOnboardingAction(
+        idleState,
+        paidRacingOnboardingFormData()
+      )
+    ).resolves.toEqual({
+      fieldErrors: { cardType: 'invalid' },
+      status: 'error',
+      values: expectedPaidRacingOnboardingValues,
+    });
+
+    expect(
+      mocks.createMembershipCheckoutUrlForOnboarding
+    ).not.toHaveBeenCalled();
+  });
+
   it('preserves callback through paid racing checkout success', async () => {
     const formData = paidRacingOnboardingFormData();
     formData.set('callbackUrl', '/events/regatta/register');
@@ -952,7 +996,6 @@ describe('submitSailingCardOnboardingAction', () => {
 
   it.each([
     ['unavailable', undefined],
-    ['not eligible', { status: 'not_eligible' }],
     ['rollover blocked', { status: 'rollover_blocked' }],
   ])(
     'returns a recoverable error when paid checkout creation is %s',

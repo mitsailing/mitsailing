@@ -1,5 +1,9 @@
 import { APIError } from 'better-auth';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  SailingCardRequestStatus,
+  SailingCardType,
+} from '@/generated/prisma/enums';
 import { Role } from '@/libs/auth/roles';
 
 const mocks = vi.hoisted(() => ({
@@ -182,7 +186,13 @@ describe('usersAdminHandlers', () => {
           sailingCardYear: null,
           _count: { sailingCardRequests: 1 },
           payments: [],
-          sailingCardRequests: [],
+          sailingCardRequests: [
+            {
+              cardType: SailingCardType.racing,
+              cardYear: 2026,
+              status: SailingCardRequestStatus.pending,
+            },
+          ],
         },
       ]);
 
@@ -233,8 +243,8 @@ describe('usersAdminHandlers', () => {
           sailingAffiliation: null,
           sailingCardNumber: null,
           sailingCardStatus: 'pending',
-          pendingCardType: null,
-          membershipPaymentStatus: 'not_applicable',
+          pendingCardType: 'racing',
+          membershipPaymentStatus: 'unpaid',
           appRole: Role.ADMIN,
         },
       ]);

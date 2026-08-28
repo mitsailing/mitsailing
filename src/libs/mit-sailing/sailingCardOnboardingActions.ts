@@ -456,6 +456,8 @@ const membershipCheckoutStateForOnboarding = async (props: {
   readonly cardType: SailingCardType;
   readonly dateOfBirth: Date;
   readonly destination: string;
+  readonly gymMembershipVerifiedAt: Date | null;
+  readonly hasFitnessMembership: boolean | null;
   readonly locale: string;
   readonly sailingAffiliation: SailingAffiliation;
   readonly successHref: string;
@@ -468,6 +470,16 @@ const membershipCheckoutStateForOnboarding = async (props: {
   | { readonly status: 'not_required' }
 > => {
   if (props.cardType === SailingCardType.normal) {
+    return { status: 'not_required' };
+  }
+  if (
+    !sailingCardRequestNeedsMembershipPayment({
+      cardType: props.cardType,
+      hasFitnessMembership: props.hasFitnessMembership,
+      sailingAffiliation: props.sailingAffiliation,
+      user: { gymMembershipVerifiedAt: props.gymMembershipVerifiedAt },
+    })
+  ) {
     return { status: 'not_required' };
   }
   if (
@@ -512,6 +524,9 @@ const membershipCheckoutStateForOnboarding = async (props: {
       }
     );
     return { status: 'failed' };
+  }
+  if (checkout?.status === 'not_eligible') {
+    return { status: 'not_required' };
   }
   if (checkout?.status !== 'created') {
     return { status: 'failed' };
@@ -750,6 +765,8 @@ export const submitSailingCardOnboardingAction = async (
     cardType,
     dateOfBirth,
     destination,
+    gymMembershipVerifiedAt: currentUser.gymMembershipVerifiedAt,
+    hasFitnessMembership: update.hasFitnessMembership,
     locale,
     sailingAffiliation: update.sailingAffiliation,
     successHref,

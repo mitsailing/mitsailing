@@ -21,6 +21,16 @@ describe('stripeCumulativeRefundedAmountCents', () => {
       )
     ).toBe(2500);
   });
+
+  it('does not double-count refund.updated for the same refund id', () => {
+    expect(
+      stripeCumulativeRefundedAmountCents(
+        { amount: 1500, id: 're_123', object: 'refund' },
+        2500,
+        're_123'
+      )
+    ).toBe(2500);
+  });
 });
 
 describe('paymentRefundUpdateFromStripe', () => {
@@ -54,6 +64,21 @@ describe('paymentRefundUpdateFromStripe', () => {
       activeCheckoutKey: null,
       refundedAmountCents: 7000,
       status: PaymentStatus.refunded,
+    });
+  });
+
+  it('ignores duplicate refund.updated events for the same refund id', () => {
+    expect(
+      paymentRefundUpdateFromStripe({
+        existingRefundedAmountCents: 2500,
+        existingStripeRefundId: 're_123',
+        object: { amount: 1500, id: 're_123', object: 'refund' },
+        payment,
+      })
+    ).toEqual({
+      refundedAmountCents: 2500,
+      status: PaymentStatus.paid,
+      stripeRefundId: 're_123',
     });
   });
 });

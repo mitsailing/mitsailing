@@ -16,6 +16,13 @@ import type {
   StripeWebhookDispatchHandlerResult,
 } from '@/libs/stripe/stripeWebhookEvents';
 import { stripeEventCreatedAtDate } from '@/libs/stripe/stripeWebhookEvents';
+import {
+  checkoutSessionPaymentIsSatisfied,
+  stripeObjectCanSatisfyPaymentAmount,
+  stripeWebhookExpandableId,
+  stripeWebhookObjectValue,
+  stripeWebhookStringValue,
+} from '@/libs/stripe/stripeWebhookObjectHelpers';
 
 type StripeObject = Record<string, unknown>;
 
@@ -26,24 +33,20 @@ type MembershipWebhookPayment = {
   readonly id: string;
   readonly refundedAmountCents: number | null;
   readonly status: PaymentStatusType;
+  readonly stripeDiscountMetadata?: unknown;
+  readonly stripeRefundId?: string | null;
 };
 
 function objectValue(value: unknown): StripeObject | null {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return null;
-  }
-  return Object.fromEntries(Object.entries(value));
+  return stripeWebhookObjectValue(value);
 }
 
 function stringValue(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+  return stripeWebhookStringValue(value);
 }
 
 function expandableId(value: unknown): string | null {
-  if (typeof value === 'string') {
-    return value;
-  }
-  return stringValue(objectValue(value)?.id);
+  return stripeWebhookExpandableId(value);
 }
 
 function eventObject(event: ProcessableStripeEvent): StripeObject {
@@ -70,33 +73,8 @@ function isMembershipStripeObject(object: StripeObject): boolean {
   );
 }
 
-function stripeObjectCurrencyMatches(
-  object: StripeObject,
-  payment: MembershipWebhookPayment
-): boolean {
-  return (
-    stringValue(object.currency)?.toLowerCase() ===
-    payment.currency.toLowerCase()
-  );
-}
-
-function stripeObjectCanSatisfyPayment(
-  object: StripeObject,
-  payment: MembershipWebhookPayment
-): boolean {
-  const amountPaidCents = stripeObjectPaidAmountCents(object);
-  return (
-    amountPaidCents !== null &&
-    Number.isInteger(amountPaidCents) &&
-    amountPaidCents >= 0 &&
-    amountPaidCents <= payment.amountCents &&
-    stripeObjectCurrencyMatches(object, payment)
-  );
-}
-
 function checkoutPaymentIsSatisfied(object: StripeObject): boolean {
-  const paymentStatus = stringValue(object.payment_status);
-  return paymentStatus === 'paid' || paymentStatus === 'no_payment_required';
+  return checkoutSessionPaymentIsSatisfied(object);
 }
 
 function membershipFindOrForObject(options: {
@@ -149,6 +127,8 @@ async function findMembershipPayment(options: {
     id: payment.id,
     refundedAmountCents: payment.refundedAmountCents ?? null,
     status: payment.status,
+    stripeDiscountMetadata: payment.stripeDiscountMetadata,
+    stripeRefundId: payment.stripeRefundId ?? null,
   };
 }
 
@@ -162,16 +142,25 @@ function paidUpdateData(options: {
   readonly paymentIntentId?: string | null;
   readonly receiptUrl?: string | null;
 }) {
-  const discountMetadata = stripePaymentDiscountMetadataFromObject({
+  const extractedDiscountMetadata = stripePaymentDiscountMetadataFromObject({
     object: options.object,
     paymentAmountCents: options.payment.amountCents,
   });
+  const stripeDiscountMetadata =
+    options.payment.stripeDiscountMetadata !== undefined &&
+    options.payment.stripeDiscountMetadata !== null &&
+    (extractedDiscountMetadata === null ||
+      extractedDiscountMetadata.discounts.length === 0)
+      ? options.payment.stripeDiscountMetadata
+      : (extractedDiscountMetadata ??
+        options.payment.stripeDiscountMetadata ??
+        null);
   return {
     amountPaidCents: stripeObjectPaidAmountCents(options.object),
     lastStripePaymentEventCreatedAt: stripeEventCreatedAtDate(options.event),
     lastStripePaymentEventId: options.event.id,
     status: PaymentStatus.paid,
-    stripeDiscountMetadata: discountMetadata,
+    stripeDiscountMetadata,
     ...(options.chargeId ? { stripeChargeId: options.chargeId } : {}),
     ...(options.checkoutSessionId
       ? { stripeCheckoutSessionId: options.checkoutSessionId }
@@ -195,11 +184,6 @@ async function markMembershipPaymentPaid(options: {
   readonly paymentIntentId?: string | null;
   readonly receiptUrl?: string | null;
 }): Promise<StripeWebhookDispatchHandlerResult> {
-  if (!stripeObjectCanSatisfyPayment(options.object, options.payment)) {
-    throw new TypeError(
-      'Stripe webhook amount does not match membership payment.'
-    );
-  }
   if (
     options.payment.status !== PaymentStatus.paid &&
     options.payment.status !== PaymentStatus.pending &&
@@ -207,6 +191,11 @@ async function markMembershipPaymentPaid(options: {
     options.payment.status !== PaymentStatus.past_due
   ) {
     return { handled: true };
+  }
+  if (!stripeObjectCanSatisfyPaymentAmount(options.object, options.payment)) {
+    throw new TypeError(
+      'Stripe webhook amount does not match membership payment.'
+    );
   }
   const update = paidUpdateData(options);
   const result = await options.db.payment.updateMany({
@@ -353,6 +342,7 @@ async function applyMembershipRefundFromStripe(options: {
   const refundUpdate = paymentRefundUpdateFromStripe({
     clearActiveCheckoutKeyOnFullRefund: true,
     existingRefundedAmountCents: payment.refundedAmountCents,
+    existingStripeRefundId: payment.stripeRefundId ?? null,
     object: options.object,
     payment,
   });

@@ -572,6 +572,59 @@ describe('processStripeWebhookEvent', () => {
     expect(upsertReceipt).not.toHaveBeenCalled();
   });
 
+  it('preserves stored discount metadata when a later paid event omits discount rows', async () => {
+    const storedDiscountMetadata = {
+      amountDiscountCents: 500,
+      amountPaidCents: 3700,
+      amountSubtotalCents: 4200,
+      amountTotalCents: 3700,
+      discounts: [
+        {
+          amountDiscountCents: 500,
+          couponId: 'coupon_test',
+          couponName: 'Launch',
+          promotionCode: null,
+          promotionCodeId: null,
+        },
+      ],
+      totalDetails: null,
+    };
+    const updatePayment = mockPaymentUpdate({ count: 0 });
+    const db = createWebhookDb({
+      payment: {
+        ...eventPayment({ status: PaymentStatus.paid }),
+        stripeDiscountMetadata: storedDiscountMetadata,
+      },
+      updatePayment,
+    });
+
+    const result = await processStripeWebhookEvent({
+      db,
+      event: {
+        created: stripeEventCreated,
+        data: {
+          object: {
+            id: 'ch_456',
+            amount: 3700,
+            currency: 'usd',
+            metadata: { paymentId: 'payment_123' },
+            payment_intent: 'pi_456',
+          },
+        },
+        id: 'evt_charge_succeeded_later',
+        type: 'charge.succeeded',
+      },
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(updatePayment).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({
+        stripeDiscountMetadata: storedDiscountMetadata,
+      }),
+      where: { id: 'payment_123', status: PaymentStatus.paid },
+    });
+  });
+
   it('does not auto-approve registration when paid merge updates zero rows', async () => {
     const updatePayment = vi
       .fn<StripeWebhookDb['payment']['updateMany']>()

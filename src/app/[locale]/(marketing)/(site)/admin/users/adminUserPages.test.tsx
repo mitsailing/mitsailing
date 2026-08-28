@@ -154,11 +154,22 @@ function paymentHistoryRowsWithSuccessfulAndFailedPayments() {
   ];
 }
 
-function mockUserPaymentRows(rows: readonly unknown[]) {
+function mockUserPaymentHistoryRows(rows: readonly unknown[]) {
   mocks.listAdminUserPaymentHistory.mockResolvedValue(rows);
+}
+
+function mockUserMembershipAccessRows(rows: readonly unknown[]) {
   mocks.listAdminUserCurrentMembershipPaymentAccessHistory.mockResolvedValue(
     rows
   );
+}
+
+function mockUserPaymentRows(
+  historyRows: readonly unknown[],
+  accessRows: readonly unknown[] = historyRows
+) {
+  mockUserPaymentHistoryRows(historyRows);
+  mockUserMembershipAccessRows(accessRows);
 }
 
 vi.mock('next-intl/server', () => ({
@@ -886,7 +897,10 @@ describe('admin user pages', () => {
   });
 
   it('renders user payment history with successful and failed payments', async () => {
-    mockUserPaymentRows(paymentHistoryRowsWithSuccessfulAndFailedPayments());
+    mockUserPaymentHistoryRows(
+      paymentHistoryRowsWithSuccessfulAndFailedPayments()
+    );
+    mockUserMembershipAccessRows([membershipPaymentHistoryRow()]);
     const { default: AdminUserShowPage } = await import('./[id]/page');
 
     render(

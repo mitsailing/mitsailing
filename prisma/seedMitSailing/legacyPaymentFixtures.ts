@@ -1,6 +1,6 @@
-import type { PrismaClient } from '../../src/generated/prisma/client';
-import { Env } from '../../src/libs/Env';
-import { importLegacyPaymentsFromSchema } from '../../src/libs/legacy-sync/legacyPaymentImport';
+import type { PrismaClient } from '@/generated/prisma/client';
+import { Env } from '@/libs/Env';
+import { importLegacyPaymentsFromSchema } from '@/libs/legacy-sync/legacyPaymentImport';
 
 const legacyPaymentFixtureMemberIds = [
   '900000001',

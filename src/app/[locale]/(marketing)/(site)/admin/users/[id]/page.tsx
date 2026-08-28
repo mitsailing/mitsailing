@@ -12,6 +12,7 @@ import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader'
 import {
   AdminPagination,
   adminPaginationPage,
+  adminPaginationRange,
 } from '@/components/mit-sailing/admin/AdminPagination';
 import {
   AdminSailingCardChangeNumberForm,
@@ -114,14 +115,7 @@ function pageParamValue(page: number) {
 }
 
 function adminPaginationSummary(props: AdminPaginationModel) {
-  if (props.total === 0) {
-    return { end: 0, start: 0 };
-  }
-  const start = (props.page - 1) * props.pageSize + 1;
-  return {
-    end: Math.min(props.total, start + props.pageSize - 1),
-    start,
-  };
+  return adminPaginationRange(props);
 }
 
 function AdminUserPanelPagination(props: {
@@ -1373,7 +1367,6 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
   });
   const paginationParams = {
     emailsPage: pageParamValue(emailDetails.page),
-    error: optionalSearchParamString(searchParams.error),
     paymentsPage: pageParamValue(paymentDetails.page),
     ratingsPage: pageParamValue(ratingsPage.page),
   };

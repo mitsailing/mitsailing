@@ -26,6 +26,13 @@ import {
   paymentRefundUpdateFromStripe,
   stripeDisputeIdFromObject,
 } from '@/libs/stripe/stripeRefundMetadata';
+import {
+  checkoutSessionPaymentIsSatisfied,
+  stripeObjectCanSatisfyPaymentAmount,
+  stripeWebhookExpandableId as expandableId,
+  stripeWebhookObjectValue as objectValue,
+  stripeWebhookStringValue as stringValue,
+} from '@/libs/stripe/stripeWebhookObjectHelpers';
 
 type StripeWebhookConstructEvent = {
   webhooks: {
@@ -72,8 +79,10 @@ type StripeWebhookDbPayment = {
   stripeChargeId?: string | null;
   stripeCheckoutSessionId?: string | null;
   stripeCustomerId?: string | null;
+  stripeDiscountMetadata?: unknown;
   stripePaymentIntentId?: string | null;
   stripeReceiptUrl?: string | null;
+  stripeRefundId?: string | null;
   userId?: string | null;
 };
 
@@ -203,25 +212,6 @@ type ProcessStripeWebhookEventResult =
       receiptPaymentId?: never;
     };
 
-function objectValue(value: unknown): Record<string, unknown> | null {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return null;
-  }
-  return Object.fromEntries(Object.entries(value));
-}
-
-function stringValue(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value : null;
-}
-
-function expandableId(value: unknown): string | null {
-  if (typeof value === 'string') {
-    return value;
-  }
-  const object = objectValue(value);
-  return object ? stringValue(object.id) : null;
-}
-
 function eventDataObject(
   event: ProcessableStripeEvent
 ): Record<string, unknown> {
@@ -307,33 +297,6 @@ async function claimExistingWebhookEvent(options: {
     },
   });
   return claim.count === 1 ? { id: options.eventId } : null;
-}
-
-function stripeObjectMatchesPaymentCurrency(
-  object: Record<string, unknown>,
-  payment: Pick<StripeWebhookDbPayment, 'currency'>
-): boolean {
-  const currency = stringValue(object.currency);
-  return currency?.toLowerCase() === payment.currency.toLowerCase();
-}
-
-function stripeObjectCanSatisfyPaymentAmount(
-  object: Record<string, unknown>,
-  payment: Pick<StripeWebhookDbPayment, 'amountCents' | 'currency'>
-): boolean {
-  const amount = stripeObjectPaidAmountCents(object);
-  return (
-    amount !== null &&
-    Number.isInteger(amount) &&
-    amount >= 0 &&
-    amount <= payment.amountCents &&
-    stripeObjectMatchesPaymentCurrency(object, payment)
-  );
-}
-
-function checkoutSessionPaymentIsSatisfied(object: Record<string, unknown>) {
-  const paymentStatus = stringValue(object.payment_status);
-  return paymentStatus === 'paid' || paymentStatus === 'no_payment_required';
 }
 
 async function ensureReceiptNotification(options: {
@@ -534,14 +497,24 @@ async function markPaymentPaid(options: {
   if (!stripeObjectCanSatisfyPaymentAmount(options.object, options.payment)) {
     throw new TypeError('Stripe webhook amount does not match event payment.');
   }
+  const extractedDiscountMetadata = stripePaymentDiscountMetadataFromObject({
+    object: options.object,
+    paymentAmountCents: options.payment.amountCents,
+  });
+  const stripeDiscountMetadata =
+    options.payment.stripeDiscountMetadata !== undefined &&
+    options.payment.stripeDiscountMetadata !== null &&
+    (extractedDiscountMetadata === null ||
+      extractedDiscountMetadata.discounts.length === 0)
+      ? options.payment.stripeDiscountMetadata
+      : (extractedDiscountMetadata ??
+        options.payment.stripeDiscountMetadata ??
+        null);
   const accountingData = {
     amountPaidCents: stripeObjectPaidAmountCents(options.object),
     lastStripePaymentEventCreatedAt: stripeEventCreatedAtDate(options.event),
     lastStripePaymentEventId: options.event.id,
-    stripeDiscountMetadata: stripePaymentDiscountMetadataFromObject({
-      object: options.object,
-      paymentAmountCents: options.payment.amountCents,
-    }),
+    stripeDiscountMetadata,
   };
   const transition = applyEventPaymentPaidTransition({
     current: options.payment,
@@ -714,6 +687,7 @@ async function applyPaymentRefundFromStripe(options: {
   }
   const refundUpdate = paymentRefundUpdateFromStripe({
     existingRefundedAmountCents: payment.refundedAmountCents ?? null,
+    existingStripeRefundId: payment.stripeRefundId ?? null,
     object: options.object,
     payment: {
       amountCents: payment.amountCents,

@@ -307,7 +307,7 @@ function AdminCatalogTableRowCells(props: {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {viewHref ? (
           <Link
-            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-white"
+            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
             href={viewHref}
           >
             {props.t('action_view_page')}
@@ -417,7 +417,6 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
 
   useEffect(() => {
     setOrderedIds(props.rows.map((r) => String(r.id)));
-    setCurrentPage(1);
   }, [props.rows]);
 
   const rowById = new Map(props.rows.map((r) => [String(r.id), r] as const));
