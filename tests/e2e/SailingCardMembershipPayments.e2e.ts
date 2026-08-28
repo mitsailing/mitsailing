@@ -256,6 +256,8 @@ async function openAdminUserProfile(props: {
   await props.page
     .getByRole('searchbox', { name: 'Search users' })
     .fill(props.query);
+  await props.page.getByRole('button', { name: 'Filter' }).click();
+  await expect(props.page).toHaveURL(/q=/);
   await props.page.getByRole('link', { name: props.userName }).click();
   await expect(props.page).toHaveURL(/\/admin\/users\/[^/]+$/);
 }
@@ -374,7 +376,7 @@ test('admin opens pending card user profile by MIT ID search', async ({
 
   await openAdminUserProfile({ page, query: mitId, userName: 'Grace Hopper' });
 
-  await expect(page.getByText('Suggested issue number')).toBeVisible();
+  await expect(page.getByText(mitId)).toBeVisible();
   await expect(
     page.getByRole('form', { name: 'Issue sailing card' })
   ).toBeVisible();
@@ -393,7 +395,7 @@ test('admin manually assigns card number 110', async ({ page }) => {
   await openAdminUserProfile({ page, query: email, userName: 'Grace Hopper' });
 
   await page.getByLabel('Card number').fill('110');
-  await page.getByRole('button', { name: 'Issue' }).click();
+  await page.getByRole('button', { name: 'Assign card' }).click();
 
   await expect
     .poll(async () => {
@@ -439,7 +441,7 @@ test('duplicate card number for the same year fails', async ({ page }) => {
   await openAdminUserProfile({ page, query: email, userName: 'Grace Hopper' });
 
   await page.getByLabel('Card number').fill('110');
-  await page.getByRole('button', { name: 'Issue' }).click();
+  await page.getByRole('button', { name: 'Assign card' }).click();
 
   await expect(
     page.getByText('That card number is already in use.')
@@ -468,7 +470,7 @@ test('paid racing without payment cannot be issued locally', async ({
   ).toBeVisible();
 
   await page.getByLabel('Card number').fill('112');
-  await page.getByRole('button', { name: 'Issue' }).click();
+  await page.getByRole('button', { name: 'Assign card' }).click();
   await expect
     .poll(async () => {
       const result = await pool.query<{ sailing_card_number: number | null }>(
