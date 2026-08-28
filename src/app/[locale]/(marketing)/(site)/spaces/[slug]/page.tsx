@@ -6,7 +6,9 @@ import { getVisiblePavilionSpaceBySlug } from '@/libs/mit-sailing/pavilionReserv
 
 export const revalidate = 900;
 
-type PageProps = { params: Promise<{ locale: string; slug: string }> };
+type PageProps = Readonly<{
+  params: Promise<{ locale: string; slug: string }>;
+}>;
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const { locale, slug } = await props.params;

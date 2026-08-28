@@ -61,7 +61,7 @@ export async function findPavilionReservationDraftByResumeToken(
     where: { resumeToken: trimmed, status: 'draft' },
   });
 
-  if (!reservation || !reservation.resumeToken) {
+  if (!reservation?.resumeToken) {
     return null;
   }
 

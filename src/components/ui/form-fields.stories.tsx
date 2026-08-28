@@ -81,9 +81,9 @@ export const AllFieldTypes: Story = {
 export const InvalidStates: Story = {
   render: () => (
     <form className="flex w-full max-w-sm flex-col gap-4">
-      <Field className="flex flex-col gap-1.5 text-destructive">
+      <Field className="flex flex-col gap-1.5">
         <HeadlessLabel
-          className="text-sm font-medium text-destructive"
+          className="text-sm font-medium text-mit-red-600"
           htmlFor="story-invalid-email"
         >
           Email
@@ -95,9 +95,9 @@ export const InvalidStates: Story = {
           type="email"
         />
       </Field>
-      <Field className="flex flex-col gap-1.5 text-destructive">
+      <Field className="flex flex-col gap-1.5">
         <HeadlessLabel
-          className="text-sm font-medium text-destructive"
+          className="text-sm font-medium text-mit-red-600"
           htmlFor="story-invalid-role"
         >
           Role
@@ -107,9 +107,9 @@ export const InvalidStates: Story = {
           <option value="member">Member</option>
         </NativeSelect>
       </Field>
-      <Field className="flex flex-col gap-1.5 text-destructive">
+      <Field className="flex flex-col gap-1.5">
         <HeadlessLabel
-          className="text-sm font-medium text-destructive"
+          className="text-sm font-medium text-mit-red-600"
           htmlFor="story-invalid-notes"
         >
           Notes

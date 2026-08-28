@@ -112,7 +112,7 @@ export async function upsertPavilionReservationDraftAction(
     const slotRows = input.slots.flatMap((slot, index) => {
       const item = itemById.get(slot.itemId);
       const requestedDate = prismaDateFromIsoCalendar(slot.date);
-      if (!item || item.kind !== 'space' || !requestedDate) {
+      if (item?.kind !== 'space' || !requestedDate) {
         return [];
       }
       return [
@@ -129,7 +129,7 @@ export async function upsertPavilionReservationDraftAction(
     const serviceRows = [...new Set(input.selectedServiceIds)].flatMap(
       (serviceId) => {
         const item = itemById.get(serviceId);
-        if (!item || item.kind !== 'service') {
+        if (item?.kind !== 'service') {
           return [];
         }
         return [{ itemId: serviceId, itemKind: item.kind }];

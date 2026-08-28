@@ -774,23 +774,18 @@ function StepHeader(props: { step: WizardStep }) {
  * @returns Headless UI field wrapper for a labeled control
  */
 function LabeledField(props: {
-  children: React.ReactNode;
-  id: string;
-  invalid?: true | undefined;
-  label: string;
-  required?: boolean;
+  readonly children: React.ReactNode;
+  readonly id: string;
+  readonly invalid?: true;
+  readonly label: string;
+  readonly required?: boolean;
 }) {
   return (
-    <Field
-      className={cn(
-        'flex w-full flex-col gap-1.5',
-        props.invalid ? 'text-destructive' : null
-      )}
-    >
+    <Field className="flex w-full flex-col gap-1.5">
       <HeadlessLabel
         className={cn(
           'text-sm leading-none font-medium',
-          props.invalid ? 'text-destructive' : 'text-foreground'
+          props.invalid ? 'text-mit-red-600' : 'text-foreground'
         )}
         htmlFor={props.id}
       >
@@ -3431,12 +3426,9 @@ export function PavilionReservationWizard(
       />
       <PavilionReservationIntro step={step} />
       {draftRestored ? (
-        <p
-          className="rounded-lg border border-mit-line bg-mit-surface px-4 py-3 text-sm text-mit-text"
-          role="status"
-        >
+        <output className="block rounded-lg border border-mit-line bg-mit-surface px-4 py-3 text-sm text-mit-text">
           {t('draft_restored')}
-        </p>
+        </output>
       ) : null}
       <PavilionReservationActionError actionState={actionState} />
       {step === 'spaces' ? (
