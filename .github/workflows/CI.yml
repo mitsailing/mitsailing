@@ -8,7 +8,7 @@ name: CI
 #
 # `release.yml` triggers directly on `push: main` (not `workflow_run: CI`) so
 # semantic-release still fires after merges. `deploy.yml` is likewise independent
-# of CI.yml. Checkly runs only via manual `workflow_dispatch`.
+# of CI.yml.
 on:
   pull_request:
     branches: [main]
