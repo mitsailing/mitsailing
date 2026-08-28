@@ -388,9 +388,6 @@ describe('production docker compose', () => {
     expect(deployRunbook).toContain(
       'ERROR: PgHero accepted an unauthenticated request'
     );
-    expect(deployRunbook).not.toContain(
-      'curl -fsSI https://mitsailing.com/pghero/'
-    );
   });
 
   it('documents the CI-first production deploy flow', () => {
@@ -758,20 +755,10 @@ describe('production deploy script', () => {
 
   it('generates subpath routes for production operations services', () => {
     expect(deployScript).toContain(`readonly MAILPIT_ROUTE="${mailpitRoute}"`);
-    expect(deployScript).not.toContain('readonly PGHERO_ROUTE=');
     expect(deployScript).toContain(`location = ${mailpitRouteVariable}`);
     expect(deployScript).toContain(`return 308 ${mailpitRouteVariable}/;`);
     expect(deployScript).toContain(`location ${mailpitRouteVariable}/`);
     expect(deployScript).toContain('proxy_pass http://mailpit:8025;');
-    expect(deployScript).toContain('location = /pghero');
-    expect(deployScript).toContain('location /pghero/');
-    expect(deployScript).toContain(`return 308 ${pgheroOrigin}/;`);
-    expect(deployScript).not.toContain('proxy_pass http://pghero:8080;');
-    expect(deployScript).not.toContain(
-      'auth_request /api/internal/pghero-auth'
-    );
-    expect(deployScript).not.toContain('location = /api/internal/pghero-auth');
-    expect(deployScript).not.toContain('/_ops/harbor-watch');
   });
 
   it('verifies production data mounts before running migrations', () => {

@@ -126,9 +126,9 @@ not add recipient matching logic to the website.
 
 PgHero is served at `https://pghero.mitsailing.com` by the Cloudflare tunnel
 directly to the in-stack `pghero:8080` service. It is not exposed as a host port
-and is not proxied through app nginx. Leftover `mitsailing.com/pghero/` requests
-308 to the subdomain. PgHero owns HTTP basic auth through `PGHERO_USERNAME` and
-`PGHERO_PASSWORD`. Open `https://pghero.mitsailing.com/` and use those credentials.
+and is not proxied through app nginx. PgHero owns HTTP basic auth through
+`PGHERO_USERNAME` and `PGHERO_PASSWORD`. Open `https://pghero.mitsailing.com/`
+and use those credentials.
 
 PgHero uses a dedicated `PGHERO_DATABASE_URL`; do not point it at the app
 superuser URL. Follow PgHero's permissions guide for the exact monitoring role

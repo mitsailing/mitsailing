@@ -296,14 +296,6 @@ server {
     proxy_set_header Connection \$connection_upgrade;
   }
 
-  location = /pghero {
-    return 308 https://pghero.mitsailing.com/;
-  }
-
-  location /pghero/ {
-    return 308 https://pghero.mitsailing.com/;
-  }
-
   location / {
     proxy_pass http://mitsailing_next;
     proxy_http_version 1.1;

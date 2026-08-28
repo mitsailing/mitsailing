@@ -166,16 +166,6 @@ describe('single host deploy script', () => {
     }
   });
 
-  it('redirects leftover /pghero path to the PgHero subdomain', () => {
-    expect(script).not.toContain('readonly PGHERO_ROUTE="/pghero"');
-    expect(script).not.toContain('proxy_pass http://pghero:8080;');
-    expect(script).not.toContain('auth_request /api/internal/pghero-auth;');
-    expect(script).not.toContain('location = /api/internal/pghero-auth');
-    expect(script).toContain('location = /pghero');
-    expect(script).toContain('location /pghero/');
-    expect(script).toContain('return 308 https://pghero.mitsailing.com/;');
-  });
-
   it('waits for media maintenance services to pass health checks', () => {
     expect(script).toMatch(
       /restart_media_maintenance\(\) \{[\s\S]*wait_for_service_health media "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"/u
