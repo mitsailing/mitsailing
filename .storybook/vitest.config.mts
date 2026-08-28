@@ -15,6 +15,11 @@ const storybookBrowserProvider = ciChromeLaunchOptions
   : playwright();
 
 export default defineConfig({
+  optimizeDeps: {
+    // PR client surfaces import @sentry/nextjs; pre-bundle so Vitest browser
+    // runs do not mid-test reload when Vite discovers it (CI flake).
+    include: ['@sentry/nextjs'],
+  },
   plugins: [
     // The plugin will run tests for the stories defined in your Storybook config
     // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
