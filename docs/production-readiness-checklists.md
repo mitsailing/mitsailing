@@ -63,7 +63,7 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | Job IDs use Redis-safe, readable identifiers. | Pass | Payment, reminder, and reservation jobs use hyphenated deterministic IDs. |
 | Sensitive job data is minimized. | Pass | Pavilion reservation email jobs enqueue only the reservation reference and load details from Postgres at execution time. |
 | Worker startup reconciles durable DB state with queued jobs. | Pass | The worker startup path reconciles CMS media processing jobs instead of relying only on in-memory enqueue events. |
-| E2E runs exercise the production-like standalone server and worker. | Pass | `scripts/e2e-start.cjs`, `scripts/e2e-build.cjs`, and `playwright.config.ts` run the standalone server with `worker.mjs`. |
+| E2E runs exercise the production-like standalone server and worker. | Pass | `scripts/e2e-start.cjs`, `scripts/e2e-build.cjs`, and `playwright.config.ts` run the standalone server with `worker.mjs`. Worker exit is non-fatal so a BullMQ startup failure cannot tear down the HTTP server after Playwright marks it ready. |
 | Graceful shutdown closes queues, workers, and Redis connections. | Pass | `src/worker/workerRuntime.ts` closes workers, queues, and Redis; `scripts/e2e-start.cjs` forwards shutdown signals to child processes. |
 
 ## Rich Text Editor

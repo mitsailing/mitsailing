@@ -826,6 +826,17 @@ describe('local Mailpit capture', () => {
     expect(playwrightConfig).toContain('...process.env,');
   });
 
+  it('keeps the Playwright webServer alive if the worker exits early', () => {
+    const e2eStart = readRepoFile('scripts/e2e-start.cjs');
+
+    expect(e2eStart).toContain("startNodeProcess('worker', ['worker.mjs'], {");
+    expect(e2eStart).toContain('fatal: false');
+    expect(e2eStart).toContain("'.next/standalone/server.js'");
+    expect(e2eStart).toContain('fatal: true');
+    expect(playwrightConfig).toContain("stdout: isCi ? 'pipe' : 'ignore'");
+    expect(playwrightConfig).toContain("stderr: isCi ? 'pipe' : 'ignore'");
+  });
+
   it('uses the Mailpit API for isolated email assertions', () => {
     expect(mailpitHelper).toContain('/api/v1/messages');
     expect(mailpitHelper).toContain("method: 'DELETE'");
