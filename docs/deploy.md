@@ -104,7 +104,8 @@ Keep WordPress separate. MIT Sailing route order:
 
 - `/cms-media/uploads/*` -> `service: http://tusd:1080`
 - `/cms-media/*` -> `service: http://media:8080`
-- everything else -> `service: http://app:3000`
+- everything else on `mitsailing.com` -> `service: http://app:3000`
+- `pghero.mitsailing.com` -> `service: http://pghero:8080`
 
 Mailpit UI is served by app nginx at `/mail/` and proxied to the in-stack
 `mailpit:8025` service. Keep the tunnel route as `everything else -> app:3000`;
@@ -123,10 +124,11 @@ Mailpit also owns outbound pass-through. `compose.prod.yaml` wires
 matching recipients. The app must stay configured as plain SMTP to Mailpit; do
 not add recipient matching logic to the website.
 
-PgHero is served at `/pghero/` by app nginx and proxied to the in-stack
-`pghero:8080` service. It is not exposed as its own public origin or host port.
-PgHero owns HTTP basic auth through `PGHERO_USERNAME` and `PGHERO_PASSWORD`.
-Open `https://mitsailing.com/pghero/` and use those credentials.
+PgHero is served at `https://pghero.mitsailing.com` by the Cloudflare tunnel
+directly to the in-stack `pghero:8080` service. It is not exposed as a host port
+and is not proxied through app nginx. Leftover `mitsailing.com/pghero/` requests
+308 to the subdomain. PgHero owns HTTP basic auth through `PGHERO_USERNAME` and
+`PGHERO_PASSWORD`. Open `https://pghero.mitsailing.com/` and use those credentials.
 
 PgHero uses a dedicated `PGHERO_DATABASE_URL`; do not point it at the app
 superuser URL. Follow PgHero's permissions guide for the exact monitoring role
@@ -144,6 +146,12 @@ Protect `/mail/*` in Cloudflare in addition to Mailpit basic auth:
 - Allow only the operator identity that should inspect captured mail, currently
   `ak@callred.com`.
 - Add a Cloudflare WAF rate-limit rule for URI path starting with `/mail/`.
+
+Protect `pghero.mitsailing.com` the same way (already configured):
+
+- Cloudflare Access application `PgHero` for `pghero.mitsailing.com`.
+- Allow only `ak@callred.com`.
+- Zone rate-limit ruleset blocks abusive traffic to that hostname.
 
 ## GitHub Environment
 
@@ -216,9 +224,9 @@ case "$mail_status" in
   2*) echo "ERROR: /mail/ accepted an unauthenticated request" >&2; exit 1 ;;
   *) echo "ERROR: unexpected /mail/ status $mail_status" >&2; exit 1 ;;
 esac
-pghero_status="$(curl -sS -o /dev/null -w '%{http_code}' -I https://mitsailing.com/pghero/)"
+pghero_status="$(curl -sS -o /dev/null -w '%{http_code}' -I https://pghero.mitsailing.com/)"
 case "$pghero_status" in
-  401|403) ;;
+  302|401|403) ;;
   2*) echo "ERROR: PgHero accepted an unauthenticated request" >&2; exit 1 ;;
   *) echo "ERROR: unexpected PgHero status $pghero_status" >&2; exit 1 ;;
 esac
