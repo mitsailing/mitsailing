@@ -636,6 +636,21 @@ describe('usersAdminHandlers', () => {
       ).resolves.toEqual({ code: 'not_found', ok: false });
     });
 
+    it('maps set-email denial from Better Auth admin update', async () => {
+      mocks.userFindUnique.mockResolvedValue({
+        appRole: Role.USER,
+        banned: false,
+        role: Role.USER,
+      });
+      mocks.updateUser.mockRejectedValue(
+        apiError('YOU_ARE_NOT_ALLOWED_TO_SET_USERS_EMAIL')
+      );
+
+      await expect(
+        usersAdminHandlers.updateFromForm('user-1', updateFormData())
+      ).resolves.toEqual({ code: 'not_allowed', ok: false });
+    });
+
     it('maps auth API network and password errors', async () => {
       mocks.userFindUnique.mockResolvedValue({
         appRole: Role.USER,
