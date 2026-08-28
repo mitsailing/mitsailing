@@ -2,6 +2,11 @@ import type { WebhookEventPayload } from 'resend';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  logger: {
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+  },
   prisma: {
     $executeRaw: vi.fn(),
     $queryRaw: vi.fn(),
@@ -30,10 +35,7 @@ vi.mock('@/libs/DB', () => ({
 }));
 
 vi.mock('@/libs/Logger', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-  },
+  logger: mocks.logger,
 }));
 
 function capturedSql() {
@@ -110,6 +112,10 @@ describe('email messages', () => {
     expect(mocks.prisma.$queryRaw).not.toHaveBeenCalled();
     expect(mocks.prisma.emailMessageEvent.create).not.toHaveBeenCalled();
     expect(mocks.prisma.$executeRaw).not.toHaveBeenCalled();
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      'Skipping Resend email event with invalid timestamp',
+      expect.objectContaining({ timestamp: 'not-a-date' })
+    );
   });
 
   it('upserts ledger rows before recording unmatched Resend events', async () => {
