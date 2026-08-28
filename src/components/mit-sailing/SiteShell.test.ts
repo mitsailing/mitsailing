@@ -53,6 +53,23 @@ vi.mock('@/components/auth/ImpersonationBanner', () => ({
     React.createElement('div', { 'data-testid': 'impersonation-banner' }),
 }));
 
+vi.mock('@/components/mit-sailing/site/SitePreviewBanner', () => ({
+  SitePreviewBanner: () =>
+    env.STAGING_BANNER === 'yes'
+      ? React.createElement(
+          'aside',
+          { 'data-testid': 'preview-banner' },
+          'This is not the official MIT Sailing site. ',
+          React.createElement(
+            'a',
+            { href: 'https://sailing.mit.edu' },
+            'sailing.mit.edu'
+          ),
+          ' preview_banner_tag'
+        )
+      : null,
+}));
+
 vi.mock('@/components/mit-sailing/site/WeatherConditionsBar', () => ({
   WeatherConditionsBar: () =>
     React.createElement('div', { 'data-testid': 'weather-bar' }),

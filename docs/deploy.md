@@ -230,12 +230,24 @@ While `STAGING_BANNER=yes` on the host (see `.env.production.example`):
 
 1. Confirm the preview banner and
    `<meta name="robots" content="noindex, nofollow">` on the homepage.
-2. Confirm `/robots.txt` allows crawl and does **not** list a sitemap.
+2. Confirm `/robots.txt` allows crawl and does **not** list a sitemap
+   (`src/app/robots.txt`).
 3. In Google Search Console (and Bing Webmaster Tools if used), add the
    `https://mitsailing.com` property and request a temporary Removals prefix
    for `https://mitsailing.com/`. Hide is usually within a day and lasts about
    six months; `noindex` is what makes removal stick after recrawl.
-4. Set `STAGING_BANNER=no` only when mitsailing.com becomes the official site.
+
+When mitsailing.com becomes the official site, delete the preview chrome:
+
+1. Delete `src/app/robots.txt`, then restore `src/app/robots.ts` from `main`
+   (Allow + Sitemap).
+2. Delete `src/components/mit-sailing/site/SitePreviewBanner.tsx` and remove its
+   imports from `SiteShell`, auth center layout, and onboarding layout; drop the
+   `preview_banner*` keys from `en.json`.
+3. Remove the preview `robots: { index: false }` branch from
+   `src/app/[locale]/layout.tsx` and the empty-sitemap early return in
+   `src/app/sitemap.ts`.
+4. Set host `STAGING_BANNER=no` (and the production/staging env examples).
 
 If you need host state:
 

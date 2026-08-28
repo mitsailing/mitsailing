@@ -54,11 +54,12 @@ export async function SiteShell(props: SiteShellProps) {
   const initialShowAdminLink = shouldShowAdminLink(session);
 
   const tMitSite = await getTranslations('MitSailingSite');
-  const previewBanner = await SitePreviewBanner();
 
   return (
     <div className="flex min-h-screen flex-col bg-background font-mit-sans text-mit-text">
-      {previewBanner}
+      <Suspense fallback={null}>
+        <SitePreviewBanner />
+      </Suspense>
       <Suspense fallback={null}>
         <ImpersonationBanner locale={locale} />
       </Suspense>

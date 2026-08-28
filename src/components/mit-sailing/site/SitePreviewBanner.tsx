@@ -15,6 +15,7 @@ function previewBannerLink(chunks: React.ReactNode) {
 
 /**
  * Non-dismissible preview notice when `STAGING_BANNER=yes`.
+ * Delete this file (and its layout/shell imports) at go-live.
  *
  * @returns Preview banner, or null when disabled
  */
