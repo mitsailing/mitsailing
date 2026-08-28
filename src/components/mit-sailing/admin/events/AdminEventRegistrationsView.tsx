@@ -24,9 +24,7 @@ import {
   adminEventFormErrorMessage,
 } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { resendAllAdminEventPaymentRequestsAction } from '@/libs/admin/events/eventAdminActions';
 import {
   adminEventShowPath,
@@ -60,49 +58,6 @@ function registrationFilterHref(options: {
   return `${adminEventShowPath(options.event.slug)}?status=${options.filter}#registrations`;
 }
 
-function BulkEmailPlaceholder(props: {
-  counts: AdminEventRegistrationsDto['registrationCounts'];
-  t: AdminEventRegistrationsTranslations;
-}) {
-  const recipientCount = props.counts.pending + props.counts.approved;
-  return (
-    <Card
-      aria-label={props.t('bulk_email_heading')}
-      className="rounded-lg"
-      role="region"
-    >
-      <CardHeader>
-        <CardTitle>
-          <h2 className="inline-flex items-center gap-2">
-            <Mail aria-hidden className="size-4" />
-            {props.t('bulk_email_heading')}
-          </h2>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <p className="text-sm text-mit-readable-ink">
-          {props.t('bulk_email_placeholder')}
-        </p>
-        <Input
-          aria-label={props.t('bulk_email_subject')}
-          placeholder={props.t('bulk_email_subject')}
-        />
-        <Textarea
-          aria-label={props.t('bulk_email_message')}
-          className="min-h-28"
-          placeholder={props.t('bulk_email_message')}
-        />
-        <p className="text-xs text-mit-readable-ink">
-          {props.t('bulk_email_recipients', { count: recipientCount })}
-        </p>
-        <Button type="button" variant="mit">
-          {props.t('bulk_email_send')}
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
 function PaymentRequestSummary(props: {
   locale: string;
   slug: string;
@@ -122,10 +77,10 @@ function PaymentRequestSummary(props: {
         {props.t('payment_requests_body')}
       </p>
       <form action={action}>
-        <Button type="submit" variant="outline">
+        <SubmitButton pendingKind="sending" variant="outline">
           <Mail aria-hidden className="size-4" />
           {props.t('payment_resend_all')}
-        </Button>
+        </SubmitButton>
       </form>
     </AdminEventFormSection>
   );
@@ -215,10 +170,7 @@ export function AdminEventRegistrationsView(
           </AdminEventBackLink>
 
           <header className="flex flex-col gap-2">
-            <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-mit-red-ink">
-              {props.t('registrations_eyebrow')}
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
               {props.event.name}
             </h1>
           </header>
@@ -285,17 +237,11 @@ export function AdminEventRegistrationsView(
             </dl>
           </AdminEventFormSection>
           {props.accessMode === 'editable' ? (
-            <>
-              <PaymentRequestSummary
-                locale={props.locale}
-                slug={props.event.slug}
-                t={props.t}
-              />
-              <BulkEmailPlaceholder
-                counts={props.event.registrationCounts}
-                t={props.t}
-              />
-            </>
+            <PaymentRequestSummary
+              locale={props.locale}
+              slug={props.event.slug}
+              t={props.t}
+            />
           ) : null}
         </aside>
       </div>

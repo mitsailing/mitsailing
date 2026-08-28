@@ -41,6 +41,21 @@ export const usersAdminDefinition = {
       headerKey: 'column_sailing_card_number',
     },
     {
+      field: 'sailingCardStatus',
+      kind: 'string',
+      headerKey: 'column_sailing_card_status',
+    },
+    {
+      field: 'pendingCardType',
+      kind: 'string',
+      headerKey: 'column_pending_card_type',
+    },
+    {
+      field: 'membershipPaymentStatus',
+      kind: 'string',
+      headerKey: 'column_membership_payment_status',
+    },
+    {
       field: 'appRole',
       kind: 'string',
       headerKey: 'column_role',

@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
   getPathname: vi.fn((props: { href: string; locale: string }) => props.href),
   getTranslations: vi.fn(),
   listAdminEventCategories: vi.fn(),
-  listAdminEventRows: vi.fn(),
+  listAdminEventRowsPage: vi.fn(),
   requireAdminEventListAccess: vi.fn(),
   setRequestLocale: vi.fn(),
 }));
@@ -41,8 +41,9 @@ vi.mock('@/libs/admin/events/eventAdminAuthorization', () => ({
 }));
 
 vi.mock('@/libs/admin/events/eventAdminQueries', () => ({
+  ADMIN_EVENTS_PAGE_SIZE: 25,
   listAdminEventCategories: mocks.listAdminEventCategories,
-  listAdminEventRows: mocks.listAdminEventRows,
+  listAdminEventRowsPage: mocks.listAdminEventRowsPage,
 }));
 
 vi.mock('@/libs/I18nNavigation', () => ({
@@ -60,11 +61,14 @@ describe('AdminEventsListPage', () => {
     mocks.listAdminEventCategories.mockResolvedValue([
       { id: 'cat-1', name: 'Clinics' },
     ]);
-    mocks.listAdminEventRows.mockResolvedValue([
-      { id: 'event-1', name: 'Intro Sail' },
-    ]);
+    mocks.listAdminEventRowsPage.mockResolvedValue({
+      page: 1,
+      pageSize: 25,
+      rows: [{ id: 'event-1', name: 'Intro Sail' }],
+      total: 1,
+    });
     mocks.requireAdminEventListAccess.mockResolvedValue({
-      authContext: { userId: 'admin-1' },
+      authContext: { id: 'admin-1' },
     });
   });
 
@@ -84,9 +88,11 @@ describe('AdminEventsListPage', () => {
 
     expect(mocks.setRequestLocale).toHaveBeenCalledWith('en');
     expect(mocks.requireAdminEventListAccess).toHaveBeenCalledWith('en');
-    expect(mocks.listAdminEventRows).toHaveBeenCalledWith({
-      authContext: { userId: 'admin-1' },
+    expect(mocks.listAdminEventRowsPage).toHaveBeenCalledWith({
+      authContext: { id: 'admin-1' },
       categoryId: 'cat-1',
+      page: 1,
+      pageSize: 25,
       query: 'intro',
       scope: 'all',
     });
@@ -99,6 +105,12 @@ describe('AdminEventsListPage', () => {
         categories: [{ id: 'cat-1', name: 'Clinics' }],
         filterAction: '/admin/events',
         filters: { categoryId: 'cat-1', query: 'intro', scope: 'all' },
+        pagination: {
+          page: 1,
+          pageSize: 25,
+          rows: [{ id: 'event-1', name: 'Intro Sail' }],
+          total: 1,
+        },
         rows: [{ id: 'event-1', name: 'Intro Sail' }],
       }),
       undefined

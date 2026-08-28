@@ -236,12 +236,10 @@ export async function seedEventRelatedRows(p: PrismaClient): Promise<void> {
         eventId: f.event_id,
         description: f.description,
         amountCents: f.amount_cents,
-        isDeposit: f.is_deposit,
       },
       update: {
         description: f.description,
         amountCents: f.amount_cents,
-        isDeposit: f.is_deposit,
       },
     });
   }

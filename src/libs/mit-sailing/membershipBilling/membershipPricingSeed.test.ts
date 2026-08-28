@@ -49,7 +49,7 @@ const findSeedPrice = (props: {
 
 describe('initial sailing card membership prices', () => {
   it('creates a stable row for each legacy price category', () => {
-    expect(initialSailingCardMembershipPrices).toHaveLength(18);
+    expect(initialSailingCardMembershipPrices).toHaveLength(12);
     expect(
       new Set(initialSailingCardMembershipPrices.map((row) => row.id)).size
     ).toBe(initialSailingCardMembershipPrices.length);
@@ -93,7 +93,7 @@ describe('initial sailing card membership prices', () => {
     ).toBe(7000);
     expect(
       findSeedPrice({
-        billingInterval: SailingCardMembershipBillingInterval.annual,
+        billingInterval: SailingCardMembershipBillingInterval.one_time,
         cardType: SailingCardType.racing,
         priceCategory: SailingCardMembershipPriceCategory.thirty_or_over,
         priceKind: SailingCardMembershipPriceKind.full,
@@ -112,7 +112,7 @@ describe('initial sailing card membership prices', () => {
     ).toBe(2500);
     expect(
       findSeedPrice({
-        billingInterval: SailingCardMembershipBillingInterval.annual,
+        billingInterval: SailingCardMembershipBillingInterval.one_time,
         cardType: SailingCardType.team_racing,
         priceCategory: SailingCardMembershipPriceCategory.under_30,
         priceKind: SailingCardMembershipPriceKind.full,
@@ -155,7 +155,7 @@ describe('initial sailing card membership prices', () => {
         })
       ).toBe(
         findSeedPrice({
-          billingInterval: SailingCardMembershipBillingInterval.annual,
+          billingInterval: SailingCardMembershipBillingInterval.one_time,
           cardType: SailingCardType.racing,
           priceCategory: SailingCardMembershipPriceCategory.student,
           priceKind: SailingCardMembershipPriceKind.full,
@@ -191,7 +191,7 @@ describe('initial sailing card membership prices', () => {
         })
       ).toBe(
         findSeedPrice({
-          billingInterval: SailingCardMembershipBillingInterval.annual,
+          billingInterval: SailingCardMembershipBillingInterval.one_time,
           cardType: SailingCardType.racing,
           priceCategory: SailingCardMembershipPriceCategory.thirty_or_over,
           priceKind: SailingCardMembershipPriceKind.full,

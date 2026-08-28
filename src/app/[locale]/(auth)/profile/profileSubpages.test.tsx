@@ -13,7 +13,6 @@ const mocks = vi.hoisted(() => ({
   )),
   ProfilePaymentsView: vi.fn(() => <div data-testid="profile-payments-view" />),
   requireCurrentUser: vi.fn(),
-  selectCanonicalMembershipSubscription: vi.fn(),
   setRequestLocale: vi.fn(),
   userFindUnique: vi.fn(),
 }));
@@ -55,10 +54,8 @@ vi.mock('@/libs/mit-sailing/userPaymentQueries', () => ({
   listUserPayments: mocks.listUserPayments,
 }));
 
-vi.mock('@/libs/mit-sailing/membershipBilling/membershipSubscriptions', () => ({
+vi.mock('@/libs/mit-sailing/membershipBilling/membershipProfileState', () => ({
   membershipProfileState: mocks.membershipProfileState,
-  selectCanonicalMembershipSubscription:
-    mocks.selectCanonicalMembershipSubscription,
 }));
 
 vi.mock('@/libs/mit-sailing/sailingCardMembershipEligibility', () => ({
@@ -69,15 +66,14 @@ vi.mock('@/utils/Helpers', () => ({
   getI18nPath: mocks.getI18nPath,
 }));
 
-const subscription = {
-  id: 'subscription-1',
-  status: 'active',
-};
-
 const latestPayment = {
   amountCents: 12_000,
+  amountPaidCents: null,
+  cardType: 'racing',
+  cardYear: 2026,
   id: 'payment-1',
   issueKind: null,
+  source: 'stripe',
   status: 'paid',
   stripeReceiptUrl: 'https://pay.stripe.test/receipt',
 };
@@ -135,23 +131,19 @@ describe('ProfileMembershipPage', () => {
     mocks.membershipProfileState.mockReturnValue({
       accessThrough: new Date('2026-05-20T16:00:00.000Z'),
       amountCents: 12_000,
-      canOpenBillingPortal: true,
-      canTurnOffAutoRenew: true,
       cardType: 'racing',
-      kind: 'active',
+      kind: 'active_paid',
       receiptUrl: 'https://pay.stripe.test/receipt',
     });
     mocks.paymentFindFirst.mockResolvedValue(latestPayment);
     mocks.requireCurrentUser.mockResolvedValue({ id: 'user-1' });
-    mocks.selectCanonicalMembershipSubscription.mockReturnValue(subscription);
     mocks.userFindUnique.mockResolvedValue({
       gymMembershipVerifiedAt: null,
       sailingAffiliation: 'student',
-      sailingCardSubscriptions: [subscription],
     });
   });
 
-  it('derives membership billing props from user subscriptions and payments', async () => {
+  it('derives membership billing props from the latest payment', async () => {
     const { default: ProfileMembershipPage } =
       await import('./membership/page');
 
@@ -168,15 +160,14 @@ describe('ProfileMembershipPage', () => {
     );
     expect(mocks.membershipProfileState).toHaveBeenCalledWith({
       access: 'free_normal',
+      cardYear: expect.any(Number),
       latestPayment,
-      subscription,
     });
     expect(mocks.ProfileMembershipBillingView).toHaveBeenCalledWith(
       expect.objectContaining({
         accessThroughLabel: 'May 20, 2026',
         amountCents: 12_000,
-        canOpenBillingPortal: true,
-        subscriptionId: 'subscription-1',
+        kind: 'active_paid',
       }),
       undefined
     );
@@ -186,10 +177,8 @@ describe('ProfileMembershipPage', () => {
     mocks.membershipProfileState.mockReturnValue({
       accessThrough: null,
       amountCents: null,
-      canOpenBillingPortal: false,
-      canTurnOffAutoRenew: false,
       cardType: null,
-      kind: 'not_started',
+      kind: 'no_paid_membership',
       receiptUrl: null,
     });
     const { default: ProfileMembershipPage } =
@@ -200,7 +189,7 @@ describe('ProfileMembershipPage', () => {
     expect(mocks.ProfileMembershipBillingView).toHaveBeenCalledWith(
       expect.objectContaining({
         accessThroughLabel: null,
-        subscriptionId: 'subscription-1',
+        kind: 'no_paid_membership',
       }),
       undefined
     );
@@ -217,13 +206,13 @@ describe('ProfileMembershipPage', () => {
 
     expect(mocks.membershipProfileState).toHaveBeenCalledWith({
       access: 'paid_racing_available',
+      cardYear: expect.any(Number),
       latestPayment,
-      subscription,
     });
   });
 
-  it('passes a null subscription id when no canonical subscription exists', async () => {
-    mocks.selectCanonicalMembershipSubscription.mockReturnValue(null);
+  it('passes null payment state when no membership payment exists', async () => {
+    mocks.paymentFindFirst.mockResolvedValue(null);
     const { default: ProfileMembershipPage } =
       await import('./membership/page');
 
@@ -231,15 +220,9 @@ describe('ProfileMembershipPage', () => {
 
     expect(mocks.membershipProfileState).toHaveBeenCalledWith({
       access: 'free_normal',
-      latestPayment,
-      subscription: null,
+      cardYear: expect.any(Number),
+      latestPayment: null,
     });
-    expect(mocks.ProfileMembershipBillingView).toHaveBeenCalledWith(
-      expect.objectContaining({
-        subscriptionId: null,
-      }),
-      undefined
-    );
   });
 
   it('throws when auth succeeds but the database user is missing', async () => {

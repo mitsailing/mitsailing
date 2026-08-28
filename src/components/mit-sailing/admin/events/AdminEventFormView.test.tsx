@@ -186,7 +186,10 @@ function renderView(
 }
 
 function optionalSection(label: string): Element | null {
-  return screen.getByText(label).closest('details');
+  const summary = screen
+    .getAllByText(label)
+    .find((element) => element.tagName.toLowerCase() === 'summary');
+  return summary?.closest('details') ?? null;
 }
 
 describe('AdminEventFormView', () => {
@@ -337,7 +340,6 @@ describe('AdminEventFormView', () => {
           amountCents: 2500,
           description: 'Clinic fee',
           id: 'fee-1',
-          isDeposit: false,
         },
       ],
       maxParticipants: 12,
@@ -425,7 +427,7 @@ describe('AdminEventFormView', () => {
     }
     expect(
       screen.getByRole('checkbox', {
-        name: /Collect payment for approved registrations/,
+        name: /Collect payment for registrations/,
       })
     ).not.toBeChecked();
     expect(screen.getByLabelText('Event address')).toHaveTextContent(
@@ -442,7 +444,6 @@ describe('AdminEventFormView', () => {
           amountCents: 2500,
           description: 'Clinic fee',
           id: 'fee-1',
-          isDeposit: false,
         },
       ],
       externalEntriesUrl: 'https://example.com/entries',

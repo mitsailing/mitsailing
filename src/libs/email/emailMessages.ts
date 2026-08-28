@@ -96,6 +96,15 @@ export type AdminUserEmailMessageRow = {
   toEmail: string;
 };
 
+export const ADMIN_USER_EMAIL_MESSAGES_PAGE_SIZE = 25;
+
+export type AdminUserEmailMessagesPage = {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly rows: AdminUserEmailMessageRow[];
+  readonly total: number;
+};
+
 function jsonb(value: Record<string, unknown> | WebhookEventPayload | null) {
   return value
     ? Prisma.sql`CAST(${JSON.stringify(value)} AS JSONB)`
@@ -413,16 +422,42 @@ export async function handleResendEmailMessageWebhook(
 }
 
 /**
- * Lists recent outbound email rows for a user support view.
+ * Converts a raw SQL count row to a number.
  *
- * @param params - Admin user id and current email
- * @returns Recent email messages newest first
+ * @param row - Optional count row from a raw query
+ * @returns Numeric count
  */
-export async function getAdminUserEmailMessages(params: {
+function countFromRawRow(row: { count: bigint | number | string } | undefined) {
+  if (!row) {
+    return 0;
+  }
+  if (typeof row.count === 'bigint') {
+    return Number(row.count);
+  }
+  if (typeof row.count === 'number') {
+    return row.count;
+  }
+  return Number.parseInt(row.count, 10) || 0;
+}
+
+export async function getAdminUserEmailMessagesPage(params: {
   email: string;
+  page: number;
+  pageSize?: number;
   userId: string;
-}): Promise<AdminUserEmailMessageRow[]> {
+}): Promise<AdminUserEmailMessagesPage> {
   const email = normalizeEmailAddress(params.email);
+  const pageSize = params.pageSize ?? ADMIN_USER_EMAIL_MESSAGES_PAGE_SIZE;
+  const countRows = await prisma.$queryRaw<
+    { count: bigint | number | string }[]
+  >`
+    SELECT COUNT(*) AS "count"
+    FROM "email_messages"
+    WHERE "user_id" = ${params.userId} OR "to_email" = ${email}
+  `;
+  const total = countFromRawRow(countRows.at(0));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(params.page, 1), totalPages);
   const rows = await prisma.$queryRaw<AdminUserEmailMessageRow[]>`
     SELECT
       "id",
@@ -443,7 +478,8 @@ export async function getAdminUserEmailMessages(params: {
     FROM "email_messages"
     WHERE "user_id" = ${params.userId} OR "to_email" = ${email}
     ORDER BY "created_at" DESC
-    LIMIT 50
+    LIMIT ${pageSize}
+    OFFSET ${(page - 1) * pageSize}
   `;
-  return rows;
+  return { page, pageSize, rows, total };
 }

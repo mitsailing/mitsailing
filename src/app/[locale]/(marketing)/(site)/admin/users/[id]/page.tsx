@@ -2,8 +2,18 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import type * as React from 'react';
+import {
+  AdminResponsiveColumnLabel,
+  AdminSummaryRows,
+  AdminTableContainer,
+} from '@/components/mit-sailing/admin/AdminDataRows';
+import type { AdminDataRowItem } from '@/components/mit-sailing/admin/AdminDataRows';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
-import { AdminPrimaryActionLink } from '@/components/mit-sailing/admin/AdminPrimaryActionLink';
+import {
+  AdminPagination,
+  adminPaginationPage,
+  adminPaginationRange,
+} from '@/components/mit-sailing/admin/AdminPagination';
 import {
   AdminSailingCardChangeNumberForm,
   AdminSailingCardExpireForm,
@@ -13,6 +23,7 @@ import {
 } from '@/components/mit-sailing/admin/cards/AdminSailingCardControls';
 import type { AdminSailingCardPaymentAccess } from '@/components/mit-sailing/admin/cards/AdminSailingCardControls';
 import { AdminUserRatingsPanel } from '@/components/mit-sailing/admin/users/AdminUserRatingsPanel';
+import { PaymentAmountDisplay } from '@/components/mit-sailing/payments/PaymentAmountDisplay';
 import {
   Table,
   TableBody,
@@ -36,8 +47,12 @@ import {
 } from '@/libs/admin/cards/adminSailingCardUiQueries';
 import { adminUserMembershipBlockers } from '@/libs/admin/users/adminUserMembershipStatus';
 import type { AdminUserMembershipBlocker } from '@/libs/admin/users/adminUserMembershipStatus';
-import { adminUsersEditPath } from '@/libs/admin/users/adminUserPaths';
-import { listAdminUserPaymentHistory } from '@/libs/admin/users/adminUserPaymentHistory';
+import { adminUsersShowPath } from '@/libs/admin/users/adminUserPaths';
+import {
+  ADMIN_USER_PAYMENT_HISTORY_PAGE_SIZE,
+  listAdminUserCurrentMembershipPaymentAccessHistory,
+  listAdminUserPaymentHistoryPage,
+} from '@/libs/admin/users/adminUserPaymentHistory';
 import type { AdminUserPaymentHistoryRow } from '@/libs/admin/users/adminUserPaymentHistory';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
 import {
@@ -46,7 +61,10 @@ import {
   Permission,
 } from '@/libs/auth/appPermissions';
 import { appRoleFromSessionUser, requirePermission } from '@/libs/auth/dal';
-import { getAdminUserEmailMessages } from '@/libs/email/emailMessages';
+import {
+  ADMIN_USER_EMAIL_MESSAGES_PAGE_SIZE,
+  getAdminUserEmailMessagesPage,
+} from '@/libs/email/emailMessages';
 import type { AdminUserEmailMessageRow } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
 import { membershipPaymentAccessStatus } from '@/libs/mit-sailing/membershipBilling/membershipPaymentStatus';
@@ -57,14 +75,97 @@ import {
 } from '@/libs/mit-sailing/sailingCardValidity';
 import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
 import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
-import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 
 type EmailDeliverabilityStatus = 'ok' | 'bounced' | 'suppressed';
 
 type AdminUserShowPageProps = Readonly<{
   params: Promise<{ locale: string; id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{
+    emailsPage?: string | string[];
+    error?: string | string[];
+    paymentsPage?: string | string[];
+    ratingsPage?: string | string[];
+  }>;
 }>;
+
+const ADMIN_USER_RATINGS_PAGE_SIZE = 25;
+
+type AdminPaginationParams = Record<string, string | number | null | undefined>;
+
+type AdminPaginationModel = {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly total: number;
+};
+
+function searchParamString(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value.at(0)?.trim() ?? '';
+  }
+  return value?.trim() ?? '';
+}
+
+function optionalSearchParamString(value: string | string[] | undefined) {
+  const selected = searchParamString(value);
+  return selected.length > 0 ? selected : undefined;
+}
+
+function pageParamValue(page: number) {
+  return page > 1 ? page : undefined;
+}
+
+function adminPaginationSummary(props: AdminPaginationModel) {
+  return adminPaginationRange(props);
+}
+
+function AdminUserPanelPagination(props: {
+  readonly basePath: string;
+  readonly pageParamName: string;
+  readonly pagination: AdminPaginationModel;
+  readonly params: AdminPaginationParams;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  if (props.pagination.total <= props.pagination.pageSize) {
+    return null;
+  }
+  const range = adminPaginationSummary(props.pagination);
+  return (
+    <AdminPagination
+      basePath={props.basePath}
+      labels={{
+        next: props.t('pagination_next'),
+        previous: props.t('pagination_previous'),
+        summary: props.t('pagination_summary', {
+          end: range.end,
+          start: range.start,
+          total: props.pagination.total,
+        }),
+      }}
+      page={props.pagination.page}
+      pageParamName={props.pageParamName}
+      pageSize={props.pagination.pageSize}
+      params={props.params}
+      total={props.pagination.total}
+    />
+  );
+}
+
+function paginatedRows<T>(props: {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly rows: readonly T[];
+}) {
+  const total = props.rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / props.pageSize));
+  const page = Math.min(Math.max(props.page, 1), totalPages);
+  const start = (page - 1) * props.pageSize;
+  return {
+    page,
+    pageSize: props.pageSize,
+    rows: props.rows.slice(start, start + props.pageSize),
+    total,
+  };
+}
 
 type AdminUserIdentitySummaryInput = {
   readonly emergencyContactName?: unknown;
@@ -218,11 +319,18 @@ type AdminUserRatingDetails = {
 type AdminUserEmailDetails = {
   readonly loadError: boolean;
   readonly messages: AdminUserEmailMessageRow[];
+  readonly page: number;
+  readonly pageSize: number;
+  readonly total: number;
 };
 
 type AdminUserPaymentDetails = {
+  readonly accessRows: AdminUserPaymentHistoryRow[];
   readonly loadError: boolean;
+  readonly page: number;
+  readonly pageSize: number;
   readonly rows: AdminUserPaymentHistoryRow[];
+  readonly total: number;
 };
 
 async function loadAdminUserSailingCardDetails(
@@ -262,36 +370,74 @@ async function loadAdminUserRatingDetails(
 
 async function loadAdminUserEmailDetails(props: {
   readonly email: string;
+  readonly page: number;
   readonly userId: string;
 }): Promise<AdminUserEmailDetails> {
   try {
+    const emailPage = await getAdminUserEmailMessagesPage({
+      ...props,
+      pageSize: ADMIN_USER_EMAIL_MESSAGES_PAGE_SIZE,
+    });
     return {
       loadError: false,
-      messages: await getAdminUserEmailMessages(props),
+      messages: emailPage.rows,
+      page: emailPage.page,
+      pageSize: emailPage.pageSize,
+      total: emailPage.total,
     };
   } catch (error) {
     logger.error('Failed to load admin user email message rows: {error}', {
       error,
       userId: props.userId,
     });
-    return { loadError: true, messages: [] };
+    return {
+      loadError: true,
+      messages: [],
+      page: 1,
+      pageSize: ADMIN_USER_EMAIL_MESSAGES_PAGE_SIZE,
+      total: 0,
+    };
   }
 }
 
-async function loadAdminUserPaymentDetails(
-  userId: string
-): Promise<AdminUserPaymentDetails> {
+async function loadAdminUserPaymentDetails(props: {
+  readonly cardYear: number;
+  readonly page: number;
+  readonly userId: string;
+}): Promise<AdminUserPaymentDetails> {
   try {
+    const [historyPage, accessRows] = await Promise.all([
+      listAdminUserPaymentHistoryPage({
+        page: props.page,
+        pageSize: ADMIN_USER_PAYMENT_HISTORY_PAGE_SIZE,
+        userId: props.userId,
+      }),
+      listAdminUserCurrentMembershipPaymentAccessHistory({
+        cardYear: props.cardYear,
+        userId: props.userId,
+      }),
+    ]);
     return {
+      accessRows,
       loadError: false,
-      rows: await listAdminUserPaymentHistory(userId),
+      page: historyPage.page,
+      pageSize: historyPage.pageSize,
+      rows: historyPage.rows,
+      total: historyPage.total,
     };
   } catch (error) {
     logger.error('Failed to load admin user payment rows: {error}', {
       error,
-      userId,
+      userId: props.userId,
     });
-    return { loadError: true, rows: [] };
+    return {
+      accessRows: [],
+      loadError: true,
+      page: 1,
+      pageSize: ADMIN_USER_PAYMENT_HISTORY_PAGE_SIZE,
+      rows: [],
+      total: 0,
+    };
   }
 }
 
@@ -307,37 +453,24 @@ function AdminUserDetailValue(props: {
   );
 }
 
+function AdminUserInlineDetailValue(props: {
+  readonly label: string;
+  readonly value: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 gap-1.5">
+      <dt className="shrink-0 text-muted-foreground">{props.label}</dt>
+      <dd className="m-0 min-w-0 font-medium break-words">{props.value}</dd>
+    </div>
+  );
+}
+
 function optionalAdminDate(
   date: Date | null | undefined,
   locale: string,
   emptyValue: string
 ) {
   return date ? formatAdminDate(date, locale) : emptyValue;
-}
-
-function AdminUserPaymentBypassAlert(props: {
-  readonly emptyValue: string;
-  readonly locale: string;
-  readonly request: AdminUserSailingCardRequestSummary | undefined;
-  readonly t: Awaited<ReturnType<typeof getTranslations>>;
-}) {
-  if (!props.request?.paymentBypassAt) {
-    return null;
-  }
-  return (
-    <output className="mt-3 block rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-      <span className="font-semibold">
-        {props.t('sailing_card_payment_bypass_title')}
-      </span>
-      <span className="mt-1 block">
-        {props.t('sailing_card_payment_bypass_body', {
-          admin: props.request.paymentBypassBy?.name ?? props.emptyValue,
-          date: formatAdminDate(props.request.paymentBypassAt, props.locale),
-          note: props.request.paymentBypassNote ?? props.emptyValue,
-        })}
-      </span>
-    </output>
-  );
 }
 
 const sailingCardRequestStatusMessageKeys = {
@@ -377,22 +510,6 @@ function sailingCardStatusMessageKey(props: {
     return sailingCardRequestStatusMessageKeys[props.request.status];
   }
   return 'sailing_card_status_none';
-}
-
-function sailingCardAssignmentMessageKey(props: {
-  readonly hasCurrentCard: boolean;
-  readonly request: AdminUserSailingCardRequestSummary | undefined;
-}) {
-  if (props.request?.status === SailingCardRequestStatus.pending) {
-    return 'sailing_card_assignment_pending';
-  }
-  if (props.hasCurrentCard) {
-    return 'sailing_card_assignment_issued';
-  }
-  if (props.request?.status === SailingCardRequestStatus.cancelled) {
-    return 'sailing_card_assignment_cancelled';
-  }
-  return 'sailing_card_assignment_none';
 }
 
 function membershipPaymentAccessFromRow(props: {
@@ -487,16 +604,15 @@ type AdminUserSailingCardSectionModel = {
   readonly agreement:
     | NonNullable<AdminUserSailingCardSummary>['legalAgreementAcceptances'][number]
     | undefined;
-  readonly currentCardNumber: number | null;
   readonly displayedCardNumber: React.ReactNode;
   readonly emptyValue: string;
   readonly hasCurrentCard: boolean;
   readonly issuePaymentAccess: AdminSailingCardPaymentAccess | undefined;
   readonly latestRequest: AdminUserSailingCardRequestSummary | undefined;
   readonly needsRecreationVerification: boolean;
-  readonly paymentBypass: AdminUserSailingCardRequestSummary | undefined;
   readonly pendingCardNumber: number;
   readonly pendingRequest: AdminUserSailingCardRequestSummary | undefined;
+  readonly summary: AdminUserSailingCardSummary;
 };
 
 function pendingRequestNeedsRecreationVerification(props: {
@@ -527,7 +643,6 @@ function adminUserSailingCardSectionModel(props: {
 
   return {
     agreement: props.summary?.legalAgreementAcceptances[0],
-    currentCardNumber: props.summary?.sailingCardNumber ?? null,
     displayedCardNumber:
       props.summary?.sailingCardNumber ??
       pendingRequest?.issuedCardNumber ??
@@ -543,14 +658,14 @@ function adminUserSailingCardSectionModel(props: {
       request: pendingRequest,
       summary: props.summary,
     }),
-    paymentBypass: props.summary?.paymentBypassRequest ?? undefined,
     pendingCardNumber:
       pendingRequest?.issuedCardNumber ?? props.suggestedCardNumber,
     pendingRequest,
+    summary: props.summary,
   };
 }
 
-function AdminUserSailingCardNumberAction(props: {
+function AdminUserPendingSailingCardIssueAction(props: {
   readonly canAssignCards: boolean;
   readonly locale: string;
   readonly model: AdminUserSailingCardSectionModel;
@@ -559,11 +674,9 @@ function AdminUserSailingCardNumberAction(props: {
   if (!props.canAssignCards) {
     return null;
   }
-  const { currentCardNumber } = props.model;
-
   if (props.model.pendingRequest) {
     return (
-      <div className="mt-4">
+      <div className="w-full sm:w-auto">
         <AdminSailingCardIssueForm
           cardType={props.model.pendingRequest.cardType}
           locale={props.locale}
@@ -576,73 +689,7 @@ function AdminUserSailingCardNumberAction(props: {
     );
   }
 
-  if (props.model.hasCurrentCard && typeof currentCardNumber === 'number') {
-    return (
-      <div className="mt-4">
-        <AdminSailingCardChangeNumberForm
-          currentCardNumber={currentCardNumber}
-          locale={props.locale}
-          userId={props.userId}
-        />
-      </div>
-    );
-  }
-
   return null;
-}
-
-function AdminUserSailingCardStatusPanel(props: {
-  readonly canAssignCards: boolean;
-  readonly locale: string;
-  readonly model: AdminUserSailingCardSectionModel;
-  readonly t: Awaited<ReturnType<typeof getTranslations>>;
-  readonly userId: string;
-}) {
-  const cardNumberLabel = props.model.pendingRequest
-    ? props.t('sailing_card_suggested_number')
-    : props.t('sailing_card_number');
-  const cardNumberHelp = props.model.pendingRequest
-    ? props.t('sailing_card_suggested_number_help')
-    : props.t('sailing_card_number_help');
-  const statusHelp = props.model.pendingRequest
-    ? props.t('sailing_card_status_requested_help')
-    : props.t('sailing_card_status_default_help');
-
-  return (
-    <div className="mt-4 grid gap-4 border-y border-border py-4 md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.7fr)]">
-      <div>
-        <p className="m-0 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          {props.t('sailing_card_status')}
-        </p>
-        <p className="mt-1 text-2xl font-semibold text-foreground">
-          {props.t(
-            sailingCardStatusMessageKey({
-              hasCurrentCard: props.model.hasCurrentCard,
-              request: props.model.latestRequest,
-            })
-          )}
-        </p>
-        <p className="mt-2 text-sm text-muted-foreground">{statusHelp}</p>
-      </div>
-      <div className="border-t border-border pt-4 md:border-t-0 md:border-l md:pt-0 md:pl-4">
-        <p className="m-0 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          {cardNumberLabel}
-        </p>
-        <p className="mt-1 text-3xl font-semibold text-foreground">
-          {props.model.pendingRequest
-            ? props.model.pendingCardNumber
-            : props.model.displayedCardNumber}
-        </p>
-        <p className="mt-2 text-sm text-muted-foreground">{cardNumberHelp}</p>
-        <AdminUserSailingCardNumberAction
-          canAssignCards={props.canAssignCards}
-          locale={props.locale}
-          model={props.model}
-          userId={props.userId}
-        />
-      </div>
-    </div>
-  );
 }
 
 function sailingCardTypeValue(props: {
@@ -653,6 +700,62 @@ function sailingCardTypeValue(props: {
   return props.request
     ? props.t(sailingCardTypeMessageKeys[props.request.cardType])
     : props.emptyValue;
+}
+
+function AdminUserSailingCardStatusPanel(props: {
+  readonly canAssignCards: boolean;
+  readonly locale: string;
+  readonly model: AdminUserSailingCardSectionModel;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+  readonly userId: string;
+}) {
+  const cardNumber = props.model.pendingRequest
+    ? props.t('sailing_card_assignment_pending')
+    : props.model.displayedCardNumber;
+
+  return (
+    <div className="mt-3 flex flex-wrap items-start justify-between gap-3 border-t border-border pt-3">
+      <div className="min-w-0 flex-1">
+        <p className="m-0 text-sm font-medium text-foreground">
+          {props.t(
+            sailingCardStatusMessageKey({
+              hasCurrentCard: props.model.hasCurrentCard,
+              request: props.model.latestRequest,
+            })
+          )}
+        </p>
+        <dl className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+          <AdminUserInlineDetailValue
+            label={props.t('sailing_card_number')}
+            value={cardNumber}
+          />
+          <AdminUserInlineDetailValue
+            label={props.t('sailing_card_type')}
+            value={sailingCardTypeValue({
+              emptyValue: props.model.emptyValue,
+              request: props.model.latestRequest,
+              t: props.t,
+            })}
+          />
+          <AdminUserInlineDetailValue
+            label={props.t('sailing_card_year')}
+            value={
+              props.model.pendingRequest?.cardYear ??
+              props.model.latestRequest?.cardYear ??
+              props.model.summary?.sailingCardYear ??
+              props.model.emptyValue
+            }
+          />
+        </dl>
+      </div>
+      <AdminUserPendingSailingCardIssueAction
+        canAssignCards={props.canAssignCards}
+        locale={props.locale}
+        model={props.model}
+        userId={props.userId}
+      />
+    </div>
+  );
 }
 
 function sailingCardSwimAgreementValue(props: {
@@ -682,33 +785,7 @@ function AdminUserSailingCardDetailsList(props: {
   readonly t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
   return (
-    <dl className="mt-4 grid gap-3 sm:grid-cols-3">
-      <AdminUserDetailValue
-        label={props.t('sailing_card_assignment')}
-        value={props.t(
-          sailingCardAssignmentMessageKey({
-            hasCurrentCard: props.model.hasCurrentCard,
-            request: props.model.latestRequest,
-          })
-        )}
-      />
-      <AdminUserDetailValue
-        label={props.t('sailing_card_type')}
-        value={sailingCardTypeValue({
-          emptyValue: props.model.emptyValue,
-          request: props.model.latestRequest,
-          t: props.t,
-        })}
-      />
-      <AdminUserDetailValue
-        label={props.t('sailing_card_year')}
-        value={
-          props.summary?.sailingCardYear ??
-          props.model.pendingRequest?.cardYear ??
-          props.model.latestRequest?.cardYear ??
-          props.model.emptyValue
-        }
-      />
+    <dl className="mt-3 grid gap-x-5 gap-y-2 border-t border-border pt-3 sm:grid-cols-2 lg:grid-cols-4">
       <AdminUserDetailValue
         label={props.t('sailing_card_expires')}
         value={optionalAdminDate(
@@ -736,12 +813,6 @@ function AdminUserSailingCardDetailsList(props: {
         )}
       />
       <AdminUserDetailValue
-        label={props.t('sailing_card_agreement_version')}
-        value={
-          props.model.agreement?.agreementVersion ?? props.model.emptyValue
-        }
-      />
-      <AdminUserDetailValue
         label={props.t('sailing_card_issued_by')}
         value={
           props.summary?.sailingCardIssuedBy?.name ?? props.model.emptyValue
@@ -756,6 +827,28 @@ function AdminUserSailingCardDetailsList(props: {
         })}
       />
     </dl>
+  );
+}
+
+function AdminUserCurrentSailingCardNumberAction(props: {
+  readonly canAssignCards: boolean;
+  readonly locale: string;
+  readonly model: AdminUserSailingCardSectionModel;
+  readonly userId: string;
+}) {
+  const cardNumber = props.model.summary?.sailingCardNumber;
+  if (!props.canAssignCards || !props.model.hasCurrentCard || !cardNumber) {
+    return null;
+  }
+
+  return (
+    <div className="mt-3 max-w-sm">
+      <AdminSailingCardChangeNumberForm
+        currentCardNumber={cardNumber}
+        locale={props.locale}
+        userId={props.userId}
+      />
+    </div>
   );
 }
 
@@ -781,7 +874,7 @@ function AdminUserSailingCardSection(props: {
 
   return (
     <>
-      <section className="rounded-lg border border-border bg-card p-5 text-sm text-foreground">
+      <section className="border-t border-border pt-5 text-sm text-foreground">
         <h2 className="m-0 text-lg font-semibold" id="sailing-card-status">
           {props.t('sailing_card_heading')}
         </h2>
@@ -790,12 +883,6 @@ function AdminUserSailingCardSection(props: {
             {props.t('sailing_card_load_failed')}
           </output>
         ) : null}
-        <AdminUserPaymentBypassAlert
-          emptyValue={model.emptyValue}
-          locale={props.locale}
-          request={model.paymentBypass}
-          t={props.t}
-        />
         <AdminUserSailingCardStatusPanel
           canAssignCards={props.canAssignCards}
           locale={props.locale}
@@ -804,10 +891,16 @@ function AdminUserSailingCardSection(props: {
           userId={props.userId}
         />
         {props.canPrintCards && model.hasCurrentCard ? (
-          <div className="mt-4">
+          <div className="mt-3">
             <AdminSailingCardPrintActions userId={props.userId} />
           </div>
         ) : null}
+        <AdminUserCurrentSailingCardNumberAction
+          canAssignCards={props.canAssignCards}
+          locale={props.locale}
+          model={model}
+          userId={props.userId}
+        />
         <AdminUserSailingCardDetailsList
           locale={props.locale}
           model={model}
@@ -815,7 +908,7 @@ function AdminUserSailingCardSection(props: {
           t={props.t}
         />
         {props.canExpireCards && model.hasCurrentCard ? (
-          <div className="mt-4">
+          <div className="mt-3">
             <AdminSailingCardExpireForm
               locale={props.locale}
               userId={props.userId}
@@ -839,7 +932,7 @@ function AdminUserEmailsPanel(props: AdminUserEmailsPanelProps) {
           {props.t('emails_load_failed')}
         </output>
       ) : null}
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <AdminTableContainer>
         <Table>
           <TableHeader>
             <TableRow>
@@ -881,7 +974,7 @@ function AdminUserEmailsPanel(props: AdminUserEmailsPanelProps) {
             )}
           </TableBody>
         </Table>
-      </div>
+      </AdminTableContainer>
     </section>
   );
 }
@@ -961,6 +1054,28 @@ function AdminUserPaymentManualEvidence(props: {
   );
 }
 
+function AdminUserPaymentAmount(props: {
+  readonly locale: string;
+  readonly payment: AdminUserPaymentHistoryRow;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  return (
+    <PaymentAmountDisplay
+      labels={{
+        amountPaidOfTotal: (values) =>
+          props.t('payment_amount_paid_of_total', values),
+        discountApplied: props.t('payment_discount_applied'),
+        discountSummary: (values) =>
+          props.t('payment_discount_summary', values),
+        partialRefundSummary: (values) =>
+          props.t('payment_amount_partial_refund', values),
+      }}
+      locale={props.locale}
+      payment={props.payment}
+    />
+  );
+}
+
 function adminPaymentReceiptFallback(
   payment: AdminUserPaymentHistoryRow,
   t: Awaited<ReturnType<typeof getTranslations>>
@@ -987,28 +1102,27 @@ function AdminUserPaymentHistoryPanel(props: {
           {props.t('payments_load_failed')}
         </output>
       ) : null}
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{props.t('payment_column_title')}</TableHead>
-              <TableHead>{props.t('payment_column_purpose')}</TableHead>
-              <TableHead>{props.t('payment_column_status')}</TableHead>
-              <TableHead>{props.t('payment_column_amount')}</TableHead>
-              <TableHead>{props.t('payment_column_date')}</TableHead>
-              <TableHead>{props.t('payment_column_source')}</TableHead>
-              <TableHead>{props.t('payment_column_receipt')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {props.rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7}>{props.t('payments_empty')}</TableCell>
-              </TableRow>
-            ) : (
-              props.rows.map((payment) => (
-                <TableRow key={payment.id}>
-                  <TableCell className="font-medium">
+      {props.rows.length === 0 ? (
+        <p className="m-0 border-y border-border py-3 text-sm text-mit-readable-ink">
+          {props.t('payments_empty')}
+        </p>
+      ) : (
+        <div className="border-y border-border">
+          <div className="hidden grid-cols-[minmax(0,1.7fr)_7rem_9rem_8rem_9rem] gap-3 border-b border-border py-2 text-xs font-medium text-muted-foreground md:grid">
+            <span>{props.t('payment_column_title')}</span>
+            <span>{props.t('payment_column_status')}</span>
+            <span>{props.t('payment_column_amount')}</span>
+            <span>{props.t('payment_column_date')}</span>
+            <span>{props.t('payment_column_source')}</span>
+          </div>
+          <ol className="m-0 list-none divide-y divide-border p-0 text-sm">
+            {props.rows.map((payment) => (
+              <li
+                className="grid gap-3 py-3 md:grid-cols-[minmax(0,1.7fr)_7rem_9rem_8rem_9rem] md:items-start"
+                key={payment.id}
+              >
+                <div className="min-w-0">
+                  <p className="m-0 font-medium break-words">
                     {payment.detailHref ? (
                       <a className="underline" href={payment.detailHref}>
                         {payment.title}
@@ -1016,32 +1130,51 @@ function AdminUserPaymentHistoryPanel(props: {
                     ) : (
                       paymentHistoryTitle(payment, props.t)
                     )}
-                  </TableCell>
-                  <TableCell>
+                  </p>
+                  <p className="mt-1 text-xs text-mit-readable-ink">
                     {props.t(paymentPurposeMessageKeys[payment.purpose])}
-                  </TableCell>
-                  <TableCell>
+                  </p>
+                </div>
+                <div>
+                  <AdminResponsiveColumnLabel
+                    label={props.t('payment_column_status')}
+                  />
+                  <p className="m-0">
                     {props.t(paymentStatusMessageKeys[payment.status])}
-                  </TableCell>
-                  <TableCell>
-                    {formatUsdMinorUnitsAsCurrency(
-                      payment.amountCents,
-                      props.locale
-                    )}
-                  </TableCell>
-                  <TableCell>
+                  </p>
+                </div>
+                <div>
+                  <AdminResponsiveColumnLabel
+                    label={props.t('payment_column_amount')}
+                  />
+                  <AdminUserPaymentAmount
+                    locale={props.locale}
+                    payment={payment}
+                    t={props.t}
+                  />
+                </div>
+                <div>
+                  <AdminResponsiveColumnLabel
+                    label={props.t('payment_column_date')}
+                  />
+                  <p className="m-0">
                     {formatAdminDate(payment.createdAt, props.locale)}
-                  </TableCell>
-                  <TableCell>
+                  </p>
+                </div>
+                <div>
+                  <AdminResponsiveColumnLabel
+                    label={props.t('payment_column_source')}
+                  />
+                  <p className="m-0">
                     {props.t(paymentSourceMessageKeys[payment.source])}
-                    <AdminUserPaymentManualEvidence
-                      emptyValue={props.t('empty_value')}
-                      locale={props.locale}
-                      payment={payment}
-                      t={props.t}
-                    />
-                  </TableCell>
-                  <TableCell>
+                  </p>
+                  <AdminUserPaymentManualEvidence
+                    emptyValue={props.t('empty_value')}
+                    locale={props.locale}
+                    payment={payment}
+                    t={props.t}
+                  />
+                  <p className="mt-1">
                     {payment.receiptHref ? (
                       <a
                         className="underline"
@@ -1054,13 +1187,13 @@ function AdminUserPaymentHistoryPanel(props: {
                     ) : (
                       adminPaymentReceiptFallback(payment, props.t)
                     )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </section>
   );
 }
@@ -1120,7 +1253,6 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     permissions,
     Permission.RATINGS_ASSIGN
   );
-  const canEditUsers = hasPermission(permissions, Permission.USERS_EDIT);
   const canAssignCards = hasPermission(
     permissions,
     Permission.CARDS_ASSIGN_NUMBER
@@ -1134,13 +1266,36 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
   }
   const userEmail = typeof user.email === 'string' ? user.email : '';
   const cardYear = getCurrentSailingCardYear();
+  const userShowPath = adminUsersShowPath(id);
+  const requestedEmailsPage = adminPaginationPage(
+    searchParamString(searchParams.emailsPage)
+  );
+  const requestedPaymentsPage = adminPaginationPage(
+    searchParamString(searchParams.paymentsPage)
+  );
+  const requestedRatingsPage = adminPaginationPage(
+    searchParamString(searchParams.ratingsPage)
+  );
   const [sailingCardDetails, ratingDetails, emailDetails, paymentDetails] =
     await Promise.all([
       loadAdminUserSailingCardDetails(id),
       loadAdminUserRatingDetails(id),
-      loadAdminUserEmailDetails({ email: userEmail, userId: id }),
-      loadAdminUserPaymentDetails(id),
+      loadAdminUserEmailDetails({
+        email: userEmail,
+        page: requestedEmailsPage,
+        userId: id,
+      }),
+      loadAdminUserPaymentDetails({
+        cardYear,
+        page: requestedPaymentsPage,
+        userId: id,
+      }),
     ]);
+  const ratingsPage = paginatedRows({
+    page: requestedRatingsPage,
+    pageSize: ADMIN_USER_RATINGS_PAGE_SIZE,
+    rows: ratingDetails.rows,
+  });
   const shouldLoadSuggestedCardNumber =
     canAssignCards &&
     currentPendingSailingCardRequest(sailingCardDetails.summary) !== undefined;
@@ -1166,89 +1321,61 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     typeof user.mitDataWarehouseVerifiedAt === 'string'
       ? t('identity_source_mit_id')
       : t('identity_source_manual');
+  const userSummaryRows = [
+    [
+      { label: t('identity_name'), value: identitySummary.profileName },
+      { label: t('column_email'), value: userEmail },
+      { label: t('identity_phone'), value: identitySummary.phone },
+    ],
+    [
+      { label: t('identity_affiliation'), value: userSailingAffiliation },
+      { label: t('column_mit_id'), value: user.mitId ?? t('empty_value') },
+      {
+        label: t('identity_mit_class_year'),
+        value: user.mitClassYear ?? t('empty_value'),
+      },
+    ],
+    [
+      {
+        label: t('identity_emergency_contact_name'),
+        value: identitySummary.emergencyContactName,
+      },
+      {
+        label: t('identity_emergency_contact_phone'),
+        value: identitySummary.emergencyContactPhone,
+      },
+      { label: t('column_role'), value: user.appRole },
+    ],
+    [
+      { label: t('identity_source'), value: userIdentitySource },
+      {
+        label: t('column_email_verified'),
+        value: user.emailVerified ? t('boolean_yes') : t('boolean_no'),
+      },
+      {
+        label: t('column_sailing_card_number'),
+        value: user.sailingCardNumber ?? t('empty_value'),
+      },
+    ],
+  ] as const satisfies readonly (readonly AdminDataRowItem[])[];
   const blockers = adminUserMembershipBlockers({
     cardRequest:
-      currentPendingSailingCardRequest(sailingCardDetails.summary) ??
-      sailingCardDetails.summary?.paymentBypassRequest ??
-      null,
+      currentPendingSailingCardRequest(sailingCardDetails.summary) ?? null,
     introClassRequired: false,
-    membershipAccess: currentMembershipPaymentAccess(paymentDetails.rows),
+    membershipAccess: currentMembershipPaymentAccess(paymentDetails.accessRows),
     recreationVerificationRequired: false,
   });
+  const paginationParams = {
+    emailsPage: pageParamValue(emailDetails.page),
+    paymentsPage: pageParamValue(paymentDetails.page),
+    ratingsPage: pageParamValue(ratingsPage.page),
+  };
 
   return (
     <div className="flex w-full max-w-5xl flex-col gap-6">
-      <AdminPageHeader
-        actions={
-          canEditUsers ? (
-            <AdminPrimaryActionLink href={adminUsersEditPath(id)}>
-              {t('action_edit')}
-            </AdminPrimaryActionLink>
-          ) : undefined
-        }
-        title={user.name}
-      />
+      <AdminPageHeader title={user.name} />
       <AdminUserCurrentBlockers blockers={blockers} t={t} />
-      <div className="rounded-lg border border-border bg-card p-5 text-sm text-foreground">
-        <dl className="m-0 grid gap-3 sm:grid-cols-3">
-          <div>
-            <dt className="font-semibold">{t('identity_name')}</dt>
-            <dd className="m-0">{identitySummary.profileName}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold">{t('identity_affiliation')}</dt>
-            <dd className="m-0">{userSailingAffiliation}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold">{t('identity_source')}</dt>
-            <dd className="m-0">{userIdentitySource}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold">{t('identity_phone')}</dt>
-            <dd className="m-0">{identitySummary.phone}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold">
-              {t('identity_emergency_contact_name')}
-            </dt>
-            <dd className="m-0">{identitySummary.emergencyContactName}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold">
-              {t('identity_emergency_contact_phone')}
-            </dt>
-            <dd className="m-0">{identitySummary.emergencyContactPhone}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold">{t('column_email')}</dt>
-            <dd className="m-0">{userEmail}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold">{t('column_mit_id')}</dt>
-            <dd className="m-0">{user.mitId ?? t('empty_value')}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold">{t('column_sailing_card_number')}</dt>
-            <dd className="m-0">
-              {user.sailingCardNumber ?? t('empty_value')}
-            </dd>
-          </div>
-          <div>
-            <dt className="font-semibold">{t('identity_mit_class_year')}</dt>
-            <dd className="m-0">{user.mitClassYear ?? t('empty_value')}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold">{t('column_role')}</dt>
-            <dd className="m-0">{user.appRole}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold">{t('column_email_verified')}</dt>
-            <dd className="m-0">
-              {user.emailVerified ? t('boolean_yes') : t('boolean_no')}
-            </dd>
-          </div>
-        </dl>
-      </div>
+      <AdminSummaryRows rows={userSummaryRows} />
       {hasEmailDeliverabilityWarning ? (
         <output className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
           <p className="font-semibold">{t('email_status_warning_title')}</p>
@@ -1274,11 +1401,18 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
       />
       <AdminUserRatingsPanel
         canAssignRatings={canAssignRatings}
-        errorCode={searchParams.error}
+        errorCode={optionalSearchParamString(searchParams.error)}
         locale={locale}
         ratingsLoadFailed={ratingDetails.loadError}
-        rows={ratingDetails.rows}
+        rows={ratingsPage.rows}
         userId={id}
+      />
+      <AdminUserPanelPagination
+        basePath={userShowPath}
+        pageParamName="ratingsPage"
+        pagination={ratingsPage}
+        params={paginationParams}
+        t={t}
       />
       <AdminUserPaymentHistoryPanel
         loadFailed={paymentDetails.loadError}
@@ -1286,10 +1420,24 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
         rows={paymentDetails.rows}
         t={t}
       />
+      <AdminUserPanelPagination
+        basePath={userShowPath}
+        pageParamName="paymentsPage"
+        pagination={paymentDetails}
+        params={paginationParams}
+        t={t}
+      />
       <AdminUserEmailsPanel
         emails={emailDetails.messages}
         loadFailed={emailDetails.loadError}
         locale={locale}
+        t={t}
+      />
+      <AdminUserPanelPagination
+        basePath={userShowPath}
+        pageParamName="emailsPage"
+        pagination={emailDetails}
+        params={paginationParams}
         t={t}
       />
     </div>

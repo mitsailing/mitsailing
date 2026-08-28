@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   membershipAccessThroughDate,
-  membershipBillingAnchorForCheckout,
   membershipPriceKindForDate,
 } from '@/libs/mit-sailing/membershipBilling/membershipBillingDates';
 
@@ -21,30 +20,15 @@ describe('membership billing dates', () => {
     ).toBe('full');
   });
 
-  it('anchors spring checkout to the next July 15 Eastern', () => {
-    expect(
-      membershipBillingAnchorForCheckout(
-        new Date('2026-05-01T12:00:00.000Z')
-      ).toISOString()
-    ).toBe('2026-07-15T04:00:00.000Z');
-  });
-
-  it('anchors purchases on or after July 15 to the following July 15 renewal', () => {
-    expect(
-      membershipBillingAnchorForCheckout(
-        new Date('2026-07-16T12:00:00.000Z')
-      ).toISOString()
-    ).toBe('2027-07-15T04:00:00.000Z');
-  });
-
-  it('returns access-through and next-renewal dates for profile copy', () => {
-    expect(
-      membershipBillingAnchorForCheckout(
-        new Date('2026-12-01T12:00:00.000Z')
-      ).toISOString()
-    ).toBe('2027-07-15T04:00:00.000Z');
+  it('returns access-through date for profile copy', () => {
     expect(
       membershipAccessThroughDate(new Date('2027-07-14T12:00:00.000Z'))
     ).toBe('2027-07-14');
+  });
+
+  it('returns next-season access-through date on renewal day', () => {
+    expect(
+      membershipAccessThroughDate(new Date('2027-07-15T04:00:00.000Z'))
+    ).toBe('2028-07-14');
   });
 });

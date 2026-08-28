@@ -1,5 +1,6 @@
 import { ExternalLink } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
+import { PaymentAmountDisplay } from '@/components/mit-sailing/payments/PaymentAmountDisplay';
 import {
   PaymentSource,
   PaymentStatus,
@@ -7,7 +8,7 @@ import {
 } from '@/generated/prisma/enums';
 import { Link } from '@/libs/I18nNavigation';
 import type { UserPaymentRow } from '@/libs/mit-sailing/userPaymentQueries';
-import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
+import { safeStripeHostedPaymentHref } from '@/libs/stripe/stripeHostedPaymentHref';
 
 type ProfilePaymentsTranslations = Awaited<
   ReturnType<typeof getTranslations<'UserProfilePage'>>
@@ -104,6 +105,111 @@ function receiptFallbackLabel(
   return t('payments_no_receipt');
 }
 
+function PaymentAmountValue(props: {
+  locale: string;
+  payment: UserPaymentRow;
+  t: ProfilePaymentsTranslations;
+}) {
+  return (
+    <PaymentAmountDisplay
+      labels={{
+        amountPaidOfTotal: (values) =>
+          props.t('payments_amount_paid_of_total', values),
+        discountApplied: props.t('payments_discount_applied'),
+        discountSummary: (values) =>
+          props.t('payments_discount_summary', values),
+        partialRefundSummary: (values) =>
+          props.t('payments_amount_partial_refund', values),
+      }}
+      locale={props.locale}
+      payment={props.payment}
+    />
+  );
+}
+
+function ProfilePaymentMobileLabel(props: { readonly label: string }) {
+  return (
+    <p className="m-0 text-xs font-medium text-muted-foreground md:hidden">
+      {props.label}
+    </p>
+  );
+}
+
+function ProfilePaymentReceipt(props: {
+  readonly payment: UserPaymentRow;
+  readonly t: ProfilePaymentsTranslations;
+}) {
+  const receiptHref = safeStripeHostedPaymentHref(props.payment.receiptUrl);
+  if (receiptHref && props.payment.status !== PaymentStatus.handled) {
+    return (
+      // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- safeStripeHostedPaymentHref restricts receipt links to Stripe-hosted HTTPS payment URLs.
+      <a
+        className="inline-flex items-center gap-1 font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+        href={receiptHref}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        <ExternalLink aria-hidden className="size-3.5" />
+        {props.t('payments_receipt_link')}
+      </a>
+    );
+  }
+
+  return (
+    <span className="text-mit-readable-ink">
+      {receiptFallbackLabel(props.payment, props.t)}
+    </span>
+  );
+}
+
+function ProfilePaymentRow(props: {
+  readonly locale: string;
+  readonly payment: UserPaymentRow;
+  readonly t: ProfilePaymentsTranslations;
+}) {
+  return (
+    <li className="grid gap-3 py-3 md:grid-cols-[minmax(0,1.7fr)_9rem_8rem_8rem] md:items-start">
+      <div className="min-w-0">
+        {props.payment.event ? (
+          <Link
+            className="font-semibold break-words text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+            href={`/events/${props.payment.event.slug}`}
+          >
+            {paymentTitle(props.payment, props.t)}
+          </Link>
+        ) : (
+          <span className="font-semibold break-words">
+            {paymentTitle(props.payment, props.t)}
+          </span>
+        )}
+      </div>
+      <div>
+        <ProfilePaymentMobileLabel label={props.t('payments_column_amount')} />
+        <div className="font-medium tabular-nums">
+          <PaymentAmountValue
+            locale={props.locale}
+            payment={props.payment}
+            t={props.t}
+          />
+        </div>
+      </div>
+      <div>
+        <ProfilePaymentMobileLabel label={props.t('payments_column_status')} />
+        <p className="m-0">
+          {profilePaymentStatusLabel(props.payment.status, props.t)}
+        </p>
+        <p className="mt-1 text-xs text-mit-readable-ink">
+          {props.t(paymentSourceMessageKeys[props.payment.source])}
+        </p>
+      </div>
+      <div>
+        <ProfilePaymentMobileLabel label={props.t('payments_column_receipt')} />
+        <ProfilePaymentReceipt payment={props.payment} t={props.t} />
+      </div>
+    </li>
+  );
+}
+
 export function ProfilePaymentsView(props: ProfilePaymentsViewProps) {
   return (
     <section className="mx-auto max-w-5xl">
@@ -113,90 +219,30 @@ export function ProfilePaymentsView(props: ProfilePaymentsViewProps) {
       <p className="mb-6 text-sm text-mit-readable-ink">
         {props.t('payments_page_intro')}
       </p>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] table-fixed border-collapse text-left text-sm leading-snug text-mit-text">
-          <thead>
-            <tr className="text-sm font-bold text-mit-text">
-              <th className="w-[42%] px-2 py-2" scope="col">
-                {props.t('payments_column_payment')}
-              </th>
-              <th className="w-[16%] px-2 py-2" scope="col">
-                {props.t('payments_column_amount')}
-              </th>
-              <th className="w-[18%] px-2 py-2" scope="col">
-                {props.t('payments_column_status')}
-              </th>
-              <th className="w-[14%] px-2 py-2" scope="col">
-                {props.t('payments_column_source')}
-              </th>
-              <th className="w-[10%] px-2 py-2 text-right" scope="col">
-                {props.t('payments_column_receipt')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {props.payments.length === 0 ? (
-              <tr className="border-t border-mit-line">
-                <td
-                  className="px-2 py-4 text-center text-mit-readable-ink"
-                  colSpan={5}
-                >
-                  {props.t('payments_empty_state')}
-                </td>
-              </tr>
-            ) : (
-              props.payments.map((payment) => (
-                <tr className="border-t border-mit-line" key={payment.id}>
-                  <th className="px-2 py-3 font-normal" scope="row">
-                    {payment.event ? (
-                      <Link
-                        className="font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-                        href={`/events/${payment.event.slug}`}
-                      >
-                        {paymentTitle(payment, props.t)}
-                      </Link>
-                    ) : (
-                      <span className="font-semibold">
-                        {paymentTitle(payment, props.t)}
-                      </span>
-                    )}
-                  </th>
-                  <td className="px-2 py-3 font-medium tabular-nums">
-                    {formatUsdMinorUnitsAsCurrency(
-                      payment.amountCents,
-                      props.locale
-                    )}
-                  </td>
-                  <td className="px-2 py-3">
-                    {profilePaymentStatusLabel(payment.status, props.t)}
-                  </td>
-                  <td className="px-2 py-3">
-                    {props.t(paymentSourceMessageKeys[payment.source])}
-                  </td>
-                  <td className="px-2 py-3 text-right">
-                    {payment.receiptUrl &&
-                    payment.status !== PaymentStatus.handled ? (
-                      <a
-                        className="inline-flex items-center justify-end gap-1 font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-                        href={payment.receiptUrl}
-                        rel="noopener noreferrer"
-                        target="_blank"
-                      >
-                        <ExternalLink aria-hidden className="size-3.5" />
-                        {props.t('payments_receipt_link')}
-                      </a>
-                    ) : (
-                      <span className="text-mit-readable-ink">
-                        {receiptFallbackLabel(payment, props.t)}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {props.payments.length === 0 ? (
+        <p className="m-0 border-y border-mit-line py-4 text-center text-sm text-mit-readable-ink">
+          {props.t('payments_empty_state')}
+        </p>
+      ) : (
+        <div className="border-y border-mit-line text-sm leading-snug text-mit-text">
+          <div className="hidden grid-cols-[minmax(0,1.7fr)_9rem_8rem_8rem] gap-3 border-b border-mit-line py-2 text-xs font-medium text-muted-foreground md:grid">
+            <span>{props.t('payments_column_payment')}</span>
+            <span>{props.t('payments_column_amount')}</span>
+            <span>{props.t('payments_column_status')}</span>
+            <span>{props.t('payments_column_receipt')}</span>
+          </div>
+          <ol className="m-0 list-none divide-y divide-mit-line p-0">
+            {props.payments.map((payment) => (
+              <ProfilePaymentRow
+                key={payment.id}
+                locale={props.locale}
+                payment={payment}
+                t={props.t}
+              />
+            ))}
+          </ol>
+        </div>
+      )}
     </section>
   );
 }

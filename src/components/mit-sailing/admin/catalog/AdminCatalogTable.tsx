@@ -19,12 +19,12 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { AdminTableContainer } from '@/components/mit-sailing/admin/AdminDataRows';
 import { AdminCatalogListCell } from '@/components/mit-sailing/admin/catalog/AdminCatalogListCell';
+import { ImpersonateButton } from '@/components/mit-sailing/admin/ImpersonateButton';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import {
@@ -42,7 +42,9 @@ import {
 } from '@/libs/admin/catalog/adminCatalogPaths';
 import { reorderCatalogResourceAction } from '@/libs/admin/catalog/catalogActions';
 import type {
+  AdminCatalogResourceMessageKey,
   AdminListColumnDef,
+  AdminUsersMessageKey,
   CatalogReorderScope,
   CatalogResourceDefinition,
   CatalogRow,
@@ -50,14 +52,11 @@ import type {
 import { Link } from '@/libs/I18nNavigation';
 import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 
-const ImpersonateButtonClient = dynamic(
-  async () => {
-    const mod =
-      await import('@/components/mit-sailing/admin/ImpersonateButton');
-    return { default: mod.ImpersonateButton };
-  },
-  { ssr: false }
-);
+type AdminTableMessageKey =
+  | AdminCatalogResourceMessageKey
+  | AdminUsersMessageKey;
+
+const ADMIN_CATALOG_TABLE_PAGE_SIZE = 50;
 
 type AdminCatalogTableProps = {
   locale: string;
@@ -76,20 +75,15 @@ type AdminCatalogTableProps = {
   };
   /** Message bundle for column headers, mobile labels, and actions (not list cell pills). */
   messageNamespace?: 'AdminCatalogResource' | 'AdminUsers';
-  /** Optional client-side list filter for small admin directories such as users. */
-  search?: {
-    emptyKey: string;
-    fields: readonly string[];
-    labelKey: string;
-    placeholderKey: string;
-  };
+  /** Optional empty-state message when server-side filters return no rows. */
+  emptyKey?: AdminTableMessageKey;
   /** Optional exact-match filters for secondary states that do not need table columns. */
   filters?: readonly {
-    allKey: string;
+    allKey: AdminTableMessageKey;
     field: string;
-    labelKey: string;
+    labelKey: AdminTableMessageKey;
     options: readonly {
-      labelKey: string;
+      labelKey: AdminTableMessageKey;
       value: string;
     }[];
   }[];
@@ -123,11 +117,11 @@ function SortableRow(props: {
       ref={setNodeRef}
       style={style}
     >
-      <TableCell className="row-span-full flex w-11 items-start justify-center px-2 py-3 align-middle md:table-cell md:w-10">
+      <TableCell className="row-span-full flex w-12 items-start justify-center px-1.5 py-2 align-middle md:table-cell md:w-12">
         <Button
           aria-label={props.dragLabel}
-          className="cursor-grab touch-none text-muted-foreground hover:text-foreground"
-          size="icon-sm"
+          className="size-11 cursor-grab touch-none text-muted-foreground hover:text-foreground"
+          size="icon"
           type="button"
           variant="ghost"
           {...attributes}
@@ -149,6 +143,46 @@ function StaticRow(props: { children: React.ReactNode }) {
   );
 }
 
+function ClientPaginationControls(props: {
+  readonly currentPage: number;
+  readonly nextLabel: string;
+  readonly onPageChange: (page: number) => void;
+  readonly previousLabel: string;
+  readonly summary: string;
+  readonly totalPages: number;
+}) {
+  return (
+    <nav
+      aria-label={props.summary}
+      className="flex flex-col gap-3 border-t border-border pt-3 text-sm md:flex-row md:items-center md:justify-between"
+    >
+      <p className="m-0 text-mit-readable-ink">{props.summary}</p>
+      <div className="flex items-center gap-2">
+        <Button
+          disabled={props.currentPage <= 1}
+          onClick={() => {
+            props.onPageChange(props.currentPage - 1);
+          }}
+          type="button"
+          variant="outline"
+        >
+          {props.previousLabel}
+        </Button>
+        <Button
+          disabled={props.currentPage >= props.totalPages}
+          onClick={() => {
+            props.onPageChange(props.currentPage + 1);
+          }}
+          type="button"
+          variant="outline"
+        >
+          {props.nextLabel}
+        </Button>
+      </div>
+    </nav>
+  );
+}
+
 /**
  * Puts `field: "name"` columns first; keeps relative order within each group.
  *
@@ -166,6 +200,159 @@ function listColumnsWithNameFirst(
   return [...nameCols, ...rest];
 }
 
+function narrowCatalogTableRows(options: {
+  filterValues: Record<string, string>;
+  filters: AdminCatalogTableProps['filters'];
+  orderedRows: CatalogRow[];
+}): CatalogRow[] {
+  const { filters, orderedRows } = options;
+  if (!filters) {
+    return orderedRows;
+  }
+  return orderedRows.filter((row) =>
+    filters.every((filter) => {
+      const selected = options.filterValues[filter.field] ?? '';
+      return selected.length === 0 || String(row[filter.field]) === selected;
+    })
+  );
+}
+
+function buildCatalogTablePagination(options: {
+  canDragReorder: boolean;
+  currentPage: number;
+  visibleRows: CatalogRow[];
+}) {
+  const clientPaginationEnabled =
+    !options.canDragReorder &&
+    options.visibleRows.length > ADMIN_CATALOG_TABLE_PAGE_SIZE;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(options.visibleRows.length / ADMIN_CATALOG_TABLE_PAGE_SIZE)
+  );
+  const safeCurrentPage = Math.min(
+    Math.max(options.currentPage, 1),
+    totalPages
+  );
+  const pageStartIndex = clientPaginationEnabled
+    ? (safeCurrentPage - 1) * ADMIN_CATALOG_TABLE_PAGE_SIZE
+    : 0;
+  const rowsForRender = clientPaginationEnabled
+    ? options.visibleRows.slice(
+        pageStartIndex,
+        pageStartIndex + ADMIN_CATALOG_TABLE_PAGE_SIZE
+      )
+    : options.visibleRows;
+  const pageStart = options.visibleRows.length === 0 ? 0 : pageStartIndex + 1;
+  const pageEnd = clientPaginationEnabled
+    ? Math.min(
+        options.visibleRows.length,
+        pageStartIndex + ADMIN_CATALOG_TABLE_PAGE_SIZE
+      )
+    : options.visibleRows.length;
+  return {
+    clientPaginationEnabled,
+    pageEnd,
+    pageStart,
+    rowsForRender,
+    safeCurrentPage,
+    totalPages,
+  };
+}
+
+function AdminCatalogTableRowCells(props: {
+  canDelete: boolean;
+  canUpdate: boolean;
+  displayColumns: AdminListColumnDef[];
+  deleteHref: (id: string) => string;
+  editHref: (id: string) => string;
+  primaryHref: (id: string) => string;
+  publicViewHref: (row: CatalogRow) => string | null;
+  row: CatalogRow;
+  t: (key: AdminTableMessageKey) => string;
+  userImpersonation?: AdminCatalogTableProps['userImpersonation'];
+}) {
+  const cols = props.displayColumns.map((col) => {
+    const nameRaw = props.row.name;
+    const listNameEditHref =
+      col.field === 'name' &&
+      props.canUpdate &&
+      typeof nameRaw === 'string' &&
+      nameRaw.trim().length > 0
+        ? props.primaryHref(String(props.row.id))
+        : undefined;
+    return (
+      <TableCell
+        key={col.field}
+        className="block min-w-0 px-3 py-1.5 text-sm leading-5 text-foreground md:table-cell md:py-2"
+      >
+        <span className="mb-1 block text-xs font-medium text-muted-foreground md:hidden">
+          {props.t(col.headerKey)}
+        </span>
+        <AdminCatalogListCell
+          booleanPolarity={col.booleanPolarity}
+          field={col.field}
+          kind={col.kind}
+          listNameEditHref={listNameEditHref}
+          row={props.row}
+        />
+      </TableCell>
+    );
+  });
+  const viewHref = props.publicViewHref(props.row);
+  const actions = (
+    <TableCell className="block min-w-0 px-3 pt-1.5 pb-3 text-sm leading-5 md:table-cell md:py-2">
+      <span className="mb-1 block text-xs font-medium text-muted-foreground md:hidden">
+        {props.t('column_actions')}
+      </span>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        {viewHref ? (
+          <Link
+            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+            href={viewHref}
+          >
+            {props.t('action_view_page')}
+          </Link>
+        ) : null}
+        {props.canUpdate ? (
+          <Link
+            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+            href={props.editHref(String(props.row.id))}
+          >
+            {props.t('action_edit')}
+          </Link>
+        ) : null}
+        {props.canDelete ? (
+          <Link
+            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+            href={props.deleteHref(String(props.row.id))}
+          >
+            {props.t('action_delete')}
+          </Link>
+        ) : null}
+        {props.userImpersonation &&
+        String(props.row.id) === props.userImpersonation.currentUserId ? (
+          <span className="text-xs text-mit-text">
+            {props.userImpersonation.selfLabel}
+          </span>
+        ) : null}
+        {props.userImpersonation &&
+        String(props.row.id) !== props.userImpersonation.currentUserId ? (
+          <ImpersonateButton
+            redirectHref={props.userImpersonation.accountRedirectHref}
+            userId={String(props.row.id)}
+          />
+        ) : null}
+      </div>
+    </TableCell>
+  );
+  return (
+    <>
+      {cols}
+      {actions}
+    </>
+  );
+}
+
 /**
  * Catalog index table with optional drag-and-drop reordering (auto-save).
  *
@@ -175,14 +362,17 @@ function listColumnsWithNameFirst(
 export function AdminCatalogTable(props: AdminCatalogTableProps) {
   const tCatalog = useTranslations('AdminCatalogResource');
   const tUsers = useTranslations('AdminUsers');
-  /* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- next-intl returns namespace-bound translators; this table switches between the two configured namespaces. */
-  const t =
-    props.messageNamespace === 'AdminUsers'
-      ? (tUsers as (key: string) => string)
-      : (tCatalog as (key: string) => string);
-  /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
   const router = useRouter();
   const canReorder = props.definition.capabilities.reorder;
+
+  function t(key: AdminTableMessageKey): string {
+    if (props.messageNamespace === 'AdminUsers') {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- messageNamespace picks users keys
+      return tUsers(key as AdminUsersMessageKey);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- default catalog keys
+    return tCatalog(key as AdminCatalogResourceMessageKey);
+  }
 
   function editHref(id: string): string {
     if (props.adminBasePath) {
@@ -223,7 +413,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
   );
   const [reorderError, setReorderError] = useState<string | null>(null);
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
-  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     setOrderedIds(props.rows.map((r) => String(r.id)));
@@ -277,150 +467,74 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
   const displayColumns = listColumnsWithNameFirst(props.definition.listColumns);
   const canUpdate = props.definition.capabilities.update;
   const canDelete = props.definition.capabilities.delete;
-  const { filters, search } = props;
-  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
-  const hasActiveListNarrowing =
-    normalizedSearchQuery.length > 0 ||
-    Object.values(filterValues).some((value) => value.length > 0);
+  const { filters } = props;
+  const hasActiveListNarrowing = Object.values(filterValues).some(
+    (value) => value.length > 0
+  );
   const canDragReorder = canReorder && !hasActiveListNarrowing;
-  const visibleRows =
-    search || filters
-      ? orderedRows.filter((row) => {
-          const matchesSearch =
-            !search ||
-            !normalizedSearchQuery ||
-            search.fields.some((field) =>
-              String(row[field] ?? '')
-                .toLowerCase()
-                .includes(normalizedSearchQuery)
-            );
-          const matchesFilters =
-            !filters ||
-            filters.every((filter) => {
-              const selected = filterValues[filter.field] ?? '';
-              return (
-                selected.length === 0 || String(row[filter.field]) === selected
-              );
-            });
-          return matchesSearch && matchesFilters;
+  const visibleRows = narrowCatalogTableRows({
+    filterValues,
+    filters,
+    orderedRows,
+  });
+  const {
+    clientPaginationEnabled,
+    pageEnd,
+    pageStart,
+    rowsForRender,
+    safeCurrentPage,
+    totalPages,
+  } = buildCatalogTablePagination({
+    canDragReorder,
+    currentPage,
+    visibleRows,
+  });
+  const paginationSummary =
+    props.messageNamespace === 'AdminUsers'
+      ? tUsers('pagination_summary', {
+          end: pageEnd,
+          start: pageStart,
+          total: visibleRows.length,
         })
-      : orderedRows;
-  const emptyRow = search ? (
+      : tCatalog('pagination_summary', {
+          end: pageEnd,
+          start: pageStart,
+          total: visibleRows.length,
+        });
+  const emptyMessageKey = props.emptyKey;
+  const emptyRow = emptyMessageKey ? (
     <TableRow>
       <TableCell
-        className="px-4 py-6 text-sm text-muted-foreground"
+        className="px-3 py-4 text-sm text-muted-foreground"
         colSpan={displayColumns.length + (canDragReorder ? 2 : 1)}
       >
-        {t(search.emptyKey)}
+        {t(emptyMessageKey)}
       </TableCell>
     </TableRow>
   ) : null;
 
   function renderCells(row: CatalogRow) {
-    const cols = displayColumns.map((col) => {
-      const nameRaw = row.name;
-      const listNameEditHref =
-        col.field === 'name' &&
-        canUpdate &&
-        typeof nameRaw === 'string' &&
-        nameRaw.trim().length > 0
-          ? primaryHref(String(row.id))
-          : undefined;
-      return (
-        <TableCell
-          key={col.field}
-          className="block min-w-0 px-4 py-2 text-foreground md:table-cell md:py-3"
-        >
-          <span className="mb-1 block text-xs font-medium text-muted-foreground md:hidden">
-            {t(col.headerKey)}
-          </span>
-          <AdminCatalogListCell
-            booleanPolarity={col.booleanPolarity}
-            field={col.field}
-            kind={col.kind}
-            listNameEditHref={listNameEditHref}
-            row={row}
-          />
-        </TableCell>
-      );
-    });
-    const viewHref = publicViewHref(row);
-    const actions = (
-      <TableCell className="block min-w-0 px-4 pt-2 pb-4 md:table-cell md:py-3">
-        <span className="mb-1 block text-xs font-medium text-muted-foreground md:hidden">
-          {t('column_actions')}
-        </span>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {viewHref ? (
-            <Link
-              className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-white"
-              href={viewHref}
-            >
-              {t('action_view_page')}
-            </Link>
-          ) : null}
-          {canUpdate ? (
-            <Link
-              className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-              href={editHref(String(row.id))}
-            >
-              {t('action_edit')}
-            </Link>
-          ) : null}
-          {canDelete ? (
-            <Link
-              className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-              href={deleteHref(String(row.id))}
-            >
-              {t('action_delete')}
-            </Link>
-          ) : null}
-          {props.userImpersonation &&
-          String(row.id) === props.userImpersonation.currentUserId ? (
-            <span className="text-xs text-mit-text">
-              {props.userImpersonation.selfLabel}
-            </span>
-          ) : null}
-          {props.userImpersonation &&
-          String(row.id) !== props.userImpersonation.currentUserId ? (
-            <ImpersonateButtonClient
-              redirectHref={props.userImpersonation.accountRedirectHref}
-              userId={String(row.id)}
-            />
-          ) : null}
-        </div>
-      </TableCell>
-    );
     return (
-      <>
-        {cols}
-        {actions}
-      </>
+      <AdminCatalogTableRowCells
+        canDelete={canDelete}
+        canUpdate={canUpdate}
+        deleteHref={deleteHref}
+        displayColumns={displayColumns}
+        editHref={editHref}
+        primaryHref={primaryHref}
+        publicViewHref={publicViewHref}
+        row={row}
+        t={t}
+        userImpersonation={props.userImpersonation}
+      />
     );
   }
 
   return (
     <div className="flex flex-col gap-2">
-      {props.search || props.filters ? (
+      {props.filters ? (
         <div className="flex flex-col gap-3 md:flex-row md:items-end">
-          {props.search ? (
-            <div className="w-full md:max-w-sm">
-              <Label htmlFor={`${props.resourceId}-admin-search`}>
-                {t(props.search.labelKey)}
-              </Label>
-              <Input
-                className="mt-2"
-                id={`${props.resourceId}-admin-search`}
-                onChange={(event) => {
-                  setSearchQuery(event.currentTarget.value);
-                }}
-                placeholder={t(props.search.placeholderKey)}
-                type="search"
-                value={searchQuery}
-              />
-            </div>
-          ) : null}
-          {props.filters?.map((filter) => (
+          {props.filters.map((filter) => (
             <div className="w-full md:max-w-56" key={filter.field}>
               <Label htmlFor={`${props.resourceId}-${filter.field}-filter`}>
                 {t(filter.labelKey)}
@@ -434,6 +548,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
                     ...current,
                     [filter.field]: selectedValue,
                   }));
+                  setCurrentPage(1);
                 }}
                 value={filterValues[filter.field] ?? ''}
               >
@@ -464,23 +579,23 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
           }}
           sensors={sensors}
         >
-          <div className="rounded-lg border border-border bg-card">
+          <AdminTableContainer>
             <Table className="text-left md:min-w-[720px]">
               <TableHeader className="hidden md:table-header-group">
                 <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
                   <TableHead
                     aria-label={t('drag_handle_aria')}
-                    className="w-10 px-2 py-3"
+                    className="w-10 px-2 py-2"
                   />
                   {displayColumns.map((col) => (
                     <TableHead
                       key={col.field}
-                      className="px-4 py-3 font-medium"
+                      className="px-3 py-2 font-medium"
                     >
                       {t(col.headerKey)}
                     </TableHead>
                   ))}
-                  <TableHead className="px-4 py-3 font-medium">
+                  <TableHead className="px-3 py-2 font-medium">
                     {t('column_actions')}
                   </TableHead>
                 </TableRow>
@@ -490,9 +605,9 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
                 strategy={verticalListSortingStrategy}
               >
                 <TableBody>
-                  {visibleRows.length === 0
+                  {rowsForRender.length === 0
                     ? emptyRow
-                    : visibleRows.map((row) => (
+                    : rowsForRender.map((row) => (
                         <SortableRow
                           dragLabel={t('drag_handle_aria')}
                           id={String(row.id)}
@@ -504,35 +619,45 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
                 </TableBody>
               </SortableContext>
             </Table>
-          </div>
+          </AdminTableContainer>
         </DndContext>
       ) : (
-        <div className="rounded-lg border border-border bg-card">
+        <AdminTableContainer>
           <Table className="text-left md:min-w-[720px]">
             <TableHeader className="hidden md:table-header-group">
               <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
                 {displayColumns.map((col) => (
-                  <TableHead key={col.field} className="px-4 py-3 font-medium">
+                  <TableHead key={col.field} className="px-3 py-2 font-medium">
                     {t(col.headerKey)}
                   </TableHead>
                 ))}
-                <TableHead className="px-4 py-3 font-medium">
+                <TableHead className="px-3 py-2 font-medium">
                   {t('column_actions')}
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visibleRows.length === 0
+              {rowsForRender.length === 0
                 ? emptyRow
-                : visibleRows.map((row) => (
+                : rowsForRender.map((row) => (
                     <StaticRow key={String(row.id)}>
                       {renderCells(row)}
                     </StaticRow>
                   ))}
             </TableBody>
           </Table>
-        </div>
+        </AdminTableContainer>
       )}
+      {clientPaginationEnabled ? (
+        <ClientPaginationControls
+          currentPage={safeCurrentPage}
+          nextLabel={t('pagination_next')}
+          onPageChange={setCurrentPage}
+          previousLabel={t('pagination_previous')}
+          summary={paginationSummary}
+          totalPages={totalPages}
+        />
+      ) : null}
     </div>
   );
 }

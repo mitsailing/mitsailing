@@ -187,7 +187,6 @@ describe('getPublishedEventForPublicBySlug', () => {
           id: 'fee-1',
           description: 'Clinic fee',
           amountCents: 1550,
-          isDeposit: false,
         },
       ],
     });

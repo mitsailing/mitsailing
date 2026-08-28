@@ -9,6 +9,7 @@ import { prisma } from '@/libs/DB';
 
 export type UserPaymentRow = {
   amountCents: number;
+  amountPaidCents: number | null;
   cardType: SailingCardType | null;
   cardYear: number | null;
   createdAt: Date;
@@ -20,8 +21,10 @@ export type UserPaymentRow = {
   legacyDescription: string | null;
   purpose: 'event' | 'membership';
   receiptUrl: string | null;
+  refundedAmountCents: number | null;
   source: PaymentSourceValue;
   status: PaymentStatusValue;
+  stripeDiscountMetadata: unknown;
 };
 
 export async function listUserPayments(
@@ -32,6 +35,7 @@ export async function listUserPayments(
     orderBy: { createdAt: 'desc' },
     select: {
       amountCents: true,
+      amountPaidCents: true,
       cardType: true,
       cardYear: true,
       createdAt: true,
@@ -39,8 +43,10 @@ export async function listUserPayments(
       id: true,
       legacyDescription: true,
       purpose: true,
+      refundedAmountCents: true,
       source: true,
       status: true,
+      stripeDiscountMetadata: true,
       stripeReceiptUrl: true,
     },
   });
@@ -50,6 +56,7 @@ export async function listUserPayments(
       if (row.event || row.legacyDescription) {
         payments.push({
           amountCents: row.amountCents,
+          amountPaidCents: row.amountPaidCents,
           cardType: null,
           cardYear: null,
           createdAt: row.createdAt,
@@ -58,8 +65,10 @@ export async function listUserPayments(
           legacyDescription: row.legacyDescription,
           purpose: 'event',
           receiptUrl: row.stripeReceiptUrl,
+          refundedAmountCents: row.refundedAmountCents,
           source: row.source,
           status: row.status,
+          stripeDiscountMetadata: row.stripeDiscountMetadata,
         });
       }
       continue;
@@ -68,6 +77,7 @@ export async function listUserPayments(
     if (row.cardType && row.cardYear) {
       payments.push({
         amountCents: row.amountCents,
+        amountPaidCents: row.amountPaidCents,
         cardType: row.cardType,
         cardYear: row.cardYear,
         createdAt: row.createdAt,
@@ -76,8 +86,10 @@ export async function listUserPayments(
         legacyDescription: null,
         purpose: 'membership',
         receiptUrl: row.stripeReceiptUrl,
+        refundedAmountCents: row.refundedAmountCents,
         source: row.source,
         status: row.status,
+        stripeDiscountMetadata: row.stripeDiscountMetadata,
       });
     }
   }

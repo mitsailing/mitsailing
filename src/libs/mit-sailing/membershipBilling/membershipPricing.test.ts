@@ -117,18 +117,6 @@ const baseRows: readonly SailingCardMembershipPriceRow[] = [
     priceKind: SailingCardMembershipPriceKind.full,
   }),
   priceRow({
-    amountCents: 12_500,
-    billingInterval: SailingCardMembershipBillingInterval.annual,
-    priceCategory: SailingCardMembershipPriceCategory.under_30,
-    priceKind: SailingCardMembershipPriceKind.full,
-  }),
-  priceRow({
-    amountCents: 17_500,
-    billingInterval: SailingCardMembershipBillingInterval.annual,
-    priceCategory: SailingCardMembershipPriceCategory.thirty_or_over,
-    priceKind: SailingCardMembershipPriceKind.full,
-  }),
-  priceRow({
     amountCents: 2500,
     billingInterval: SailingCardMembershipBillingInterval.one_time,
     priceCategory: SailingCardMembershipPriceCategory.student,
@@ -136,7 +124,7 @@ const baseRows: readonly SailingCardMembershipPriceRow[] = [
   }),
   priceRow({
     amountCents: 4000,
-    billingInterval: SailingCardMembershipBillingInterval.annual,
+    billingInterval: SailingCardMembershipBillingInterval.one_time,
     priceCategory: SailingCardMembershipPriceCategory.student,
     priceKind: SailingCardMembershipPriceKind.full,
   }),
@@ -169,7 +157,7 @@ describe('membership pricing', () => {
     ).resolves.toMatchObject({ amountCents: 7000 });
   });
 
-  it('returns spring due today and annual July 15 renewal pricing before July 15', async () => {
+  it('returns only the due-today one-time checkout price', async () => {
     const fixture = pricingClientFixtureForRows(baseRows);
 
     await expect(
@@ -184,10 +172,6 @@ describe('membership pricing', () => {
     ).resolves.toMatchObject({
       status: 'ready',
       dueTodayPrice: { amountCents: 7000 },
-      renewalPrice: {
-        amountCents: 12_500,
-        billingInterval: SailingCardMembershipBillingInterval.annual,
-      },
     });
     expect(fixture.findMany).toHaveBeenCalledTimes(1);
   });
@@ -217,20 +201,19 @@ describe('membership pricing', () => {
     ).resolves.toEqual({ status: 'not_eligible' });
   });
 
-  it('uses the renewal age band at the July 15 billing anchor', async () => {
+  it('uses the current checkout age band on July 15', async () => {
     await expect(
       getCheckoutMembershipPrices({
         affiliation: SailingAffiliation.MIT_ALUM,
         cardType: SailingCardType.racing,
         client: pricingClientForRows(baseRows),
         dateOfBirth: '07/15/1996',
-        now: new Date('2026-06-01T12:00:00.000Z'),
+        now: new Date('2026-07-15T12:00:00.000Z'),
         requireStripeReady: false,
       })
     ).resolves.toMatchObject({
       status: 'ready',
-      dueTodayPrice: { amountCents: 7000 },
-      renewalPrice: { amountCents: 17_500 },
+      dueTodayPrice: { amountCents: 17_500 },
     });
   });
 
@@ -238,7 +221,7 @@ describe('membership pricing', () => {
     ['July 14 birthday', '07/14/1996', 17_500],
     ['July 16 birthday', '07/16/1996', 12_500],
   ])(
-    'uses the renewal age band for a %s',
+    'uses the checkout age band for a %s',
     async (_label, dateOfBirth, amount) => {
       await expect(
         getCheckoutMembershipPrices({
@@ -246,12 +229,12 @@ describe('membership pricing', () => {
           cardType: SailingCardType.racing,
           client: pricingClientForRows(baseRows),
           dateOfBirth,
-          now: new Date('2026-06-01T12:00:00.000Z'),
+          now: new Date('2026-07-15T12:00:00.000Z'),
           requireStripeReady: false,
         })
       ).resolves.toMatchObject({
         status: 'ready',
-        renewalPrice: { amountCents: amount },
+        dueTodayPrice: { amountCents: amount },
       });
     }
   );

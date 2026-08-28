@@ -183,41 +183,6 @@ export function applyEventPaymentPaidTransition(input: PaidTransitionInput): {
   };
 }
 
-export function buildManualHandledEventPaymentTransition(options: {
-  adminUserId: string;
-  note: string;
-  now: Date;
-  status: PaymentStatusType;
-}): {
-  manualHandledAt: Date;
-  manualHandledByUserId: string;
-  manualHandledNote: string;
-  status: typeof PaymentStatus.handled;
-} {
-  const note = options.note.trim();
-  const adminUserId = options.adminUserId.trim();
-  if (!note) {
-    throw new TypeError('Manual handled payments require an internal note.');
-  }
-  if (!adminUserId) {
-    throw new TypeError('Manual handled payments require an admin user id.');
-  }
-  if (
-    !eventPaymentStatusCanTransitionTo({
-      from: options.status,
-      to: PaymentStatus.handled,
-    })
-  ) {
-    throw new TypeError('Event payment status cannot transition to handled.');
-  }
-  return {
-    manualHandledAt: options.now,
-    manualHandledByUserId: adminUserId,
-    manualHandledNote: note,
-    status: PaymentStatus.handled,
-  };
-}
-
 export function eventPaymentStatusAllowsReminder(
   status: PaymentStatusType
 ): boolean {

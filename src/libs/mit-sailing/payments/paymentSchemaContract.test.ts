@@ -6,11 +6,11 @@ const migration = readFileSync(
   'prisma/migrations/20260529183000_membership_payment_admin_status/migration.sql',
   'utf8'
 );
-const subscriptionMigration = readFileSync(
-  'prisma/migrations/20260531223000_add_sailing_card_subscriptions/migration.sql',
+const paymentOnlyMigration = readFileSync(
+  'prisma/migrations/20260606120000_payment_only_checkout_cleanup/migration.sql',
   'utf8'
 );
-const classificationMigration = `${migration}\n${subscriptionMigration}`;
+const classificationMigration = `${migration}\n${paymentOnlyMigration}`;
 
 describe('payment schema contract', () => {
   it('broadens event payments with one purpose column for membership rows', () => {
@@ -20,9 +20,12 @@ describe('payment schema contract', () => {
     expect(zmodel).toContain('model Payment');
     expect(zmodel).toMatch(/purpose\s+PaymentPurpose/u);
     expect(zmodel).toContain('cardYear');
-    expect(zmodel).toContain('stripeSubscriptionId');
-    expect(zmodel).toContain('stripeInvoiceId');
+    expect(zmodel).toContain('amountPaidCents');
+    expect(zmodel).toContain('stripeDiscountMetadata');
+    expect(zmodel).not.toContain('stripeSubscriptionId');
+    expect(zmodel).not.toContain('stripeInvoiceId');
     expect(zmodel).not.toContain('model SailingCardMembershipPayment');
+    expect(zmodel).not.toContain('model SailingCardSubscription');
   });
 
   it('keeps event and membership fields mutually exclusive in SQL', () => {
@@ -44,6 +47,10 @@ describe('payment schema contract', () => {
     expect(migration).toContain('"stripe_receipt_url" IS NULL');
     expect(zmodel).toContain('source != stripe');
     expect(zmodel).toContain('stripeCustomerId != null');
+    expect(zmodel).toContain('stripeDiscountMetadata != null');
+    expect(paymentOnlyMigration).toContain(
+      '"stripe_discount_metadata" IS NULL'
+    );
   });
 
   it('keeps payment classification immutable without ZenStack enum before comparisons', () => {
@@ -54,12 +61,12 @@ describe('payment schema contract', () => {
     expect(migration).toContain(
       'BEFORE UPDATE OF "purpose", "source", "card_type"'
     );
-    expect(zmodel).toContain('membershipPaymentKind');
+    expect(zmodel).not.toContain('membershipPaymentKind');
     expect(classificationMigration).toContain(
-      'OR NEW."membership_payment_kind" IS DISTINCT FROM OLD."membership_payment_kind"'
+      'BEFORE UPDATE OF "purpose", "source", "card_type"'
     );
-    expect(classificationMigration).toContain(
-      'BEFORE UPDATE OF "purpose", "source", "card_type", "membership_payment_kind"'
+    expect(classificationMigration).not.toContain(
+      'OR NEW."membership_payment_kind"'
     );
     expect(migration).toContain(
       'payment classification fields are immutable after create'

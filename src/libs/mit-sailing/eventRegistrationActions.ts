@@ -722,7 +722,7 @@ export async function createPublicEventRegistrationAction(
           select: { id: true, required: true, answerType: true, options: true },
         },
         entryFees: {
-          orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+          orderBy: { description: 'asc' },
           select: { id: true },
         },
         usesTeamRegistration: true,
@@ -856,7 +856,7 @@ export async function createPublicEventRegistrationAction(
             registrationStart: true,
             registrationEnd: true,
             entryFees: {
-              orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+              orderBy: { description: 'asc' },
               select: { amountCents: true, description: true, id: true },
             },
           },
@@ -877,9 +877,14 @@ export async function createPublicEventRegistrationAction(
         if (!lockedSelectedFee.ok) {
           throw new EventRegistrationFlowError('questions_required');
         }
-        const status = lockedContext.event.requiresApproval
-          ? EventRegistrationStatus.pending
-          : EventRegistrationStatus.approved;
+        const paymentFee = selectedPaymentEventFee({
+          ...lockedContext.event,
+          selectedFeeId: lockedSelectedFee.eventEntryFeeId,
+        });
+        const status =
+          lockedContext.event.requiresApproval || paymentFee !== null
+            ? EventRegistrationStatus.pending
+            : EventRegistrationStatus.approved;
         const learnToSailSnapshot =
           await learnToSailWaitlistSnapshotForRegistration({
             event: lockedContext.event,
@@ -931,14 +936,7 @@ export async function createPublicEventRegistrationAction(
           team: lockedTeam,
           tx,
         });
-        const paymentFee = selectedPaymentEventFee({
-          ...lockedContext.event,
-          selectedFeeId: lockedSelectedFee.eventEntryFeeId,
-        });
-        if (
-          status === EventRegistrationStatus.approved &&
-          paymentFee !== null
-        ) {
+        if (paymentFee !== null) {
           await tx.payment.upsert({
             create: {
               amountCents: paymentFee.amountCents,
@@ -967,6 +965,7 @@ export async function createPublicEventRegistrationAction(
               registrationId,
               status: {
                 in: [
+                  PaymentStatus.cancelled,
                   PaymentStatus.checkout_created,
                   PaymentStatus.past_due,
                   PaymentStatus.pending,
@@ -976,21 +975,19 @@ export async function createPublicEventRegistrationAction(
           });
           return { redirectToCheckout: true };
         }
-        if (status === EventRegistrationStatus.approved) {
-          await tx.payment.updateMany({
-            data: { status: PaymentStatus.cancelled },
-            where: {
-              registrationId,
-              status: {
-                in: [
-                  PaymentStatus.checkout_created,
-                  PaymentStatus.past_due,
-                  PaymentStatus.pending,
-                ],
-              },
+        await tx.payment.updateMany({
+          data: { status: PaymentStatus.cancelled },
+          where: {
+            registrationId,
+            status: {
+              in: [
+                PaymentStatus.checkout_created,
+                PaymentStatus.past_due,
+                PaymentStatus.pending,
+              ],
             },
-          });
-        }
+          },
+        });
         return { redirectToCheckout: false };
       },
       {

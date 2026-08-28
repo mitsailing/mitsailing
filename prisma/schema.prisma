@@ -257,27 +257,7 @@ enum SailingCardMembershipPriceCategory {
 
 enum SailingCardMembershipBillingInterval {
     one_time
-    annual
     @@map("sailing_card_membership_billing_interval")
-}
-
-enum MembershipPaymentKind {
-    initial
-    renewal
-    @@map("membership_payment_kind")
-}
-
-enum SailingCardSubscriptionStatus {
-    incomplete
-    incomplete_expired
-    trialing
-    active
-    past_due
-    canceled
-    unpaid
-    paused
-    duplicate
-    @@map("sailing_card_subscription_status")
 }
 
 enum MembershipPaymentIssueKind {
@@ -287,15 +267,6 @@ enum MembershipPaymentIssueKind {
     disputed_current_season
     needs_manual_review
     @@map("membership_payment_issue_kind")
-}
-
-enum MembershipCancellationReason {
-    not_sailing_next_season
-    using_free_membership
-    cost
-    duplicate_or_mistake
-    other
-    @@map("membership_cancellation_reason")
 }
 
 enum EventPaymentNotificationKind {
@@ -448,11 +419,9 @@ model User {
     legalAgreementAcceptances LegalAgreementAcceptance[]
     sailingCardRequests SailingCardRequest[]
     approvedSailingCardRequests SailingCardRequest[] @relation("SailingCardRequestApprover")
-    paymentBypassedSailingCardRequests SailingCardRequest[] @relation("SailingCardRequestPaymentBypassBy")
     payments Payment[]
     manuallyHandledPayments Payment[] @relation("PaymentManualHandledBy")
     membershipPaymentIssuesHandled Payment[] @relation("PaymentIssueHandledBy")
-    sailingCardSubscriptions SailingCardSubscription[]
     sailingCardMembershipPricesCreated SailingCardMembershipPrice[] @relation("SailingCardMembershipPriceCreatedBy")
     eventComments EventComment[]
     eventAdmins EventAdmin[]
@@ -598,9 +567,6 @@ model SailingCardRequest {
     requestedAt DateTime @map("requested_at")
     approvedAt DateTime? @map("approved_at")
     approvedByUserId String? @map("approved_by_user_id")
-    paymentBypassNote String? @map("payment_bypass_note") @db.Text()
-    paymentBypassByUserId String? @map("payment_bypass_by_user_id")
-    paymentBypassAt DateTime? @map("payment_bypass_at")
     issuedCardNumber Int? @map("issued_card_number")
     firstName String @map("first_name")
     lastName String @map("last_name")
@@ -616,14 +582,12 @@ model SailingCardRequest {
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
     legalAgreementAcceptance LegalAgreementAcceptance @relation(fields: [legalAgreementAcceptanceId], references: [id], onDelete: Restrict)
     approvedBy User? @relation("SailingCardRequestApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
-    paymentBypassBy User? @relation("SailingCardRequestPaymentBypassBy", fields: [paymentBypassByUserId], references: [id], onDelete: SetNull)
 
     @@unique([userId, cardYear])
     @@unique([cardYear, issuedCardNumber])
     @@index([cardYear, status, requestedAt])
     @@index([legalAgreementAcceptanceId])
     @@index([approvedByUserId])
-    @@index([paymentBypassByUserId])
     @@map("sailing_card_requests")
 }
 
@@ -1157,7 +1121,6 @@ model EventEntryFee {
     description String
     /// USD minor units (integer cents). Same domain as Stripe `amount`; never persist `19.99` here.
     amountCents Int @map("amount_cents")
-    isDeposit Boolean @map("is_deposit")
     event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
     registrations EventRegistration[]
     payments Payment[]
@@ -1177,14 +1140,12 @@ model Payment {
     selectedFeeId String? @map("selected_fee_id")
     selectedFeeDescription String? @map("selected_fee_description")
     amountCents Int @map("amount_cents")
+    amountPaidCents Int? @map("amount_paid_cents")
     currency String @default("usd")
     status PaymentStatus @default(pending)
     cardYear Int? @map("card_year")
     cardType SailingCardType? @map("card_type")
-    membershipSubscriptionId String? @map("membership_subscription_id")
-    membershipPaymentKind MembershipPaymentKind? @map("membership_payment_kind")
     membershipInitialPriceId String? @map("membership_initial_price_id")
-    membershipRenewalPriceId String? @map("membership_renewal_price_id")
     membershipConsentSnapshot Json? @map("membership_consent_snapshot")
     activeCheckoutKey String? @unique() @map("active_checkout_key")
     legacySourceTable String? @map("legacy_source_table")
@@ -1201,12 +1162,7 @@ model Payment {
     stripeCheckoutSessionExpiresAt DateTime? @map("stripe_checkout_session_expires_at")
     stripePaymentIntentId String? @unique() @map("stripe_payment_intent_id")
     stripeChargeId String? @unique() @map("stripe_charge_id")
-    stripeSubscriptionId String? @map("stripe_subscription_id")
-    stripeInvoiceId String? @unique() @map("stripe_invoice_id")
-    stripeInvoiceLineItemId String? @map("stripe_invoice_line_item_id")
-    stripeHostedInvoiceUrl String? @map("stripe_hosted_invoice_url") @db.Text()
-    stripeInvoicePdfUrl String? @map("stripe_invoice_pdf_url") @db.Text()
-    duplicateStripeSubscriptionId String? @map("duplicate_stripe_subscription_id")
+    stripeDiscountMetadata Json? @map("stripe_discount_metadata")
     stripeRefundId String? @map("stripe_refund_id")
     stripeDisputeId String? @map("stripe_dispute_id")
     stripeReceiptUrl String? @map("stripe_receipt_url") @db.Text()
@@ -1218,8 +1174,6 @@ model Payment {
     issueHandledAt DateTime? @map("issue_handled_at")
     lastStripePaymentEventId String? @map("last_stripe_payment_event_id")
     lastStripePaymentEventCreatedAt DateTime? @map("last_stripe_payment_event_created_at")
-    lastStripeInvoiceEventId String? @map("last_stripe_invoice_event_id")
-    lastStripeInvoiceEventCreatedAt DateTime? @map("last_stripe_invoice_event_created_at")
     manualHandledNote String? @map("manual_handled_note") @db.Text()
     manualHandledByUserId String? @map("manual_handled_by_user_id")
     manualHandledAt DateTime? @map("manual_handled_at")
@@ -1229,9 +1183,7 @@ model Payment {
     registration EventRegistration? @relation(fields: [registrationId, eventId, userId], references: [id, eventId, userId], onDelete: Cascade)
     user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
     selectedFee EventEntryFee? @relation(fields: [eventId, selectedFeeId], references: [eventId, id], onDelete: Restrict)
-    membershipSubscription SailingCardSubscription? @relation(fields: [membershipSubscriptionId], references: [id], onDelete: SetNull)
     membershipInitialPrice SailingCardMembershipPrice? @relation("PaymentInitialMembershipPrice", fields: [membershipInitialPriceId], references: [id], onDelete: SetNull)
-    membershipRenewalPrice SailingCardMembershipPrice? @relation("PaymentRenewalMembershipPrice", fields: [membershipRenewalPriceId], references: [id], onDelete: SetNull)
     manualHandledBy User? @relation("PaymentManualHandledBy", fields: [manualHandledByUserId], references: [id], onDelete: SetNull)
     issueHandledBy User? @relation("PaymentIssueHandledBy", fields: [issueHandledByUserId], references: [id], onDelete: SetNull)
     notifications EventPaymentNotification[]
@@ -1240,8 +1192,6 @@ model Payment {
     @@index([purpose, status])
     @@index([cardYear, cardType, status])
     @@index([userId, createdAt])
-    @@index([membershipSubscriptionId, createdAt])
-    @@index([stripeSubscriptionId, stripeInvoiceId])
     @@index([issueKind, status])
     @@index([selectedFeeId])
     @@index([manualHandledByUserId])
@@ -1249,46 +1199,6 @@ model Payment {
     @@unique([legacySourceTable, legacySourceId])
     @@unique([registrationId, eventId, userId])
     @@map("payments")
-}
-
-model SailingCardSubscription {
-    id String @id() @default(cuid())
-    userId String @map("user_id")
-    cardType SailingCardType @map("card_type")
-    status SailingCardSubscriptionStatus
-    autoRenew Boolean @default(true) @map("auto_renew")
-    stripeCustomerId String @map("stripe_customer_id")
-    stripeSubscriptionId String @unique() @map("stripe_subscription_id")
-    stripeProductId String? @map("stripe_product_id")
-    stripeSubscriptionItemId String? @map("stripe_subscription_item_id")
-    currentRenewalStripePriceId String? @map("current_renewal_stripe_price_id")
-    currentRenewalPriceId String? @map("current_renewal_price_id")
-    currentPeriodStart DateTime? @map("current_period_start")
-    currentPeriodEnd DateTime? @map("current_period_end")
-    trialEnd DateTime? @map("trial_end")
-    cancelAtPeriodEnd Boolean @default(false) @map("cancel_at_period_end")
-    cancellationReason MembershipCancellationReason? @map("cancellation_reason")
-    cancellationNote String? @map("cancellation_note") @db.Text()
-    cancellationRequestedAt DateTime? @map("cancellation_requested_at")
-    canceledAt DateTime? @map("canceled_at")
-    endedAt DateTime? @map("ended_at")
-    canonicalSubscriptionId String? @map("canonical_subscription_id")
-    duplicateStripeSubscriptionId String? @map("duplicate_stripe_subscription_id")
-    lastStripeSubscriptionEventId String? @map("last_stripe_subscription_event_id")
-    lastStripeSubscriptionEventCreatedAt DateTime? @map("last_stripe_subscription_event_created_at")
-    createdAt DateTime @default(now()) @map("created_at")
-    updatedAt DateTime @updatedAt() @map("updated_at")
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-    currentRenewalPrice SailingCardMembershipPrice? @relation("SubscriptionCurrentRenewalPrice", fields: [currentRenewalPriceId], references: [id], onDelete: SetNull)
-    canonicalSubscription SailingCardSubscription? @relation("DuplicateSailingCardSubscription", fields: [canonicalSubscriptionId], references: [id], onDelete: SetNull)
-    duplicateSubscriptions SailingCardSubscription[] @relation("DuplicateSailingCardSubscription")
-    payments Payment[]
-
-    @@index([userId, status])
-    @@index([cardType, status])
-    @@index([autoRenew, currentPeriodEnd])
-    @@index([canonicalSubscriptionId])
-    @@map("sailing_card_subscriptions")
 }
 
 model SailingCardMembershipPrice {
@@ -1310,8 +1220,6 @@ model SailingCardMembershipPrice {
     updatedAt DateTime @updatedAt() @map("updated_at")
     createdBy User? @relation("SailingCardMembershipPriceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
     initialPayments Payment[] @relation("PaymentInitialMembershipPrice")
-    renewalPayments Payment[] @relation("PaymentRenewalMembershipPrice")
-    subscriptions SailingCardSubscription[] @relation("SubscriptionCurrentRenewalPrice")
 
     @@unique([cardType, priceKind, priceCategory, billingInterval, effectiveAt])
     @@index([createdByUserId])

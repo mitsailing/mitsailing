@@ -3,6 +3,7 @@ import type { getTranslations } from 'next-intl/server';
 import Form from 'next/form';
 import type * as React from 'react';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
+import { AdminPagination } from '@/components/mit-sailing/admin/AdminPagination';
 import { AdminEventListStatusBadge } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +35,11 @@ type AdminEventsListViewProps = {
     categoryId?: string;
     query?: string;
     scope?: string;
+  };
+  pagination?: {
+    page: number;
+    pageSize: number;
+    total: number;
   };
   rows: AdminEventListRow[];
   t: AdminEventsListTranslations;
@@ -113,6 +119,21 @@ function resetFiltersPath(scope: 'all' | 'my'): string {
   return adminEventsIndexPath();
 }
 
+function eventsPaginationSummary(props: {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly total: number;
+}) {
+  if (props.total === 0) {
+    return { end: 0, start: 0 };
+  }
+  const start = (props.page - 1) * props.pageSize + 1;
+  return {
+    end: Math.min(props.total, start + props.pageSize - 1),
+    start,
+  };
+}
+
 function EventStatusBadges(props: {
   event: AdminEventListRow;
   t: AdminEventsListTranslations;
@@ -146,36 +167,37 @@ function EventSummaryField(props: {
 }) {
   return (
     <div className="min-w-0">
-      <dt className="text-xs font-semibold tracking-wide text-mit-readable-ink uppercase">
+      <dt className="text-xs font-medium text-muted-foreground">
         {props.label}
       </dt>
-      <dd className="mt-1 text-sm break-words text-mit-readable-ink">
+      <dd className="mt-1 text-sm break-words text-foreground">
         {props.children}
       </dd>
     </div>
   );
 }
 
-function EventCard(props: {
+function EventRow(props: {
   event: AdminEventListRow;
   t: AdminEventsListTranslations;
 }) {
   return (
-    <li className="rounded-lg border border-border bg-card p-4">
-      <article className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+    <li className="py-4">
+      <article className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start">
         <div className="flex min-w-0 flex-col gap-2">
-          <span className="text-xs font-medium text-mit-readable-ink uppercase">
-            {props.event.category.name}
-          </span>
           <Link
-            className="font-semibold break-words text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+            className="text-base font-semibold break-words text-mit-red no-underline hover:underline dark:text-mit-red-ink"
             href={adminEventShowPath(props.event.slug)}
           >
             {props.event.name}
           </Link>
-          <span className="text-xs break-words text-mit-readable-ink">
-            {props.event.shortName} · /events/{props.event.slug}
-          </span>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-mit-readable-ink">
+            <span>{props.event.category.name}</span>
+            <span aria-hidden>·</span>
+            <span>{props.event.shortName}</span>
+            <span aria-hidden>·</span>
+            <span className="break-all">/events/{props.event.slug}</span>
+          </div>
           <EventStatusBadges event={props.event} t={props.t} />
         </div>
         <dl className="grid min-w-0 gap-3 sm:grid-cols-3 lg:grid-cols-1">
@@ -202,6 +224,12 @@ function EventCard(props: {
 
 export function AdminEventsListView(props: AdminEventsListViewProps) {
   const scope = adminEventListScopeFromValue(props.filters.scope);
+  const pagination = props.pagination ?? {
+    page: 1,
+    pageSize: Math.max(props.rows.length, 1),
+    total: props.rows.length,
+  };
+  const range = eventsPaginationSummary(pagination);
   return (
     <div className="flex w-full flex-col gap-6">
       <AdminPageHeader
@@ -218,7 +246,7 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
 
       <Form
         action={props.filterAction}
-        className="grid gap-3 rounded-lg border border-border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_minmax(160px,220px)_minmax(220px,280px)_auto]"
+        className="grid gap-3 border-y border-border py-4 lg:grid-cols-[minmax(0,1fr)_minmax(160px,220px)_minmax(220px,280px)_auto]"
         role="search"
       >
         <label className="relative flex min-w-0 flex-col gap-1.5 text-sm">
@@ -275,23 +303,43 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
       </Form>
 
       <p className="text-sm text-mit-readable-ink">
-        {props.t('list_count', { count: props.rows.length })}
+        {props.t('list_count', { count: pagination.total })}
       </p>
 
       <ul
         aria-label={props.t('list_title')}
-        className="m-0 grid list-none gap-3 p-0"
+        className="m-0 list-none divide-y divide-border border-y border-border p-0"
       >
         {props.rows.length === 0 ? (
-          <li className="rounded-lg border border-border bg-card px-4 py-10 text-center text-sm text-mit-readable-ink">
+          <li className="px-4 py-10 text-center text-sm text-mit-readable-ink">
             {props.t('list_empty')}
           </li>
         ) : (
           props.rows.map((event) => (
-            <EventCard event={event} key={event.id} t={props.t} />
+            <EventRow event={event} key={event.id} t={props.t} />
           ))
         )}
       </ul>
+      <AdminPagination
+        basePath={adminEventsIndexPath()}
+        labels={{
+          next: props.t('pagination_next'),
+          previous: props.t('pagination_previous'),
+          summary: props.t('pagination_summary', {
+            end: range.end,
+            start: range.start,
+            total: pagination.total,
+          }),
+        }}
+        page={pagination.page}
+        pageSize={pagination.pageSize}
+        params={{
+          category: props.filters.categoryId,
+          q: props.filters.query,
+          scope: props.filters.scope,
+        }}
+        total={pagination.total}
+      />
     </div>
   );
 }

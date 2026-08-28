@@ -29,6 +29,7 @@ describe('listAdminUserPaymentHistory', () => {
     mocks.eventPaymentFindMany.mockResolvedValue([
       {
         amountCents: 2500,
+        amountPaidCents: 2500,
         cardType: null,
         cardYear: null,
         createdAt: new Date('2026-05-21T16:00:00.000Z'),
@@ -40,29 +41,35 @@ describe('listAdminUserPaymentHistory', () => {
         manualHandledBy: null,
         manualHandledNote: null,
         purpose: PaymentPurpose.event_payment,
+        refundedAmountCents: null,
         source: PaymentSource.stripe,
         status: PaymentStatus.paid,
+        stripeDiscountMetadata: null,
         stripeReceiptUrl: 'https://pay.stripe.com/receipts/payment-1',
       },
       {
         amountCents: 1500,
+        amountPaidCents: null,
         cardType: null,
         cardYear: null,
         createdAt: new Date('2026-05-20T16:00:00.000Z'),
         currency: 'usd',
-        event: { name: 'Racing Deposit', slug: 'racing-deposit' },
+        event: { name: 'Frostbite Regatta', slug: 'frostbite-regatta' },
         id: 'payment-2',
         legacyDescription: null,
         manualHandledAt: null,
         manualHandledBy: null,
         manualHandledNote: null,
         purpose: PaymentPurpose.event_payment,
+        refundedAmountCents: null,
         source: PaymentSource.stripe,
         status: PaymentStatus.disputed,
+        stripeDiscountMetadata: null,
         stripeReceiptUrl: null,
       },
       {
         amountCents: 12_000,
+        amountPaidCents: null,
         cardType: SailingCardType.racing,
         cardYear: 2026,
         createdAt: new Date('2026-05-19T16:00:00.000Z'),
@@ -74,8 +81,10 @@ describe('listAdminUserPaymentHistory', () => {
         manualHandledBy: { name: 'Dock Master' },
         manualHandledNote: 'Admin issued sailing card without payment.',
         purpose: PaymentPurpose.membership,
+        refundedAmountCents: null,
         source: PaymentSource.legacy,
         status: PaymentStatus.paid,
+        stripeDiscountMetadata: null,
         stripeReceiptUrl: null,
       },
     ]);
@@ -85,6 +94,7 @@ describe('listAdminUserPaymentHistory', () => {
     await expect(listAdminUserPaymentHistory('user-1')).resolves.toEqual([
       {
         amountCents: 2500,
+        amountPaidCents: 2500,
         cardType: null,
         cardYear: null,
         createdAt: new Date('2026-05-21T16:00:00.000Z'),
@@ -96,29 +106,35 @@ describe('listAdminUserPaymentHistory', () => {
         manualHandledNote: null,
         purpose: 'event',
         receiptHref: 'https://pay.stripe.com/receipts/payment-1',
+        refundedAmountCents: null,
         source: PaymentSource.stripe,
         status: PaymentStatus.paid,
+        stripeDiscountMetadata: null,
         title: 'Firefly Clinic',
       },
       {
         amountCents: 1500,
+        amountPaidCents: null,
         cardType: null,
         cardYear: null,
         createdAt: new Date('2026-05-20T16:00:00.000Z'),
         currency: 'usd',
-        detailHref: '/events/racing-deposit',
+        detailHref: '/events/frostbite-regatta',
         id: 'payment-2',
         manualHandledAt: null,
         manualHandledByName: null,
         manualHandledNote: null,
         purpose: 'event',
         receiptHref: null,
+        refundedAmountCents: null,
         source: PaymentSource.stripe,
         status: PaymentStatus.disputed,
-        title: 'Racing Deposit',
+        stripeDiscountMetadata: null,
+        title: 'Frostbite Regatta',
       },
       {
         amountCents: 12_000,
+        amountPaidCents: null,
         cardType: SailingCardType.racing,
         cardYear: 2026,
         createdAt: new Date('2026-05-19T16:00:00.000Z'),
@@ -130,8 +146,10 @@ describe('listAdminUserPaymentHistory', () => {
         manualHandledNote: 'Admin issued sailing card without payment.',
         purpose: 'membership',
         receiptHref: null,
+        refundedAmountCents: null,
         source: PaymentSource.legacy,
         status: PaymentStatus.paid,
+        stripeDiscountMetadata: null,
         title: '',
       },
     ]);
@@ -139,6 +157,7 @@ describe('listAdminUserPaymentHistory', () => {
       orderBy: { createdAt: 'desc' },
       select: {
         amountCents: true,
+        amountPaidCents: true,
         cardType: true,
         cardYear: true,
         createdAt: true,
@@ -150,11 +169,62 @@ describe('listAdminUserPaymentHistory', () => {
         manualHandledBy: { select: { name: true } },
         manualHandledNote: true,
         purpose: true,
+        refundedAmountCents: true,
         source: true,
         status: true,
+        stripeDiscountMetadata: true,
         stripeReceiptUrl: true,
       },
-      where: { userId: 'user-1' },
+      where: {
+        OR: [
+          {
+            purpose: PaymentPurpose.event_payment,
+            OR: [
+              { eventId: { not: null } },
+              { legacyDescription: { not: null } },
+            ],
+          },
+          {
+            cardType: { not: null },
+            cardYear: { not: null },
+            purpose: PaymentPurpose.membership,
+          },
+        ],
+        userId: 'user-1',
+      },
+    });
+  });
+});
+
+describe('listAdminUserCurrentMembershipPaymentAccessHistory', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('loads only current-year paid racing membership rows with a fixed cap', async () => {
+    mocks.eventPaymentFindMany.mockResolvedValue([]);
+    const { listAdminUserCurrentMembershipPaymentAccessHistory } =
+      await import('@/libs/admin/users/adminUserPaymentHistory');
+    const { ADMIN_USER_MEMBERSHIP_PAYMENT_ACCESS_HISTORY_LIMIT } =
+      await import('@/libs/admin/users/adminUserPaymentHistory');
+
+    await listAdminUserCurrentMembershipPaymentAccessHistory({
+      cardYear: 2026,
+      userId: 'user-1',
+    });
+
+    expect(mocks.eventPaymentFindMany).toHaveBeenCalledWith({
+      orderBy: { createdAt: 'desc' },
+      select: expect.any(Object),
+      take: ADMIN_USER_MEMBERSHIP_PAYMENT_ACCESS_HISTORY_LIMIT,
+      where: {
+        cardType: {
+          in: [SailingCardType.racing, SailingCardType.team_racing],
+        },
+        cardYear: 2026,
+        purpose: PaymentPurpose.membership,
+        userId: 'user-1',
+      },
     });
   });
 });

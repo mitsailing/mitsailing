@@ -16,7 +16,6 @@ describe('membershipPaymentAccessStatus', () => {
       access: 'paid',
       labelKey: 'membership_status_paid_legacy',
       receiptHref: null,
-      setupAutoRenewPrompt: true,
     });
   });
 
@@ -37,7 +36,7 @@ describe('membershipPaymentAccessStatus', () => {
     });
   });
 
-  it('treats a handled admin override as paid access without a receipt', () => {
+  it('does not grant access for handled admin overrides', () => {
     const record = {
       cardType: 'team_racing',
       cardYear: 2027,
@@ -47,10 +46,7 @@ describe('membershipPaymentAccessStatus', () => {
     } satisfies MembershipPaymentAccessRecord;
 
     expect(membershipPaymentAccessStatus({ cardYear: 2027, record })).toEqual({
-      access: 'paid',
-      labelKey: 'membership_status_paid_admin_override',
-      receiptHref: null,
-      setupAutoRenewPrompt: false,
+      access: 'none',
     });
   });
 });

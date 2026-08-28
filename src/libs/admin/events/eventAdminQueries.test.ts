@@ -9,6 +9,7 @@ import { Role } from '@/libs/auth/roles';
 import type * as EventQueries from '@/libs/mit-sailing/eventQueries';
 
 const mocks = vi.hoisted(() => ({
+  eventCount: vi.fn(),
   eventFindFirst: vi.fn(),
   eventFindMany: vi.fn(),
   eventFindUnique: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock('server-only', () => ({}));
 vi.mock('@/libs/DB', () => ({
   prisma: {
     event: {
+      count: mocks.eventCount,
       findFirst: mocks.eventFindFirst,
       findMany: mocks.eventFindMany,
       findUnique: mocks.eventFindUnique,
@@ -50,6 +52,7 @@ vi.mock('@/libs/mit-sailing/eventQueries', async (importOriginal) => ({
 
 beforeEach(() => {
   mocks.eventFindFirst.mockReset();
+  mocks.eventCount.mockReset();
   mocks.eventFindMany.mockReset();
   mocks.eventFindUnique.mockReset();
   mocks.eventRegistrationGroupBy.mockReset();
@@ -58,6 +61,7 @@ beforeEach(() => {
   mocks.eventCategoryFindMany.mockReset();
   mocks.userFindMany.mockReset();
   mocks.eventCategoryFindMany.mockResolvedValue([]);
+  mocks.eventCount.mockResolvedValue(0);
   mocks.eventRegistrationGroupBy.mockResolvedValue([]);
   mocks.userFindMany.mockResolvedValue([]);
 });
@@ -201,6 +205,25 @@ describe('event admin queries', () => {
     });
 
     expect(rows).toEqual([]);
+  });
+
+  it('scopes assigned events at the database for ordinary users browsing all events', async () => {
+    mocks.eventFindMany.mockResolvedValue([]);
+    mocks.eventCount.mockResolvedValue(0);
+    const { listAdminEventRowsPage } =
+      await import('@/libs/admin/events/eventAdminQueries');
+
+    await listAdminEventRowsPage({
+      authContext: { appRole: Role.USER, id: 'staff-1' },
+      page: 1,
+      scope: 'all',
+    });
+
+    expect(mocks.eventCount).toHaveBeenCalledWith({
+      where: {
+        admins: { some: { adminUserId: 'staff-1' } },
+      },
+    });
   });
 
   it('loads editor data through the protected ZenStack client', async () => {

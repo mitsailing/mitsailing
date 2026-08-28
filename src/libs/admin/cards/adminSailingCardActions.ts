@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache';
 import { Prisma } from '@/generated/prisma/client';
 import {
   PaymentPurpose,
-  PaymentSource,
   PaymentStatus,
   LegalAgreementAcceptanceSource,
   SailingCardRequestStatus,
@@ -96,11 +95,6 @@ function parseManualCardNumber(formData: FormData) {
 function parseRequiredCardNumber(formData: FormData) {
   const cardNumber = parseManualCardNumber(formData);
   return cardNumber ?? 'invalid';
-}
-
-function parsePaymentBypassNote(formData: FormData) {
-  const raw = formDataString(formData, 'paymentBypassNote').trim();
-  return raw.length < 3 ? null : raw;
 }
 
 function parseGymMembershipVerified(formData: FormData) {
@@ -208,7 +202,7 @@ async function hasRecordedMembershipPayment(props: {
       cardType: props.cardType,
       cardYear: props.cardYear,
       purpose: PaymentPurpose.membership,
-      status: { in: [PaymentStatus.handled, PaymentStatus.paid] },
+      status: PaymentStatus.paid,
       userId: props.userId,
     },
     select: { id: true },
@@ -488,7 +482,6 @@ export async function issueSailingCardAction(
     locale
   );
   const manualCardNumber = parseManualCardNumber(formData);
-  const paymentBypassNote = parsePaymentBypassNote(formData);
   const gymMembershipVerified = parseGymMembershipVerified(formData);
   if (manualCardNumber === 'invalid') {
     return {
@@ -549,24 +542,7 @@ export async function issueSailingCardAction(
           userId: targetUserId,
         }));
       if (needsPaymentBypass) {
-        if (paymentBypassNote === null) {
-          throw new Error('payment_required');
-        }
-        await tx.payment.create({
-          data: {
-            amountCents: 0,
-            cardType: request.cardType,
-            cardYear,
-            currency: 'usd',
-            manualHandledAt: now,
-            manualHandledByUserId: session.user.id,
-            manualHandledNote: paymentBypassNote,
-            purpose: PaymentPurpose.membership,
-            source: PaymentSource.admin_override,
-            status: PaymentStatus.handled,
-            userId: targetUserId,
-          },
-        });
+        throw new Error('payment_required');
       }
       const after = {
         ...before,
@@ -595,13 +571,6 @@ export async function issueSailingCardAction(
           approvedAt: now,
           approvedByUserId: session.user.id,
           issuedCardNumber: cardNumber,
-          ...(needsPaymentBypass
-            ? {
-                paymentBypassAt: now,
-                paymentBypassByUserId: session.user.id,
-                paymentBypassNote,
-              }
-            : {}),
           status: SailingCardRequestStatus.approved,
         },
       });

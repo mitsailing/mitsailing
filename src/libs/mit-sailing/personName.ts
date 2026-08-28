@@ -11,7 +11,7 @@ const normalizeNamePart = (value: string) =>
 const buildPersonName = (props: PersonNameInput) => ({
   firstName: props.firstName,
   lastName: props.lastName,
-  name: `${props.firstName} ${props.lastName}`,
+  name: `${props.firstName} ${props.lastName}`.trim(),
 });
 
 export const normalizeManualPersonName = (props: PersonNameInput) =>
@@ -23,6 +23,12 @@ export const normalizeManualPersonName = (props: PersonNameInput) =>
 export const normalizeVerifiedMitDataWarehousePersonName = (
   props: PersonNameInput
 ) =>
+  buildPersonName({
+    firstName: nameCase(normalizeNamePart(props.firstName), { lazy: false }),
+    lastName: nameCase(normalizeNamePart(props.lastName), { lazy: false }),
+  });
+
+export const normalizeImportedPersonName = (props: PersonNameInput) =>
   buildPersonName({
     firstName: nameCase(normalizeNamePart(props.firstName), { lazy: false }),
     lastName: nameCase(normalizeNamePart(props.lastName), { lazy: false }),

@@ -16,7 +16,6 @@ export function eventRegistrationFormLabels(
   return {
     autoApprovalNote: t('registration_auto_approval_note'),
     confirmButton: t('registration_confirm_button'),
-    deposit: t('fee_deposit'),
     errorMessages: {
       answers_invalid: t('registration_error_answers_invalid'),
       closed: t('registration_error_closed'),

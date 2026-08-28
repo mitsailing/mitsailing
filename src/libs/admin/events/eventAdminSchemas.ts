@@ -492,12 +492,10 @@ export const eventFeeFormSchema = z
     description: z.string().trim().min(1),
     /** Decimal dollars as entered in the admin form (e.g. `150.00`), not integer cents. */
     amountDollars: eventAdminFeeDollarStringToCentsSchema,
-    isDeposit: z.boolean(),
   })
-  .transform(({ description, amountDollars: amountCents, isDeposit }) => ({
+  .transform(({ description, amountDollars: amountCents }) => ({
     description,
     amountCents,
-    isDeposit,
   }));
 
 export const eventAdminIdsFormSchema = z
@@ -548,10 +546,6 @@ export const eventLocationFormSchema = z
       addressCountry: address.addressCountry || null,
     };
   });
-
-export const eventPaymentManualHandledFormSchema = z.object({
-  note: z.string().trim().min(1),
-});
 
 export function rawEventBasicsFromFormData(formData: FormData): unknown {
   return {
@@ -619,7 +613,6 @@ export function rawEventFeeFromFormData(formData: FormData): unknown {
   return {
     description: formString(formData, 'description'),
     amountDollars: formString(formData, 'amountDollars'),
-    isDeposit: formCheckbox(formData, 'isDeposit'),
   };
 }
 
@@ -653,10 +646,4 @@ export function rawEventLocationFromFormData(formData: FormData): unknown {
     addressPostalCode: formString(formData, 'addressPostalCode'),
     addressCountry: formString(formData, 'addressCountry'),
   };
-}
-
-export function rawEventPaymentManualHandledFromFormData(
-  formData: FormData
-): unknown {
-  return { note: formString(formData, 'note') };
 }

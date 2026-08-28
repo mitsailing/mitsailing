@@ -137,13 +137,6 @@ const membershipPriceRowsForCardType = (
           priceCategory,
           priceKind: SailingCardMembershipPriceKind.full,
         }),
-        membershipPriceRow({
-          amountCents: categoryAmounts.full,
-          billingInterval: SailingCardMembershipBillingInterval.annual,
-          cardType,
-          priceCategory,
-          priceKind: SailingCardMembershipPriceKind.full,
-        }),
       ];
     }
   );

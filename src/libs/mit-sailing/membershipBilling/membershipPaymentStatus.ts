@@ -22,11 +22,9 @@ export type MembershipPaymentAccessStatus =
   | {
       readonly access: 'paid';
       readonly labelKey:
-        | 'membership_status_paid_admin_override'
         | 'membership_status_paid_legacy'
         | 'membership_status_paid_stripe';
       readonly receiptHref: string | null;
-      readonly setupAutoRenewPrompt: boolean;
     }
   | {
       readonly access: 'blocked';
@@ -40,15 +38,9 @@ export type MembershipPaymentAccessStatus =
 
 function membershipPaidLabelKey(
   source: MembershipPaymentSource
-):
-  | 'membership_status_paid_admin_override'
-  | 'membership_status_paid_legacy'
-  | 'membership_status_paid_stripe' {
+): 'membership_status_paid_legacy' | 'membership_status_paid_stripe' {
   if (source === 'legacy') {
     return 'membership_status_paid_legacy';
-  }
-  if (source === 'admin_override') {
-    return 'membership_status_paid_admin_override';
   }
   return 'membership_status_paid_stripe';
 }
@@ -77,13 +69,12 @@ export function membershipPaymentAccessStatus(props: {
     return { access: 'blocked', blocker: 'payment_refunded' };
   }
 
-  if (props.record.status === 'paid' || props.record.status === 'handled') {
+  if (props.record.status === 'paid') {
     return {
       access: 'paid',
       labelKey: membershipPaidLabelKey(props.record.source),
       receiptHref:
         props.record.source === 'stripe' ? props.record.stripeReceiptUrl : null,
-      setupAutoRenewPrompt: props.record.source === 'legacy',
     };
   }
 

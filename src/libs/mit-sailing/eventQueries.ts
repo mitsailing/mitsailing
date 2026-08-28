@@ -95,7 +95,6 @@ export type PublicEventDetail = {
     description: string;
     /** USD minor units (integer cents); same as Stripe `amount` for `usd`. */
     amountCents: number;
-    isDeposit: boolean;
   }[];
   publicContentSections?: EventPublicContentSectionDto[];
   approvedRegistrationCount: number;
@@ -333,12 +332,11 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
           },
         },
         entryFees: {
-          orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+          orderBy: { description: 'asc' },
           select: {
             id: true,
             description: true,
             amountCents: true,
-            isDeposit: true,
           },
         },
       },
@@ -430,7 +428,6 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
         id: fee.id,
         description: fee.description,
         amountCents: fee.amountCents,
-        isDeposit: fee.isDeposit,
       })),
       teamRegistration: {
         usesTeamRegistration: event.usesTeamRegistration,

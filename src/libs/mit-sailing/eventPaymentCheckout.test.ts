@@ -54,7 +54,9 @@ describe('createEmbeddedEventPaymentCheckoutSession', () => {
     });
     expect(mocks.stripeCheckoutSessionsCreate).toHaveBeenCalledWith(
       {
+        allow_promotion_codes: true,
         client_reference_id: 'payment-1',
+        customer_creation: 'always',
         line_items: [
           {
             price_data: {
@@ -81,6 +83,7 @@ describe('createEmbeddedEventPaymentCheckoutSession', () => {
             registrationId: 'registration-1',
             userId: 'user-1',
           },
+          setup_future_usage: 'off_session',
         },
         return_url: 'https://sailing.mit.edu/events/intro/checkout/return',
         ui_mode: 'embedded',
@@ -147,10 +150,7 @@ describe('createEventPaymentCheckoutClientSecret', () => {
       where: {
         id: 'payment-1',
         purpose: PaymentPurpose.event_payment,
-        OR: [
-          { userId: 'user-1' },
-          { event: { admins: { some: { adminUserId: 'user-1' } } } },
-        ],
+        userId: 'user-1',
       },
     });
     expect(mocks.eventPaymentUpdateMany).toHaveBeenNthCalledWith(1, {

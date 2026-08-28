@@ -142,6 +142,12 @@ describe('AdminIndexPage', () => {
       screen.getByRole('link', { name: 'link_newsletter_broadcasts' })
     ).toHaveAttribute('href', '/admin/newsletter-broadcasts');
     expect(
+      screen.getByRole('link', { name: 'link_newsletter_templates' })
+    ).toHaveAttribute('href', '/admin/newsletter-templates');
+    expect(
+      screen.getByRole('link', { name: 'link_email_templates' })
+    ).toHaveAttribute('href', '/admin/email-templates');
+    expect(
       screen.getByRole('link', { name: 'hub_label_fleet' })
     ).toHaveAttribute('href', '/admin/fleet');
     expect(

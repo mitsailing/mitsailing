@@ -93,7 +93,6 @@ function renderView(
               amountCents: 15_000,
               description: 'Adult entry',
               id: 'fee-adult',
-              isDeposit: false,
             },
             id: 'registration-1',
             learnToSailWaitlistNumber:
@@ -136,13 +135,11 @@ function renderView(
             amountCents: 15_000,
             description: 'Adult entry',
             id: 'fee-adult',
-            isDeposit: false,
           },
           {
             amountCents: 9000,
             description: 'Junior entry',
             id: 'fee-junior',
-            isDeposit: true,
           },
         ],
         requiresPhone: true,
@@ -255,19 +252,14 @@ describe('AdminEventRegistrationsView', () => {
     expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
   });
 
-  it('shows bulk email as an active composing surface', () => {
+  it('shows payment request controls for editable access', () => {
     renderView('editable');
 
-    const bulkEmail = screen.getByRole('region', { name: 'Bulk email' });
-
     expect(
-      within(bulkEmail).getByRole('textbox', { name: 'Subject' })
-    ).toBeEnabled();
+      screen.getByRole('heading', { name: 'Payment requests' })
+    ).toBeVisible();
     expect(
-      within(bulkEmail).getByRole('textbox', { name: 'Message' })
-    ).toBeEnabled();
-    expect(
-      within(bulkEmail).getByRole('button', { name: 'Send' })
+      screen.getByRole('button', { name: 'Resend all payable requests' })
     ).toBeEnabled();
   });
 });

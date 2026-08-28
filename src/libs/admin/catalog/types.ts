@@ -3,7 +3,10 @@
  * list cell formatting (visibility badges, plain text, numbers).
  */
 
-import type { SailingAffiliation } from '@/generated/prisma/enums';
+import type {
+  SailingAffiliation,
+  SailingCardType,
+} from '@/generated/prisma/enums';
 import type { EmailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
 import type { AppAuthContext } from '@/libs/zenstack/authContext';
 import type messages from '@/locales/en.json';
@@ -122,6 +125,13 @@ export type AdminUserRow = {
   sailingAffiliation: SailingAffiliation | null;
   sailingCardNumber: number | null;
   sailingCardStatus: 'current' | 'expired' | 'none' | 'pending';
+  pendingCardType: SailingCardType | null;
+  membershipPaymentStatus:
+    | 'checkout_started'
+    | 'not_applicable'
+    | 'paid'
+    | 'past_due'
+    | 'unpaid';
   name: string;
   appRole: string;
   emailVerified: boolean;

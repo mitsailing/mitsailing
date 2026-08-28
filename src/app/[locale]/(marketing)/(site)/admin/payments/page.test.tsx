@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
     STRIPE_WEBHOOK_SECRET: undefined as string | undefined,
   },
   getTranslations: vi.fn(),
-  listAdminPaymentLedgerData: vi.fn(),
+  listAdminPaymentLedgerPage: vi.fn(),
   requirePermission: vi.fn(),
   setRequestLocale: vi.fn(),
 }));
@@ -33,8 +33,9 @@ vi.mock(
 );
 
 vi.mock('@/libs/admin/payments/adminPaymentQueries', () => ({
+  ADMIN_PAYMENT_LEDGER_PAGE_SIZE: 50,
   adminPaymentStatusFromParam: mocks.adminPaymentStatusFromParam,
-  listAdminPaymentLedgerData: mocks.listAdminPaymentLedgerData,
+  listAdminPaymentLedgerPage: mocks.listAdminPaymentLedgerPage,
 }));
 
 vi.mock('@/libs/auth/dal', () => ({
@@ -57,9 +58,12 @@ describe('AdminPaymentsPage', () => {
     mocks.Env.STRIPE_WEBHOOK_SECRET = undefined;
     mocks.adminPaymentStatusFromParam.mockReturnValue('paid');
     mocks.getTranslations.mockResolvedValue((key: string) => key);
-    mocks.listAdminPaymentLedgerData.mockResolvedValue({
-      payments: [{ id: 'payment-1' }],
-      summary: { totalAmountCents: 2500 },
+    mocks.listAdminPaymentLedgerPage.mockResolvedValue({
+      latestWebhook: null,
+      page: 1,
+      pageSize: 50,
+      rows: [{ id: 'payment-1' }],
+      total: 1,
     });
   });
 
@@ -82,7 +86,9 @@ describe('AdminPaymentsPage', () => {
       'en'
     );
     expect(mocks.adminPaymentStatusFromParam).toHaveBeenCalledWith('paid');
-    expect(mocks.listAdminPaymentLedgerData).toHaveBeenCalledWith({
+    expect(mocks.listAdminPaymentLedgerPage).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 50,
       query: 'sailor',
       status: 'paid',
     });

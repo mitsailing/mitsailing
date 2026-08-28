@@ -747,6 +747,133 @@ describe('createPublicEventRegistrationAction', () => {
         registrationId: 'registration-1',
         status: {
           in: [
+            PaymentStatus.cancelled,
+            PaymentStatus.checkout_created,
+            PaymentStatus.past_due,
+            PaymentStatus.pending,
+          ],
+        },
+      },
+    });
+  });
+
+  it('creates payment snapshot and redirects pending-review paid registrations to checkout', async () => {
+    mocks.eventFindUnique.mockResolvedValue({
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: 1,
+      entryFees: [
+        {
+          amountCents: 15_000,
+          description: 'Adult entry',
+          id: 'fee-1',
+        },
+      ],
+      id: 'event-1',
+      isPublished: true,
+      maxParticipants: null,
+      paymentDeadlineAt: new Date('2026-06-01T13:00:00.000Z'),
+      paymentsEnabled: true,
+      personsPerBoat: 1,
+      registrationEnd: null,
+      registrationStart: null,
+      requiresApproval: true,
+      requiresPhone: false,
+      usesTeamRegistration: false,
+    });
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        registrationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail/checkout');
+
+    expect(mocks.eventRegistrationUpdate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        status: EventRegistrationStatus.pending,
+      }),
+      where: { id: 'registration-1' },
+    });
+    expect(mocks.eventPaymentUpsert).toHaveBeenCalledWith({
+      create: expect.objectContaining({
+        amountCents: 15_000,
+        currency: 'usd',
+        eventId: 'event-1',
+        registrationId: 'registration-1',
+        selectedFeeDescription: 'Adult entry',
+        selectedFeeId: 'fee-1',
+        status: PaymentStatus.pending,
+        userId: 'user-1',
+      }),
+      update: {
+        amountCents: 15_000,
+        currency: 'usd',
+        eventId: 'event-1',
+        selectedFeeDescription: 'Adult entry',
+        selectedFeeId: 'fee-1',
+        userId: 'user-1',
+      },
+      where: { registrationId: 'registration-1' },
+    });
+  });
+
+  it('reopens a cancelled payment snapshot when a payable fee is restored', async () => {
+    mocks.eventFindUnique.mockResolvedValue({
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: 1,
+      entryFees: [
+        {
+          amountCents: 15_000,
+          description: 'Adult entry',
+          id: 'fee-1',
+        },
+      ],
+      id: 'event-1',
+      isPublished: true,
+      maxParticipants: null,
+      paymentDeadlineAt: new Date('2026-06-01T13:00:00.000Z'),
+      paymentsEnabled: true,
+      personsPerBoat: 1,
+      registrationEnd: null,
+      registrationStart: null,
+      requiresApproval: true,
+      requiresPhone: false,
+      usesTeamRegistration: false,
+    });
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        registrationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail/checkout');
+
+    expect(mocks.eventPaymentUpsert).toHaveBeenCalled();
+    expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
+      data: { status: PaymentStatus.pending },
+      where: {
+        registrationId: 'registration-1',
+        status: {
+          in: [
+            PaymentStatus.cancelled,
             PaymentStatus.checkout_created,
             PaymentStatus.past_due,
             PaymentStatus.pending,
@@ -830,6 +957,7 @@ describe('createPublicEventRegistrationAction', () => {
         registrationId: 'registration-1',
         status: {
           in: [
+            PaymentStatus.cancelled,
             PaymentStatus.checkout_created,
             PaymentStatus.past_due,
             PaymentStatus.pending,
@@ -853,6 +981,56 @@ describe('createPublicEventRegistrationAction', () => {
       registrationEnd: null,
       registrationStart: null,
       requiresApproval: false,
+      requiresPhone: false,
+      usesTeamRegistration: false,
+    });
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        registrationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail');
+
+    expect(mocks.eventPaymentUpsert).not.toHaveBeenCalled();
+    expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
+      data: { status: PaymentStatus.cancelled },
+      where: {
+        registrationId: 'registration-1',
+        status: {
+          in: [
+            PaymentStatus.checkout_created,
+            PaymentStatus.past_due,
+            PaymentStatus.pending,
+          ],
+        },
+      },
+    });
+  });
+
+  it('cancels open payment snapshot when pending registration no longer has a fee', async () => {
+    mocks.eventFindUnique.mockResolvedValue({
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: 1,
+      entryFees: [],
+      id: 'event-1',
+      isPublished: true,
+      maxParticipants: null,
+      paymentDeadlineAt: null,
+      paymentsEnabled: false,
+      personsPerBoat: 1,
+      registrationEnd: null,
+      registrationStart: null,
+      requiresApproval: true,
       requiresPhone: false,
       usesTeamRegistration: false,
     });

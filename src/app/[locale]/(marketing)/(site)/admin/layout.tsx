@@ -28,7 +28,6 @@ export default async function AdminSectionLayout(props: {
       >
         <SiteSidebarLayout
           density="content-fit"
-          stretch
           sidebar={<AdminSideNav items={navItems} />}
         >
           {props.children}

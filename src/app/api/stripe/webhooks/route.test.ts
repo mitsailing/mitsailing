@@ -36,10 +36,6 @@ const mocks = vi.hoisted(() => ({
     eventPaymentNotification: {
       upsert: vi.fn(),
     },
-    sailingCardSubscription: {
-      findFirst: vi.fn(),
-      upsert: vi.fn(),
-    },
     stripeWebhookEvent: {
       createMany: vi.fn(),
       findUnique: vi.fn(),
@@ -196,11 +192,6 @@ describe('stripe webhook route', () => {
     });
     mocks.tx.payment.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.eventPaymentNotification.upsert.mockResolvedValue({});
-    mocks.tx.sailingCardSubscription.findFirst.mockResolvedValue(null);
-    mocks.tx.sailingCardSubscription.upsert.mockResolvedValue({
-      id: 'membership-subscription-1',
-      userId: 'user-1',
-    });
     mocks.enqueueEventPaymentEmailJob.mockImplementation(async () => {
       await Promise.resolve();
     });
@@ -337,7 +328,7 @@ describe('stripe webhook route', () => {
     });
   });
 
-  it('queues a membership payment reminder when subscription Checkout expires with recovery', async () => {
+  it('queues a membership payment reminder when Checkout expires with recovery', async () => {
     mockStripeEvent('checkout.session.expired', {
       after_expiration: {
         recovery: {
@@ -366,11 +357,10 @@ describe('stripe webhook route', () => {
 
     await expect(response.json()).resolves.toEqual({ ok: true });
     expect(mocks.tx.payment.updateMany).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        status: PaymentStatus.pending,
-        stripeCheckoutSessionUrl:
-          'https://checkout.stripe.com/c/pay/cs_recover',
-      }),
+      data: {
+        activeCheckoutKey: null,
+        status: PaymentStatus.past_due,
+      },
       where: { id: 'payment-1', status: PaymentStatus.checkout_created },
     });
     expect(mocks.enqueueMembershipPaymentReminderJob).toHaveBeenCalledWith(
@@ -492,6 +482,7 @@ describe('stripe webhook route', () => {
   it('marks refunded payments terminal without queuing receipts', async () => {
     mocks.constructEvent.mockReturnValueOnce(
       stripeEvent('charge.refunded', {
+        amount_refunded: 4200,
         id: 'ch_test',
         metadata: { paymentId: 'payment-1' },
         payment_intent: 'pi_test',
@@ -502,11 +493,12 @@ describe('stripe webhook route', () => {
 
     expect(response.status).toBe(200);
     expect(mocks.tx.payment.updateMany).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
+        refundedAmountCents: 4200,
         status: PaymentStatus.refunded,
         stripeChargeId: 'ch_test',
         stripePaymentIntentId: 'pi_test',
-      },
+      }),
       where: { id: 'payment-1', status: PaymentStatus.pending },
     });
     expect(mocks.enqueueEventPaymentEmailJob).not.toHaveBeenCalled();
@@ -526,11 +518,12 @@ describe('stripe webhook route', () => {
 
     expect(response.status).toBe(200);
     expect(mocks.tx.payment.updateMany).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
         status: PaymentStatus.disputed,
         stripeChargeId: 'ch_test',
+        stripeDisputeId: 'dp_test',
         stripePaymentIntentId: 'pi_test',
-      },
+      }),
       where: { id: 'payment-1', status: PaymentStatus.pending },
     });
     expect(mocks.enqueueEventPaymentEmailJob).not.toHaveBeenCalled();
@@ -554,8 +547,8 @@ describe('stripe webhook route', () => {
 
   it('returns ok for future membership events without marking them processed', async () => {
     mocks.constructEvent.mockReturnValueOnce(
-      stripeEvent('customer.subscription.updated', {
-        id: 'sub_test',
+      stripeEvent('payment_intent.processing', {
+        id: 'pi_membership_processing',
         metadata: { domain: 'sailing_card_membership' },
       })
     );
@@ -564,22 +557,11 @@ describe('stripe webhook route', () => {
 
     await expect(response.json()).resolves.toEqual({ ok: true });
     expect(response.status).toBe(200);
-    expect(mocks.tx.payment.findFirst).toHaveBeenCalledWith({
-      orderBy: { createdAt: 'desc' },
-      where: {
-        OR: [
-          {
-            membershipPaymentKind: 'initial',
-            stripeSubscriptionId: 'sub_test',
-          },
-        ],
-        purpose: 'membership',
-      },
-    });
+    expect(mocks.tx.payment.findFirst).not.toHaveBeenCalled();
     expect(mocks.tx.stripeWebhookEvent.update).toHaveBeenCalledWith({
       data: {
         processingError:
-          'Unhandled Stripe webhook event: customer.subscription.updated',
+          'Unhandled Stripe webhook event: payment_intent.processing',
       },
       where: { id: 'stored-event-1' },
     });

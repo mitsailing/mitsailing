@@ -1,5 +1,9 @@
 import { APIError } from 'better-auth';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  SailingCardRequestStatus,
+  SailingCardType,
+} from '@/generated/prisma/enums';
 import { Role } from '@/libs/auth/roles';
 
 const mocks = vi.hoisted(() => ({
@@ -56,7 +60,7 @@ vi.mock('@/libs/admin/users/appRoleActions', () => ({
   updateUserAppRole: mocks.updateUserAppRole,
 }));
 
-const { usersAdminHandlers } =
+const { usersAdminHandlers, listAdminUsersPage } =
   await import('@/libs/admin/users/usersAdminHandlers');
 
 function createFormData(props?: {
@@ -154,8 +158,10 @@ describe('usersAdminHandlers', () => {
           phone: '+15555550101',
           sailingAffiliation: 'OTHER_NON_STUDENT',
           sailingCardNumber: 61,
-          sailingCardRequests: [],
           sailingCardYear: 2026,
+          _count: { sailingCardRequests: 0 },
+          payments: [],
+          sailingCardRequests: [],
         },
         {
           appRole: Role.ADMIN,
@@ -177,8 +183,16 @@ describe('usersAdminHandlers', () => {
           phone: null,
           sailingAffiliation: null,
           sailingCardNumber: null,
-          sailingCardRequests: [{ status: 'pending' }],
           sailingCardYear: null,
+          _count: { sailingCardRequests: 1 },
+          payments: [],
+          sailingCardRequests: [
+            {
+              cardType: SailingCardType.racing,
+              cardYear: 2026,
+              status: SailingCardRequestStatus.pending,
+            },
+          ],
         },
       ]);
 
@@ -204,6 +218,8 @@ describe('usersAdminHandlers', () => {
           sailingAffiliation: 'OTHER_NON_STUDENT',
           sailingCardNumber: 61,
           sailingCardStatus: 'current',
+          pendingCardType: null,
+          membershipPaymentStatus: 'not_applicable',
           appRole: Role.USER,
         },
         {
@@ -227,9 +243,18 @@ describe('usersAdminHandlers', () => {
           sailingAffiliation: null,
           sailingCardNumber: null,
           sailingCardStatus: 'pending',
+          pendingCardType: 'racing',
+          membershipPaymentStatus: 'unpaid',
           appRole: Role.ADMIN,
         },
       ]);
+      expect(mocks.userFindMany).toHaveBeenCalledWith({
+        orderBy: { email: 'asc' },
+        select: expect.objectContaining({
+          payments: expect.any(Object),
+          sailingCardRequests: expect.any(Object),
+        }),
+      });
     });
   });
 
@@ -256,6 +281,7 @@ describe('usersAdminHandlers', () => {
           phone: '+15555550101',
           sailingAffiliation: 'OTHER_NON_STUDENT',
           sailingCardNumber: 61,
+          payments: [],
           sailingCardRequests: [],
           sailingCardYear: 2026,
         })
@@ -705,5 +731,41 @@ describe('usersAdminHandlers', () => {
         ok: false,
       });
     });
+  });
+});
+
+describe('listAdminUsersPage', () => {
+  beforeEach(() => {
+    mocks.userCount.mockReset();
+    mocks.userFindMany.mockReset();
+    mocks.userCount.mockResolvedValue(0);
+    mocks.userFindMany.mockResolvedValue([]);
+  });
+
+  it('does not match every user role for free-text search queries', async () => {
+    await listAdminUsersPage({
+      filters: {
+        cardType: 'all',
+        emailStatus: 'all',
+        membershipPaymentStatus: 'all',
+        query: 'sailor',
+        sailingCardStatus: 'all',
+      },
+      page: 1,
+    });
+
+    expect(mocks.userCount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              OR: expect.not.arrayContaining([
+                expect.objectContaining({ appRole: expect.anything() }),
+              ]),
+            }),
+          ]),
+        }),
+      })
+    );
   });
 });

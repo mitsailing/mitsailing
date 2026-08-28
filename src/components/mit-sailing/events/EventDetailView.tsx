@@ -434,11 +434,6 @@ export async function EventDetailView(props: EventDetailViewProps) {
                       <p className="m-0 text-sm font-semibold text-mit-text">
                         {fee.description}
                       </p>
-                      {fee.isDeposit ? (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {t('fee_deposit')}
-                        </p>
-                      ) : null}
                     </div>
                     <p className="m-0 text-sm font-semibold text-mit-text">
                       {formatUsdMinorUnitsAsCurrency(

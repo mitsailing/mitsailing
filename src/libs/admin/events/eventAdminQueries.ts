@@ -13,7 +13,11 @@ import type {
 } from '@/generated/prisma/enums';
 import { ASSIGNABLE_EVENT_ADMIN_ROLES } from '@/libs/admin/events/eventAdminSchemas';
 import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
-import { eventAccessModeWithAuthContext } from '@/libs/admin/events/zenstackEventAccess';
+import {
+  canManageAllEventsWithAuthContext,
+  eventAccessModeWithAuthContext,
+} from '@/libs/admin/events/zenstackEventAccess';
+import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 import {
@@ -81,7 +85,6 @@ export type AdminEventFeeDto = {
   description: string;
   /** USD minor units (integer cents); same as Stripe `amount` for `usd`. */
   amountCents: number;
-  isDeposit: boolean;
 };
 
 export type AdminEventAdminDto = {
@@ -176,8 +179,11 @@ export type AdminEventRegistrationPaymentDto = {
   id: string;
   status: PaymentStatusValue;
   amountCents: number;
+  amountPaidCents: number | null;
   currency: string;
   receiptUrl: string | null;
+  refundedAmountCents: number | null;
+  stripeDiscountMetadata: Prisma.JsonValue | null;
   manualHandledNote: string | null;
   manualHandledByUserId: string | null;
   manualHandledBy: AdminEventUserOption | null;
@@ -266,6 +272,15 @@ export type AdminEventListFilters = {
 };
 
 export type AdminEventListScope = 'my' | 'all';
+
+export const ADMIN_EVENTS_PAGE_SIZE = 25;
+
+export type AdminEventListPage = {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly rows: AdminEventListRow[];
+  readonly total: number;
+};
 
 type AdminEventUserListOptions = {
   limit?: number;
@@ -420,7 +435,6 @@ function registrationDtosFromRows(
       id: string;
       description: string;
       amountCents: number;
-      isDeposit: boolean;
     } | null;
     createdAt: Date;
     swimAgreementAcceptedAt: Date;
@@ -440,7 +454,10 @@ function registrationDtosFromRows(
       id: string;
       status: PaymentStatusValue;
       amountCents: number;
+      amountPaidCents: number | null;
       currency: string;
+      refundedAmountCents: number | null;
+      stripeDiscountMetadata: Prisma.JsonValue | null;
       stripeReceiptUrl: string | null;
       manualHandledNote: string | null;
       manualHandledByUserId: string | null;
@@ -487,6 +504,7 @@ function registrationDtosFromRows(
       payment: registration.payment
         ? {
             amountCents: registration.payment.amountCents,
+            amountPaidCents: registration.payment.amountPaidCents,
             currency: registration.payment.currency,
             id: registration.payment.id,
             manualHandledAt: registration.payment.manualHandledAt,
@@ -494,10 +512,12 @@ function registrationDtosFromRows(
             manualHandledByUserId: registration.payment.manualHandledByUserId,
             manualHandledNote: registration.payment.manualHandledNote,
             receiptUrl: registration.payment.stripeReceiptUrl,
+            refundedAmountCents: registration.payment.refundedAmountCents,
             resendEligible: eventPaymentResendEligible(
               registration.payment.status
             ),
             status: registration.payment.status,
+            stripeDiscountMetadata: registration.payment.stripeDiscountMetadata,
           }
         : null,
       answers: registration.registrationAnswers
@@ -533,7 +553,11 @@ function eventWhereFromFilters(
       { slug: { contains: query, mode: 'insensitive' } },
     ];
   }
-  if (adminEventListScopeFromValue(filters.scope) === 'my') {
+  if (
+    adminEventListScopeFromValue(filters.scope) === 'my' ||
+    (!canManageAllEventsWithAuthContext({ authContext: filters.authContext }) &&
+      filters.authContext.appRole !== Role.VOLUNTEER_INSTRUCTOR)
+  ) {
     businessWhere.admins = {
       some: { adminUserId: filters.authContext.id },
     };
@@ -650,12 +674,26 @@ export async function listAdminEventUsers(
   return rows;
 }
 
-export async function listAdminEventRows(
-  filters: AdminEventListFilters
-): Promise<AdminEventListRow[]> {
+export async function listAdminEventRowsPage(
+  filters: AdminEventListFilters & {
+    readonly page: number;
+    readonly pageSize?: number;
+  }
+): Promise<AdminEventListPage> {
+  const where = eventWhereFromFilters(filters);
+  const requestedPageSize = filters.pageSize ?? ADMIN_EVENTS_PAGE_SIZE;
+  const pageSize =
+    Number.isInteger(requestedPageSize) && requestedPageSize > 0
+      ? requestedPageSize
+      : ADMIN_EVENTS_PAGE_SIZE;
+  const total = await prisma.event.count({ where });
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(filters.page, 1), totalPages);
   const rows = await prisma.event.findMany({
-    where: eventWhereFromFilters(filters),
+    where,
     orderBy: [{ createdAt: 'desc' }, { name: 'asc' }],
+    skip: (page - 1) * pageSize,
+    take: pageSize,
     select: {
       id: true,
       name: true,
@@ -682,11 +720,23 @@ export async function listAdminEventRows(
   const countsByEventId = await registrationCountsByEventId(
     authorizedRows.map((row) => row.id)
   );
-  return authorizedRows.map((row) => ({
-    ...row,
-    registrationCounts:
-      countsByEventId.get(row.id) ?? emptyRegistrationCounts(),
-  }));
+  return {
+    page,
+    pageSize,
+    rows: authorizedRows.map((row) => ({
+      ...row,
+      registrationCounts:
+        countsByEventId.get(row.id) ?? emptyRegistrationCounts(),
+    })),
+    total,
+  };
+}
+
+export async function listAdminEventRows(
+  filters: AdminEventListFilters
+): Promise<AdminEventListRow[]> {
+  const page = await listAdminEventRowsPage({ ...filters, page: 1 });
+  return page.rows;
 }
 
 export async function getAdminEventEditorDataBySlug(options: {
@@ -770,12 +820,11 @@ export async function getAdminEventEditorDataBySlug(options: {
               },
             },
             entryFees: {
-              orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+              orderBy: { description: 'asc' },
               select: {
                 id: true,
                 description: true,
                 amountCents: true,
-                isDeposit: true,
               },
             },
           },
@@ -871,12 +920,11 @@ export async function getAdminEventRegistrationsBySlug(options: {
         },
       },
       entryFees: {
-        orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+        orderBy: { description: 'asc' },
         select: {
           id: true,
           description: true,
           amountCents: true,
-          isDeposit: true,
         },
       },
       registrations: {
@@ -896,7 +944,6 @@ export async function getAdminEventRegistrationsBySlug(options: {
               id: true,
               description: true,
               amountCents: true,
-              isDeposit: true,
             },
           },
           createdAt: true,
@@ -936,7 +983,10 @@ export async function getAdminEventRegistrationsBySlug(options: {
               id: true,
               status: true,
               amountCents: true,
+              amountPaidCents: true,
               currency: true,
+              refundedAmountCents: true,
+              stripeDiscountMetadata: true,
               stripeReceiptUrl: true,
               manualHandledNote: true,
               manualHandledByUserId: true,

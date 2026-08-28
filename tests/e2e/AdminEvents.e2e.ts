@@ -38,7 +38,7 @@ test.describe('Admin events', () => {
       page.getByRole('heading', { name: 'Custom registration questions' })
     ).toBeVisible();
     await expect(
-      page.getByRole('heading', { name: 'Entry fees and deposits' })
+      page.getByRole('heading', { name: 'Entry fees' })
     ).toBeVisible();
 
     const descriptionEditor = page.locator(
@@ -89,7 +89,7 @@ test.describe('Admin events', () => {
       roster.getByText('Preferred watch role').first()
     ).toBeVisible();
     await expect(
-      page.getByRole('heading', { name: 'Bulk email' })
+      page.getByRole('heading', { name: 'Payment requests' })
     ).toBeVisible();
 
     await page.setViewportSize({ width: 390, height: 844 });

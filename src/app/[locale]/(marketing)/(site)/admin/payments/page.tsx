@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { adminPaginationPage } from '@/components/mit-sailing/admin/AdminPagination';
 import { AdminPaymentsLedgerView } from '@/components/mit-sailing/admin/payments/AdminPaymentsLedgerView';
 import {
+  ADMIN_PAYMENT_LEDGER_PAGE_SIZE,
   adminPaymentStatusFromParam,
-  listAdminPaymentLedgerData,
+  listAdminPaymentLedgerPage,
 } from '@/libs/admin/payments/adminPaymentQueries';
 import { requirePermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
@@ -11,7 +13,7 @@ import { Env } from '@/libs/Env';
 
 type AdminPaymentsPageProps = {
   params: Promise<{ locale: string }>;
-  searchParams?: Promise<{ q?: string; status?: string }>;
+  searchParams?: Promise<{ page?: string; q?: string; status?: string }>;
 };
 
 function stripeDashboardBaseUrl(): string {
@@ -44,7 +46,11 @@ export default async function AdminPaymentsPage(props: AdminPaymentsPageProps) {
     status: adminPaymentStatusFromParam(searchParams?.status),
   };
   const [data, t] = await Promise.all([
-    listAdminPaymentLedgerData(filters),
+    listAdminPaymentLedgerPage({
+      ...filters,
+      page: adminPaginationPage(searchParams?.page),
+      pageSize: ADMIN_PAYMENT_LEDGER_PAGE_SIZE,
+    }),
     getTranslations({ locale, namespace: 'AdminPayments' }),
   ]);
 

@@ -124,7 +124,6 @@ export type EventEntryFee = {
   event_id: string;
   description: string;
   amount_cents: number;
-  is_deposit: boolean;
 };
 
 export type EventComment = {
@@ -1201,28 +1200,18 @@ export const EVENT_ENTRY_FEES: EventEntryFee[] = [
     event_id: 'evt-dinghy-cup',
     description: 'Regatta entry',
     amount_cents: 7500,
-    is_deposit: false,
   },
   {
     id: 'fee-lts-ai-course',
     event_id: 'evt-lts-allinone',
     description: 'Course fee (includes t-shirt)',
     amount_cents: 15_000,
-    is_deposit: false,
   },
   {
     id: 'fee-bluewater-course',
     event_id: 'evt-bluewater-boston-provincetown',
     description: 'Passage fee',
     amount_cents: 42_500,
-    is_deposit: false,
-  },
-  {
-    id: 'fee-bluewater-deposit',
-    event_id: 'evt-bluewater-boston-provincetown',
-    description: 'Refundable provisioning deposit',
-    amount_cents: 10_000,
-    is_deposit: true,
   },
 ];
 

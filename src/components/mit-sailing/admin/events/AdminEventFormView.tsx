@@ -1359,11 +1359,6 @@ function FeeFields(props: {
           required
         />
       </AdminEventField>
-      <AdminEventCheckbox
-        defaultChecked={props.fee?.isDeposit ?? false}
-        label={props.t('field_fee_deposit')}
-        name="isDeposit"
-      />
     </div>
   );
 }

@@ -42,13 +42,10 @@ describe('sailing card request schema', () => {
     expect(schema).toContain('@@unique([userId, cardYear])');
   });
 
-  it('requires complete payment bypass evidence in policy and database schema', () => {
-    expect(schema).toContain(
-      'paymentBypassNote          String?                  @trim @length(min: 3)'
-    );
-    expect(schema).toContain(
-      'paymentBypassAt != null && (paymentBypassNote == null || paymentBypassByUserId == null)'
-    );
+  it('does not store new sailing-card payment bypass evidence', () => {
+    expect(schema).not.toContain('paymentBypassNote');
+    expect(schema).not.toContain('paymentBypassAt');
+    expect(schema).not.toContain('paymentBypassByUserId');
   });
 
   it('preserves MIT Recreation self-report on sailing card requests', () => {
@@ -67,9 +64,7 @@ describe('sailing card request schema', () => {
     expect(compactSchema).toContain('purpose PaymentPurpose');
     expect(compactSchema).toContain('membership');
     expect(compactSchema).toContain('active Boolean @default(true)');
-    expect(compactSchema).toContain(
-      'priceKind == spring && billingInterval == annual'
-    );
+    expect(compactSchema).not.toContain('billingInterval == annual');
     expect(compactSchema).toContain(
       'effectiveAt DateTime @map("effective_at")'
     );

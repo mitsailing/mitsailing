@@ -185,7 +185,7 @@ function RegistrationActionsMenu(props: {
         aria-label={props.t('registration_actions_for', {
           name: attendeeName,
         })}
-        className="inline-flex size-8 cursor-pointer list-none items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden"
+        className="inline-flex size-11 cursor-pointer list-none items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden"
       >
         <MoreHorizontal aria-hidden className="size-4" />
       </summary>
@@ -266,9 +266,7 @@ function RosterField(props: {
 }) {
   return (
     <div className={props.wide ? 'min-w-0 md:col-span-2' : 'min-w-0'}>
-      <p className="text-xs font-semibold tracking-wide text-mit-readable-ink uppercase">
-        {props.label}
-      </p>
+      <p className="text-xs font-medium text-muted-foreground">{props.label}</p>
       <div className="mt-1 text-sm break-words text-mit-readable-ink">
         {props.children}
       </div>

@@ -252,6 +252,21 @@ describe('legacyPaymentImport', () => {
     });
   });
 
+  it('name-cases legacy member names before staging users', () => {
+    const map = buildLegacyMemberPaymentMap([
+      member({
+        first: 'YOONSEO',
+        last: "O'NEIL-CHA",
+      }),
+    ]);
+
+    expect(map.canonicalUsers.at(0)).toMatchObject({
+      firstName: 'Yoonseo',
+      lastName: "O'Neil-Cha",
+      name: "Yoonseo O'Neil-Cha",
+    });
+  });
+
   it('drops invalid optional legacy contact phones', () => {
     const map = buildLegacyMemberPaymentMap([
       member({
@@ -282,7 +297,7 @@ describe('legacyPaymentImport', () => {
     );
   });
 
-  it('keeps old deposit authorizations out of paid access', () => {
+  it('classifies old deposit authorizations as not paid if inspected directly', () => {
     expect(
       legacyPaymentStatus(
         payment({
@@ -293,6 +308,28 @@ describe('legacyPaymentImport', () => {
         })
       )
     ).toBe(PaymentStatus.needs_review);
+  });
+
+  it('skips old deposit authorizations during nightly import', async () => {
+    await expect(
+      importLegacyPaymentRows({
+        members: [],
+        payments: [
+          payment({
+            category: null,
+            description: 'CROTR07 Damage Deposit - Team 2 Boat 3',
+            omarsid: 'BD-135670323',
+            settled: '0',
+          }),
+        ],
+      })
+    ).resolves.toMatchObject({
+      cardRecordsMerged: 0,
+      paymentsImported: 0,
+      paymentsNeedingReview: 0,
+    });
+
+    expect(mocks.paymentCreateMany).not.toHaveBeenCalled();
   });
 
   it('parses legacy decimal dollar amounts into cents', () => {

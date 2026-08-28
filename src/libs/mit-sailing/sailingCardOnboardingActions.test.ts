@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   prismaUserFindUnique: vi.fn(),
   prismaUserUpdate: vi.fn(),
   prismaLegalAgreementAcceptanceCreate: vi.fn(),
+  prismaPaymentFindFirst: vi.fn(),
   prismaSailingCardRequestCreate: vi.fn(),
   prismaSailingCardRequestFindUnique: vi.fn(),
   prismaSailingCardRequestUpdateMany: vi.fn(),
@@ -38,6 +39,9 @@ const mocks = vi.hoisted(() => ({
 type MockOnboardingTransactionClient = {
   readonly legalAgreementAcceptance: {
     readonly create: typeof mocks.prismaLegalAgreementAcceptanceCreate;
+  };
+  readonly payment: {
+    readonly findFirst: typeof mocks.prismaPaymentFindFirst;
   };
   readonly sailingCardRequest: {
     readonly create: typeof mocks.prismaSailingCardRequestCreate;
@@ -122,6 +126,9 @@ vi.mock('@/libs/auth/dal', () => ({
 
 vi.mock('@/libs/DB', () => ({
   prisma: {
+    payment: {
+      findFirst: mocks.prismaPaymentFindFirst,
+    },
     user: {
       findUnique: mocks.prismaUserFindUnique,
       update: mocks.prismaUserUpdate,
@@ -297,6 +304,7 @@ describe('submitSailingCardOnboardingAction', () => {
     mocks.prismaLegalAgreementAcceptanceCreate.mockResolvedValue({
       id: 'acceptance-1',
     });
+    mocks.prismaPaymentFindFirst.mockResolvedValue(null);
     mocks.prismaSailingCardRequestCreate.mockResolvedValue({});
     mocks.prismaSailingCardRequestFindUnique.mockResolvedValue(null);
     mocks.prismaSailingCardRequestUpdateMany.mockResolvedValue({ count: 1 });
@@ -312,6 +320,9 @@ describe('submitSailingCardOnboardingAction', () => {
           },
           legalAgreementAcceptance: {
             create: mocks.prismaLegalAgreementAcceptanceCreate,
+          },
+          payment: {
+            findFirst: mocks.prismaPaymentFindFirst,
           },
           sailingCardRequest: {
             create: mocks.prismaSailingCardRequestCreate,
@@ -411,6 +422,143 @@ describe('submitSailingCardOnboardingAction', () => {
 
     expect(mocks.lookupMitDataWarehouseIdentity).not.toHaveBeenCalled();
     expect(mocks.prismaTransaction).not.toHaveBeenCalled();
+  });
+
+  it('starts hosted checkout for existing pending paid racing requests', async () => {
+    const pendingRacingRequest = {
+      cardYear: 2026,
+      cardType: SailingCardType.racing,
+      hasFitnessMembership: false,
+      legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+      },
+      sailingAffiliation: SailingAffiliation.OTHER_NON_STUDENT,
+      status: SailingCardRequestStatus.pending,
+      userId: 'user-1',
+      user: {
+        emergencyContactName: 'Grace Hopper',
+        emergencyContactPhone: '+442079460958',
+        gymMembershipVerifiedAt: null,
+        phone: '+16175550100',
+      },
+    };
+    mocks.prismaUserFindUnique.mockResolvedValue(
+      currentUserFixture({
+        sailingCardRequests: [pendingRacingRequest],
+      })
+    );
+    mocks.prismaSailingCardRequestFindUnique.mockResolvedValue(
+      pendingRacingRequest
+    );
+    const submitSailingCardOnboardingAction =
+      await loadSubmitSailingCardOnboardingAction();
+
+    await expect(
+      submitSailingCardOnboardingAction(
+        idleState,
+        paidRacingOnboardingFormData()
+      )
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:https://checkout.stripe.com/c/pay/cs_test'
+    );
+
+    expect(mocks.createMembershipCheckoutUrlForOnboarding).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cardType: SailingCardType.racing,
+        dateOfBirth: '1990-01-02',
+        sailingAffiliation: SailingAffiliation.OTHER_NON_STUDENT,
+        userId: 'user-1',
+      })
+    );
+    expect(mocks.redirect).not.toHaveBeenCalledWith('/onboarding/success');
+  });
+
+  it('redirects already-paid pending racing requests without a second checkout', async () => {
+    const pendingRacingRequest = {
+      cardYear: 2026,
+      cardType: SailingCardType.racing,
+      hasFitnessMembership: false,
+      legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+      },
+      sailingAffiliation: SailingAffiliation.OTHER_NON_STUDENT,
+      status: SailingCardRequestStatus.pending,
+      userId: 'user-1',
+      user: {
+        emergencyContactName: 'Grace Hopper',
+        emergencyContactPhone: '+442079460958',
+        gymMembershipVerifiedAt: null,
+        phone: '+16175550100',
+      },
+    };
+    mocks.prismaPaymentFindFirst.mockResolvedValue({ id: 'payment-1' });
+    mocks.prismaUserFindUnique.mockResolvedValue(
+      currentUserFixture({
+        sailingCardRequests: [pendingRacingRequest],
+      })
+    );
+    const submitSailingCardOnboardingAction =
+      await loadSubmitSailingCardOnboardingAction();
+
+    await expect(
+      submitSailingCardOnboardingAction(
+        idleState,
+        paidRacingOnboardingFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+
+    expect(
+      mocks.createMembershipCheckoutUrlForOnboarding
+    ).not.toHaveBeenCalled();
+    expect(mocks.prismaTransaction).not.toHaveBeenCalled();
+  });
+
+  it('finishes onboarding from transaction-side payment recheck when pre-transaction read missed request', async () => {
+    const completedRacingRequest = {
+      cardYear: 2026,
+      cardType: SailingCardType.racing,
+      hasFitnessMembership: false,
+      legalAgreementAcceptance: {
+        acceptedUserId: 'user-1',
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+      },
+      sailingAffiliation: SailingAffiliation.OTHER_NON_STUDENT,
+      status: SailingCardRequestStatus.pending,
+      userId: 'user-1',
+      user: {
+        emergencyContactName: 'Grace Hopper',
+        emergencyContactPhone: '+442079460958',
+        gymMembershipVerifiedAt: null,
+        phone: '+16175550100',
+      },
+    };
+    mocks.prismaPaymentFindFirst.mockResolvedValue({ id: 'payment-1' });
+    mocks.prismaUserFindUnique.mockResolvedValue(currentUserFixture());
+    mocks.prismaSailingCardRequestFindUnique.mockResolvedValue(
+      completedRacingRequest
+    );
+    const submitSailingCardOnboardingAction =
+      await loadSubmitSailingCardOnboardingAction();
+
+    await expect(
+      submitSailingCardOnboardingAction(
+        idleState,
+        paidRacingOnboardingFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+
+    expect(mocks.prismaTransaction).toHaveBeenCalledTimes(1);
+    expect(
+      mocks.createMembershipCheckoutUrlForOnboarding
+    ).not.toHaveBeenCalled();
   });
 
   it('updates only the current user', async () => {
@@ -771,6 +919,50 @@ describe('submitSailingCardOnboardingAction', () => {
     expect(mocks.redirect).not.toHaveBeenCalledWith('/onboarding/success');
   });
 
+  it('redirects without checkout when membership payment is not required', async () => {
+    mocks.createMembershipCheckoutUrlForOnboarding.mockResolvedValue({
+      status: 'not_eligible',
+    });
+    const submitSailingCardOnboardingAction =
+      await loadSubmitSailingCardOnboardingAction();
+
+    await expect(
+      submitSailingCardOnboardingAction(
+        idleState,
+        paidRacingOnboardingFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+
+    expect(
+      mocks.createMembershipCheckoutUrlForOnboarding
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  it('redirects without checkout when recreation membership waives paid racing', async () => {
+    mocks.prismaUserFindUnique.mockResolvedValue(
+      currentUserFixture({
+        gymMembershipVerifiedAt: new Date('2026-05-01T12:00:00Z'),
+      })
+    );
+    const submitSailingCardOnboardingAction =
+      await loadSubmitSailingCardOnboardingAction();
+
+    await expect(
+      submitSailingCardOnboardingAction(
+        idleState,
+        paidRacingOnboardingFormData()
+      )
+    ).resolves.toEqual({
+      fieldErrors: { cardType: 'invalid' },
+      status: 'error',
+      values: expectedPaidRacingOnboardingValues,
+    });
+
+    expect(
+      mocks.createMembershipCheckoutUrlForOnboarding
+    ).not.toHaveBeenCalled();
+  });
+
   it('preserves callback through paid racing checkout success', async () => {
     const formData = paidRacingOnboardingFormData();
     formData.set('callbackUrl', '/events/regatta/register');
@@ -804,7 +996,6 @@ describe('submitSailingCardOnboardingAction', () => {
 
   it.each([
     ['unavailable', undefined],
-    ['not eligible', { status: 'not_eligible' }],
     ['rollover blocked', { status: 'rollover_blocked' }],
   ])(
     'returns a recoverable error when paid checkout creation is %s',

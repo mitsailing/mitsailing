@@ -256,6 +256,8 @@ async function openAdminUserProfile(props: {
   await props.page
     .getByRole('searchbox', { name: 'Search users' })
     .fill(props.query);
+  await props.page.getByRole('button', { name: 'Filter' }).click();
+  await expect(props.page).toHaveURL(/q=/);
   await props.page.getByRole('link', { name: props.userName }).click();
   await expect(props.page).toHaveURL(/\/admin\/users\/[^/]+$/);
 }
@@ -335,9 +337,7 @@ async function insertLegacyPaidMembershipPayment(props: {
   );
 }
 
-test('admin searches users without leaving the users page', async ({
-  page,
-}) => {
+test('admin searches users from the users page', async ({ page }) => {
   const email = fixtureEmail('user-search');
   await createBaseUser({
     email,
@@ -346,16 +346,17 @@ test('admin searches users without leaving the users page', async ({
   });
   await signInAsAdmin(page);
   await page.goto('/admin/users');
-  const originalUrl = page.url();
 
   await page.getByRole('searchbox', { name: 'Search users' }).fill(email);
+  await page.getByRole('button', { name: 'Filter' }).click();
 
+  await expect(page).toHaveURL(/q=/);
   await expect(page.getByRole('row').filter({ hasText: email })).toBeVisible();
-  await expect(page).toHaveURL(originalUrl);
 
   await page
     .getByRole('searchbox', { name: 'Search users' })
     .fill('not-a-real-sailor');
+  await page.getByRole('button', { name: 'Filter' }).click();
   await expect(page.getByText('No users match that search.')).toBeVisible();
 });
 
@@ -375,7 +376,7 @@ test('admin opens pending card user profile by MIT ID search', async ({
 
   await openAdminUserProfile({ page, query: mitId, userName: 'Grace Hopper' });
 
-  await expect(page.getByText('Suggested issue number')).toBeVisible();
+  await expect(page.getByText(mitId)).toBeVisible();
   await expect(
     page.getByRole('form', { name: 'Issue sailing card' })
   ).toBeVisible();
@@ -394,7 +395,7 @@ test('admin manually assigns card number 110', async ({ page }) => {
   await openAdminUserProfile({ page, query: email, userName: 'Grace Hopper' });
 
   await page.getByLabel('Card number').fill('110');
-  await page.getByRole('button', { name: 'Issue' }).click();
+  await page.getByRole('button', { name: 'Assign card' }).click();
 
   await expect
     .poll(async () => {
@@ -440,16 +441,18 @@ test('duplicate card number for the same year fails', async ({ page }) => {
   await openAdminUserProfile({ page, query: email, userName: 'Grace Hopper' });
 
   await page.getByLabel('Card number').fill('110');
-  await page.getByRole('button', { name: 'Issue' }).click();
+  await page.getByRole('button', { name: 'Assign card' }).click();
 
   await expect(
     page.getByText('That card number is already in use.')
   ).toBeVisible();
 });
 
-test('paid racing without payment requires a bypass note', async ({ page }) => {
-  const email = fixtureEmail('bypass-note');
-  await createPendingCardUser({
+test('paid racing without payment cannot be issued locally', async ({
+  page,
+}) => {
+  const email = fixtureEmail('payment-required');
+  const userId = await createPendingCardUser({
     cardType: 'racing',
     email,
     firstName: 'Grace',
@@ -459,11 +462,24 @@ test('paid racing without payment requires a bypass note', async ({ page }) => {
   await signInAsAdmin(page);
   await openAdminUserProfile({ page, query: email, userName: 'Grace Hopper' });
 
-  await expect(page.getByLabel('Payment bypass note')).toBeVisible();
-  await expect(page.getByLabel('Payment bypass note')).toHaveAttribute(
-    'required',
-    ''
-  );
+  await expect(page.getByLabel('Payment bypass note')).toHaveCount(0);
+  await expect(
+    page.getByText(
+      'Stripe payment or a promotion-code checkout is required before issuing this card.'
+    )
+  ).toBeVisible();
+
+  await page.getByLabel('Card number').fill('112');
+  await page.getByRole('button', { name: 'Assign card' }).click();
+  await expect
+    .poll(async () => {
+      const result = await pool.query<{ sailing_card_number: number | null }>(
+        'SELECT "sailing_card_number" FROM "user" WHERE "id" = $1',
+        [userId]
+      );
+      return result.rows[0]?.sailing_card_number ?? null;
+    })
+    .toBeNull();
 });
 
 test('legacy-paid member sees paid status without Stripe receipt', async ({

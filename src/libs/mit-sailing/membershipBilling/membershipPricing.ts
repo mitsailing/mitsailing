@@ -2,15 +2,14 @@ import {
   SailingAffiliation,
   SailingCardMembershipBillingInterval,
   SailingCardMembershipPriceCategory,
+} from '@/generated/prisma/enums';
+import type {
+  SailingCardType,
   SailingCardMembershipPriceKind,
 } from '@/generated/prisma/enums';
-import type { SailingCardType } from '@/generated/prisma/enums';
 import { nyYmd } from '@/lib/mit-sailing/nyTime';
 import { prisma } from '@/libs/DB';
-import {
-  membershipBillingAnchorForCheckout,
-  membershipPriceKindForDate,
-} from '@/libs/mit-sailing/membershipBilling/membershipBillingDates';
+import { membershipPriceKindForDate } from '@/libs/mit-sailing/membershipBilling/membershipBillingDates';
 import { parseSailingCardDateOfBirth } from '@/libs/mit-sailing/sailingCardDateOfBirth';
 import { hasStudentPaidRacingPrice } from '@/libs/mit-sailing/sailingCardMembership';
 
@@ -60,17 +59,15 @@ export type MembershipPricingReadClient = {
 
 type CheckoutMembershipPricesReady = {
   readonly dueTodayPrice: SailingCardMembershipPriceRow;
-  readonly renewalPrice: SailingCardMembershipPriceRow;
   readonly status: 'ready';
 };
 
 /**
- * Result of resolving the due-today and renewal prices for checkout.
+ * Result of resolving the due-today price for checkout.
  */
 export type CheckoutMembershipPricesResult =
   | CheckoutMembershipPricesReady
   | { readonly status: 'missing_due_today_price' }
-  | { readonly status: 'missing_renewal_price' }
   | { readonly status: 'not_eligible' };
 
 const membershipPriceSelect: Record<keyof SailingCardMembershipPriceRow, true> =
@@ -240,7 +237,7 @@ export async function getActiveMembershipPrice(options: {
 }
 
 /**
- * Reads the due-today and renewal prices required for Stripe Checkout.
+ * Reads the due-today price required for Stripe Checkout.
  *
  * @param options - Card request facts, pricing instant, client, and Stripe readiness.
  * @returns Ready prices or a status explaining why checkout cannot proceed.
@@ -260,14 +257,8 @@ export async function getCheckoutMembershipPrices(options: {
     dateOfBirth: options.dateOfBirth,
     now: options.now,
   });
-  const renewalAt = membershipBillingAnchorForCheckout(options.now);
-  const renewalCategory = membershipPriceCategoryForCardRequest({
-    affiliation: options.affiliation,
-    dateOfBirth: options.dateOfBirth,
-    now: renewalAt,
-  });
 
-  if (dueTodayCategory === null || renewalCategory === null) {
+  if (dueTodayCategory === null) {
     return { status: 'not_eligible' };
   }
 
@@ -277,12 +268,6 @@ export async function getCheckoutMembershipPrices(options: {
     priceCategory: dueTodayCategory,
     priceKind: membershipPriceKindForDate(options.now),
   };
-  const renewalLookup: MembershipPriceLookup = {
-    billingInterval: SailingCardMembershipBillingInterval.annual,
-    effectiveAt: { lte: renewalAt },
-    priceCategory: renewalCategory,
-    priceKind: SailingCardMembershipPriceKind.full,
-  };
   const prices = await (
     options.client ?? prisma
   ).sailingCardMembershipPrice.findMany({
@@ -290,7 +275,7 @@ export async function getCheckoutMembershipPrices(options: {
     select: membershipPriceSelect,
     where: {
       cardType: options.cardType,
-      OR: [dueTodayLookup, renewalLookup],
+      ...dueTodayLookup,
     },
   });
   const requireStripeReady = options.requireStripeReady ?? true;
@@ -303,22 +288,10 @@ export async function getCheckoutMembershipPrices(options: {
       requireStripeReady,
     }
   );
-  const renewalPrice = selectActiveMembershipPrice(
-    prices.filter((price) =>
-      membershipPriceMatchesLookup(price, renewalLookup)
-    ),
-    {
-      now: renewalAt,
-      requireStripeReady,
-    }
-  );
 
   if (dueTodayPrice === null) {
     return { status: 'missing_due_today_price' };
   }
-  if (renewalPrice === null) {
-    return { status: 'missing_renewal_price' };
-  }
 
-  return { dueTodayPrice, renewalPrice, status: 'ready' };
+  return { dueTodayPrice, status: 'ready' };
 }

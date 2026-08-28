@@ -23,10 +23,7 @@ type EventPaymentCheckoutDb = {
       where: {
         id: string;
         purpose: typeof PaymentPurpose.event_payment;
-        OR: (
-          | { event: { admins: { some: { adminUserId: string } } } }
-          | { userId: string }
-        )[];
+        userId: string;
       };
     }) => Promise<EventPaymentCheckoutDbPayment | null>;
     updateMany: (args: {
@@ -120,10 +117,7 @@ export async function createEventPaymentCheckoutClientSecret(options: {
     where: {
       id: options.paymentId,
       purpose: PaymentPurpose.event_payment,
-      OR: [
-        { userId: options.userId },
-        { event: { admins: { some: { adminUserId: options.userId } } } },
-      ],
+      userId: options.userId,
     },
   });
 

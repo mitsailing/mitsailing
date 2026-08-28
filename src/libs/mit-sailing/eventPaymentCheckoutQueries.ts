@@ -41,7 +41,12 @@ export const getEventPaymentCheckoutPageData = cache(
     const registration = await prisma.eventRegistration.findFirst({
       where: {
         eventId: event.id,
-        status: EventRegistrationStatus.approved,
+        status: {
+          in: [
+            EventRegistrationStatus.approved,
+            EventRegistrationStatus.pending,
+          ],
+        },
         userId,
       },
       orderBy: { createdAt: 'desc' },

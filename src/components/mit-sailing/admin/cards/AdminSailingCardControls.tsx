@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
-import { Textarea } from '@/components/ui/textarea';
 import { SailingCardType } from '@/generated/prisma/enums';
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import {
@@ -68,12 +67,11 @@ type AdminSailingCardIssueFormModel = {
   readonly cardNumberInputId: string;
   readonly formAction: (payload: FormData) => void;
   readonly formError: AdminSailingCardActionState['formError'];
-  readonly needsPaymentBypassNote: boolean;
-  readonly paymentBypassNoteId: string;
+  readonly needsMembershipPayment: boolean;
   readonly recreationVerificationId: string;
 };
 
-function issueFormNeedsPaymentBypassNote(props: {
+function issueFormNeedsMembershipPayment(props: {
   readonly cardType: SailingCardType | undefined;
   readonly paymentAccess: AdminSailingCardPaymentAccess | undefined;
 }) {
@@ -132,11 +130,14 @@ function AdminSailingCardNumberField(props: {
 
   return (
     <>
-      <Label htmlFor={props.inputId}>{t('card_number_label')}</Label>
-      <div className="flex gap-2">
+      <Label className="text-xs text-muted-foreground" htmlFor={props.inputId}>
+        {t('card_number_label')}
+      </Label>
+      <div className="flex flex-wrap gap-2">
         <Input
           aria-describedby={props.errorId}
           aria-invalid={props.error ? true : undefined}
+          className="h-7 w-24 flex-none"
           defaultValue={props.defaultValue}
           id={props.inputId}
           inputMode="numeric"
@@ -178,11 +179,10 @@ function useAdminSailingCardIssueFormModel(
     cardNumberInputId: `${props.userId}-cardNumber`,
     formAction,
     formError: state.formError,
-    needsPaymentBypassNote: issueFormNeedsPaymentBypassNote({
+    needsMembershipPayment: issueFormNeedsMembershipPayment({
       cardType: props.cardType,
       paymentAccess: props.paymentAccess,
     }),
-    paymentBypassNoteId: `${props.userId}-paymentBypassNote`,
     recreationVerificationId: `${props.userId}-gymMembershipVerified`,
   };
 }
@@ -217,6 +217,22 @@ function AdminSailingCardRecreationVerification(props: {
   );
 }
 
+function AdminSailingCardMembershipPaymentNotice(props: {
+  readonly visible: boolean;
+}) {
+  const t = useTranslations('AdminCards');
+
+  if (!props.visible) {
+    return null;
+  }
+
+  return (
+    <p className="m-0 text-xs text-destructive" role="alert">
+      {t('error_payment_required')}
+    </p>
+  );
+}
+
 export function AdminSailingCardIssueForm(
   props: AdminSailingCardIssueFormProps
 ) {
@@ -227,15 +243,10 @@ export function AdminSailingCardIssueForm(
     <form
       action={model.formAction}
       aria-label={t('issue_form_label')}
-      className="flex flex-col gap-2 sm:max-w-52"
+      className="flex flex-col gap-1"
     >
-      <p className="m-0 text-xs text-muted-foreground">
-        {t('issue_number_help', { number: props.suggestedCardNumber })}
-      </p>
       <AdminSailingCardNumberField
-        actionLabel={t('action_issue_number', {
-          number: props.suggestedCardNumber,
-        })}
+        actionLabel={t('action_issue')}
         defaultValue={props.suggestedCardNumber}
         error={model.cardNumberError}
         errorId={model.cardNumberErrorId}
@@ -250,10 +261,8 @@ export function AdminSailingCardIssueForm(
         id={model.recreationVerificationId}
         visible={props.needsRecreationVerification === true}
       />
-      {/* eslint-disable-next-line no-use-before-define -- Lizard mis-parses this TSX helper when it sits above the form. */}
-      <AdminSailingCardPaymentBypassNote
-        id={model.paymentBypassNoteId}
-        visible={model.needsPaymentBypassNote}
+      <AdminSailingCardMembershipPaymentNotice
+        visible={model.needsMembershipPayment}
       />
       <AdminSailingCardFormErrorMessage formError={model.formError} />
     </form>
@@ -308,11 +317,8 @@ export function AdminSailingCardChangeNumberForm(props: {
     <form
       action={formAction}
       aria-label={t('change_number_form_label')}
-      className="flex flex-col gap-2"
+      className="flex flex-col gap-1"
     >
-      <p className="m-0 text-xs text-muted-foreground">
-        {t('change_number_help', { number: props.currentCardNumber })}
-      </p>
       <AdminSailingCardNumberField
         actionLabel={t('action_save_correction')}
         defaultValue={props.currentCardNumber}
@@ -344,14 +350,14 @@ export function AdminSailingCardExpireForm(props: {
 
   return (
     <form action={formAction} className="flex flex-col gap-2">
-      <Button
+      <SubmitButton
         disabled={state.status === 'success'}
+        pendingKind="submitting"
         size="sm"
-        type="submit"
         variant="outline"
       >
         {t('action_expire')}
-      </Button>
+      </SubmitButton>
       {formError ? (
         <p className="m-0 text-xs text-destructive" role="alert">
           {t(formErrorMessageKeys[formError])}
@@ -470,29 +476,5 @@ export function AdminSailingCardHistory(props: {
         </ul>
       )}
     </section>
-  );
-}
-
-function AdminSailingCardPaymentBypassNote(props: {
-  readonly id: string;
-  readonly visible: boolean;
-}) {
-  const t = useTranslations('AdminCards');
-
-  if (!props.visible) {
-    return null;
-  }
-
-  return (
-    <div className="flex flex-col gap-1">
-      <Label htmlFor={props.id}>{t('payment_bypass_note_label')}</Label>
-      <Textarea
-        id={props.id}
-        name="paymentBypassNote"
-        placeholder={t('payment_bypass_note_placeholder')}
-        required
-        rows={3}
-      />
-    </div>
   );
 }

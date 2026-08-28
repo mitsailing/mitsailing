@@ -28,13 +28,6 @@ export async function generateMetadata(
   return { title: t('meta_title') };
 }
 
-/**
- * Admin dashboard: links to each section’s index (Rails-style discovery).
- *
- * @param props - App Router page props
- * @param props.params - Resolves to `locale`
- * @returns Section index with internal links
- */
 export default async function AdminIndexPage(props: AdminIndexPageProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
@@ -62,10 +55,9 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
   });
 
   return (
-    <div className="flex w-full max-w-5xl flex-col gap-8">
+    <div className="flex w-full max-w-4xl flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold text-mit-text">{t('title')}</h1>
-        <p className="mt-2 text-sm text-mit-text">{t('intro')}</p>
       </div>
 
       <section aria-labelledby="admin-site-section">
@@ -75,7 +67,7 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
         >
           {t('section_site')}
         </h2>
-        <ul className="mt-3 list-none space-y-2 p-0">
+        <ul className="mt-3 grid list-none gap-x-6 gap-y-2 p-0 sm:grid-cols-2">
           {canEvents ? (
             <li>
               <Link
@@ -94,9 +86,6 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
               >
                 {t('link_pavilion_reservations')}
               </Link>
-              <p className="mt-0.5 text-sm text-mit-text">
-                {t('link_pavilion_reservations_blurb')}
-              </p>
             </li>
           ) : null}
           {canPayments ? (
@@ -107,9 +96,6 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
               >
                 {t('link_payments')}
               </Link>
-              <p className="mt-0.5 text-sm text-mit-text">
-                {t('link_payments_blurb')}
-              </p>
             </li>
           ) : null}
           {canCms ? (
@@ -120,9 +106,6 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
               >
                 {t('link_site_text')}
               </Link>
-              <p className="mt-0.5 text-sm text-mit-text">
-                {t('link_site_text_blurb')}
-              </p>
             </li>
           ) : null}
         </ul>
@@ -135,7 +118,7 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
         >
           {t('section_catalog')}
         </h2>
-        <ul className="mt-3 list-none space-y-2 p-0">
+        <ul className="mt-3 grid list-none gap-x-6 gap-y-2 p-0 sm:grid-cols-2">
           {canUsers ? (
             <li>
               <Link
@@ -144,9 +127,6 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
               >
                 {t('hub_label_users')}
               </Link>
-              <p className="mt-0.5 text-sm text-mit-text">
-                {t('link_users_blurb')}
-              </p>
             </li>
           ) : null}
           {canNewsletters ? (
@@ -159,9 +139,6 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
                 >
                   {t('link_newsletter_subscribers')}
                 </Link>
-                <p className="mt-0.5 text-sm text-mit-text">
-                  {t('link_newsletter_subscribers_blurb')}
-                </p>
               </li>
               <li>
                 <Link
@@ -171,9 +148,6 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
                 >
                   {t('link_newsletter_lists')}
                 </Link>
-                <p className="mt-0.5 text-sm text-mit-text">
-                  {t('link_newsletter_lists_blurb')}
-                </p>
               </li>
               <li>
                 <Link
@@ -183,9 +157,24 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
                 >
                   {t('link_newsletter_broadcasts')}
                 </Link>
-                <p className="mt-0.5 text-sm text-mit-text">
-                  {t('link_newsletter_broadcasts_blurb')}
-                </p>
+              </li>
+              <li>
+                <Link
+                  className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+                  href="/admin/newsletter-templates"
+                  prefetch={false}
+                >
+                  {t('link_newsletter_templates')}
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+                  href="/admin/email-templates"
+                  prefetch={false}
+                >
+                  {t('link_email_templates')}
+                </Link>
               </li>
             </>
           ) : null}

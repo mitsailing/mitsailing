@@ -7,6 +7,8 @@ import { redirect } from 'next/navigation';
 import {
   LegalAgreementAcceptanceSource,
   MitDataWarehousePersonType,
+  PaymentPurpose,
+  PaymentStatus,
   SailingAffiliation,
   SailingCardRequestStatus,
   SailingCardType,
@@ -30,6 +32,7 @@ import {
   sailingCardAgreementHash,
 } from '@/libs/mit-sailing/sailingCardAgreement';
 import { needsFitnessMembershipQuestion } from '@/libs/mit-sailing/sailingCardMembership';
+import { sailingCardRequestNeedsMembershipPayment } from '@/libs/mit-sailing/sailingCardMembershipPaymentRequirement';
 import {
   buildSailingCardOnboardingUpdate,
   SailingCardOnboardingValidationError,
@@ -118,6 +121,7 @@ const currentYearSailingCardRequestSelect = {
     select: {
       emergencyContactName: true,
       emergencyContactPhone: true,
+      gymMembershipVerifiedAt: true,
       phone: true,
     },
   },
@@ -125,7 +129,31 @@ const currentYearSailingCardRequestSelect = {
 
 type CurrentYearSailingCardRequest = NonNullable<
   Parameters<typeof hasCompletedCurrentYearSailingCardRequest>[0]
->;
+> & {
+  readonly cardType: SailingCardType;
+  readonly hasFitnessMembership: boolean | null;
+  readonly sailingAffiliation: SailingAffiliation | null;
+  readonly user: NonNullable<
+    Parameters<typeof hasCompletedCurrentYearSailingCardRequest>[0]
+  >['user'] & {
+    readonly gymMembershipVerifiedAt: Date | null;
+  };
+};
+
+type PaidMembershipPaymentClient = {
+  readonly payment: {
+    readonly findFirst: (args: {
+      readonly select: { readonly id: true };
+      readonly where: {
+        readonly cardType: SailingCardType;
+        readonly cardYear: number;
+        readonly purpose: typeof PaymentPurpose.membership;
+        readonly status: typeof PaymentStatus.paid;
+        readonly userId: string;
+      };
+    }) => Promise<{ readonly id: string } | null>;
+  };
+};
 
 const canUpdatePendingNormalFitnessVerification = (request: {
   readonly cardType?: SailingCardType | null;
@@ -141,12 +169,55 @@ const canUpdatePendingNormalFitnessVerification = (request: {
   needsFitnessMembershipQuestion(request.sailingAffiliation);
 
 const shouldRedirectCompletedCurrentYearRequest = (
-  request: Parameters<typeof hasCompletedCurrentYearSailingCardRequest>[0]
+  request: CurrentYearSailingCardRequest | null
 ) =>
   request !== null &&
   request.status !== SailingCardRequestStatus.cancelled &&
   hasCompletedCurrentYearSailingCardRequest(request) &&
   !canUpdatePendingNormalFitnessVerification(request);
+
+async function hasPaidCurrentYearMembershipPayment(props: {
+  readonly cardType: SailingCardType;
+  readonly cardYear: number;
+  readonly client: PaidMembershipPaymentClient;
+  readonly userId: string;
+}) {
+  const payment = await props.client.payment.findFirst({
+    select: { id: true },
+    where: {
+      cardType: props.cardType,
+      cardYear: props.cardYear,
+      purpose: PaymentPurpose.membership,
+      status: PaymentStatus.paid,
+      userId: props.userId,
+    },
+  });
+  return payment !== null;
+}
+
+function currentYearRequestShouldFinishOnboarding(props: {
+  readonly cardYear: number;
+  readonly client: PaidMembershipPaymentClient;
+  readonly request: CurrentYearSailingCardRequest | null;
+  readonly userId: string;
+}): boolean | Promise<boolean> {
+  const { request } = props;
+  if (request === null) {
+    return false;
+  }
+  if (!shouldRedirectCompletedCurrentYearRequest(request)) {
+    return false;
+  }
+  if (!sailingCardRequestNeedsMembershipPayment(request)) {
+    return true;
+  }
+  return hasPaidCurrentYearMembershipPayment({
+    cardType: request.cardType,
+    cardYear: props.cardYear,
+    client: props.client,
+    userId: props.userId,
+  });
+}
 
 const sailingCardRequestUpdateData = (props: {
   readonly acceptedAt: Date;
@@ -381,9 +452,12 @@ const errorCode = (error: unknown) => {
 };
 
 const membershipCheckoutStateForOnboarding = async (props: {
+  readonly cardYear: number;
   readonly cardType: SailingCardType;
   readonly dateOfBirth: Date;
   readonly destination: string;
+  readonly gymMembershipVerifiedAt: Date | null;
+  readonly hasFitnessMembership: boolean | null;
   readonly locale: string;
   readonly sailingAffiliation: SailingAffiliation;
   readonly successHref: string;
@@ -396,6 +470,26 @@ const membershipCheckoutStateForOnboarding = async (props: {
   | { readonly status: 'not_required' }
 > => {
   if (props.cardType === SailingCardType.normal) {
+    return { status: 'not_required' };
+  }
+  if (
+    !sailingCardRequestNeedsMembershipPayment({
+      cardType: props.cardType,
+      hasFitnessMembership: props.hasFitnessMembership,
+      sailingAffiliation: props.sailingAffiliation,
+      user: { gymMembershipVerifiedAt: props.gymMembershipVerifiedAt },
+    })
+  ) {
+    return { status: 'not_required' };
+  }
+  if (
+    await hasPaidCurrentYearMembershipPayment({
+      cardType: props.cardType,
+      cardYear: props.cardYear,
+      client: prisma,
+      userId: props.userId,
+    })
+  ) {
     return { status: 'not_required' };
   }
   const checkoutSuccessHref = onboardingSuccessHref({
@@ -430,6 +524,9 @@ const membershipCheckoutStateForOnboarding = async (props: {
       }
     );
     return { status: 'failed' };
+  }
+  if (checkout?.status === 'not_eligible') {
+    return { status: 'not_required' };
   }
   if (checkout?.status !== 'created') {
     return { status: 'failed' };
@@ -509,8 +606,16 @@ export const submitSailingCardOnboardingAction = async (
     );
   }
 
+  const cardYear = getCurrentSailingCardYear();
   const latestRequest = currentUser.sailingCardRequests.at(0) ?? null;
-  if (shouldRedirectCompletedCurrentYearRequest(latestRequest)) {
+  if (
+    await currentYearRequestShouldFinishOnboarding({
+      cardYear,
+      client: prisma,
+      request: latestRequest,
+      userId: session.user.id,
+    })
+  ) {
     redirect(successDestination);
   }
 
@@ -550,7 +655,6 @@ export const submitSailingCardOnboardingAction = async (
     null;
   const userAgent = truncateMetadata(headerList.get('user-agent'));
   const acceptedAt = new Date();
-  const cardYear = getCurrentSailingCardYear(acceptedAt);
   const { cardType, dateOfBirth } = update;
   const userUpdate = {
     emergencyContactName: update.emergencyContactName,
@@ -576,7 +680,14 @@ export const submitSailingCardOnboardingAction = async (
       },
       select: currentYearSailingCardRequestSelect,
     });
-    if (shouldRedirectCompletedCurrentYearRequest(currentYearRequest)) {
+    if (
+      await currentYearRequestShouldFinishOnboarding({
+        cardYear,
+        client: tx,
+        request: currentYearRequest,
+        userId: session.user.id,
+      })
+    ) {
       return { status: 'alreadyCompleted' } as const;
     }
 
@@ -627,7 +738,17 @@ export const submitSailingCardOnboardingAction = async (
       });
 
       if (requestUpdate.count === 0) {
-        redirect(successDestination);
+        if (
+          await currentYearRequestShouldFinishOnboarding({
+            cardYear,
+            client: tx,
+            request: currentYearRequest,
+            userId: session.user.id,
+          })
+        ) {
+          return { status: 'alreadyCompleted' } as const;
+        }
+        return { status: 'submitted' } as const;
       }
     }
 
@@ -640,9 +761,12 @@ export const submitSailingCardOnboardingAction = async (
 
   revalidateOnboardingDestination({ destination, successHref });
   const checkout = await membershipCheckoutStateForOnboarding({
+    cardYear,
     cardType,
     dateOfBirth,
     destination,
+    gymMembershipVerifiedAt: currentUser.gymMembershipVerifiedAt,
+    hasFitnessMembership: update.hasFitnessMembership,
     locale,
     sailingAffiliation: update.sailingAffiliation,
     successHref,

@@ -54,8 +54,8 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
   }
 
   return (
-    <section className="rounded-lg border border-border bg-card">
-      <div className="border-b border-border px-5 py-4">
+    <section className="flex flex-col gap-3">
+      <div>
         <h2 className="m-0 text-lg font-semibold text-foreground">
           {t('ratings_heading')}
         </h2>
@@ -75,6 +75,16 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
+          {props.rows.length === 0 ? (
+            <TableRow>
+              <TableCell
+                className="px-3 py-4 text-sm text-muted-foreground"
+                colSpan={4}
+              >
+                {t('ratings_empty')}
+              </TableCell>
+            </TableRow>
+          ) : null}
           {props.rows.map((row) => {
             let grantDisabledMessage: string | null = null;
             if (!row.eligibility.eligible) {

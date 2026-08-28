@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Form from 'next/form';
+import { AdminTableContainer } from '@/components/mit-sailing/admin/AdminDataRows';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -191,7 +192,7 @@ export default async function AdminPavilionReservationsPage(
 
       <Form
         action={pavilionReservationListPath}
-        className="grid gap-3 rounded-lg border border-border bg-card p-4 lg:grid-cols-[minmax(180px,240px)_minmax(180px,240px)_minmax(180px,240px)_minmax(220px,1fr)_auto]"
+        className="grid gap-3 border-y border-border py-4 lg:grid-cols-[minmax(180px,240px)_minmax(180px,240px)_minmax(180px,240px)_minmax(220px,1fr)_auto]"
       >
         <input name="sort" type="hidden" value={sort} />
         <input name="direction" type="hidden" value={direction} />
@@ -361,122 +362,116 @@ export default async function AdminPavilionReservationsPage(
         {t('list_count', { count: result.rows.length })}
       </p>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <div className="overflow-x-auto">
-          <Table className="min-w-[1100px] text-left">
-            <caption className="sr-only">{t('table_caption')}</caption>
-            <TableHeader>
-              <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
-                <TableHead className="px-4 py-3">
-                  {t('column_reference')}
+      <AdminTableContainer>
+        <Table className="min-w-[1100px] text-left">
+          <caption className="sr-only">{t('table_caption')}</caption>
+          <TableHeader>
+            <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
+              <TableHead className="px-4 py-3">
+                {t('column_reference')}
+              </TableHead>
+              {(
+                [
+                  ['eventName', 'column_event'],
+                  ['requester', 'column_requester'],
+                  ['status', 'column_status'],
+                  ['firstSlot', 'column_first_slot'],
+                  ['estimate', 'column_estimate'],
+                  ['paymentStatus', 'column_payment'],
+                ] as const
+              ).map(([sortKey, labelKey]) => (
+                <TableHead className="px-4 py-3" key={sortKey}>
+                  <Link
+                    className="font-medium text-foreground no-underline hover:underline"
+                    href={validateAdminPavilionReservationHref(
+                      filterHref({
+                        ...commonHrefParams,
+                        direction: nextDirection(sortKey, sort, direction),
+                        sort: sortKey,
+                      })
+                    )}
+                  >
+                    {t(labelKey)}
+                  </Link>
                 </TableHead>
-                {(
-                  [
-                    ['eventName', 'column_event'],
-                    ['requester', 'column_requester'],
-                    ['status', 'column_status'],
-                    ['firstSlot', 'column_first_slot'],
-                    ['estimate', 'column_estimate'],
-                    ['paymentStatus', 'column_payment'],
-                  ] as const
-                ).map(([sortKey, labelKey]) => (
-                  <TableHead className="px-4 py-3" key={sortKey}>
+              ))}
+              <TableHead className="px-4 py-3">
+                {t('column_conflicts')}
+              </TableHead>
+              <TableHead className="px-4 py-3">{t('column_actions')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {result.rows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  className="px-4 py-10 text-center text-sm text-mit-readable-ink"
+                  colSpan={9}
+                >
+                  {t('list_empty')}
+                </TableCell>
+              </TableRow>
+            ) : (
+              result.rows.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell className="px-4 py-3 align-top font-mono text-sm">
+                    {row.referenceCode}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 align-top">
+                    <div className="font-semibold text-mit-text">
+                      {row.eventName}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {t(`persona_${row.persona}`)}
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 align-top text-sm">
+                    <div className="font-medium text-mit-text">
+                      {row.firstName} {row.lastName}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {row.requesterEmail}
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 align-top text-sm">
+                    {t(`status_${row.status}`)}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 align-top text-sm">
+                    {firstSlotLabel({
+                      blank: t('blank'),
+                      date: row.firstSlotDate,
+                      startMinutes: row.firstSlotStartMinutes,
+                    })}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 align-top text-sm">
+                    {row.estimatedTotalCents === null
+                      ? t('price_tbd')
+                      : formatPavilionReservationMoney(row.estimatedTotalCents)}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 align-top text-sm">
+                    {t(`payment_${row.paymentStatus}`)}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 align-top text-sm">
+                    {row.conflictSeverity
+                      ? t(`conflict_${row.conflictSeverity}`)
+                      : t('conflict_none')}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 align-top">
                     <Link
-                      className="font-medium text-foreground no-underline hover:underline"
+                      className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
                       href={validateAdminPavilionReservationHref(
-                        filterHref({
-                          ...commonHrefParams,
-                          direction: nextDirection(sortKey, sort, direction),
-                          sort: sortKey,
-                        })
+                        adminPavilionReservationDetailPath(row.id)
                       )}
                     >
-                      {t(labelKey)}
+                      {t('action_view')}
                     </Link>
-                  </TableHead>
-                ))}
-                <TableHead className="px-4 py-3">
-                  {t('column_conflicts')}
-                </TableHead>
-                <TableHead className="px-4 py-3">
-                  {t('column_actions')}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {result.rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    className="px-4 py-10 text-center text-sm text-mit-readable-ink"
-                    colSpan={9}
-                  >
-                    {t('list_empty')}
                   </TableCell>
                 </TableRow>
-              ) : (
-                result.rows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="px-4 py-3 align-top font-mono text-sm">
-                      {row.referenceCode}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 align-top">
-                      <div className="font-semibold text-mit-text">
-                        {row.eventName}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {t(`persona_${row.persona}`)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-4 py-3 align-top text-sm">
-                      <div className="font-medium text-mit-text">
-                        {row.firstName} {row.lastName}
-                      </div>
-                      <div className="text-muted-foreground">
-                        {row.requesterEmail}
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-4 py-3 align-top text-sm">
-                      {t(`status_${row.status}`)}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 align-top text-sm">
-                      {firstSlotLabel({
-                        blank: t('blank'),
-                        date: row.firstSlotDate,
-                        startMinutes: row.firstSlotStartMinutes,
-                      })}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 align-top text-sm">
-                      {row.estimatedTotalCents === null
-                        ? t('price_tbd')
-                        : formatPavilionReservationMoney(
-                            row.estimatedTotalCents
-                          )}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 align-top text-sm">
-                      {t(`payment_${row.paymentStatus}`)}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 align-top text-sm">
-                      {row.conflictSeverity
-                        ? t(`conflict_${row.conflictSeverity}`)
-                        : t('conflict_none')}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 align-top">
-                      <Link
-                        className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-                        href={validateAdminPavilionReservationHref(
-                          adminPavilionReservationDetailPath(row.id)
-                        )}
-                      >
-                        {t('action_view')}
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </AdminTableContainer>
     </div>
   );
 }
