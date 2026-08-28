@@ -41,6 +41,10 @@ type AbandonEmailReservation = {
   status: string;
 };
 
+type ClaimedAbandonEmailReservation = AbandonEmailReservation & {
+  resumeToken: string;
+};
+
 export type PavilionReservationAbandonEmailJobData = z.infer<
   typeof pavilionReservationAbandonEmailJobDataSchema
 >;
@@ -58,25 +62,34 @@ function pavilionReservationResumeUrl(resumeToken: string): string {
   return `${Env.NEXT_PUBLIC_APP_URL}/reserve?resume=${encodeURIComponent(resumeToken)}`;
 }
 
+function hasResumeToken(
+  reservation: AbandonEmailReservation
+): reservation is ClaimedAbandonEmailReservation {
+  return reservation.resumeToken !== null && reservation.resumeToken !== '';
+}
+
 function isEligibleForAbandonEmail(
   reservation: AbandonEmailReservation
-): reservation is AbandonEmailReservation & { resumeToken: string } {
+): reservation is ClaimedAbandonEmailReservation {
   return (
     reservation.status === 'draft' &&
     reservation.abandonEmailSentAt === null &&
-    reservation.resumeToken !== null &&
-    reservation.resumeToken !== ''
+    hasResumeToken(reservation)
   );
 }
 
 function canSendAbandonEmailAfterClaim(
   reservation: AbandonEmailReservation
-): reservation is AbandonEmailReservation & { resumeToken: string } {
-  return (
-    reservation.status === 'draft' &&
-    reservation.resumeToken !== null &&
-    reservation.resumeToken !== ''
-  );
+): reservation is ClaimedAbandonEmailReservation {
+  return reservation.status === 'draft' && hasResumeToken(reservation);
+}
+
+async function findAbandonEmailReservation(requestId: string) {
+  const reservation = await prisma.pavilionReservationRequest.findUnique({
+    select: abandonEmailReservationSelect,
+    where: { id: requestId },
+  });
+  return reservation;
 }
 
 async function claimAbandonEmailSend(requestId: string): Promise<boolean> {
@@ -104,7 +117,7 @@ async function rollbackAbandonEmailClaim(requestId: string): Promise<void> {
 }
 
 async function sendClaimedAbandonEmail(
-  reservation: AbandonEmailReservation & { resumeToken: string },
+  reservation: ClaimedAbandonEmailReservation,
   requestId: string
 ): Promise<void> {
   try {
@@ -121,10 +134,73 @@ async function sendClaimedAbandonEmail(
 }
 
 /**
+ * Re-reads draft state after the send claim so a concurrent submit can roll back.
+ *
+ * @param requestId - Pavilion reservation request id
+ * @returns Resolves after send or claim rollback
+ */
+async function sendAbandonEmailAfterFreshClaim(
+  requestId: string
+): Promise<void> {
+  const freshReservation = await findAbandonEmailReservation(requestId);
+  if (!freshReservation || !canSendAbandonEmailAfterClaim(freshReservation)) {
+    await rollbackAbandonEmailClaim(requestId);
+    return;
+  }
+  await sendClaimedAbandonEmail(freshReservation, requestId);
+}
+
+async function attemptAbandonEmailSend(requestId: string): Promise<void> {
+  const reservation = await findAbandonEmailReservation(requestId);
+  if (!reservation || !isEligibleForAbandonEmail(reservation)) {
+    return;
+  }
+  const claimed = await claimAbandonEmailSend(requestId);
+  if (!claimed) {
+    return;
+  }
+  await sendAbandonEmailAfterFreshClaim(requestId);
+}
+
+/**
+ * Slides a delayed abandon job, or replaces a non-delayed duplicate.
+ *
+ * BullMQ `changeDelay` only applies to jobs in the delayed state.
+ *
+ * @param queue - Default BullMQ queue
+ * @param jobId - Stable abandon-email job id
+ * @returns Whether the existing delayed job was rescheduled
+ * @see https://docs.bullmq.io/guide/jobs/delayed
+ */
+async function rescheduleOrReplaceAbandonEmailJob(
+  queue: PavilionReservationAbandonEmailQueue,
+  jobId: string
+): Promise<boolean> {
+  const existing = await queue.getJob(jobId);
+  if (!existing) {
+    return false;
+  }
+  const state = await existing.getState();
+  if (state === 'delayed') {
+    await existing.changeDelay(PAVILION_RESERVATION_ABANDON_EMAIL_DELAY_MS);
+    return true;
+  }
+  if (
+    state === 'waiting' ||
+    state === 'prioritized' ||
+    state === 'waiting-children'
+  ) {
+    await existing.remove();
+  }
+  return false;
+}
+
+/**
  * Removes queued abandon-email jobs for the given draft request ids.
  *
  * @param queue - Default BullMQ queue
  * @param requestIds - Draft request ids to cancel
+ * @returns Resolves when matching jobs are removed
  */
 export async function cancelPavilionReservationAbandonEmailJobs(
   queue: PavilionReservationAbandonEmailQueue,
@@ -141,27 +217,21 @@ export async function cancelPavilionReservationAbandonEmailJobs(
 /**
  * Enqueues or slides the 1-hour abandon email for a draft pavilion request.
  *
+ * Uses a stable `jobId` so draft autosaves throttle to one delayed job
+ * (BullMQ named-job / jobId pattern).
+ *
  * @param queue - Default BullMQ queue
  * @param data - Draft request id
+ * @returns Resolves when the delayed job is scheduled
  */
 export async function enqueuePavilionReservationAbandonEmail(
   queue: PavilionReservationAbandonEmailQueue,
   data: PavilionReservationAbandonEmailJobData
 ): Promise<void> {
   const jobId = abandonEmailJobId(data.requestId);
-  const existing = await queue.getJob(jobId);
-  if (existing) {
-    const state = await existing.getState();
-    if (
-      state === 'delayed' ||
-      state === 'waiting' ||
-      state === 'prioritized' ||
-      state === 'waiting-children'
-    ) {
-      await existing.changeDelay(PAVILION_RESERVATION_ABANDON_EMAIL_DELAY_MS);
-      return;
-    }
-    await existing.remove();
+  const rescheduled = await rescheduleOrReplaceAbandonEmailJob(queue, jobId);
+  if (rescheduled) {
+    return;
   }
   await queue.add(PAVILION_RESERVATION_ABANDON_EMAIL_JOB_NAME, data, {
     ...PAVILION_RESERVATION_ABANDON_EMAIL_JOB_OPTS,
@@ -173,34 +243,14 @@ export async function enqueuePavilionReservationAbandonEmail(
  * Sends a one-time resume email for still-incomplete pavilion drafts.
  *
  * @param data - Job payload with request id
+ * @returns Resolves when send is skipped, claimed, or completed
  */
 export async function processPavilionReservationAbandonEmailJob(
   data: unknown
 ): Promise<void> {
   const params = pavilionReservationAbandonEmailJobDataSchema.parse(data);
   try {
-    const reservation = await prisma.pavilionReservationRequest.findUnique({
-      select: abandonEmailReservationSelect,
-      where: { id: params.requestId },
-    });
-    if (!reservation || !isEligibleForAbandonEmail(reservation)) {
-      return;
-    }
-    const claimed = await claimAbandonEmailSend(params.requestId);
-    if (!claimed) {
-      return;
-    }
-    const freshReservation = await prisma.pavilionReservationRequest.findUnique(
-      {
-        select: abandonEmailReservationSelect,
-        where: { id: params.requestId },
-      }
-    );
-    if (!freshReservation || !canSendAbandonEmailAfterClaim(freshReservation)) {
-      await rollbackAbandonEmailClaim(params.requestId);
-      return;
-    }
-    await sendClaimedAbandonEmail(freshReservation, params.requestId);
+    await attemptAbandonEmailSend(params.requestId);
   } catch (error) {
     logger.error(
       '[pavilion-reservation:abandon-email] request_id={requestId} error_name={errorName} error_code={errorCode}',
