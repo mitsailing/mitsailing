@@ -829,10 +829,14 @@ describe('local Mailpit capture', () => {
   it('keeps the Playwright webServer alive if the worker exits early', () => {
     const e2eStart = readRepoFile('scripts/e2e-start.cjs');
 
-    expect(e2eStart).toContain("startNodeProcess('worker', ['worker.mjs'], {");
-    expect(e2eStart).toContain('fatal: false');
-    expect(e2eStart).toContain("'.next/standalone/server.js'");
-    expect(e2eStart).toContain('fatal: true');
+    expect(e2eStart).toContain(`startNodeProcess(
+  'standalone server',
+  ['.next/standalone/server.js'],
+  { fatal: true }
+)`);
+    expect(e2eStart).toContain(`startNodeProcess('worker', ['worker.mjs'], {
+  fatal: false,
+}`);
     expect(playwrightConfig).toContain("stdout: isCi ? 'pipe' : 'ignore'");
     expect(playwrightConfig).toContain("stderr: isCi ? 'pipe' : 'ignore'");
   });
