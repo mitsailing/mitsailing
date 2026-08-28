@@ -40,20 +40,24 @@ function paginationHref(props: {
 function PaginationLink(props: {
   readonly children: React.ReactNode;
   readonly disabled: boolean;
-  readonly href: string;
+  readonly pageHref: string;
 }) {
   const className =
     'inline-flex h-9 items-center rounded-md border border-input px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted';
-  const href = isAppRelativeCmsHref(props.href) ? props.href : null;
-  return props.disabled || !href ? (
-    <span
-      aria-disabled="true"
-      className={`${className} cursor-not-allowed opacity-50`}
-    >
-      {props.children}
-    </span>
-  ) : (
-    <Link className={className} href={href}>
+  const href = isAppRelativeCmsHref(props.pageHref) ? props.pageHref : null;
+  if (props.disabled || !href) {
+    return (
+      <span
+        aria-disabled="true"
+        className={`${className} cursor-not-allowed opacity-50`}
+      >
+        {props.children}
+      </span>
+    );
+  }
+  const hrefProps = { href };
+  return (
+    <Link className={className} {...hrefProps}>
       {props.children}
     </Link>
   );
@@ -91,7 +95,7 @@ export function AdminPagination(
       <div className="flex items-center gap-2">
         <PaginationLink
           disabled={page <= 1}
-          href={paginationHref({
+          pageHref={paginationHref({
             basePath: props.basePath,
             page: previousPage,
             pageParamName,
@@ -102,7 +106,7 @@ export function AdminPagination(
         </PaginationLink>
         <PaginationLink
           disabled={page >= totalPages}
-          href={paginationHref({
+          pageHref={paginationHref({
             basePath: props.basePath,
             page: nextPage,
             pageParamName,
