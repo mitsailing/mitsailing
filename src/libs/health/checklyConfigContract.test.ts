@@ -5,7 +5,8 @@ describe('checkly health ready config', () => {
   const checklyConfig = readRepoFile('checkly.config.ts');
   const checklyHealthApi = readRepoFile('checkly/health-api.check.ts');
 
-  it('does not configure browser e2e checks', () => {
+  it('matches only api health check definitions', () => {
+    expect(checklyConfig).toContain("checkMatch: 'checkly/**/*.check.ts'");
     expect(checklyConfig).not.toContain('browserChecks');
     expect(checklyConfig).not.toContain('testMatch');
     expect(checklyConfig).not.toContain('playwrightConfig');

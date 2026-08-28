@@ -3,16 +3,16 @@ name: Checkly
 on:
   workflow_dispatch:
 
-env:
-  CHECKLY_API_KEY: ${{ secrets.CHECKLY_API_KEY }}
-  CHECKLY_ACCOUNT_ID: ${{ secrets.CHECKLY_ACCOUNT_ID }}
-  CHECKLY_REPO_URL: https://github.com/mitsailing/mitsailing
-  CHECKLY_TEST_ENVIRONMENT: production
-  ENVIRONMENT_URL: https://mitsailing.com
-  HEALTHCHECK_SECRET: ${{ secrets.HEALTHCHECK_SECRET }}
+permissions:
+  contents: read
+
+concurrency:
+  group: checkly-production
+  cancel-in-progress: true
 
 jobs:
   deploy-health-checks:
+    if: github.ref == 'refs/heads/main'
     strategy:
       matrix:
         node-version: [24.x]
@@ -21,6 +21,14 @@ jobs:
     name: Deploy Checkly health checks
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment: production
+    env:
+      CHECKLY_API_KEY: ${{ secrets.CHECKLY_API_KEY }}
+      CHECKLY_ACCOUNT_ID: ${{ secrets.CHECKLY_ACCOUNT_ID }}
+      CHECKLY_REPO_URL: https://github.com/mitsailing/mitsailing
+      CHECKLY_TEST_ENVIRONMENT: production
+      ENVIRONMENT_URL: https://mitsailing.com
+      HEALTHCHECK_SECRET: ${{ secrets.HEALTHCHECK_SECRET }}
 
     steps:
       - name: Note readiness monitoring scope
@@ -33,11 +41,15 @@ jobs:
         with:
           ref: '${{ github.sha }}'
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set Checkly git metadata
+        env:
+          CHECKLY_REPO_BRANCH: ${{ github.ref_name }}
+          CHECKLY_REPO_SHA: ${{ github.sha }}
         run: |
-          echo "CHECKLY_REPO_BRANCH=${{ github.ref_name }}" >> "$GITHUB_ENV"
-          echo "CHECKLY_REPO_SHA=${{ github.sha }}" >> "$GITHUB_ENV"
+          printf 'CHECKLY_REPO_BRANCH=%s\n' "$CHECKLY_REPO_BRANCH" >> "$GITHUB_ENV"
+          printf 'CHECKLY_REPO_SHA=%s\n' "$CHECKLY_REPO_SHA" >> "$GITHUB_ENV"
 
       - name: Set up Node.js environment
         uses: ./.github/actions/setup-project
@@ -58,5 +70,5 @@ jobs:
 
       - name: Deploy checks
         id: deploy-checks
-        if: steps.run-checks.outcome == 'success'
+        if: steps.run-checks.outcome == 'success' && github.ref == 'refs/heads/main'
         run: npx dotenv -c production -- npx checkly deploy --force
