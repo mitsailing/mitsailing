@@ -61,6 +61,7 @@ function baseEmailData() {
     created_at: '2026-05-14T14:29:59.000Z',
     email_id: 'email_123',
     from: 'MIT Sailing <news@mitsailing.test>',
+    message_id: '<email_123@mitsailing.test>',
     subject: 'Spring sailing',
     tags: { newsletter_delivery_id: 'delivery_123' },
     to: ['sailor@example.com'],

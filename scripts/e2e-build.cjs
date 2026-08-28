@@ -194,6 +194,7 @@ function buildWorkerOrExit() {
       format: 'esm',
       logLevel: 'warning',
       outfile: 'worker.mjs',
+      packages: 'external',
       platform: 'node',
       target: 'node24',
     });

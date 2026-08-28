@@ -25,7 +25,7 @@ type AdminUserRatingsPanelProps = {
 };
 
 /**
- * Renders admin controls for granting and revoking sailing ratings.
+ * Renders admin controls for granting and revoking sail ratings.
  *
  * @param props - User rating rows and mutation context, including optional
  *   `ratingsLoadFailed` when the parent failed to load rows from the database.

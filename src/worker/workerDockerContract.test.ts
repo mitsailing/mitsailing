@@ -56,6 +56,14 @@ describe('worker Docker contract', () => {
     expect(dockerWorkflow).toContain('mitsailing-pr:ci node worker.mjs');
   });
 
+  it('keeps the e2e worker bundle on the same esbuild package contract', () => {
+    const e2eBuild = readRepoFile('scripts/e2e-build.cjs');
+
+    expect(e2eBuild).toContain("format: 'esm'");
+    expect(e2eBuild).toContain("outfile: 'worker.mjs'");
+    expect(e2eBuild).toContain("packages: 'external'");
+  });
+
   it('uses stable Redis 8 Alpine images for Docker smoke checks', () => {
     const composeFile = readRepoFile('compose.yaml');
     const dockerWorkflow = readRepoFile('.github/workflows/docker-pr.yml');

@@ -63,7 +63,7 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | Job IDs use Redis-safe, readable identifiers. | Pass | Payment, reminder, and reservation jobs use hyphenated deterministic IDs. |
 | Sensitive job data is minimized. | Pass | Pavilion reservation email jobs enqueue only the reservation reference and load details from Postgres at execution time. |
 | Worker startup reconciles durable DB state with queued jobs. | Pass | The worker startup path reconciles CMS media processing jobs instead of relying only on in-memory enqueue events. |
-| E2E runs exercise the production-like standalone server and worker. | Pass | `scripts/e2e-start.cjs`, `scripts/e2e-build.cjs`, and `playwright.config.ts` run the standalone server with `worker.mjs`. |
+| E2E runs exercise the production-like standalone server and worker. | Pass | `scripts/e2e-start.cjs`, `scripts/e2e-build.cjs`, and `playwright.config.ts` run the standalone server with `worker.mjs`. Worker exit is non-fatal so a BullMQ startup failure cannot tear down the HTTP server after Playwright marks it ready. |
 | Graceful shutdown closes queues, workers, and Redis connections. | Pass | `src/worker/workerRuntime.ts` closes workers, queues, and Redis; `scripts/e2e-start.cjs` forwards shutdown signals to child processes. |
 
 ## Rich Text Editor
@@ -86,7 +86,7 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | Check | Status | Current evidence |
 | --- | --- | --- |
 | Local and E2E email flows use real SMTP capture instead of mocking the app mail driver. | Pass | `.env.example` and `playwright.config.ts` set `MAIL_TRANSPORT=smtp`, `SMTP_URL=smtp://127.0.0.1:1025`, and `MAILPIT_API_URL=http://127.0.0.1:8025`; E2E tests read captured messages through `tests/helpers/mailpit.ts`. |
-| The local Mailpit image is pinned to a current v1 release, not `latest`. | Pass | Compose uses `axllent/mailpit:v1.30.1`, the current security release reviewed for this checklist. Dependabot monitors Dockerfile and Docker Compose images. |
+| The local Mailpit image is pinned to a current v1 release, not `latest`. | Pass | Compose uses `axllent/mailpit:v1.31.0`, the current security release reviewed for this checklist. Dependabot monitors Dockerfile and Docker Compose images. |
 | Mailpit SMTP and HTTP/API ports are loopback-only in local development. | Pass | `compose.override.yaml` publishes both `1025` and `8025` on `127.0.0.1`, so unauthenticated local capture is not exposed on the LAN. |
 | Mailpit readiness uses the official healthcheck endpoint. | Pass | The Mailpit service healthcheck calls `http://localhost:8025/readyz`. |
 | Stored test mail is bounded and pruned. | Pass | `MP_DATABASE=/data/mailpit.db` persists local messages for debugging, while `MP_MAX_MESSAGES=5000` and `MP_MAX_AGE=7d` cap retention. |
@@ -94,17 +94,18 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | E2E standalone runtime has a complete SMTP sender config. | Pass | `playwright.config.ts` defaults `EMAIL_FROM` to `MIT Sailing <noreply@mitsailing.test>` before starting the standalone server. |
 | Tests isolate reads through recipient-scoped API queries. | Pass | `findLatestMessageToMatching` searches Mailpit with `to:<email>` and fetches full messages by ID before assertions. |
 | Test cleanup uses Mailpit API deletion. | Pass | `deleteAllMessages()` calls `DELETE /api/v1/messages`; individual tests also use unique recipient addresses to avoid parallel-worker collisions. |
-| Unauthenticated Mailpit is limited to local development. | Pass | Local Compose accepts any SMTP credentials only on loopback. Shared staging/production capture uses `MAILPIT_UI_AUTH`, app nginx proxies Mailpit at `/mail/`, and Cloudflare Access/rate limiting protects the path. |
+| Unauthenticated Mailpit is limited to local development. | Pass | Local Compose accepts any SMTP credentials only on loopback. Shared staging/production capture uses `MAILPIT_UI_AUTH`, and app nginx proxies Mailpit at `/mail/`. |
 | Mailpit CORS is not opened broadly. | Pass | No `MP_API_CORS=*` or browser cross-origin Mailpit API access is configured; tests call the API server-side from Playwright helpers. |
 
 ## PgHero
 
 | Check | Status | Current evidence |
 | --- | --- | --- |
-| PgHero stays in its own container and is not published on a host port. | Pass | `compose.prod.yaml` runs `ankane/pghero:v3.8.0` on the internal network with no `ports:` mapping; Cloudflare Tunnel publishes `pghero.mitsailing.com`. |
+| PgHero stays in its own container and is not published on a host port. | Pass | `compose.prod.yaml` runs `ankane/pghero:v4.0.1` on the internal network with no `ports:` mapping; Cloudflare Tunnel publishes `pghero.mitsailing.com`. |
 | PgHero is protected by PgHero basic auth and has CPU/memory limits. | Pass | Cloudflare Tunnel routes `pghero.mitsailing.com` to `pghero:8080`, and Compose requires `PGHERO_USERNAME` plus `PGHERO_PASSWORD`. Compose limits PgHero to `0.25` CPU and `512M` memory with `0.05` CPU and `128M` reservations. |
 | PgHero uses a dedicated database URL. | Pass | `PGHERO_DATABASE_URL` is required separately from `DATABASE_URL`; the env examples use a `pghero` role. |
 | Query stats can be enabled without production-only drift. | Pass | Compose preloads `pg_stat_statements` with PgHero's documented settings, and the Prisma migration creates the extension. |
+| Historical query and space stats are captured on a schedule. | Pass | `compose.prod.yaml` runs `ankane/pghero:v4.0.1` capture sidecars: query stats every five minutes (`bin/rake pghero:capture_query_stats`) and space stats daily (`bin/rake pghero:capture_space_stats`) with `KEEP_DAYS=14` / `KEEP_DAYS=90` cleanup. The Prisma migration creates the PgHero 4 tables and monitoring grants. Capture jobs have the same CPU/memory limits as the dashboard (`0.25` CPU / `512M`). |
 | PostgreSQL tuning changes stay reviewable. | Watch | PgHero's Tune page links PgTune; operators should use `https://pgtune.leopard.in.ua/` with actual host RAM/CPU and PostgreSQL version, then commit reviewed Compose/Postgres config changes instead of hand-editing production. |
 | PgHero image updates are automated. | Pass | Dependabot monitors Docker Compose service images, so `ankane/pghero` updates arrive as PRs with CI and image scanning. |
 
@@ -115,7 +116,8 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | The app image uses multi-stage builds. | Pass | `Dockerfile` has `deps`, `builder`, `dev`, and `prod` stages. |
 | The runtime container runs as a non-root user with a stable UID/GID. | Pass | `Dockerfile` creates and uses `nextjs` with UID/GID `1001`. |
 | Docker build context excludes local secrets and heavy generated artifacts. | Pass | `.dockerignore` excludes `.env*` except examples, `node_modules`, build outputs, `.git`, logs, and local reports. |
-| Production services have healthchecks. | Pass | `compose.prod.yaml` defines healthchecks for web, worker, media, tusd, Redis, and Postgres. |
+| Production services have healthchecks. | Pass | `compose.prod.yaml` defines healthchecks for web, worker, media, tusd, Redis, Postgres, Mailpit, PgHero, and the PgHero capture sidecars. |
+| Every Compose image has CPU and memory limits. | Pass | Base Postgres/Redis, production app/web/worker/Mailpit/PgHero/capture/tusd/media/cloudflared, and local Mailpit/tusd/media all set `deploy.resources` limits plus reservations. Tusd is capped at `0.25` CPU / `256M`; media nginx matches app nginx at `0.25` CPU / `128M`. Redis `--maxmemory 256mb` stays below the `384M` container limit. |
 | Service dependencies wait for health, not just container start. | Pass | `compose.prod.yaml` uses `depends_on.condition: service_healthy` for production dependencies. |
 | Stateful production mounts are explicit and do not auto-create missing host paths. | Pass | Production bind mounts use `create_host_path: false` for data paths that must exist. |
 | Shutdown gets a grace period. | Pass | Production web, worker, media, tusd, Redis, and Postgres services set `stop_grace_period`. |

@@ -307,7 +307,7 @@ test.describe('MIT Sailing catalog', () => {
         })
       ).toBeVisible();
       await page.getByRole('textbox', { name: /phone/i }).fill('617-555-0100');
-      await page.getByLabel(/Current sailing rating/).selectOption('Green');
+      await page.getByLabel(/Current sail rating/).selectOption('Green');
       await page
         .getByRole('switch', {
           name: /Swim Agreement and Liability Release/,

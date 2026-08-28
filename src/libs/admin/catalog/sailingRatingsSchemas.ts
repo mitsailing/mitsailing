@@ -86,7 +86,7 @@ export const sailingRatingFormSchema = z.object({
 });
 
 /**
- * Parses {@link FormData} from the sailing rating admin form for Zod validation.
+ * Parses {@link FormData} from the sail rating admin form for Zod validation.
  *
  * @param formData - Submitted form body
  * @returns Parsed object before schema refinement

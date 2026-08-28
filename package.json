@@ -68,7 +68,7 @@
   },
   "dependencies": {
     "@arcjet/next": "^1.4.0",
-    "@better-auth/i18n": "^1.6.13",
+    "@better-auth/i18n": "~1.6.30",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -94,20 +94,20 @@
     "@zenstackhq/plugin-policy": "3.7.2",
     "@zenstackhq/server": "3.7.2",
     "@zenstackhq/zod": "3.7.2",
-    "better-auth": "^1.6.13",
+    "better-auth": "~1.6.30",
     "better-auth-audit-logs": "^0.3.0",
     "bullmq": "^5.78.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cron-parser": "5.5.0",
     "dotenv": "^17.4.2",
-    "ioredis": "5.10.1",
+    "ioredis": "5.11.1",
     "libphonenumber-js": "1.13.4",
     "lucide-react": "^0.577.0",
     "mysql2": "3.22.4",
     "next": "16.3.3",
     "next-intl": "^4.13.0",
-    "nodemailer": "^8.0.10",
+    "nodemailer": "^9.0.6",
     "pdf-lib": "1.17.1",
     "pg": "^8.21.0",
     "radix-ui": "^1.4.3",
@@ -116,7 +116,7 @@
     "react-email": "^6.5.0",
     "react-hook-form": "7.77.0",
     "resend": "^6.12.4",
-    "sanitize-html": "2.17.4",
+    "sanitize-html": "2.17.7",
     "server-only": "^0.0.1",
     "shadcn": "^4.10.0",
     "stripe": "22.2.0",
@@ -162,6 +162,7 @@
     "cross-env": "^10.1.0",
     "dotenv-cli": "^11.0.0",
     "esbuild": "^0.28.0",
+    "happy-dom": "20.11.12",
     "jsdom": "^29.1.1",
     "knip": "6.15.0",
     "lefthook": "2.1.9",
@@ -169,7 +170,7 @@
     "oxfmt": "0.41.0",
     "oxlint": "1.56.0",
     "oxlint-tsgolint": "0.17.1",
-    "postcss": "8.5.15",
+    "postcss": "8.5.26",
     "prisma": "7.10.0",
     "rimraf": "^6.1.3",
     "semantic-release": "^25.0.3",
@@ -183,20 +184,30 @@
     "wait-on": "9.0.10"
   },
   "overrides": {
-    "@hono/node-server": "1.19.14",
-    "brace-expansion": "5.0.6",
+    "@better-auth/core": "1.6.30",
+    "@hono/node-server": "1.19.15",
+    "@react-email/ui": {
+      "next": {
+        "postcss": "$postcss"
+      },
+      "postcss": "$postcss"
+    },
+    "better-auth": "$better-auth",
+    "brace-expansion": "5.0.9",
     "checkly": {
       "glob": "13.0.6"
     },
-    "fast-uri": "3.1.2",
-    "hono": "4.12.23",
-    "ip-address": "10.2.0",
+    "deepmerge-ts": "8.0.0",
+    "fast-uri": "3.1.5",
+    "hono": "4.12.34",
+    "ip-address": "10.3.1",
     "kysely": "0.28.17",
     "lodash-es": "4.18.1",
     "next": {
-      "postcss": "8.5.10"
+      "postcss": "$postcss"
     },
     "npm": "11.19.0",
+    "postcss": "$postcss",
     "qs": "6.15.2",
     "resend": {
       "svix": "1.92.2"
