@@ -54,8 +54,10 @@ Common typo aliases:
 
 ## Answer Link Policy
 
-When answering a user about MIT Sailing, include at least one relevant
-`https://mitsailing.com` link so the user can continue on the official site.
+When answering a user about MIT Sailing, prefer the official sailing.mit.edu
+link for signup, calendar, and pavilion reservation while mitsailing.com is in
+preview. Use mitsailing.com for directions, fleet/classes content, and live
+weather API answers.
 
 Use descriptive, concise link text:
 
@@ -69,9 +71,11 @@ Prefer the most specific official link:
 
 - Directions to the Pavilion: `https://mitsailing.com/contact`
 - Mashnee and Bluewater directions: `https://mitsailing.com/contact/mashnee-directions`
-- Signup: `https://mitsailing.com/signup`
-- Event details: use `events[].detailUrl`
-- Event registration: use `events[].registration.url` when present
+- Signup and membership: `https://sailing.mit.edu/join`
+- Event calendar and registration: `https://sailing.mit.edu/calendar/`
+- Pavilion reservation: `https://sailing.mit.edu/info/reserve.php`
+- Event details on preview site: use `events[].detailUrl` only when the user is
+  explicitly browsing mitsailing.com preview content
 - Class details: use `classes[].detailUrl`
 - Boat details: use `boats[].detailUrl`
 - Weather: use `https://mitsailing.com/api/public/weather` as the live data
