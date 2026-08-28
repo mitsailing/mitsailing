@@ -5,7 +5,7 @@ import { adminHeaderLinkVisibleFromSession } from '@/libs/auth/adminHeaderLink';
 import { getSession } from '@/libs/auth/dal';
 import { SiteFooter } from './site/SiteFooter';
 import { SiteHeader } from './site/SiteHeader';
-import { SitePreviewBanner } from './site/SitePreviewBanner';
+import { SitePreviewBannerSlot } from './site/SitePreviewBannerSlot';
 import {
   WeatherConditionsBar,
   WeatherConditionsBarSkeleton,
@@ -57,9 +57,7 @@ export async function SiteShell(props: SiteShellProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background font-mit-sans text-mit-text">
-      <Suspense fallback={null}>
-        <SitePreviewBanner />
-      </Suspense>
+      <SitePreviewBannerSlot />
       <Suspense fallback={null}>
         <ImpersonationBanner locale={locale} />
       </Suspense>

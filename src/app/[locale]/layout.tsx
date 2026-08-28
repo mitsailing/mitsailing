@@ -14,7 +14,7 @@ import '@/styles/global.css';
 
 const SITE_URL = Env.NEXT_PUBLIC_APP_URL;
 
-export const metadata: Metadata = {
+const baseMetadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: AppConfig.name,
@@ -26,10 +26,15 @@ export const metadata: Metadata = {
     siteName: AppConfig.name,
     url: SITE_URL,
   },
-  ...(Env.STAGING_BANNER === 'yes'
-    ? { robots: { index: false, follow: false } }
-    : {}),
-};
+} satisfies Metadata;
+
+export const metadata: Metadata =
+  Env.STAGING_BANNER === 'yes'
+    ? {
+        ...baseMetadata,
+        robots: { index: false, follow: false },
+      }
+    : baseMetadata;
 
 export const viewport: Viewport = {
   width: 'device-width',

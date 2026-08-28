@@ -53,8 +53,8 @@ vi.mock('@/components/auth/ImpersonationBanner', () => ({
     React.createElement('div', { 'data-testid': 'impersonation-banner' }),
 }));
 
-vi.mock('@/components/mit-sailing/site/SitePreviewBanner', () => ({
-  SitePreviewBanner: () =>
+vi.mock('@/components/mit-sailing/site/SitePreviewBannerSlot', () => ({
+  SitePreviewBannerSlot: () =>
     env.STAGING_BANNER === 'yes'
       ? React.createElement(
           'aside',

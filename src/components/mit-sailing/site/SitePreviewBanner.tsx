@@ -1,6 +1,5 @@
 import { getTranslations } from 'next-intl/server';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
-import { Env } from '@/libs/Env';
 
 function previewBannerLink(chunks: React.ReactNode) {
   return (
@@ -14,16 +13,12 @@ function previewBannerLink(chunks: React.ReactNode) {
 }
 
 /**
- * Non-dismissible preview notice when `STAGING_BANNER=yes`.
- * Delete this file (and its layout/shell imports) at go-live.
+ * Async preview banner copy. Render via `SitePreviewBannerSlot` so layouts
+ * can stream this work inside Suspense.
  *
- * @returns Preview banner, or null when disabled
+ * @returns Preview banner markup
  */
 export async function SitePreviewBanner() {
-  if (Env.STAGING_BANNER !== 'yes') {
-    return null;
-  }
-
   const t = await getTranslations('MitSailingSite');
 
   return (

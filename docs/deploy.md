@@ -241,9 +241,10 @@ When mitsailing.com becomes the official site, delete the preview chrome:
 
 1. Delete `src/app/robots.txt`, then restore `src/app/robots.ts` from `main`
    (Allow + Sitemap).
-2. Delete `src/components/mit-sailing/site/SitePreviewBanner.tsx` and remove its
-   imports from `SiteShell`, auth center layout, and onboarding layout; drop the
-   `preview_banner*` keys from `en.json`.
+2. Delete `src/components/mit-sailing/site/SitePreviewBanner.tsx`,
+   `SitePreviewBannerSlot.tsx`, and remove their imports from `SiteShell`, auth
+   center layout, and onboarding layout; drop the `preview_banner*` keys from
+   `en.json`.
 3. Remove the preview `robots: { index: false }` branch from
    `src/app/[locale]/layout.tsx` and the empty-sitemap early return in
    `src/app/sitemap.ts`.
