@@ -47,7 +47,7 @@ function shutdown(exitCode) {
  * @returns {import('node:child_process').ChildProcess} Spawned Node process.
  */
 function startNodeProcess(name, args, options) {
-  const child = spawn('node', [...args], {
+  const child = spawn(process.execPath, [...args], {
     env: process.env,
     stdio: 'inherit',
   });

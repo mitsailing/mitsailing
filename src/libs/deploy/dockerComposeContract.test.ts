@@ -837,6 +837,13 @@ describe('local Mailpit capture', () => {
     expect(playwrightConfig).toContain("stderr: isCi ? 'pipe' : 'ignore'");
   });
 
+  it('does not search PATH for the e2e Node binary', () => {
+    const e2eStart = readRepoFile('scripts/e2e-start.cjs');
+
+    expect(e2eStart).not.toContain("spawn('node'");
+    expect(e2eStart).toContain('spawn(process.execPath');
+  });
+
   it('uses the Mailpit API for isolated email assertions', () => {
     expect(mailpitHelper).toContain('/api/v1/messages');
     expect(mailpitHelper).toContain("method: 'DELETE'");
