@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
+import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import { resolveSignInEmailAction } from '@/libs/auth/signInEmailActions';
@@ -165,10 +166,7 @@ export function SignInForm(props: SignInFormProps) {
       reportUnknownAuthClientError({
         action: 'sign_in.email_lookup.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       setError({ kind: 'generic', message: t('error_request_failed') });
     } finally {
@@ -215,10 +213,7 @@ export function SignInForm(props: SignInFormProps) {
       reportUnknownAuthClientError({
         action: 'sign_in.email.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       setError({ kind: 'generic', message: t('error_request_failed') });
     } finally {
@@ -266,10 +261,7 @@ export function SignInForm(props: SignInFormProps) {
       reportUnknownAuthClientError({
         action: 'sign_in.send_verification_otp.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       setError({ kind: 'generic', message: t('error_request_failed') });
     } finally {

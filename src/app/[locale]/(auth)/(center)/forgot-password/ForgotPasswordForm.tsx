@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
+import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import {
@@ -53,10 +54,7 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
       reportUnknownAuthClientError({
         action: 'forgot-password.request-reset.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       // Keep the same client-visible result for known and unknown addresses.
     } finally {

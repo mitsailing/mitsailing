@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
+import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
 import {
   authHrefWithCallback,
   safeAuthCallbackUrl,
@@ -226,10 +227,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       reportUnknownAuthClientError({
         action: 'reset-password.check-code.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       setError(t('error_request_failed'));
       return;
@@ -279,10 +277,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       reportUnknownAuthClientError({
         action: 'reset-password.resend-code.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       setError(t('error_resend_failed'));
     } finally {
@@ -319,10 +314,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       reportUnknownAuthClientError({
         action: 'reset-password.report-issue.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       setError(t('error_support_failed'));
     } finally {
@@ -411,10 +403,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       reportUnknownAuthClientError({
         action: 'reset-password.update-password.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       setError(t('error_request_failed'));
     } finally {

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
+import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 
 type ProfileDeleteAccountClientProps = {
@@ -56,10 +57,7 @@ export function ProfileDeleteAccountClient(
       reportUnknownAuthClientError({
         action: 'profile.delete-account.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       setDeleteBanner({
         kind: 'error',

@@ -143,6 +143,32 @@ describe('signInEmailActions', () => {
     );
   });
 
+  it('log APIError reset delivery failure without a body code', async () => {
+    findUnique.mockResolvedValue({ accounts: [] });
+    requestPasswordResetEmailOTP.mockRejectedValue(
+      new APIError('INTERNAL_SERVER_ERROR', {
+        message: 'smtp down',
+      })
+    );
+    const { resolveSignInEmailAction } =
+      await import('@/libs/auth/signInEmailActions');
+
+    await expect(
+      resolveSignInEmailAction({ email: 'legacy@mit.edu' })
+    ).resolves.toEqual({ email: 'legacy@mit.edu', state: 'reset_failed' });
+
+    expect(loggerError).toHaveBeenCalledWith(
+      'Failed to send password reset email OTP for user sign-in',
+      {
+        email: 'legacy@mit.edu',
+        errorCode: undefined,
+        errorMessage: 'smtp down',
+        errorName: 'APIError',
+        errorStatus: 'INTERNAL_SERVER_ERROR',
+      }
+    );
+  });
+
   it('log APIError reset delivery failure with status and code', async () => {
     findUnique.mockResolvedValue({ accounts: [] });
     requestPasswordResetEmailOTP.mockRejectedValue(

@@ -64,6 +64,19 @@ describe('worker Docker contract', () => {
     expect(e2eBuild).toContain("packages: 'external'");
   });
 
+  it('initializes worker Sentry from the Node SDK ESM export', () => {
+    const workerInit = readRepoFile('src/libs/sentry-worker-init.ts');
+    const logger = readRepoFile('src/libs/Logger.ts');
+    const packageJson = readRepoFile('package.json');
+
+    expect(workerInit).toContain("from '@sentry/node'");
+    expect(workerInit).toContain('consoleLoggingIntegration');
+    expect(workerInit).not.toContain("from '@sentry/nextjs'");
+    expect(workerInit).not.toContain('sentry-node-init');
+    expect(logger).toContain("from '@sentry/node'");
+    expect(packageJson).toContain('"@sentry/node"');
+  });
+
   it('uses stable Redis 8 Alpine images for Docker smoke checks', () => {
     const composeFile = readRepoFile('compose.yaml');
     const dockerWorkflow = readRepoFile('.github/workflows/docker-pr.yml');

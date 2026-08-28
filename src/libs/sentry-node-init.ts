@@ -1,19 +1,10 @@
 import * as Sentry from '@sentry/nextjs';
+import { sentryCaptureRates } from '@/libs/sentryCaptureRates';
 
 /**
- * Intentional full capture until production error volume is understood.
- * `sampleRate` controls error events; `tracesSampleRate` controls performance spans.
- *
- * @see https://docs.sentry.io/platforms/javascript/configuration/sampling/
- */
-export const sentryCaptureRates = {
-  sampleRate: 1,
-  tracesSampleRate: 1,
-} as const;
-
-/**
- * Shared Sentry options for the Next.js Node runtime and the BullMQ worker.
- * Keep in sync with [`src/instrumentation.ts`](../instrumentation.ts) client-adjacent settings.
+ * Shared Sentry options for the Next.js Node and Edge runtimes.
+ * Keep in sync with [`src/instrumentation-client.ts`](../instrumentation-client.ts)
+ * and [`src/libs/sentry-worker-init.ts`](./sentry-worker-init.ts).
  */
 export const sentryNodeOptions: Sentry.NodeOptions = {
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -26,8 +17,8 @@ export const sentryNodeOptions: Sentry.NodeOptions = {
 };
 
 /**
- * Initializes the Sentry Node SDK when not disabled.
- * Safe to call once per process (worker entry and Next instrumentation).
+ * Initializes the Sentry Next.js Node SDK when not disabled.
+ * Safe to call once per Next.js Node process from instrumentation.
  */
 export function initSentryNode(): void {
   if (process.env.NEXT_PUBLIC_SENTRY_DISABLED) {

@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
+import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import {
   isValidEmailAddress,
@@ -163,10 +164,7 @@ export function ProfileEmailSection(props: {
       reportUnknownAuthClientError({
         action: 'profile.email-change-request.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       setEmailBanner({
         kind: 'error',
@@ -204,10 +202,7 @@ export function ProfileEmailSection(props: {
       reportUnknownAuthClientError({
         action: 'profile.email-change-confirm.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       setEmailOtpBanner({
         kind: 'error',
@@ -244,10 +239,7 @@ export function ProfileEmailSection(props: {
       reportUnknownAuthClientError({
         action: 'profile.email-change-resend.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       setResendBanner({
         kind: 'error',

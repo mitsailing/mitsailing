@@ -6,6 +6,7 @@ import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
 import type { ProfileBannerState } from '@/components/auth/profile/profileBanner';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
+import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 
 export function ProfileSecurityClient() {
@@ -34,10 +35,7 @@ export function ProfileSecurityClient() {
       reportUnknownAuthClientError({
         action: 'profile.revoke-sessions.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       setSessionBanner({
         kind: 'error',

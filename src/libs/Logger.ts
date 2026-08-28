@@ -7,7 +7,7 @@ import {
   getLogger,
 } from '@logtape/logtape';
 import { getSentrySink } from '@logtape/sentry';
-import * as Sentry from '@sentry/nextjs';
+import * as Sentry from '@sentry/node';
 import { Env } from './Env';
 import {
   buildAppLoggerSinkNames,

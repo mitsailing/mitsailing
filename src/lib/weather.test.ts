@@ -296,4 +296,88 @@ describe('fetchWeatherHeaderData', () => {
     expect(mockError.mock.calls[0]?.[0]).toMatch(/message=offline/u);
     expect(mockWarn).not.toHaveBeenCalled();
   });
+
+  it('logs timeout when the error message includes abort without AbortError name', async () => {
+    const abortErr = new Error('The operation was aborted');
+    fetchSpy.mockRejectedValue(abortErr);
+
+    const { fetchWeatherHeaderData } = await import('@/lib/weather');
+    await fetchWeatherHeaderData();
+
+    expect(mockError).toHaveBeenCalledTimes(1);
+    expect(mockError.mock.calls[0]?.[0]).toMatch(/timeout_or_abort/u);
+    expect(mockError.mock.calls[0]?.[1]).toMatchObject({ error: abortErr });
+  });
+
+  it('logs generic Error failures without a cause', async () => {
+    const networkError = new Error('fetch failed');
+    fetchSpy.mockRejectedValue(networkError);
+
+    const { fetchWeatherHeaderData } = await import('@/lib/weather');
+    await fetchWeatherHeaderData();
+
+    expect(mockError.mock.calls[0]?.[0]).toMatch(/Error: fetch failed/u);
+    expect(mockError.mock.calls[0]?.[1]).toMatchObject({ error: networkError });
+    expect(mockError.mock.calls[0]?.[1]).not.toHaveProperty('causeMessage');
+  });
+
+  it('logs string causes and numeric cause codes', async () => {
+    const stringCauseError = new TypeError('fetch failed', {
+      cause: 'certificate expired',
+    });
+    fetchSpy.mockRejectedValueOnce(stringCauseError);
+
+    const { fetchWeatherHeaderData } = await import('@/lib/weather');
+    await fetchWeatherHeaderData();
+
+    expect(mockError.mock.calls[0]?.[1]).toMatchObject({
+      causeMessage: 'certificate expired',
+      error: stringCauseError,
+    });
+
+    mockError.mockClear();
+    const numericCause = new TypeError('fetch failed', {
+      cause: Object.assign(new Error('reset'), { code: 104 }),
+    });
+    fetchSpy.mockRejectedValueOnce(numericCause);
+    vi.resetModules();
+    const { fetchWeatherHeaderData: fetchAgain } =
+      await import('@/lib/weather');
+    await fetchAgain();
+
+    expect(mockError.mock.calls[0]?.[1]).toMatchObject({
+      causeCode: '104',
+      causeMessage: 'reset',
+      error: numericCause,
+    });
+  });
+
+  it('omits causeCode for Error causes without a code and ignores object causes', async () => {
+    const causeWithoutCode = new TypeError('fetch failed', {
+      cause: new Error('socket hang up'),
+    });
+    fetchSpy.mockRejectedValueOnce(causeWithoutCode);
+
+    const { fetchWeatherHeaderData } = await import('@/lib/weather');
+    await fetchWeatherHeaderData();
+
+    expect(mockError.mock.calls[0]?.[1]).toMatchObject({
+      causeMessage: 'socket hang up',
+      error: causeWithoutCode,
+    });
+    expect(mockError.mock.calls[0]?.[1]).not.toHaveProperty('causeCode');
+
+    mockError.mockClear();
+    const objectCause = new TypeError('fetch failed', {
+      cause: { reason: 'blocked' },
+    });
+    fetchSpy.mockRejectedValueOnce(objectCause);
+    vi.resetModules();
+    const { fetchWeatherHeaderData: fetchAgain } =
+      await import('@/lib/weather');
+    await fetchAgain();
+
+    expect(mockError.mock.calls[0]?.[1]).toMatchObject({ error: objectCause });
+    expect(mockError.mock.calls[0]?.[1]).not.toHaveProperty('causeMessage');
+  });
 });

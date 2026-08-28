@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
+import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
 import { safeAuthCallbackUrl } from '@/libs/auth/callbackUrl';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import {
@@ -162,10 +163,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
       reportUnknownAuthClientError({
         action: 'verify-email.submit.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       setBanner({ kind: 'error', message: t('error_request_failed') });
     } finally {
@@ -205,10 +203,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
       reportUnknownAuthClientError({
         action: 'verify-email.resend.thrown',
         code: undefined,
-        message:
-          caughtError instanceof Error && caughtError.message.trim() !== ''
-            ? caughtError.message.trim()
-            : undefined,
+        message: authClientThrownMessage(caughtError),
       });
       setBanner({ kind: 'error', message: t('error_request_failed') });
     } finally {

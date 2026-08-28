@@ -6,7 +6,7 @@
  * @see https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
  */
 import * as Sentry from '@sentry/nextjs';
-import { sentryCaptureRates } from '@/libs/sentry-node-init';
+import { sentryCaptureRates } from '@/libs/sentryCaptureRates';
 
 if (!process.env.NEXT_PUBLIC_SENTRY_DISABLED) {
   Sentry.init({
