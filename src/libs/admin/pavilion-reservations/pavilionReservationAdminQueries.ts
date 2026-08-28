@@ -88,6 +88,8 @@ export type AdminPavilionReservationDetail = Omit<
   reviewedAt: Date | null;
   updatedAt: Date;
   adminNotes: string | null;
+  abandonEmailSentAt: Date | null;
+  resumeToken: string | null;
   reviewedBy: { id: string; name: string; email: string } | null;
   slots: {
     id: string;
@@ -118,7 +120,11 @@ export const adminPavilionReservationStatuses = [
   'approved',
   'declined',
   'cancelled',
+  'draft',
 ] as const satisfies readonly PavilionReservationStatusValue[];
+
+export const adminPavilionReservationWorkflowStatuses =
+  adminPavilionReservationStatuses.filter((status) => status !== 'draft');
 
 export const adminPavilionReservationPaymentStatuses = [
   'unpaid',
@@ -281,13 +287,28 @@ function adminPavilionReservationListSearchWhere(
   };
 }
 
+function adminPavilionReservationListStatusWhere(
+  filters: AdminPavilionReservationListFilters,
+  hasSearch: boolean
+): Prisma.PavilionReservationRequestWhereInput {
+  if (filters.status) {
+    return { status: filters.status };
+  }
+  if (hasSearch) {
+    return {};
+  }
+  return { status: { not: 'draft' } };
+}
+
 function adminPavilionReservationListWhere(
   filters: AdminPavilionReservationListFilters
 ): Prisma.PavilionReservationRequestWhereInput {
+  const searchWhere = adminPavilionReservationListSearchWhere(filters.search);
+  const hasSearch = Boolean(filters.search?.trim());
   return {
-    ...(filters.status ? { status: filters.status } : {}),
+    ...adminPavilionReservationListStatusWhere(filters, hasSearch),
     ...(filters.paymentStatus ? { paymentStatus: filters.paymentStatus } : {}),
-    ...adminPavilionReservationListSearchWhere(filters.search),
+    ...searchWhere,
     ...(filters.date
       ? {
           slots: {
@@ -530,6 +551,8 @@ export async function getAdminPavilionReservationById(
       updatedAt: true,
       reviewedAt: true,
       adminNotes: true,
+      abandonEmailSentAt: true,
+      resumeToken: true,
       reviewedBy: { select: { id: true, name: true, email: true } },
       slots: {
         orderBy: [{ displayOrder: 'asc' }],

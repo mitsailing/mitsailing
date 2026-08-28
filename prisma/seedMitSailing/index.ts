@@ -7,7 +7,6 @@ import {
   seedEventCategories,
   seedEventRelatedRows,
   seedEvents,
-  seedPavilionReservationCatalog,
   seedSailingClassRelatedEventsFromSeed,
   seedSailingClassesAndBoats,
   seedSailingRatings,
@@ -19,6 +18,7 @@ import {
 /**
  * Idempotent: upserts MIT Sailing domain rows (users, events, staff, fleet) for dev and tests.
  * Catalog lives in `src/data/mit-sailing/`; this pushes the same data into PostgreSQL.
+ * Pavilion reservable items are bootstrapped by migration only (not re-seeded).
  *
  * @returns Promise that resolves when all steps complete
  */
@@ -33,7 +33,6 @@ export async function seedMitSailing(): Promise<void> {
   await seedSailingClassRelatedEventsFromSeed(prisma);
   await seedEventRelatedRows(prisma);
   await seedDonationFunds(prisma);
-  await seedPavilionReservationCatalog(prisma);
   await seedSiteAlerts(prisma);
   await seedCmsContent(prisma);
   await seedLegacyProcessorPaymentFixtures(prisma);

@@ -338,6 +338,7 @@ enum PavilionReservationStatus {
     approved
     declined
     cancelled
+    draft
     @@map("pavilion_reservation_status")
 }
 
@@ -353,6 +354,13 @@ enum PavilionReservableItemKind {
     space
     service
     @@map("pavilion_reservable_item_kind")
+}
+
+enum PavilionReservableItemPublicGroup {
+    venue
+    event_options
+    programs
+    @@map("pavilion_reservable_item_public_group")
 }
 
 enum PavilionPricingType {
@@ -1509,6 +1517,7 @@ model CmsMediaAsset {
     updatedAt DateTime @updatedAt() @map("updated_at")
     page CmsPage? @relation(fields: [pageId], references: [id], onDelete: SetNull)
     uploadedBy User? @relation("CmsMediaUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+    pavilionMedia PavilionReservableItemMedia[]
 
     @@index([pageId, createdAt])
     @@index([uploadedByUserId])
@@ -1576,17 +1585,37 @@ model PavilionReservableItem {
     imageUrl String? @map("image_url") @db.Text()
     pricingType PavilionPricingType @map("pricing_type")
     minDurationHours Int? @map("min_duration_hours")
+    publicGroup PavilionReservableItemPublicGroup? @map("public_group")
     displayOrder Int @default(0) @map("display_order")
     isVisible Boolean @default(true) @map("is_visible")
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt() @map("updated_at")
     prices PavilionReservableItemPrice[]
+    media PavilionReservableItemMedia[]
     reservationSlots PavilionReservationSlot[]
     reservationServices PavilionReservationService[]
 
     @@unique([id, kind])
     @@index([kind, isVisible, displayOrder])
+    @@index([publicGroup, displayOrder])
     @@map("pavilion_reservable_items")
+}
+
+model PavilionReservableItemMedia {
+    id String @id() @default(cuid())
+    itemId String @map("item_id")
+    mediaAssetId String @map("media_asset_id")
+    displayOrder Int @default(0) @map("display_order")
+    caption String?
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt() @map("updated_at")
+    item PavilionReservableItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+    mediaAsset CmsMediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+
+    @@unique([itemId, mediaAssetId])
+    @@index([itemId, displayOrder])
+    @@index([mediaAssetId])
+    @@map("pavilion_reservable_item_media")
 }
 
 model PavilionReservableItemPrice {
@@ -1624,6 +1653,8 @@ model PavilionReservationRequest {
     estimatedTotalCents Int? @map("estimated_total_cents")
     paymentStatus PavilionReservationPaymentStatus @default(unpaid) @map("payment_status")
     paidAt DateTime? @map("paid_at")
+    resumeToken String? @unique() @map("resume_token")
+    abandonEmailSentAt DateTime? @map("abandon_email_sent_at")
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt() @map("updated_at")
     reviewedByUserId String? @map("reviewed_by_user_id")

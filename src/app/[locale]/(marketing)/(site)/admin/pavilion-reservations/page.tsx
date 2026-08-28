@@ -445,7 +445,7 @@ export default async function AdminPavilionReservationsPage(
                   </TableCell>
                   <TableCell className="px-4 py-3 align-top text-sm">
                     {row.estimatedTotalCents === null
-                      ? t('price_tbd')
+                      ? t('price_on_request')
                       : formatPavilionReservationMoney(row.estimatedTotalCents)}
                   </TableCell>
                   <TableCell className="px-4 py-3 align-top text-sm">

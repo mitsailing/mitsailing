@@ -13,6 +13,7 @@ import type { PublicEventRegistrationFormState } from '@/libs/mit-sailing/eventR
 import type { EventRegistrationMutationCode } from '@/libs/mit-sailing/eventRegistrationErrors';
 import { eventUsesLearnToSailWaitlist } from '@/libs/mit-sailing/learnToSailEvents';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
+import { ariaInvalidWhenShown } from '@/utils/ariaInvalidWhenShown';
 import { formatPhoneForDisplay } from '@/utils/phoneValidation';
 
 export type EventRegistrationFormLabels = {
@@ -218,7 +219,10 @@ function QuestionField(props: {
           </label>
           <NativeSelect
             aria-describedby={describedBy}
-            aria-invalid={errorMessage ? true : undefined}
+            aria-invalid={ariaInvalidWhenShown({
+              shown: Boolean(errorMessage),
+              invalid: true,
+            })}
             className="min-h-11 text-mit-text md:min-h-8"
             defaultValue={fieldValue(props.state, name)}
             id={controlId}
@@ -240,7 +244,10 @@ function QuestionField(props: {
           <Field className="flex items-start gap-3">
             <RegistrationBooleanSwitch
               aria-describedby={describedBy}
-              aria-invalid={errorMessage ? true : undefined}
+              aria-invalid={ariaInvalidWhenShown({
+                shown: Boolean(errorMessage),
+                invalid: true,
+              })}
               aria-labelledby={controlId}
               aria-required={props.question.required}
               className="mt-0.5 shrink-0"
@@ -268,7 +275,10 @@ function QuestionField(props: {
           </label>
           <Textarea
             aria-describedby={describedBy}
-            aria-invalid={errorMessage ? true : undefined}
+            aria-invalid={ariaInvalidWhenShown({
+              shown: Boolean(errorMessage),
+              invalid: true,
+            })}
             className="min-h-20"
             defaultValue={fieldValue(props.state, name)}
             id={controlId}
@@ -311,7 +321,10 @@ function SwimAgreementField(props: {
               ? `event-registration-swim-agreement-copy ${errorId}`
               : 'event-registration-swim-agreement-copy'
           }
-          aria-invalid={errorMessage ? true : undefined}
+          aria-invalid={ariaInvalidWhenShown({
+            shown: Boolean(errorMessage),
+            invalid: true,
+          })}
           aria-labelledby="event-registration-swim-heading event-registration-swim-agreement-copy"
           aria-required={true}
           className="mt-0.5 shrink-0"
@@ -362,7 +375,10 @@ function PhoneField(props: {
       </label>
       <Input
         aria-describedby={describedBy}
-        aria-invalid={errorMessage ? true : undefined}
+        aria-invalid={ariaInvalidWhenShown({
+          shown: Boolean(errorMessage),
+          invalid: true,
+        })}
         autoComplete="tel"
         defaultValue={
           valueFromState || formatPhoneForDisplay(props.initialPhone ?? null)
@@ -475,7 +491,10 @@ function TeamBoatMemberField(props: {
         </label>
         <Input
           aria-describedby={nameErrorMessage ? nameErrorId : undefined}
-          aria-invalid={nameErrorMessage ? true : undefined}
+          aria-invalid={ariaInvalidWhenShown({
+            shown: Boolean(nameErrorMessage),
+            invalid: true,
+          })}
           autoComplete="name"
           className="min-h-11 md:min-h-8"
           defaultValue={fieldValue(props.state, nameFieldName)}
@@ -496,7 +515,10 @@ function TeamBoatMemberField(props: {
         </label>
         <Input
           aria-describedby={emailErrorMessage ? emailErrorId : undefined}
-          aria-invalid={emailErrorMessage ? true : undefined}
+          aria-invalid={ariaInvalidWhenShown({
+            shown: Boolean(emailErrorMessage),
+            invalid: true,
+          })}
           autoComplete="email"
           className="min-h-11 md:min-h-8"
           defaultValue={fieldValue(props.state, emailFieldName)}
@@ -564,7 +586,10 @@ function TeamRegistrationFields(props: {
         </label>
         <Input
           aria-describedby={teamNameErrorMessage ? teamNameErrorId : undefined}
-          aria-invalid={teamNameErrorMessage ? true : undefined}
+          aria-invalid={ariaInvalidWhenShown({
+            shown: Boolean(teamNameErrorMessage),
+            invalid: true,
+          })}
           className="min-h-11 md:min-h-8"
           defaultValue={fieldValue(props.state, 'teamName')}
           id="event-registration-team-name"
@@ -667,7 +692,10 @@ function RegistrationFeeSummary(props: {
     return (
       <fieldset
         aria-describedby={errorMessage ? errorId : undefined}
-        aria-invalid={errorMessage ? true : undefined}
+        aria-invalid={ariaInvalidWhenShown({
+          shown: Boolean(errorMessage),
+          invalid: true,
+        })}
         aria-labelledby="event-registration-fees-heading"
         className="rounded-lg border border-border bg-card p-4"
       >

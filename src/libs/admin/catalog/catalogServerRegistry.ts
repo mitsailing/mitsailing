@@ -9,6 +9,7 @@ import {
 } from '@/libs/admin/catalog/cmsCatalogHandlers';
 import { donationFundsCatalogHandlers } from '@/libs/admin/catalog/donationFundsHandlers';
 import { fleetCatalogHandlers } from '@/libs/admin/catalog/fleetCatalogHandlers';
+import { pavilionSpacesCatalogHandlers } from '@/libs/admin/catalog/pavilionSpacesHandlers';
 import { sailingClassesCatalogHandlers } from '@/libs/admin/catalog/sailingClassesHandlers';
 import {
   sailingRatingRulesCatalogHandlers,
@@ -31,6 +32,7 @@ const catalogServerHandlers: Record<CatalogResourceId, CatalogServerHandlers> =
     sailing_rating_rules: sailingRatingRulesCatalogHandlers,
     fleet: fleetCatalogHandlers,
     site_alerts: siteAlertsCatalogHandlers,
+    pavilion_spaces: pavilionSpacesCatalogHandlers,
     cms_pages: cmsPagesCatalogHandlers,
     cms_page_blocks: cmsPageBlocksCatalogHandlers,
     cms_menus: cmsMenusCatalogHandlers,

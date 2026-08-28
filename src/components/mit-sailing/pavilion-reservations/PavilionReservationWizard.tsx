@@ -1,5 +1,6 @@
 'use client';
 
+import { Description, Field, Label as HeadlessLabel } from '@headlessui/react';
 import {
   CalendarDays,
   Check,
@@ -14,10 +15,12 @@ import {
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import type * as React from 'react';
-import { useActionState, useRef, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
+import { PavilionSpaceGallery } from '@/components/mit-sailing/pavilion-reservations/PavilionSpaceGallery';
+import { SiteModalContent } from '@/components/mit-sailing/site/SiteModal';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,6 +36,11 @@ import {
   PAVILION_RESERVATION_END_MINUTES,
 } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
 import type { PavilionReservationTimeOption } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
+import { loadPavilionReservationDraftByResumeTokenAction } from '@/libs/mit-sailing/pavilionReservationDraftActions';
+import type {
+  UpsertPavilionReservationDraftInput,
+  UpsertPavilionReservationDraftResult,
+} from '@/libs/mit-sailing/pavilionReservationDraftTypes';
 import {
   PAVILION_RESERVATION_PERSONAS,
   parsePavilionReservationPersona,
@@ -45,6 +53,11 @@ import {
   personaPriceDisplay,
   priceForPersona,
 } from '@/libs/mit-sailing/pavilionReservationPricing';
+import {
+  clearPavilionReservationResumeTokenFromSession,
+  readPavilionReservationResumeTokenFromSession,
+  writePavilionReservationResumeTokenToSession,
+} from '@/libs/mit-sailing/pavilionReservationResumeTokenSession';
 import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionReservationTimeLabel';
 import type {
   PavilionReservableItemDto,
@@ -52,6 +65,7 @@ import type {
   PavilionReservationSlotInput,
   PavilionReservationSubmitState,
 } from '@/libs/mit-sailing/pavilionReservationTypes';
+import { ariaInvalidWhenShown } from '@/utils/ariaInvalidWhenShown';
 import { isValidEmailAddress } from '@/utils/emailValidation';
 
 type ClientSlot = PavilionReservationSlotInput & {
@@ -94,13 +108,43 @@ type SpacesStepProblemReasonKey =
   | 'footer_fix_space';
 
 type SpaceOptionGroup = {
-  id: 'event_options' | 'programs' | 'ungrouped' | 'venue';
+  id: 'event_options' | 'programs' | 'venue';
   labelKey:
     | 'space_group_event_options'
     | 'space_group_programs'
     | 'space_group_venue';
-  slugs: string[];
+  publicGroup: 'event_options' | 'programs' | 'venue';
 };
+
+const spaceOptionGroups = [
+  {
+    id: 'venue',
+    labelKey: 'space_group_venue',
+    publicGroup: 'venue',
+  },
+  {
+    id: 'event_options',
+    labelKey: 'space_group_event_options',
+    publicGroup: 'event_options',
+  },
+  {
+    id: 'programs',
+    labelKey: 'space_group_programs',
+    publicGroup: 'programs',
+  },
+] as const satisfies readonly SpaceOptionGroup[];
+
+function itemById(items: PavilionReservableItemDto[], id: string) {
+  return items.find((item) => item.id === id) ?? null;
+}
+
+function groupedSpaceOptions(spaces: PavilionReservableItemDto[]) {
+  return spaceOptionGroups.map((group) => ({
+    id: group.id,
+    labelKey: group.labelKey,
+    options: spaces.filter((space) => space.publicGroup === group.publicGroup),
+  }));
+}
 
 const mitAffiliationPersonas = ['mit_student', 'mit_community'] as const;
 
@@ -123,6 +167,21 @@ type PavilionReservationWizardProps = {
   initialState: PavilionReservationSubmitState;
   items: PavilionReservableItemDto[];
   permalink: string;
+  serverResume?: {
+    draft: {
+      contact: ContactFields;
+      persona: PavilionReservationPersonaValue;
+      requesterEmail: string;
+      selectedServiceIds: string[];
+      slots: ClientSlot[];
+      step: WizardStep;
+    };
+    requestId: string;
+    resumeToken: string;
+  } | null;
+  upsertDraft: (
+    input: UpsertPavilionReservationDraftInput
+  ) => Promise<UpsertPavilionReservationDraftResult>;
 };
 
 const initialContact: ContactFields = {
@@ -202,7 +261,7 @@ type CalendarCell = {
   iso: string;
 };
 
-type SlotPhase = 'all' | 'date' | 'end' | 'start';
+type SlotPhase = 'date' | 'end' | 'start';
 
 function isoFromCalendarDate(params: {
   day: number;
@@ -363,12 +422,18 @@ function completeSlot(slot: ClientSlot) {
   return Boolean(slot.date && slot.endMinutes > slot.startMinutes);
 }
 
-function slotEditorInvalid(props: { showErrors: boolean; slot: ClientSlot }) {
-  return props.showErrors && !completeSlot(props.slot);
+function slotEditorInvalid(props: {
+  showErrors: boolean;
+  slot: ClientSlot;
+}): true | undefined {
+  return ariaInvalidWhenShown({
+    shown: props.showErrors,
+    invalid: !completeSlot(props.slot),
+  });
 }
 
 function canFinishSlotEditing(props: { phase: SlotPhase; slot: ClientSlot }) {
-  return props.phase === 'all' && completeSlot(props.slot);
+  return props.phase !== 'date' && completeSlot(props.slot);
 }
 
 function endMinutesForStartChange(props: {
@@ -389,10 +454,11 @@ function pickerPromptKey(phase: SlotPhase) {
   if (phase === 'end') {
     return 'picker_end_title';
   }
-  if (phase === 'all') {
-    return 'picker_edit_title';
-  }
   return 'picker_date_prompt';
+}
+
+function slotDurationHours(startMinutes: number, endMinutes: number) {
+  return Math.max(0, (endMinutes - startMinutes) / 60);
 }
 
 function hasSameSpaceSlotOverlap(slots: ClientSlot[]) {
@@ -583,57 +649,6 @@ function slotWithDatePreservingValidTimes(props: {
   };
 }
 
-const spaceOptionGroups = [
-  {
-    id: 'venue',
-    labelKey: 'space_group_venue',
-    slugs: ['casual_dock', 'roof_deck', 'party_boat'],
-  },
-  {
-    id: 'event_options',
-    labelKey: 'space_group_event_options',
-    slugs: ['grill', 'wedding_space', 'after_10', 'after_midnight'],
-  },
-  {
-    id: 'programs',
-    labelKey: 'space_group_programs',
-    slugs: ['lab_access', 'group_sailing'],
-  },
-] as const satisfies readonly SpaceOptionGroup[];
-
-function itemById(items: PavilionReservableItemDto[], id: string) {
-  return items.find((item) => item.id === id) ?? null;
-}
-
-function groupedSpaceOptions(spaces: PavilionReservableItemDto[]) {
-  const groupedIds = new Set<string>();
-  const groups = spaceOptionGroups.map((group) => {
-    const options = group.slugs
-      .map((slug) => spaces.find((space) => space.slug === slug) ?? null)
-      .filter((space) => space !== null);
-    for (const option of options) {
-      groupedIds.add(option.id);
-    }
-    return {
-      id: group.id,
-      labelKey: group.labelKey,
-      options,
-    };
-  });
-  const ungrouped = spaces.filter((space) => !groupedIds.has(space.id));
-  if (ungrouped.length === 0) {
-    return groups;
-  }
-  return [
-    ...groups,
-    {
-      id: 'ungrouped' as const,
-      labelKey: 'space_group_event_options' as const,
-      options: ungrouped,
-    },
-  ];
-}
-
 function contactFieldsClearedForPersona(
   contact: ContactFields,
   persona: PavilionReservationPersonaValue
@@ -666,9 +681,9 @@ function sumEstimatedTotal(props: {
   persona: PavilionReservationPersonaValue;
   selectedServiceIds: string[];
   slots: ClientSlot[];
-}): { hasTbd: boolean; totalCents: number } {
+}): { hasPriceOnRequest: boolean; totalCents: number } {
   let totalCents = 0;
-  let hasTbd = false;
+  let hasPriceOnRequest = false;
   const indexByItemId = new Map<string, number>();
 
   for (const slot of props.slots) {
@@ -685,7 +700,7 @@ function sumEstimatedTotal(props: {
       slotIndexForItem,
     });
     if (amount === null) {
-      hasTbd = true;
+      hasPriceOnRequest = true;
     } else {
       totalCents += amount;
     }
@@ -701,13 +716,13 @@ function sumEstimatedTotal(props: {
       persona: props.persona,
     });
     if (amount === null) {
-      hasTbd = true;
+      hasPriceOnRequest = true;
     } else {
       totalCents += amount;
     }
   }
 
-  return { hasTbd, totalCents };
+  return { hasPriceOnRequest, totalCents };
 }
 
 function StepHeader(props: { step: WizardStep }) {
@@ -751,20 +766,39 @@ function StepHeader(props: { step: WizardStep }) {
   );
 }
 
-function Field(props: {
+/**
+ * Pavilion labeled control on Headless UI Field + Label (already in app).
+ * Invalid chrome: aria-invalid on the control; destructive text on the label.
+ *
+ * @param props - Field label, id, validation, and control children
+ * @returns Headless UI field wrapper for a labeled control
+ */
+function LabeledField(props: {
   children: React.ReactNode;
   id: string;
+  invalid?: true | undefined;
   label: string;
   required?: boolean;
 }) {
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={props.id}>
+    <Field
+      className={cn(
+        'flex w-full flex-col gap-1.5',
+        props.invalid ? 'text-destructive' : null
+      )}
+    >
+      <HeadlessLabel
+        className={cn(
+          'text-sm leading-none font-medium',
+          props.invalid ? 'text-destructive' : 'text-foreground'
+        )}
+        htmlFor={props.id}
+      >
         {props.label}
         {props.required ? <span aria-hidden>*</span> : null}
-      </Label>
+      </HeadlessLabel>
       {props.children}
-    </div>
+    </Field>
   );
 }
 
@@ -780,7 +814,7 @@ function SlotRemoveButton(props: { onRemove: () => void }) {
 }
 
 function CompletedSlotSummary(props: {
-  invalid: boolean;
+  invalid: true | undefined;
   onEdit: () => void;
   onRemove: () => void;
   selectedDateLabel: string;
@@ -847,9 +881,7 @@ function SlotCalendarPanel(props: {
     <div
       className={cn(
         'border-b border-mit-line p-4 md:border-r md:border-b-0',
-        props.phase === 'date' || props.phase === 'all'
-          ? ''
-          : 'hidden md:block md:opacity-70'
+        props.phase === 'date' ? '' : 'hidden md:block md:opacity-70'
       )}
     >
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -948,7 +980,10 @@ function TimeOptionGrid(props: {
   options: PavilionReservationTimeOption[];
   onSelect: (minutes: number) => void;
   selectedMinutes: number;
+  startMinutesForDuration?: number;
 }) {
+  const t = useTranslations('PavilionReservationPage');
+
   if (props.options.length === 0 && props.emptyLabel) {
     return (
       <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
@@ -961,6 +996,11 @@ function TimeOptionGrid(props: {
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
       {props.options.map((option) => {
         const selected = props.selectedMinutes === option.minutes;
+        const durationHours =
+          props.startMinutesForDuration !== undefined &&
+          props.startMinutesForDuration > 0
+            ? slotDurationHours(props.startMinutesForDuration, option.minutes)
+            : null;
         return (
           <button
             aria-pressed={selected}
@@ -976,7 +1016,20 @@ function TimeOptionGrid(props: {
               props.onSelect(option.minutes);
             }}
           >
-            {formatPavilionReservationTimeLabel(option.minutes)}
+            <span className="block">
+              {formatPavilionReservationTimeLabel(option.minutes)}
+            </span>
+            {durationHours !== null && durationHours > 0 ? (
+              <span
+                aria-hidden
+                className={cn(
+                  'mt-0.5 block text-xs font-medium',
+                  selected ? 'text-white/85' : 'text-muted-foreground'
+                )}
+              >
+                {t('picker_duration_hours', { hours: durationHours })}
+              </span>
+            ) : null}
           </button>
         );
       })}
@@ -988,11 +1041,13 @@ function SlotStartSelection(props: {
   onSelectStart: (minutes: number) => void;
   selectedStartMinutes: number;
   startChoices: PavilionReservationTimeOption[];
+  timePanelRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const t = useTranslations('PavilionReservationPage');
 
   return (
-    <div className="flex-1 overflow-y-auto p-4">
+    <div className="flex-1 overflow-y-auto p-4" ref={props.timePanelRef}>
+      <h6 className="sr-only">{t('picker_start_title')}</h6>
       <TimeOptionGrid
         emptyLabel={t('picker_no_start_times')}
         options={props.startChoices}
@@ -1005,90 +1060,42 @@ function SlotStartSelection(props: {
 
 function SlotEndSelection(props: {
   endChoices: PavilionReservationTimeOption[];
-  onChangeStart: () => void;
   onSelectEnd: (minutes: number) => void;
   selectedEndMinutes: number;
   startMinutes: number;
+  timePanelRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const t = useTranslations('PavilionReservationPage');
 
   return (
-    <div className="flex-1 overflow-y-auto p-4">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-mit-text">
-          <Clock aria-hidden className="size-4 text-primary-ink" />
-          {props.startMinutes > 0
-            ? formatPavilionReservationTimeLabel(props.startMinutes)
-            : t('picker_no_start')}
-        </div>
-        <Button
-          size="sm"
-          type="button"
-          variant="ghost"
-          onClick={props.onChangeStart}
-        >
-          {t('picker_change_start')}
-        </Button>
-      </div>
+    <div className="flex-1 overflow-y-auto p-4" ref={props.timePanelRef}>
+      <h6 className="mb-3 text-sm font-semibold text-mit-text" tabIndex={-1}>
+        {t('picker_end_title')}
+      </h6>
+      <p className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+        <Clock aria-hidden className="size-4 text-primary-ink" />
+        {props.startMinutes > 0
+          ? t('picker_starts_at', {
+              time: formatPavilionReservationTimeLabel(props.startMinutes),
+            })
+          : t('picker_no_start')}
+      </p>
       <TimeOptionGrid
         emptyLabel={t('picker_no_end_times')}
         options={props.endChoices}
         selectedMinutes={props.selectedEndMinutes}
+        startMinutesForDuration={props.startMinutes}
         onSelect={props.onSelectEnd}
       />
     </div>
   );
 }
 
-function SlotAllSelection(props: {
-  endChoices: PavilionReservationTimeOption[];
-  onSelectEnd: (minutes: number) => void;
-  onSelectStart: (minutes: number) => void;
-  selectedEndMinutes: number;
-  selectedStartMinutes: number;
-  startChoices: PavilionReservationTimeOption[];
-}) {
-  const t = useTranslations('PavilionReservationPage');
-
-  return (
-    <div className="flex-1 space-y-5 overflow-y-auto p-4">
-      <section>
-        <h6 className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          {t('field_start')}
-        </h6>
-        <TimeOptionGrid
-          emptyLabel={t('picker_no_start_times')}
-          options={props.startChoices}
-          selectedMinutes={props.selectedStartMinutes}
-          onSelect={props.onSelectStart}
-        />
-      </section>
-      <section>
-        <h6 className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          {t('field_end')}
-        </h6>
-        {props.selectedStartMinutes > 0 ? (
-          <TimeOptionGrid
-            emptyLabel={t('picker_no_end_times')}
-            options={props.endChoices}
-            selectedMinutes={props.selectedEndMinutes}
-            onSelect={props.onSelectEnd}
-          />
-        ) : (
-          <p className="rounded-md border border-mit-line bg-mit-surface p-3 text-sm text-muted-foreground">
-            {t('picker_no_start')}
-          </p>
-        )}
-      </section>
-    </div>
-  );
-}
-
 function SlotTimePanelActions(props: {
-  canFinishEditing: boolean;
+  canCancelEditing: boolean;
   phase: SlotPhase;
   selectedDate: string;
-  setIsEditing: React.Dispatch<React.SetStateAction<boolean>>;
+  onCancelEditing: () => void;
   setPhase: React.Dispatch<React.SetStateAction<SlotPhase>>;
 }) {
   const t = useTranslations('PavilionReservationPage');
@@ -1121,17 +1128,14 @@ function SlotTimePanelActions(props: {
       >
         {t('picker_change_date')}
       </Button>
-      {props.canFinishEditing ? (
+      {props.canCancelEditing ? (
         <Button
           size="sm"
           type="button"
-          variant="mit"
-          onClick={() => {
-            props.setIsEditing(false);
-          }}
+          variant="outline"
+          onClick={props.onCancelEditing}
         >
-          <Check aria-hidden className="size-4" />
-          {t('picker_done_editing')}
+          {t('picker_cancel_edit')}
         </Button>
       ) : null}
     </div>
@@ -1139,11 +1143,11 @@ function SlotTimePanelActions(props: {
 }
 
 function SlotTimePanelHeader(props: {
-  canFinishEditing: boolean;
+  canCancelEditing: boolean;
   phase: SlotPhase;
   selectedDate: string;
   selectedDateLabel: string;
-  setIsEditing: React.Dispatch<React.SetStateAction<boolean>>;
+  onCancelEditing: () => void;
   setPhase: React.Dispatch<React.SetStateAction<SlotPhase>>;
 }) {
   const t = useTranslations('PavilionReservationPage');
@@ -1154,16 +1158,16 @@ function SlotTimePanelHeader(props: {
         <p className="text-sm font-semibold text-mit-text">
           {props.selectedDateLabel}
         </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
+        <p aria-live="polite" className="mt-0.5 text-xs text-muted-foreground">
           {t(pickerPromptKey(props.phase))}
         </p>
       </div>
       <SlotTimePanelActions
-        canFinishEditing={props.canFinishEditing}
+        canCancelEditing={props.canCancelEditing}
         phase={props.phase}
         selectedDate={props.selectedDate}
-        setIsEditing={props.setIsEditing}
         setPhase={props.setPhase}
+        onCancelEditing={props.onCancelEditing}
       />
     </div>
   );
@@ -1178,6 +1182,7 @@ function SlotTimePanelBody(props: {
   setPhase: React.Dispatch<React.SetStateAction<SlotPhase>>;
   slot: ClientSlot;
   startChoices: PavilionReservationTimeOption[];
+  timePanelRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const t = useTranslations('PavilionReservationPage');
 
@@ -1194,45 +1199,34 @@ function SlotTimePanelBody(props: {
       <SlotStartSelection
         selectedStartMinutes={props.slot.startMinutes}
         startChoices={props.startChoices}
-        onSelectStart={(startMinutes) => {
-          props.onUpdate({
-            ...props.slot,
-            startMinutes,
-            endMinutes: 0,
-          });
-          props.setPhase('end');
-        }}
-      />
-    );
-  }
-
-  if (props.phase === 'all') {
-    return (
-      <SlotAllSelection
-        endChoices={props.endChoices}
-        selectedEndMinutes={props.slot.endMinutes}
-        selectedStartMinutes={props.slot.startMinutes}
-        startChoices={props.startChoices}
+        timePanelRef={props.timePanelRef}
         onSelectStart={(startMinutes) => {
           const nextEndChoices = availableEndOptions({
             blockedRanges: props.blockedRanges,
             startMinutes,
           });
+          const sameStart = startMinutes === props.slot.startMinutes;
+          const preservedEnd =
+            sameStart &&
+            endMinutesForStartChange({
+              currentEndMinutes: props.slot.endMinutes,
+              nextEndChoices,
+            }) > 0
+              ? props.slot.endMinutes
+              : 0;
           props.onUpdate({
             ...props.slot,
             startMinutes,
-            endMinutes: endMinutesForStartChange({
-              currentEndMinutes: props.slot.endMinutes,
-              nextEndChoices,
-            }),
+            endMinutes: preservedEnd,
           });
-        }}
-        onSelectEnd={(endMinutes) => {
-          props.onUpdate({
-            ...props.slot,
-            endMinutes,
+          props.setPhase('end');
+          globalThis.requestAnimationFrame(() => {
+            scrollElementIntoView(props.timePanelRef.current);
+            const heading = props.timePanelRef.current?.querySelector('h6');
+            if (heading instanceof HTMLElement) {
+              heading.focus();
+            }
           });
-          props.setIsEditing(false);
         }}
       />
     );
@@ -1244,9 +1238,7 @@ function SlotTimePanelBody(props: {
         endChoices={props.endChoices}
         selectedEndMinutes={props.slot.endMinutes}
         startMinutes={props.slot.startMinutes}
-        onChangeStart={() => {
-          props.setPhase('start');
-        }}
+        timePanelRef={props.timePanelRef}
         onSelectEnd={(endMinutes) => {
           props.onUpdate({
             ...props.slot,
@@ -1263,8 +1255,9 @@ function SlotTimePanelBody(props: {
 
 function SlotTimePanel(props: {
   blockedRanges: PavilionReservationBlockedRange[];
-  canFinishEditing: boolean;
+  canCancelEditing: boolean;
   endChoices: PavilionReservationTimeOption[];
+  onCancelEditing: () => void;
   onUpdate: (slot: ClientSlot) => void;
   phase: SlotPhase;
   selectedDateLabel: string;
@@ -1272,17 +1265,23 @@ function SlotTimePanel(props: {
   setPhase: React.Dispatch<React.SetStateAction<SlotPhase>>;
   slot: ClientSlot;
   startChoices: PavilionReservationTimeOption[];
+  timePanelRef: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
     <div className="flex flex-col md:min-h-96">
       <SlotTimePanelHeader
-        canFinishEditing={props.canFinishEditing}
+        canCancelEditing={props.canCancelEditing}
         phase={props.phase}
         selectedDate={props.slot.date}
         selectedDateLabel={props.selectedDateLabel}
-        setIsEditing={props.setIsEditing}
         setPhase={props.setPhase}
+        onCancelEditing={props.onCancelEditing}
       />
+      {/*
+        Slot staging follows cal.com developer-starter-kit Booker:
+        select_date → time list → advance on pick (here: start then end for ranges).
+        https://github.com/calcom/developer-starter-kit/blob/main/src/features/booker/booker.tsx
+      */}
       <SlotTimePanelBody
         blockedRanges={props.blockedRanges}
         endChoices={props.endChoices}
@@ -1291,6 +1290,7 @@ function SlotTimePanel(props: {
         setPhase={props.setPhase}
         slot={props.slot}
         startChoices={props.startChoices}
+        timePanelRef={props.timePanelRef}
         onUpdate={props.onUpdate}
       />
     </div>
@@ -1301,15 +1301,16 @@ function SlotEditorForm(props: {
   allBlockedRanges: PavilionReservationBlockedRange[];
   blockedRanges: PavilionReservationBlockedRange[];
   calendarMonth: CalendarMonth;
-  canFinishEditing: boolean;
+  canCancelEditing: boolean;
   cells: CalendarCell[];
   endChoices: PavilionReservationTimeOption[];
   handleCalendarMonthChange: React.Dispatch<
     React.SetStateAction<CalendarMonth>
   >;
-  invalid: boolean;
+  invalid: true | undefined;
   minimumDate: string;
   now: Date;
+  onCancelEditing: () => void;
   phase: SlotPhase;
   selectedDateLabel: string;
   setIsEditing: React.Dispatch<React.SetStateAction<boolean>>;
@@ -1317,6 +1318,7 @@ function SlotEditorForm(props: {
   slot: ClientSlot;
   slots: ClientSlot[];
   startChoices: PavilionReservationTimeOption[];
+  timePanelRef: React.RefObject<HTMLDivElement | null>;
   title: string;
   onRemove: () => void;
   onUpdate: (slot: ClientSlot) => void;
@@ -1354,12 +1356,12 @@ function SlotEditorForm(props: {
                 slots: props.slots,
               });
               props.onUpdate(nextSlot);
-              props.setPhase(nextSlot.startMinutes > 0 ? 'all' : 'start');
+              props.setPhase('start');
             }}
           />
           <SlotTimePanel
             blockedRanges={props.blockedRanges}
-            canFinishEditing={props.canFinishEditing}
+            canCancelEditing={props.canCancelEditing}
             endChoices={props.endChoices}
             phase={props.phase}
             selectedDateLabel={props.selectedDateLabel}
@@ -1367,6 +1369,8 @@ function SlotEditorForm(props: {
             setPhase={props.setPhase}
             slot={props.slot}
             startChoices={props.startChoices}
+            timePanelRef={props.timePanelRef}
+            onCancelEditing={props.onCancelEditing}
             onUpdate={props.onUpdate}
           />
         </div>
@@ -1391,6 +1395,7 @@ function SlotEditor(props: {
 }) {
   const t = useTranslations('PavilionReservationPage');
   const locale = useLocale();
+  const timePanelRef = useRef<HTMLDivElement>(null);
   const [calendarMonth, setCalendarMonth] = useState(
     initialCalendarMonth(props.slot.date)
   );
@@ -1398,6 +1403,7 @@ function SlotEditor(props: {
   const [isEditing, setIsEditing] = useState(
     !props.slot.date || props.slot.endMinutes <= props.slot.startMinutes
   );
+  const [editSnapshot, setEditSnapshot] = useState<ClientSlot | null>(null);
   const handleCalendarMonthChange = setCalendarMonth;
   const now = new Date();
   const invalid = slotEditorInvalid({
@@ -1424,7 +1430,12 @@ function SlotEditor(props: {
     ? formatSlotDateShort(props.slot.date, locale)
     : t('picker_no_date');
   const isComplete = completeSlot(props.slot);
-  const canFinishEditing = canFinishSlotEditing({ phase, slot: props.slot });
+  const canCancelEditing =
+    editSnapshot !== null &&
+    canFinishSlotEditing({
+      phase,
+      slot: editSnapshot,
+    });
 
   if (isComplete && !isEditing) {
     return (
@@ -1434,8 +1445,9 @@ function SlotEditor(props: {
         slot={props.slot}
         title={props.title}
         onEdit={() => {
+          setEditSnapshot({ ...props.slot });
           setIsEditing(true);
-          setPhase('all');
+          setPhase(props.slot.date ? 'start' : 'date');
         }}
         onRemove={props.onRemove}
       />
@@ -1447,7 +1459,7 @@ function SlotEditor(props: {
       allBlockedRanges={props.blockedRanges}
       blockedRanges={blockedRanges}
       calendarMonth={calendarMonth}
-      canFinishEditing={canFinishEditing}
+      canCancelEditing={canCancelEditing}
       cells={cells}
       endChoices={endChoices}
       handleCalendarMonthChange={handleCalendarMonthChange}
@@ -1461,7 +1473,20 @@ function SlotEditor(props: {
       slot={props.slot}
       slots={props.slots}
       startChoices={startChoices}
+      timePanelRef={timePanelRef}
       title={props.title}
+      onCancelEditing={() => {
+        if (editSnapshot) {
+          props.onUpdate(editSnapshot);
+          const snapshotMonth = calendarMonthFromIso(editSnapshot.date);
+          if (snapshotMonth) {
+            setCalendarMonth(snapshotMonth);
+          }
+        }
+        setEditSnapshot(null);
+        setIsEditing(false);
+        setPhase('start');
+      }}
       onRemove={props.onRemove}
       onUpdate={props.onUpdate}
     />
@@ -1507,13 +1532,25 @@ function PavilionReservationConfirmation(props: { referenceCode: string }) {
 
 function PavilionReservationHiddenFields(props: {
   contact: ContactFields;
+  draftRequestId: string | null;
   persona: PavilionReservationPersonaValue;
   requesterEmail: string;
+  resumeToken: string | null;
   selectedServiceIds: string[];
   slots: ClientSlot[];
 }) {
   return (
     <>
+      {props.draftRequestId ? (
+        <input
+          name="draftRequestId"
+          type="hidden"
+          value={props.draftRequestId}
+        />
+      ) : null}
+      {props.resumeToken ? (
+        <input name="resumeToken" type="hidden" value={props.resumeToken} />
+      ) : null}
       <input name="requesterEmail" type="hidden" value={props.requesterEmail} />
       <input name="persona" type="hidden" value={props.persona} />
       <input name="firstName" type="hidden" value={props.contact.firstName} />
@@ -1608,7 +1645,6 @@ function PavilionReservationActionError(props: {
 
 function SelectedSpaceSlotSection(props: {
   blockedRanges: PavilionReservationBlockedRange[];
-  setShowErrors: React.Dispatch<React.SetStateAction<boolean>>;
   setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
   showErrors: boolean;
   slots: ClientSlot[];
@@ -1664,7 +1700,6 @@ function SelectedSpaceSlotSection(props: {
               );
             }}
             onUpdate={(updated) => {
-              props.setShowErrors(false);
               props.setSlots((current) =>
                 updateSlotInSlots({ slots: current, updated })
               );
@@ -1689,7 +1724,6 @@ function SelectedSpaceSlotSection(props: {
 function SelectedSlotEditors(props: {
   blockedRanges: PavilionReservationBlockedRange[];
   selectedSpaceIds: string[];
-  setShowErrors: React.Dispatch<React.SetStateAction<boolean>>;
   setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
   showErrors: boolean;
   slots: ClientSlot[];
@@ -1712,7 +1746,6 @@ function SelectedSlotEditors(props: {
         <SelectedSpaceSlotSection
           blockedRanges={props.blockedRanges}
           key={spaceId}
-          setShowErrors={props.setShowErrors}
           setSlots={props.setSlots}
           showErrors={props.showErrors}
           slots={props.slots}
@@ -1726,7 +1759,6 @@ function SelectedSlotEditors(props: {
 
 function PavilionReservationSpaceCardActions(props: {
   selected: boolean;
-  setShowErrors: React.Dispatch<React.SetStateAction<boolean>>;
   setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
   slotsRef: React.RefObject<HTMLDivElement | null>;
   spaceId: string;
@@ -1735,22 +1767,16 @@ function PavilionReservationSpaceCardActions(props: {
 
   if (props.selected) {
     return (
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="flex items-center gap-2 text-sm font-semibold text-primary-ink">
+          <Check aria-hidden className="size-4" />
+          {t('action_selected')}
+        </p>
         <Button
-          type="button"
-          variant="secondary"
-          onClick={() => {
-            scrollElementIntoView(props.slotsRef.current);
-          }}
-        >
-          <Pencil aria-hidden className="size-4" />
-          {t('action_edit_time')}
-        </Button>
-        <Button
+          className="w-full sm:w-auto"
           type="button"
           variant="ghost"
           onClick={() => {
-            props.setShowErrors(false);
             props.setSlots((current) =>
               removeSpaceSlots({
                 itemId: props.spaceId,
@@ -1772,7 +1798,6 @@ function PavilionReservationSpaceCardActions(props: {
       type="button"
       variant="mit"
       onClick={() => {
-        props.setShowErrors(false);
         props.setSlots((current) =>
           addSpaceSlot({
             itemId: props.spaceId,
@@ -1790,7 +1815,6 @@ function PavilionReservationSpaceCardActions(props: {
 function PavilionReservationSpaceCard(props: {
   persona: PavilionReservationPersonaValue;
   selected: boolean;
-  setShowErrors: React.Dispatch<React.SetStateAction<boolean>>;
   setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
   slotsRef: React.RefObject<HTMLDivElement | null>;
   space: PavilionReservableItemDto;
@@ -1799,7 +1823,7 @@ function PavilionReservationSpaceCard(props: {
   const priceDisplay = personaPriceDisplay({
     item: props.space,
     persona: props.persona,
-    tbdLabel: t('price_tbd'),
+    onRequestLabel: t('price_on_request'),
   });
 
   return (
@@ -1842,7 +1866,7 @@ function PavilionReservationSpaceCard(props: {
         </p>
         {priceDisplay.available ? null : (
           <p className="mt-1 text-xs text-muted-foreground">
-            {t('price_tbd_note')}
+            {t('price_on_request_note')}
           </p>
         )}
         {props.space.minDurationHours ? (
@@ -1852,9 +1876,33 @@ function PavilionReservationSpaceCard(props: {
             })}
           </p>
         ) : null}
+        {props.space.media.length > 0 || props.space.description ? (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button
+                className="mt-3 self-start"
+                type="button"
+                variant="outline"
+              >
+                {t('photos_and_details')}
+              </Button>
+            </DialogTrigger>
+            <SiteModalContent
+              closeLabel={t('space_details_close')}
+              title={props.space.name}
+            >
+              <PavilionSpaceGallery
+                alt={props.space.name}
+                media={props.space.media}
+              />
+              <p className="text-sm whitespace-pre-wrap text-muted-foreground">
+                {props.space.description}
+              </p>
+            </SiteModalContent>
+          </Dialog>
+        ) : null}
         <PavilionReservationSpaceCardActions
           selected={props.selected}
-          setShowErrors={props.setShowErrors}
           setSlots={props.setSlots}
           slotsRef={props.slotsRef}
           spaceId={props.space.id}
@@ -1868,7 +1916,6 @@ function PavilionReservationSpaceGroup(props: {
   group: ReturnType<typeof groupedSpaceOptions>[number];
   persona: PavilionReservationPersonaValue;
   selectedSpaceIds: string[];
-  setShowErrors: React.Dispatch<React.SetStateAction<boolean>>;
   setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
   slotsRef: React.RefObject<HTMLDivElement | null>;
 }) {
@@ -1889,7 +1936,6 @@ function PavilionReservationSpaceGroup(props: {
             key={space.id}
             persona={props.persona}
             selected={props.selectedSpaceIds.includes(space.id)}
-            setShowErrors={props.setShowErrors}
             setSlots={props.setSlots}
             slotsRef={props.slotsRef}
             space={space}
@@ -1908,7 +1954,6 @@ function PavilionReservationSpacesStep(props: {
   selectedSpaceIds: string[];
   setPersona: (persona: PavilionReservationPersonaValue) => void;
   setRequesterEmail: React.Dispatch<React.SetStateAction<string>>;
-  setShowErrors: React.Dispatch<React.SetStateAction<boolean>>;
   setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
   showErrors: boolean;
   slots: ClientSlot[];
@@ -1926,11 +1971,20 @@ function PavilionReservationSpacesStep(props: {
           {t('basic_title')}
         </h2>
         <div className="mt-4 max-w-md md:mt-6">
-          <Field id="requester-email" label={t('field_email')} required>
+          <LabeledField
+            id="requester-email"
+            invalid={ariaInvalidWhenShown({
+              shown: props.showErrors,
+              invalid: !isValidEmailAddress(props.requesterEmail),
+            })}
+            label={t('field_email')}
+            required
+          >
             <Input
-              aria-invalid={
-                props.showErrors && !isValidEmailAddress(props.requesterEmail)
-              }
+              aria-invalid={ariaInvalidWhenShown({
+                shown: props.showErrors,
+                invalid: !isValidEmailAddress(props.requesterEmail),
+              })}
               aria-required
               id="requester-email"
               placeholder={t('field_email_placeholder')}
@@ -1940,10 +1994,9 @@ function PavilionReservationSpacesStep(props: {
               value={props.requesterEmail}
               onChange={(event) => {
                 props.setRequesterEmail(event.currentTarget.value);
-                props.setShowErrors(false);
               }}
             />
-          </Field>
+          </LabeledField>
         </div>
         <div className="mt-5 md:mt-6">
           <h3 className="text-sm font-semibold text-mit-text">
@@ -2010,7 +2063,6 @@ function PavilionReservationSpacesStep(props: {
       <SelectedSlotEditors
         blockedRanges={props.blockedRanges}
         selectedSpaceIds={props.selectedSpaceIds}
-        setShowErrors={props.setShowErrors}
         setSlots={props.setSlots}
         showErrors={props.showErrors}
         slots={props.slots}
@@ -2029,7 +2081,6 @@ function PavilionReservationSpacesStep(props: {
               key={group.id}
               persona={props.persona}
               selectedSpaceIds={props.selectedSpaceIds}
-              setShowErrors={props.setShowErrors}
               setSlots={props.setSlots}
               slotsRef={props.slotsRef}
             />
@@ -2050,7 +2101,7 @@ function PavilionReservationServiceOption(props: {
   const priceDisplay = personaPriceDisplay({
     item: props.service,
     persona: props.persona,
-    tbdLabel: t('price_tbd'),
+    onRequestLabel: t('price_on_request'),
   });
 
   return (
@@ -2103,6 +2154,7 @@ function PavilionReservationServiceOption(props: {
 
 function PavilionReservationContactStep(props: {
   contact: ContactFields;
+  contactSectionRef: React.RefObject<HTMLElement | null>;
   persona: PavilionReservationPersonaValue;
   requesterEmail: string;
   selectedServiceIds: string[];
@@ -2110,20 +2162,73 @@ function PavilionReservationContactStep(props: {
   setPersona: (persona: PavilionReservationPersonaValue) => void;
   setContact: React.Dispatch<React.SetStateAction<ContactFields>>;
   setSelectedServiceIds: React.Dispatch<React.SetStateAction<string[]>>;
+  showErrors: boolean;
+  showStepAlert: boolean;
 }) {
   const t = useTranslations('PavilionReservationPage');
+  const firstNameInvalid = ariaInvalidWhenShown({
+    shown: props.showErrors,
+    invalid: !props.contact.firstName.trim(),
+  });
+  const lastNameInvalid = ariaInvalidWhenShown({
+    shown: props.showErrors,
+    invalid: !props.contact.lastName.trim(),
+  });
+  const phoneInvalid = ariaInvalidWhenShown({
+    shown: props.showErrors,
+    invalid: !props.contact.phone.trim(),
+  });
+  const eventNameInvalid = ariaInvalidWhenShown({
+    shown: props.showErrors,
+    invalid: !props.contact.eventName.trim(),
+  });
+  const descriptionInvalid = ariaInvalidWhenShown({
+    shown: props.showErrors,
+    invalid: !props.contact.description.trim(),
+  });
+  const projectTitleInvalid = ariaInvalidWhenShown({
+    shown: props.showErrors,
+    invalid: !props.contact.projectTitle.trim(),
+  });
+  const advisorNameInvalid = ariaInvalidWhenShown({
+    shown: props.showErrors,
+    invalid: !props.contact.advisorName.trim(),
+  });
+  const advisorEmailInvalid = ariaInvalidWhenShown({
+    shown: props.showErrors,
+    invalid: !isValidEmailAddress(props.contact.advisorEmail),
+  });
+  const costCenterInvalid = ariaInvalidWhenShown({
+    shown: props.showErrors,
+    invalid: !props.contact.costCenter.trim(),
+  });
 
   return (
     <div className="space-y-8">
-      <section className="rounded-lg border border-mit-line bg-card p-6 md:p-8">
+      <section
+        className="rounded-lg border border-mit-line bg-card p-6 md:p-8"
+        ref={props.contactSectionRef}
+      >
         <h2 className="text-xl font-semibold text-mit-text">
           {t('contact_title')}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {t('contact_intro')}
         </p>
+        {props.showStepAlert ? (
+          <p
+            className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+            role="alert"
+          >
+            {t('error_contact_step')}
+          </p>
+        ) : null}
         <div className="mt-6 grid gap-5 md:grid-cols-2">
-          <Field id="contact-persona" label={t('persona_title')} required>
+          <LabeledField
+            id="contact-persona"
+            label={t('persona_title')}
+            required
+          >
             <NativeSelect
               aria-required
               id="contact-persona"
@@ -2142,11 +2247,11 @@ function PavilionReservationContactStep(props: {
                 </option>
               ))}
             </NativeSelect>
-            <p className="mt-1.5 text-xs text-muted-foreground">
+            <Description className="text-xs text-muted-foreground">
               {t('contact_persona_helper')}
-            </p>
-          </Field>
-          <Field id="contact-email" label={t('field_email')} required>
+            </Description>
+          </LabeledField>
+          <LabeledField id="contact-email" label={t('field_email')} required>
             <Input
               aria-describedby="contact-email-helper"
               aria-required
@@ -2156,17 +2261,23 @@ function PavilionReservationContactStep(props: {
               type="email"
               value={props.requesterEmail}
             />
-            <p
-              className="mt-1.5 text-xs text-muted-foreground"
+            <Description
+              className="text-xs text-muted-foreground"
               id="contact-email-helper"
             >
               {t('contact_email_helper')}
-            </p>
-          </Field>
+            </Description>
+          </LabeledField>
         </div>
         <div className="mt-6 grid gap-5 md:grid-cols-2">
-          <Field id="firstName" label={t('field_first_name')} required>
+          <LabeledField
+            id="firstName"
+            invalid={firstNameInvalid}
+            label={t('field_first_name')}
+            required
+          >
             <Input
+              aria-invalid={firstNameInvalid}
               aria-required
               id="firstName"
               required
@@ -2178,9 +2289,15 @@ function PavilionReservationContactStep(props: {
                 });
               }}
             />
-          </Field>
-          <Field id="lastName" label={t('field_last_name')} required>
+          </LabeledField>
+          <LabeledField
+            id="lastName"
+            invalid={lastNameInvalid}
+            label={t('field_last_name')}
+            required
+          >
             <Input
+              aria-invalid={lastNameInvalid}
               aria-required
               id="lastName"
               required
@@ -2192,9 +2309,15 @@ function PavilionReservationContactStep(props: {
                 });
               }}
             />
-          </Field>
-          <Field id="phone" label={t('field_phone')} required>
+          </LabeledField>
+          <LabeledField
+            id="phone"
+            invalid={phoneInvalid}
+            label={t('field_phone')}
+            required
+          >
             <Input
+              aria-invalid={phoneInvalid}
               aria-required
               id="phone"
               required
@@ -2207,9 +2330,15 @@ function PavilionReservationContactStep(props: {
                 });
               }}
             />
-          </Field>
-          <Field id="eventName" label={t('field_event_name')} required>
+          </LabeledField>
+          <LabeledField
+            id="eventName"
+            invalid={eventNameInvalid}
+            label={t('field_event_name')}
+            required
+          >
             <Input
+              aria-invalid={eventNameInvalid}
               aria-required
               id="eventName"
               required
@@ -2221,8 +2350,8 @@ function PavilionReservationContactStep(props: {
                 });
               }}
             />
-          </Field>
-          <Field id="groupName" label={t('field_group_name')}>
+          </LabeledField>
+          <LabeledField id="groupName" label={t('field_group_name')}>
             <Input
               id="groupName"
               value={props.contact.groupName}
@@ -2233,8 +2362,8 @@ function PavilionReservationContactStep(props: {
                 });
               }}
             />
-          </Field>
-          <Field id="groupSize" label={t('field_group_size')}>
+          </LabeledField>
+          <LabeledField id="groupSize" label={t('field_group_size')}>
             <Input
               id="groupSize"
               min="1"
@@ -2247,10 +2376,16 @@ function PavilionReservationContactStep(props: {
                 });
               }}
             />
-          </Field>
+          </LabeledField>
           <div className="md:col-span-2">
-            <Field id="description" label={t('field_description')} required>
+            <LabeledField
+              id="description"
+              invalid={descriptionInvalid}
+              label={t('field_description')}
+              required
+            >
               <Textarea
+                aria-invalid={descriptionInvalid}
                 aria-required
                 id="description"
                 required
@@ -2263,7 +2398,7 @@ function PavilionReservationContactStep(props: {
                   });
                 }}
               />
-            </Field>
+            </LabeledField>
           </div>
         </div>
 
@@ -2281,7 +2416,7 @@ function PavilionReservationContactStep(props: {
             },
           ].map((option) => (
             <fieldset
-              className="rounded-lg border border-mit-line bg-mit-surface p-4"
+              className="rounded-lg border border-mit-line bg-background p-4"
               key={option.key}
             >
               <legend className="text-sm font-semibold text-mit-text">
@@ -2327,18 +2462,20 @@ function PavilionReservationContactStep(props: {
         </div>
 
         {props.persona === 'mit_academic' ? (
-          <section className="mt-6 rounded-lg border border-mit-line bg-mit-surface p-5">
+          <section className="mt-6 rounded-lg border border-mit-line bg-background p-5">
             <h3 className="text-sm font-bold tracking-wide text-mit-text uppercase">
               {t('academic_title')}
             </h3>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
-                <Field
+                <LabeledField
                   id="projectTitle"
+                  invalid={projectTitleInvalid}
                   label={t('field_project_title')}
                   required
                 >
                   <Input
+                    aria-invalid={projectTitleInvalid}
                     aria-required
                     id="projectTitle"
                     required
@@ -2350,10 +2487,16 @@ function PavilionReservationContactStep(props: {
                       });
                     }}
                   />
-                </Field>
+                </LabeledField>
               </div>
-              <Field id="advisorName" label={t('field_advisor_name')} required>
+              <LabeledField
+                id="advisorName"
+                invalid={advisorNameInvalid}
+                label={t('field_advisor_name')}
+                required
+              >
                 <Input
+                  aria-invalid={advisorNameInvalid}
                   aria-required
                   id="advisorName"
                   required
@@ -2365,13 +2508,15 @@ function PavilionReservationContactStep(props: {
                     });
                   }}
                 />
-              </Field>
-              <Field
+              </LabeledField>
+              <LabeledField
                 id="advisorEmail"
+                invalid={advisorEmailInvalid}
                 label={t('field_advisor_email')}
                 required
               >
                 <Input
+                  aria-invalid={advisorEmailInvalid}
                   aria-required
                   id="advisorEmail"
                   required
@@ -2384,10 +2529,16 @@ function PavilionReservationContactStep(props: {
                     });
                   }}
                 />
-              </Field>
+              </LabeledField>
               <div className="md:col-span-2">
-                <Field id="costCenter" label={t('field_cost_center')} required>
+                <LabeledField
+                  id="costCenter"
+                  invalid={costCenterInvalid}
+                  label={t('field_cost_center')}
+                  required
+                >
                   <Input
+                    aria-invalid={costCenterInvalid}
                     aria-required
                     id="costCenter"
                     required
@@ -2399,7 +2550,7 @@ function PavilionReservationContactStep(props: {
                       });
                     }}
                   />
-                </Field>
+                </LabeledField>
               </div>
             </div>
           </section>
@@ -2407,13 +2558,13 @@ function PavilionReservationContactStep(props: {
 
         {props.persona === 'mit_student' ||
         props.persona === 'mit_community' ? (
-          <section className="mt-6 rounded-lg border border-mit-line bg-mit-surface p-5">
+          <section className="mt-6 rounded-lg border border-mit-line bg-background p-5">
             <h3 className="text-sm font-semibold text-mit-text">
               {t('mit_affiliation_title')}
             </h3>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
-                <Field
+                <LabeledField
                   id="mitAffiliationType"
                   label={t('field_mit_affiliation_type')}
                   required
@@ -2436,9 +2587,9 @@ function PavilionReservationContactStep(props: {
                       </option>
                     ))}
                   </NativeSelect>
-                </Field>
+                </LabeledField>
               </div>
-              <Field id="mitId" label={t('field_mit_id')}>
+              <LabeledField id="mitId" label={t('field_mit_id')}>
                 <Input
                   id="mitId"
                   inputMode="numeric"
@@ -2451,8 +2602,8 @@ function PavilionReservationContactStep(props: {
                     });
                   }}
                 />
-              </Field>
-              <Field id="mitAccount" label={t('field_mit_account')}>
+              </LabeledField>
+              <LabeledField id="mitAccount" label={t('field_mit_account')}>
                 <Input
                   id="mitAccount"
                   inputMode="numeric"
@@ -2465,7 +2616,7 @@ function PavilionReservationContactStep(props: {
                     });
                   }}
                 />
-              </Field>
+              </LabeledField>
             </div>
           </section>
         ) : null}
@@ -2501,11 +2652,10 @@ function PavilionReservationContactStep(props: {
 
 function PavilionReservationReviewStep(props: {
   contact: ContactFields;
-  estimate: { hasTbd: boolean; totalCents: number };
+  estimate: { hasPriceOnRequest: boolean; totalCents: number };
   persona: PavilionReservationPersonaValue;
   requesterEmail: string;
   selectedServiceIds: string[];
-  selectedSpaceIds: string[];
   services: PavilionReservableItemDto[];
   slots: ClientSlot[];
   spaces: PavilionReservableItemDto[];
@@ -2520,7 +2670,7 @@ function PavilionReservationReviewStep(props: {
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">{t('review_intro')}</p>
       <div className="mt-6 grid gap-5">
-        <div className="rounded-lg border border-mit-line bg-mit-surface p-5">
+        <div className="rounded-lg border border-mit-line bg-background p-5">
           <h3 className="font-semibold text-mit-text">{t('review_contact')}</h3>
           <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
             {[
@@ -2613,51 +2763,75 @@ function PavilionReservationReviewStep(props: {
           </dl>
         </div>
 
-        <div className="rounded-lg border border-mit-line bg-mit-surface p-5">
-          <h3 className="font-semibold text-mit-text">
-            {t('review_reservation')}
-          </h3>
-          <div className="mt-4 space-y-4">
-            {props.selectedSpaceIds.map((spaceId) => {
-              const space = itemById(props.spaces, spaceId);
+        <div className="rounded-lg border border-mit-line bg-background p-5">
+          <h3 className="font-semibold text-mit-text">{t('review_pricing')}</h3>
+          <ul className="mt-4 divide-y divide-mit-line md:hidden">
+            {props.slots.map((slot) => {
+              const space = itemById(props.spaces, slot.itemId);
               if (!space) {
                 return null;
               }
+              const slotIndexForItem = props.slots
+                .filter((candidate) => candidate.itemId === slot.itemId)
+                .findIndex((candidate) => candidate.id === slot.id);
+              const amount = estimatedSlotAmountCents({
+                item: space,
+                persona: props.persona,
+                slot,
+                slotIndexForItem,
+              });
               return (
-                <div
-                  className="border-b border-mit-line pb-4 last:border-b-0 last:pb-0"
-                  key={spaceId}
-                >
-                  <h4 className="font-medium text-primary-ink">{space.name}</h4>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-mit-text">
-                    {props.slots
-                      .filter((slot) => slot.itemId === spaceId)
-                      .map((slot) => (
-                        <li key={slot.id}>
-                          {formatSlotDateShort(
-                            slot.date,
-                            locale,
-                            'America/New_York'
-                          )}{' '}
-                          -{' '}
-                          {formatPavilionReservationTimeLabel(
-                            slot.startMinutes
-                          )}{' '}
-                          -{' '}
-                          {formatPavilionReservationTimeLabel(slot.endMinutes)}
-                        </li>
-                      ))}
-                  </ul>
-                </div>
+                <li className="space-y-1 py-3 first:pt-0" key={slot.id}>
+                  <p className="font-medium text-mit-text">{space.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatSlotDateShort(slot.date, locale, 'America/New_York')}{' '}
+                    {formatPavilionReservationTimeLabel(slot.startMinutes)} -{' '}
+                    {formatPavilionReservationTimeLabel(slot.endMinutes)}
+                  </p>
+                  <p className="text-sm font-semibold text-mit-text">
+                    {amount === null
+                      ? t('price_on_request')
+                      : formatPavilionReservationMoney(amount)}
+                  </p>
+                </li>
               );
             })}
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-mit-line bg-mit-surface p-5">
-          <h3 className="font-semibold text-mit-text">{t('review_pricing')}</h3>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[560px] text-left text-sm">
+            {props.selectedServiceIds.map((serviceId) => {
+              const service = itemById(props.services, serviceId);
+              if (!service) {
+                return null;
+              }
+              const amount = estimatedServiceAmountCents({
+                item: service,
+                persona: props.persona,
+              });
+              return (
+                <li className="space-y-1 py-3" key={serviceId}>
+                  <p className="font-medium text-mit-text">{service.name}</p>
+                  <p className="text-sm font-semibold text-mit-text">
+                    {amount === null
+                      ? t('price_on_request')
+                      : formatPavilionReservationMoney(amount)}
+                  </p>
+                </li>
+              );
+            })}
+            <li className="flex items-baseline justify-between gap-3 pt-4">
+              <span className="font-semibold text-mit-text">
+                {t('estimated_total')}
+              </span>
+              <span className="text-lg font-bold text-primary-ink">
+                {formatPavilionReservationMoney(props.estimate.totalCents)}
+                {props.estimate.hasPriceOnRequest ? (
+                  <span className="ml-1 text-sm font-normal text-muted-foreground">
+                    {t('plus_price_on_request')}
+                  </span>
+                ) : null}
+              </span>
+            </li>
+          </ul>
+          <div className="mt-4 hidden overflow-x-auto md:block">
+            <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-mit-line text-muted-foreground">
                   <th className="pb-2 font-medium">{t('column_item')}</th>
@@ -2696,7 +2870,7 @@ function PavilionReservationReviewStep(props: {
                       </td>
                       <td className="py-3 text-right font-medium text-mit-text">
                         {amount === null
-                          ? t('price_tbd')
+                          ? t('price_on_request')
                           : formatPavilionReservationMoney(amount)}
                       </td>
                     </tr>
@@ -2719,7 +2893,7 @@ function PavilionReservationReviewStep(props: {
                       <td className="py-3 text-muted-foreground">-</td>
                       <td className="py-3 text-right font-medium text-mit-text">
                         {amount === null
-                          ? t('price_tbd')
+                          ? t('price_on_request')
                           : formatPavilionReservationMoney(amount)}
                       </td>
                     </tr>
@@ -2736,9 +2910,9 @@ function PavilionReservationReviewStep(props: {
                   </td>
                   <td className="pt-4 text-right text-lg font-bold text-primary-ink">
                     {formatPavilionReservationMoney(props.estimate.totalCents)}
-                    {props.estimate.hasTbd ? (
+                    {props.estimate.hasPriceOnRequest ? (
                       <span className="ml-1 text-sm font-normal text-muted-foreground">
-                        {t('plus_tbd')}
+                        {t('plus_price_on_request')}
                       </span>
                     ) : null}
                   </td>
@@ -2758,7 +2932,8 @@ function PavilionReservationReviewStep(props: {
 
 function PavilionReservationFooter(props: {
   contactStepValid: boolean;
-  estimate: { hasTbd: boolean; totalCents: number };
+  estimate: { hasPriceOnRequest: boolean; totalCents: number };
+  onContactStepInvalid: () => void;
   onSpacesStepInvalid: () => void;
   pending: boolean;
   selectedSpaceIds: string[];
@@ -2768,23 +2943,14 @@ function PavilionReservationFooter(props: {
   slots: ClientSlot[];
   spacesStepValid: boolean;
   step: WizardStep;
-  showErrors: boolean;
 }) {
   const t = useTranslations('PavilionReservationPage');
-  const fixedToViewport = props.step === 'spaces';
 
   return (
-    <div
-      className={cn(
-        'z-40 border-t border-mit-line bg-background/95 backdrop-blur',
-        fixedToViewport
-          ? 'fixed inset-x-0 bottom-0 px-3 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(0,0,0,0.08)] sm:px-6 sm:pt-3 sm:pb-[calc(1rem+env(safe-area-inset-bottom))]'
-          : 'sticky bottom-0 -mx-6 px-6 py-4'
-      )}
-    >
-      {fixedToViewport && props.spacesStepProblem ? (
-        <div className="mx-auto mb-2 flex max-w-5xl items-center justify-between gap-2 rounded-md border border-mit-line bg-mit-surface px-2.5 py-1.5 text-xs sm:mb-3 sm:px-3 sm:py-2 sm:text-sm">
-          <p className="min-w-0 flex-1 truncate font-medium text-mit-text">
+    <div className="border-t border-mit-line pt-6">
+      {props.step === 'spaces' && props.spacesStepProblem ? (
+        <div className="mb-3 flex items-center justify-between gap-2 rounded-md border border-mit-line bg-mit-surface px-2.5 py-1.5 text-xs sm:mb-4 sm:px-3 sm:py-2 sm:text-sm">
+          <p className="min-w-0 flex-1 font-medium text-mit-text">
             {t(spacesStepProblemReasonKey(props.spacesStepProblem))}
           </p>
           <Button
@@ -2798,25 +2964,36 @@ function PavilionReservationFooter(props: {
           </Button>
         </div>
       ) : null}
-      <div className="mx-auto flex max-w-5xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <div className="min-w-0">
-          <p className="hidden text-sm font-medium text-muted-foreground sm:block">
-            {t('summary_label')}
-          </p>
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-mit-text">
-            <span>
-              {t('summary_spaces', {
-                spaces: props.selectedSpaceIds.length,
-                slots: props.slots.length,
-              })}
-            </span>
-            <span className="font-medium text-primary-ink">
-              {formatPavilionReservationMoney(props.estimate.totalCents)}
-              {props.estimate.hasTbd ? ` ${t('plus_tbd')}` : ''}
-            </span>
-          </p>
-        </div>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:gap-3">
+      <div
+        className={cn(
+          'flex flex-col gap-3',
+          props.step === 'spaces'
+            ? 'sm:flex-row sm:items-center sm:justify-between'
+            : 'sm:flex-row sm:items-center sm:justify-end'
+        )}
+      >
+        {props.step === 'spaces' ? (
+          <div className="min-w-0">
+            <p className="hidden text-sm font-medium text-muted-foreground sm:block">
+              {t('summary_label')}
+            </p>
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-mit-text">
+              <span>
+                {t('summary_spaces', {
+                  spaces: props.selectedSpaceIds.length,
+                  slots: props.slots.length,
+                })}
+              </span>
+              <span className="font-medium text-primary-ink">
+                {formatPavilionReservationMoney(props.estimate.totalCents)}
+                {props.estimate.hasPriceOnRequest
+                  ? ` ${t('plus_price_on_request')}`
+                  : ''}
+              </span>
+            </p>
+          </div>
+        ) : null}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:gap-3">
           {props.step === 'spaces' ? null : (
             <Button
               className="w-full sm:w-auto"
@@ -2859,7 +3036,7 @@ function PavilionReservationFooter(props: {
               onClick={(event) => {
                 if (!props.contactStepValid) {
                   event.preventDefault();
-                  props.setShowErrors(true);
+                  props.onContactStepInvalid();
                 }
               }}
             >
@@ -2872,6 +3049,220 @@ function PavilionReservationFooter(props: {
   );
 }
 
+function pavilionReservationDraftSeedFromServerResume(
+  serverResume: NonNullable<PavilionReservationWizardProps['serverResume']>,
+  items: PavilionReservableItemDto[]
+) {
+  const allowedItemIds = new Set(items.map((item) => item.id));
+  const { draft } = serverResume;
+  return {
+    contact: draft.contact,
+    persona: draft.persona,
+    requesterEmail: draft.requesterEmail,
+    requestId: serverResume.requestId,
+    resumeToken: serverResume.resumeToken,
+    selectedServiceIds: draft.selectedServiceIds.filter((serviceId) =>
+      allowedItemIds.has(serviceId)
+    ),
+    slots: draft.slots.filter((slot) => allowedItemIds.has(slot.itemId)),
+    source: 'server' as const,
+    step: draft.step,
+  };
+}
+
+/**
+ * Keeps pavilion draft resume, autosave, and session token lifecycle in sync.
+ *
+ * @param params - Draft persistence inputs and state setters
+ */
+function usePavilionReservationDraftPersistence(params: {
+  actionStatus: PavilionReservationSubmitState['status'];
+  contact: ContactFields;
+  draftRequestIdRef: React.RefObject<string | null>;
+  items: PavilionReservableItemDto[];
+  persona: PavilionReservationPersonaValue;
+  requesterEmail: string;
+  resumeTokenRef: React.RefObject<string | null>;
+  selectedServiceIds: string[];
+  serverResume: PavilionReservationWizardProps['serverResume'];
+  sessionHydrated: boolean;
+  setContact: React.Dispatch<React.SetStateAction<ContactFields>>;
+  setDraftRequestId: React.Dispatch<React.SetStateAction<string | null>>;
+  setPersona: React.Dispatch<
+    React.SetStateAction<PavilionReservationPersonaValue>
+  >;
+  setRequesterEmail: React.Dispatch<React.SetStateAction<string>>;
+  setResumeToken: React.Dispatch<React.SetStateAction<string | null>>;
+  setSelectedServiceIds: React.Dispatch<React.SetStateAction<string[]>>;
+  setSessionHydrated: React.Dispatch<React.SetStateAction<boolean>>;
+  setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
+  setStep: React.Dispatch<React.SetStateAction<WizardStep>>;
+  slots: ClientSlot[];
+  step: WizardStep;
+  upsertDraft: PavilionReservationWizardProps['upsertDraft'];
+}) {
+  const {
+    actionStatus,
+    contact,
+    draftRequestIdRef,
+    items,
+    persona,
+    requesterEmail,
+    resumeTokenRef,
+    selectedServiceIds,
+    serverResume,
+    sessionHydrated,
+    setContact,
+    setDraftRequestId,
+    setPersona,
+    setRequesterEmail,
+    setResumeToken,
+    setSelectedServiceIds,
+    setSessionHydrated,
+    setSlots,
+    setStep,
+    slots,
+    step,
+    upsertDraft,
+  } = params;
+
+  useEffect(() => {
+    if (serverResume || sessionHydrated) {
+      return;
+    }
+    const storedToken = readPavilionReservationResumeTokenFromSession();
+    if (!storedToken) {
+      setSessionHydrated(true);
+      return;
+    }
+    let cancelled = false;
+    const loadSessionDraft = async () => {
+      const seed =
+        await loadPavilionReservationDraftByResumeTokenAction(storedToken);
+      if (cancelled) {
+        return;
+      }
+      if (!seed) {
+        setSessionHydrated(true);
+        return;
+      }
+      const allowedItemIds = new Set(items.map((item) => item.id));
+      setStep(seed.draft.step);
+      setPersona(seed.draft.persona);
+      setRequesterEmail(seed.draft.requesterEmail);
+      setSlots(
+        seed.draft.slots.filter((slot) => allowedItemIds.has(slot.itemId))
+      );
+      setContact(seed.draft.contact);
+      setSelectedServiceIds(
+        seed.draft.selectedServiceIds.filter((serviceId) =>
+          allowedItemIds.has(serviceId)
+        )
+      );
+      setDraftRequestId(seed.requestId);
+      setResumeToken(seed.resumeToken);
+      writePavilionReservationResumeTokenToSession(seed.resumeToken);
+      setSessionHydrated(true);
+    };
+    // eslint-disable-next-line promise/prefer-await-to-then -- effect cleanup handles cancellation; rejections must not surface
+    loadSessionDraft().catch(() => {
+      if (!cancelled) {
+        setSessionHydrated(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    items,
+    serverResume,
+    sessionHydrated,
+    setContact,
+    setDraftRequestId,
+    setPersona,
+    setRequesterEmail,
+    setResumeToken,
+    setSelectedServiceIds,
+    setSessionHydrated,
+    setSlots,
+    setStep,
+  ]);
+
+  useEffect(() => {
+    if (serverResume?.resumeToken) {
+      writePavilionReservationResumeTokenToSession(serverResume.resumeToken);
+    }
+  }, [serverResume]);
+
+  useEffect(() => {
+    if (!serverResume) {
+      return;
+    }
+    const url = new URL(globalThis.location.href);
+    if (!url.searchParams.has('resume')) {
+      return;
+    }
+    url.searchParams.delete('resume');
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    globalThis.history.replaceState(globalThis.history.state, '', next);
+  }, [serverResume]);
+
+  useEffect(() => {
+    if (actionStatus === 'confirmed') {
+      clearPavilionReservationResumeTokenFromSession();
+    }
+  }, [actionStatus]);
+
+  useEffect(() => {
+    if (actionStatus === 'confirmed') {
+      return;
+    }
+    if (!isValidEmailAddress(requesterEmail)) {
+      return;
+    }
+    const handle = globalThis.setTimeout(() => {
+      const saveDraft = async () => {
+        const result = await upsertDraft({
+          contact,
+          persona,
+          requestId: draftRequestIdRef.current,
+          requesterEmail,
+          resumeToken: resumeTokenRef.current,
+          selectedServiceIds,
+          slots,
+          step,
+        });
+        if (result.ok) {
+          setDraftRequestId(result.requestId);
+          setResumeToken(result.resumeToken);
+          writePavilionReservationResumeTokenToSession(result.resumeToken);
+        }
+      };
+      // eslint-disable-next-line promise/prefer-await-to-then -- autosave is fire-and-forget inside debounced timeout
+      saveDraft().catch(() => {
+        // Autosave failures stay silent; the guest can still submit manually.
+      });
+    }, 3000);
+    return () => {
+      globalThis.clearTimeout(handle);
+    };
+  }, [
+    actionStatus,
+    contact,
+    draftRequestIdRef,
+    persona,
+    requesterEmail,
+    resumeTokenRef,
+    selectedServiceIds,
+    slots,
+    step,
+    upsertDraft,
+    setDraftRequestId,
+    setResumeToken,
+  ]);
+}
+
+// eslint-disable-next-line complexity -- multi-step pavilion wizard coordinates catalog, pricing, and validation
 export function PavilionReservationWizard(
   props: PavilionReservationWizardProps
 ) {
@@ -2881,17 +3272,73 @@ export function PavilionReservationWizard(
     props.initialState,
     props.permalink
   );
-  const [step, setStep] = useState<WizardStep>('spaces');
-  const [persona, setPersona] =
-    useState<PavilionReservationPersonaValue>('mit_academic');
-  const [requesterEmail, setRequesterEmail] = useState('');
-  const [slots, setSlots] = useState<ClientSlot[]>([]);
-  const [contact, setContact] = useState<ContactFields>(initialContact);
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [draftSeed] = useState(() => {
+    if (!props.serverResume) {
+      return null;
+    }
+    return pavilionReservationDraftSeedFromServerResume(
+      props.serverResume,
+      props.items
+    );
+  });
+  const [step, setStep] = useState<WizardStep>(draftSeed?.step ?? 'spaces');
+  const [persona, setPersona] = useState<PavilionReservationPersonaValue>(
+    draftSeed?.persona ?? 'mit_academic'
+  );
+  const [requesterEmail, setRequesterEmail] = useState(
+    draftSeed?.requesterEmail ?? ''
+  );
+  const [slots, setSlots] = useState<ClientSlot[]>(draftSeed?.slots ?? []);
+  const [contact, setContact] = useState<ContactFields>(
+    draftSeed?.contact ?? initialContact
+  );
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(
+    draftSeed?.selectedServiceIds ?? []
+  );
+  const [draftRequestId, setDraftRequestId] = useState<string | null>(
+    draftSeed?.requestId ?? null
+  );
+  const [resumeToken, setResumeToken] = useState<string | null>(
+    draftSeed?.resumeToken ?? null
+  );
   const [showErrors, setShowErrors] = useState(false);
+  const [draftRestored] = useState(() => draftSeed !== null);
+  const [sessionHydrated, setSessionHydrated] = useState(
+    () => draftSeed !== null
+  );
   const emailRef = useRef<HTMLInputElement>(null);
   const spacesRef = useRef<HTMLDivElement>(null);
   const slotsRef = useRef<HTMLDivElement>(null);
+  const contactSectionRef = useRef<HTMLElement>(null);
+  const draftRequestIdRef = useRef(draftRequestId);
+  draftRequestIdRef.current = draftRequestId;
+  const resumeTokenRef = useRef(resumeToken);
+  resumeTokenRef.current = resumeToken;
+
+  usePavilionReservationDraftPersistence({
+    actionStatus: actionState.status,
+    contact,
+    draftRequestIdRef,
+    items: props.items,
+    persona,
+    requesterEmail,
+    resumeTokenRef,
+    selectedServiceIds,
+    serverResume: props.serverResume,
+    sessionHydrated,
+    setContact,
+    setDraftRequestId,
+    setPersona,
+    setRequesterEmail,
+    setResumeToken,
+    setSelectedServiceIds,
+    setSessionHydrated,
+    setSlots,
+    setStep,
+    slots,
+    step,
+    upsertDraft: props.upsertDraft,
+  });
 
   const spaces = props.items.filter((item) => item.kind === 'space');
   const services = props.items.filter((item) => item.kind === 'service');
@@ -2928,7 +3375,7 @@ export function PavilionReservationWizard(
     (persona !== 'mit_academic' ||
       (contact.projectTitle.trim() &&
         contact.advisorName.trim() &&
-        contact.advisorEmail.includes('@') &&
+        isValidEmailAddress(contact.advisorEmail) &&
         contact.costCenter.trim()))
   );
   const scrollToSpacesStepProblem = () => {
@@ -2947,6 +3394,21 @@ export function PavilionReservationWizard(
     }
     scrollElementIntoView(spacesRef.current);
   };
+  const scrollToContactStepProblem = () => {
+    setShowErrors(true);
+    scrollElementIntoView(contactSectionRef.current);
+    const firstInvalid = contactSectionRef.current?.querySelector(
+      'input:invalid, textarea:invalid, select:invalid'
+    );
+    if (firstInvalid instanceof HTMLElement) {
+      firstInvalid.focus();
+      return;
+    }
+    const firstName = contactSectionRef.current?.querySelector('#firstName');
+    if (firstName instanceof HTMLElement) {
+      firstName.focus();
+    }
+  };
 
   if (actionState.status === 'confirmed' && actionState.referenceCode) {
     return (
@@ -2957,18 +3419,25 @@ export function PavilionReservationWizard(
   }
 
   return (
-    <form
-      action={formAction}
-      className={cn('space-y-8', step === 'spaces' ? 'pb-44 sm:pb-32' : '')}
-    >
+    <form action={formAction} className="space-y-8">
       <PavilionReservationHiddenFields
         contact={contact}
+        draftRequestId={draftRequestId}
         persona={persona}
         requesterEmail={requesterEmail}
+        resumeToken={resumeToken}
         selectedServiceIds={selectedServiceIds}
         slots={slots}
       />
       <PavilionReservationIntro step={step} />
+      {draftRestored ? (
+        <p
+          className="rounded-lg border border-mit-line bg-mit-surface px-4 py-3 text-sm text-mit-text"
+          role="status"
+        >
+          {t('draft_restored')}
+        </p>
+      ) : null}
       <PavilionReservationActionError actionState={actionState} />
       {step === 'spaces' ? (
         <PavilionReservationSpacesStep
@@ -2979,7 +3448,6 @@ export function PavilionReservationWizard(
           selectedSpaceIds={selectedSpaceIds}
           setPersona={updatePersona}
           setRequesterEmail={setRequesterEmail}
-          setShowErrors={setShowErrors}
           setSlots={setSlots}
           showErrors={showErrors}
           slots={slots}
@@ -2992,6 +3460,7 @@ export function PavilionReservationWizard(
         <>
           <PavilionReservationContactStep
             contact={contact}
+            contactSectionRef={contactSectionRef}
             persona={persona}
             requesterEmail={requesterEmail}
             selectedServiceIds={selectedServiceIds}
@@ -2999,6 +3468,8 @@ export function PavilionReservationWizard(
             setPersona={updatePersona}
             setContact={setContact}
             setSelectedServiceIds={setSelectedServiceIds}
+            showErrors={showErrors}
+            showStepAlert={showErrors && !contactStepValid}
           />
           <PavilionReservationReviewStep
             contact={contact}
@@ -3006,21 +3477,16 @@ export function PavilionReservationWizard(
             persona={persona}
             requesterEmail={requesterEmail}
             selectedServiceIds={selectedServiceIds}
-            selectedSpaceIds={selectedSpaceIds}
             services={services}
             slots={slots}
             spaces={spaces}
           />
         </>
       ) : null}
-      {showErrors && step !== 'spaces' && !contactStepValid ? (
-        <p className="text-sm font-medium text-destructive">
-          {t('error_contact_step')}
-        </p>
-      ) : null}
       <PavilionReservationFooter
         contactStepValid={contactStepValid}
         estimate={estimate}
+        onContactStepInvalid={scrollToContactStepProblem}
         onSpacesStepInvalid={scrollToSpacesStepProblem}
         pending={pending}
         selectedSpaceIds={selectedSpaceIds}
@@ -3030,7 +3496,6 @@ export function PavilionReservationWizard(
         slots={slots}
         spacesStepValid={spacesStepValid}
         step={step}
-        showErrors={showErrors}
       />
     </form>
   );

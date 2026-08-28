@@ -10,7 +10,8 @@ export type PavilionReservationStatusValue =
   | 'needs_info'
   | 'approved'
   | 'declined'
-  | 'cancelled';
+  | 'cancelled'
+  | 'draft';
 
 export type PavilionReservationPaymentStatusValue =
   | 'unpaid'
@@ -22,6 +23,19 @@ export type PavilionPricingTypeValue = 'hourly' | 'flat';
 
 export type PavilionReservableItemKindValue = 'space' | 'service';
 
+type PavilionReservableItemPublicGroupValue =
+  | 'venue'
+  | 'event_options'
+  | 'programs';
+
+export type PavilionReservableItemMediaDto = {
+  id: string;
+  publicPath: string;
+  mediaKind: 'image' | 'video' | 'file';
+  caption: string | null;
+  displayOrder: number;
+};
+
 export type PavilionReservableItemDto = {
   id: string;
   slug: string;
@@ -31,11 +45,13 @@ export type PavilionReservableItemDto = {
   imageUrl: string | null;
   pricingType: PavilionPricingTypeValue;
   minDurationHours: number | null;
+  publicGroup: PavilionReservableItemPublicGroupValue | null;
   displayOrder: number;
   prices: PavilionReservationPriceMap;
+  media: PavilionReservableItemMediaDto[];
 };
 
-/** Persona price map and pricing mode (`null` = TBD, `0` = complimentary). */
+/** Persona price map and pricing mode (`null` = price on request, `0` = complimentary). */
 export type PavilionReservableItemPricing = Pick<
   PavilionReservableItemDto,
   'prices' | 'pricingType'
@@ -47,7 +63,7 @@ export type PavilionReservableItemSlotPricing = Pick<
   'minDurationHours' | 'prices' | 'pricingType'
 >;
 
-/** Resolved persona quote for catalog UI (null = TBD, zero = complimentary). */
+/** Resolved persona quote for catalog UI (null = price on request, zero = complimentary). */
 export type PavilionPersonaPriceDisplay = {
   available: boolean;
   label: string;

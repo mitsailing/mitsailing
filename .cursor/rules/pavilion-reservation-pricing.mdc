@@ -1,5 +1,5 @@
 ---
-description: Pavilion reservation pricing — null TBD vs zero complimentary; do not re-flag
+description: Pavilion reservation pricing — null price on request vs zero complimentary; do not re-flag
 globs: src/libs/mit-sailing/pavilionReservationPricing.ts,src/libs/mit-sailing/pavilionReservationPricing.test.ts,src/data/mit-sailing/pavilionReservationCatalogSeed.ts,src/components/mit-sailing/pavilion-reservations/**/*
 alwaysApply: false
 ---
@@ -8,7 +8,7 @@ alwaysApply: false
 
 **Contract (matches DB `amount_cents IS NULL OR amount_cents >= 0`):**
 
-- `null` — TBD / unset / priced after review (missing persona amount; `pricingType` is still `hourly` or `flat`)
+- `null` — price on request / unset / priced after review (missing persona amount; `pricingType` is still `hourly` or `flat`)
 - `0` — complimentary (show `$0`, include in estimates)
 - `> 0` — whole-dollar USD only, stored as integer **cents** that are always a multiple of `100` (no fractional cents)
 
@@ -18,8 +18,8 @@ alwaysApply: false
 
 **Services:** `estimatedServiceAmountCents` returns the flat persona unit price; no hourly slot proration.
 
-**Pricing types:** Only `hourly` and `flat` in the DB enum — billing shape, not “quote pending.” Use null persona amounts for unset/negotiated catalog quotes.
+**Pricing types:** Only `hourly` and `flat` in the DB enum — billing shape, not “quote pending.” Use null persona amounts for unset/negotiated catalog quotes (guest label: **Price on request**).
 
-**Seed vs production:** `pavilionReservationCatalogSeed.ts` is bootstrap only. Negotiated Sailing Master fees (e.g. lab access) use `flat` + null prices per GitHub issue #69; do not suggest re-seeding as `$0` when copy says fees are arranged separately.
+**Seed vs production:** `pavilionReservationCatalogSeed.ts` is bootstrap reference only (migration one-time insert). Negotiated Sailing Master fees (e.g. lab access) use `flat` + null prices per GitHub issue #69; do not suggest re-seeding as `$0` when copy says fees are arranged separately.
 
 **Codacy/PR analyzers:** `.biome.json` keeps Codacy's Biome analyzer on the React domain and disables Qwik/Solid domains; do not restore a blanket TSX exclusion. Low/Info analyzer comments are not implementation blockers unless they identify a real bug.

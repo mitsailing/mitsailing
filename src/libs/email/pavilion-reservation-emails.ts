@@ -190,3 +190,46 @@ export async function sendPavilionReservationStatusEmail(
     text: statusText(params, copy),
   });
 }
+
+/**
+ * Sends a single resume nudge for an incomplete draft reservation.
+ *
+ * @param params - Draft resume email details
+ */
+export async function sendPavilionReservationAbandonEmail(params: {
+  eventName: string;
+  referenceCode: string;
+  requesterEmail: string;
+  resumeUrl: string;
+}): Promise<void> {
+  const copy = enMessages.PavilionReservationEmails;
+  const body = `${replaceReservationEmailValues(copy.abandon_body, {
+    eventName: params.eventName,
+    referenceCode: params.referenceCode,
+  })} ${copy.abandon_cta}: ${params.resumeUrl}`;
+  const html = await render(
+    PavilionReservationEmailTemplate({
+      body,
+      copy,
+      eventName: params.eventName,
+      previewText: copy.abandon_preview,
+      referenceCode: params.referenceCode,
+      scheduleLines: [],
+      title: copy.abandon_heading,
+    })
+  );
+  await sendTransactionalEmail({
+    html,
+    subject: replaceReservationEmailValues(copy.abandon_subject, {
+      eventName: params.eventName,
+      referenceCode: params.referenceCode,
+    }),
+    text: [
+      copy.abandon_heading,
+      body,
+      `${copy.field_reference}: ${params.referenceCode}`,
+      copy.footer_contact,
+    ].join('\n\n'),
+    to: params.requesterEmail,
+  });
+}

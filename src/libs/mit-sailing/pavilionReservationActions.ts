@@ -14,6 +14,10 @@ import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
 import {
+  deleteSupersededPavilionReservationDrafts,
+  findPavilionReservationDraftByResumeTokenRow,
+} from '@/libs/mit-sailing/pavilionReservationDraftCleanup';
+import {
   estimatedServiceAmountCents,
   estimatedSlotAmountCents,
 } from '@/libs/mit-sailing/pavilionReservationPricing';
@@ -28,6 +32,7 @@ import type {
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { getI18nPath } from '@/utils/Helpers';
 import { getDefaultQueue } from '@/worker/defaultQueue';
+import { cancelPavilionReservationAbandonEmailJobs } from '@/worker/pavilionReservationAbandonEmailJob';
 import { enqueuePavilionReservationSubmittedEmail } from '@/worker/pavilionReservationSubmittedEmailJob';
 
 const PAVILION_REFERENCE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -139,6 +144,7 @@ async function hasRecentMatchingReservationRequest(props: {
       createdAt: { gte: createdAt },
       eventName: { equals: props.eventName, mode: 'insensitive' },
       requesterEmail: props.requesterEmail,
+      status: { not: 'draft' },
     },
     select: { id: true },
   });
@@ -240,6 +246,7 @@ export async function submitPavilionReservationRequestAction(
   }
 
   let referenceCode: string;
+  let cancelledAbandonJobIds: string[] = [];
   try {
     const persistence = await prisma.$transaction(
       async (tx) => {
@@ -260,8 +267,88 @@ export async function submitPavilionReservationRequestAction(
           return { kind: 'rate_limited' as const };
         }
 
+        const draftRequestIdRaw = formData.get('draftRequestId');
+        const draftRequestId =
+          typeof draftRequestIdRaw === 'string' ? draftRequestIdRaw.trim() : '';
+        const resumeTokenRaw = formData.get('resumeToken');
+        const resumeToken =
+          typeof resumeTokenRaw === 'string' ? resumeTokenRaw.trim() : '';
+
+        let existingDraft = resumeToken
+          ? await findPavilionReservationDraftByResumeTokenRow(tx, resumeToken)
+          : null;
+        if (
+          existingDraft &&
+          draftRequestId &&
+          existingDraft.id !== draftRequestId
+        ) {
+          existingDraft = null;
+        }
+
+        const draftToPromote =
+          existingDraft !== null &&
+          existingDraft.status === 'draft' &&
+          existingDraft.requesterEmail === parsed.data.requesterEmail
+            ? existingDraft
+            : null;
+
+        if (draftToPromote) {
+          await tx.pavilionReservationSlot.deleteMany({
+            where: { requestId: draftToPromote.id },
+          });
+          await tx.pavilionReservationService.deleteMany({
+            where: { requestId: draftToPromote.id },
+          });
+          await tx.pavilionReservationRequest.update({
+            data: {
+              abandonEmailSentAt: null,
+              advisorEmail: parsed.data.advisorEmail,
+              advisorName: parsed.data.advisorName,
+              costCenter: parsed.data.costCenter,
+              description: parsed.data.description,
+              estimatedTotalCents,
+              eventName: parsed.data.eventName,
+              firstName: parsed.data.firstName,
+              groupName: parsed.data.groupName,
+              groupSize: parsed.data.groupSize,
+              hasTent: parsed.data.hasTent,
+              lastName: parsed.data.lastName,
+              mitAccount: parsed.data.mitAccount,
+              mitId: parsed.data.mitId,
+              persona: parsed.data.persona,
+              phone: parsed.data.phone,
+              projectTitle: parsed.data.projectTitle,
+              requesterEmail: parsed.data.requesterEmail,
+              resumeToken: null,
+              servesAlcohol: parsed.data.servesAlcohol,
+              services: { create: serviceRows },
+              slots: {
+                create: slotRows.map((row) => {
+                  if (row === null) {
+                    throw new Error('Invalid Pavilion reservation slot row');
+                  }
+                  return row;
+                }),
+              },
+              status: 'pending',
+            },
+            where: { id: draftToPromote.id },
+          });
+          const deletedDraftIds =
+            await deleteSupersededPavilionReservationDrafts(tx, {
+              eventName: parsed.data.eventName,
+              keepRequestId: draftToPromote.id,
+              requesterEmail: parsed.data.requesterEmail,
+            });
+          return {
+            cancelledAbandonJobIds: [draftToPromote.id, ...deletedDraftIds],
+            kind: 'created' as const,
+            referenceCode: draftToPromote.referenceCode,
+          };
+        }
+
         const nextReferenceCode = await generateReferenceCode(tx);
-        await tx.pavilionReservationRequest.create({
+        const created = await tx.pavilionReservationRequest.create({
           data: {
             referenceCode: nextReferenceCode,
             persona: parsed.data.persona,
@@ -292,9 +379,22 @@ export async function submitPavilionReservationRequestAction(
             },
             services: { create: serviceRows },
           },
+          select: { id: true },
         });
+        const deletedDraftIds = await deleteSupersededPavilionReservationDrafts(
+          tx,
+          {
+            eventName: parsed.data.eventName,
+            keepRequestId: created.id,
+            requesterEmail: parsed.data.requesterEmail,
+          }
+        );
 
-        return { kind: 'created' as const, referenceCode: nextReferenceCode };
+        return {
+          cancelledAbandonJobIds: deletedDraftIds,
+          kind: 'created' as const,
+          referenceCode: nextReferenceCode,
+        };
       },
       {
         maxWait: PAVILION_RESERVATION_SUBMIT_TX_MAX_WAIT_MS,
@@ -306,6 +406,7 @@ export async function submitPavilionReservationRequestAction(
       return { status: 'error', errors: ['error_rate_limited'] };
     }
     ({ referenceCode } = persistence);
+    ({ cancelledAbandonJobIds } = persistence);
   } catch (error) {
     unstable_rethrow(error);
     return unknownErrorState(error);
@@ -313,6 +414,10 @@ export async function submitPavilionReservationRequestAction(
 
   after(async () => {
     try {
+      await cancelPavilionReservationAbandonEmailJobs(
+        getDefaultQueue(),
+        cancelledAbandonJobIds
+      );
       await enqueuePavilionReservationSubmittedEmail(getDefaultQueue(), {
         referenceCode,
       });

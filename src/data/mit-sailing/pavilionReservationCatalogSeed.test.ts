@@ -120,6 +120,14 @@ describe('PAVILION_RESERVABLE_ITEM_SEED_ROWS', () => {
     expect(rowBySlug('wedding_service')).toMatchObject({
       isVisible: false,
       kind: 'service',
+      publicGroup: null,
+    });
+  });
+
+  it('places grill under venue spaces', () => {
+    expect(rowBySlug('grill')).toMatchObject({
+      kind: 'space',
+      publicGroup: 'venue',
     });
   });
 

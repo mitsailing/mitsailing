@@ -675,6 +675,162 @@ const cmsMenuItemsDefinition = {
   capabilities: { create: true, update: true, delete: true, reorder: true },
 } as const satisfies CatalogResourceDefinition;
 
+const pavilionSpacesDefinition = {
+  id: 'pavilion_spaces',
+  titleKey: 'title_admin_catalog_pavilion_spaces',
+  metaTitleKey: 'meta_title_admin_catalog_pavilion_spaces',
+  hubLabelKey: 'hub_label_pavilion_spaces',
+  listColumns: [
+    { field: 'name', kind: 'string', headerKey: 'column_name_label' },
+    { field: 'kind', kind: 'string', headerKey: 'column_kind_label' },
+    {
+      field: 'publicGroup',
+      kind: 'string',
+      headerKey: 'column_public_group_label',
+    },
+    {
+      field: 'isVisible',
+      kind: 'visibility',
+      headerKey: 'column_status',
+    },
+    {
+      field: 'displayOrder',
+      kind: 'number',
+      headerKey: 'column_display_order_label',
+    },
+    {
+      field: 'priceHint',
+      kind: 'string',
+      headerKey: 'column_price_hint_label',
+    },
+  ],
+  formFields: [
+    {
+      field: 'name',
+      kind: 'string',
+      required: true,
+      labelKey: 'field_name',
+    },
+    {
+      field: 'slug',
+      kind: 'string',
+      required: true,
+      labelKey: 'field_slug',
+    },
+    {
+      field: 'kind',
+      kind: 'select',
+      required: true,
+      labelKey: 'field_kind',
+      selectOptions: [
+        { value: 'space', labelKey: 'option_kind_space' },
+        { value: 'service', labelKey: 'option_kind_service' },
+      ],
+    },
+    {
+      field: 'publicGroup',
+      kind: 'select',
+      labelKey: 'field_public_group',
+      selectOptions: [
+        { value: '', labelKey: 'option_public_group_none' },
+        { value: 'venue', labelKey: 'option_public_group_venue' },
+        {
+          value: 'event_options',
+          labelKey: 'option_public_group_event_options',
+        },
+        { value: 'programs', labelKey: 'option_public_group_programs' },
+      ],
+    },
+    {
+      field: 'description',
+      kind: 'text',
+      labelKey: 'field_description',
+    },
+    {
+      field: 'pricingType',
+      kind: 'select',
+      required: true,
+      labelKey: 'field_pricing_type',
+      selectOptions: [
+        { value: 'hourly', labelKey: 'option_pricing_type_hourly' },
+        { value: 'flat', labelKey: 'option_pricing_type_flat' },
+      ],
+    },
+    {
+      field: 'minDurationHours',
+      kind: 'number',
+      labelKey: 'field_min_duration_hours',
+    },
+    {
+      field: 'priceMitAcademic',
+      kind: 'number',
+      labelKey: 'field_price_mit_academic',
+    },
+    {
+      field: 'priceMitStudent',
+      kind: 'number',
+      labelKey: 'field_price_mit_student',
+    },
+    {
+      field: 'priceMitCommunity',
+      kind: 'number',
+      labelKey: 'field_price_mit_community',
+    },
+    {
+      field: 'priceNonMit',
+      kind: 'number',
+      labelKey: 'field_price_non_mit',
+    },
+    {
+      field: 'imagePaths',
+      kind: 'imageList',
+      labelKey: 'field_image_paths',
+    },
+    {
+      field: 'isVisible',
+      kind: 'boolean',
+      labelKey: 'field_visible',
+    },
+  ],
+  formSections: [
+    {
+      fields: [
+        'name',
+        'slug',
+        'kind',
+        'publicGroup',
+        'description',
+        'isVisible',
+      ],
+      headingKey: 'pavilion_spaces_form_section_basics',
+    },
+    {
+      fields: [
+        'pricingType',
+        'minDurationHours',
+        'priceMitAcademic',
+        'priceMitStudent',
+        'priceMitCommunity',
+        'priceNonMit',
+      ],
+      headingKey: 'pavilion_spaces_form_section_pricing',
+      helperKey: 'pavilion_spaces_form_section_pricing_helper',
+    },
+    {
+      fields: ['imagePaths'],
+      headingKey: 'pavilion_spaces_form_section_media',
+      helperKey: 'pavilion_spaces_form_section_media_helper',
+    },
+  ],
+  capabilities: {
+    create: true,
+    update: true,
+    delete: true,
+    reorder: true,
+  },
+  publicViewHrefField: 'publicSpaceUrl',
+} as const satisfies CatalogResourceDefinition;
+
 export const CATALOG_RESOURCE_IDS = [
   'donation_funds',
   'event_categories',
@@ -684,6 +840,7 @@ export const CATALOG_RESOURCE_IDS = [
   'sailing_rating_rules',
   'fleet',
   'site_alerts',
+  'pavilion_spaces',
   'cms_pages',
   'cms_page_blocks',
   'cms_menus',
@@ -704,6 +861,7 @@ export const catalogResourceDefinitions: Record<
   sailing_rating_rules: sailingRatingRulesDefinition,
   fleet: fleetDefinition,
   site_alerts: siteAlertsDefinition,
+  pavilion_spaces: pavilionSpacesDefinition,
   cms_pages: cmsPagesDefinition,
   cms_page_blocks: cmsPageBlocksDefinition,
   cms_menus: cmsMenusDefinition,

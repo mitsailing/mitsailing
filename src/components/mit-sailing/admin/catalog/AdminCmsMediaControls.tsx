@@ -7,10 +7,12 @@ import type * as React from 'react';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { ariaInvalidWhenShown } from '@/utils/ariaInvalidWhenShown';
 import type { CmsMediaAsset } from './AdminCmsMediaControlsApi';
 import {
   currentPageId,
   isAdminImagePath,
+  isAdminVideoPath,
   loadCmsMediaAssets,
   parseImageListValue,
   uploadCmsMediaFile,
@@ -76,6 +78,18 @@ export function AdminCmsMediaPickerPanel(props: {
 }
 
 function imagePreview(src: string, alt: string) {
+  if (isAdminVideoPath(src)) {
+    return (
+      <video
+        aria-label={alt}
+        className="size-14 rounded-sm object-cover"
+        muted
+        playsInline
+        preload="metadata"
+        src={src}
+      />
+    );
+  }
   return (
     <NextImage
       alt={alt}
@@ -184,7 +198,10 @@ export function AdminImageField(props: {
         <Button
           aria-label={t('media_upload_for_field', { label: props.label })}
           aria-describedby={props.errorMessage ? props.errorId : undefined}
-          aria-invalid={props.errorMessage ? true : undefined}
+          aria-invalid={ariaInvalidWhenShown({
+            shown: Boolean(props.errorMessage),
+            invalid: true,
+          })}
           disabled={mediaBusy}
           onClick={() => fileInputRef.current?.click()}
           ref={props.uploadButtonRef}
@@ -352,7 +369,10 @@ export function AdminImageListField(props: {
         <Button
           aria-label={t('media_upload_for_field', { label: props.label })}
           aria-describedby={props.errorMessage ? props.errorId : undefined}
-          aria-invalid={props.errorMessage ? true : undefined}
+          aria-invalid={ariaInvalidWhenShown({
+            shown: Boolean(props.errorMessage),
+            invalid: true,
+          })}
           disabled={mediaBusy}
           onClick={() => fileInputRef.current?.click()}
           type="button"
@@ -365,7 +385,10 @@ export function AdminImageListField(props: {
           aria-expanded={pickerOpen}
           aria-label={t('media_select_for_field', { label: props.label })}
           aria-describedby={props.errorMessage ? props.errorId : undefined}
-          aria-invalid={props.errorMessage ? true : undefined}
+          aria-invalid={ariaInvalidWhenShown({
+            shown: Boolean(props.errorMessage),
+            invalid: true,
+          })}
           disabled={mediaBusy}
           onClick={() => {
             // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the picker promise.
@@ -379,7 +402,7 @@ export function AdminImageListField(props: {
         </Button>
       </div>
       <input
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
         className="sr-only"
         data-testid={
           props.fieldKey === 'imagePaths'

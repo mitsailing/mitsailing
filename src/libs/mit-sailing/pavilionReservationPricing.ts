@@ -94,10 +94,10 @@ export function estimatedServiceAmountCents(props: {
 export function priceLabel(props: {
   amountCents: number | null;
   pricingType: PavilionPricingTypeValue;
-  tbdLabel: string;
+  onRequestLabel: string;
 }): string {
   if (props.amountCents === null) {
-    return props.tbdLabel;
+    return props.onRequestLabel;
   }
   const formatted = formatPavilionReservationMoney(props.amountCents);
   return props.pricingType === 'hourly' ? `${formatted}/hour` : formatted;
@@ -106,7 +106,7 @@ export function priceLabel(props: {
 export function personaPriceDisplay(props: {
   item: PavilionReservableItemPricing;
   persona: PavilionReservationPersonaValue;
-  tbdLabel: string;
+  onRequestLabel: string;
 }): PavilionPersonaPriceDisplay {
   const priceCents = priceForPersona(props.item, props.persona);
   return {
@@ -114,7 +114,7 @@ export function personaPriceDisplay(props: {
     label: priceLabel({
       amountCents: priceCents,
       pricingType: props.item.pricingType,
-      tbdLabel: props.tbdLabel,
+      onRequestLabel: props.onRequestLabel,
     }),
     priceCents,
   };
@@ -123,7 +123,7 @@ export function personaPriceDisplay(props: {
 export function priceLabelForPersona(props: {
   item: PavilionReservableItemPricing;
   persona: PavilionReservationPersonaValue;
-  tbdLabel: string;
+  onRequestLabel: string;
 }): string {
   return personaPriceDisplay(props).label;
 }

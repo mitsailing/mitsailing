@@ -48,6 +48,7 @@ import {
 } from '@/libs/mit-sailing/cmsPricing';
 import { eventCategoryUpdateSchema } from '@/libs/zenstack/zod';
 import type messages from '@/locales/en.json';
+import { ariaInvalidWhenShown } from '@/utils/ariaInvalidWhenShown';
 
 function inputTypeForFieldKind(
   kind: AdminFieldKind
@@ -193,7 +194,10 @@ function catalogDynamicSelectField(props: {
       </Label>
       <NativeSelect
         aria-describedby={props.errorMessage ? props.errorId : undefined}
-        aria-invalid={props.errorMessage ? true : undefined}
+        aria-invalid={ariaInvalidWhenShown({
+          shown: Boolean(props.errorMessage),
+          invalid: true,
+        })}
         defaultValue={props.defaultValue || undefined}
         id={props.fieldKey}
         name={props.fieldKey}
@@ -235,7 +239,10 @@ function catalogStaticSelectField(props: {
       </Label>
       <NativeSelect
         aria-describedby={props.errorMessage ? props.errorId : undefined}
-        aria-invalid={props.errorMessage ? true : undefined}
+        aria-invalid={ariaInvalidWhenShown({
+          shown: Boolean(props.errorMessage),
+          invalid: true,
+        })}
         defaultValue={props.defaultValue || undefined}
         id={props.fieldKey}
         name={props.fieldKey}
@@ -641,7 +648,10 @@ function CatalogTextareaField(props: {
           linksHintId,
           props.errorMessage ? props.errorId : undefined
         )}
-        aria-invalid={props.errorMessage ? true : undefined}
+        aria-invalid={ariaInvalidWhenShown({
+          shown: Boolean(props.errorMessage),
+          invalid: true,
+        })}
         className="min-h-[120px]"
         defaultValue={props.defaultValue}
         id={props.fieldId}
@@ -950,7 +960,10 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
           </Label>
           <Input
             aria-describedby={nameError ? nameErrorId : undefined}
-            aria-invalid={nameError ? true : undefined}
+            aria-invalid={ariaInvalidWhenShown({
+              shown: Boolean(nameError),
+              invalid: true,
+            })}
             id="catalog-field-name"
             required
             type="text"
@@ -1291,7 +1304,10 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
               aria-describedby={
                 ctaLabelErrorMessage ? cmsCtaLabelErrorId : undefined
               }
-              aria-invalid={ctaLabelErrorMessage ? true : undefined}
+              aria-invalid={ariaInvalidWhenShown({
+                shown: Boolean(ctaLabelErrorMessage),
+                invalid: true,
+              })}
               id="catalog-field-ctaLabel"
               name="ctaLabel"
               onChange={(event) => {
@@ -1314,7 +1330,10 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
               aria-describedby={
                 ctaUrlErrorMessage ? cmsCtaUrlErrorId : undefined
               }
-              aria-invalid={ctaUrlErrorMessage ? true : undefined}
+              aria-invalid={ariaInvalidWhenShown({
+                shown: Boolean(ctaUrlErrorMessage),
+                invalid: true,
+              })}
               id="catalog-field-ctaUrl"
               name="ctaUrl"
               onChange={(event) => {
@@ -1384,7 +1403,10 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
               aria-describedby={
                 imageAltErrorMessage ? cmsImageAltErrorId : undefined
               }
-              aria-invalid={imageAltErrorMessage ? true : undefined}
+              aria-invalid={ariaInvalidWhenShown({
+                shown: Boolean(imageAltErrorMessage),
+                invalid: true,
+              })}
               id="catalog-field-imageAlt"
               name="imageAlt"
               onChange={(event) => {
@@ -2287,7 +2309,10 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
         </Label>
         <Input
           aria-describedby={fieldErrorMessage ? errorId : undefined}
-          aria-invalid={fieldErrorMessage ? true : undefined}
+          aria-invalid={ariaInvalidWhenShown({
+            shown: Boolean(fieldErrorMessage),
+            invalid: true,
+          })}
           autoComplete={autoCompleteForCatalogField(field.kind)}
           defaultValue={defaultValue}
           id={fieldId}

@@ -4062,6 +4062,8 @@ export class SchemaType implements SchemaDef {
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("source"), "==", ExpressionUtils.literal("admin_override")), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("amountCents"), "!=", ExpressionUtils.literal(0)), "||", ExpressionUtils.binary(ExpressionUtils.field("manualHandledNote"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("manualHandledNote"), "==", ExpressionUtils.literal(""))), "||", ExpressionUtils.binary(ExpressionUtils.field("manualHandledByUserId"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("manualHandledAt"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils._null()))) }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("purpose"), "==", ExpressionUtils.literal("event_payment")), "&&", ExpressionUtils.binary(ExpressionUtils.field("source"), "!=", ExpressionUtils.literal("legacy"))), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("eventId"), "!=", ExpressionUtils.member(ExpressionUtils.field("registration"), ["eventId"])), "||", ExpressionUtils.binary(ExpressionUtils.field("eventId"), "!=", ExpressionUtils.member(ExpressionUtils.field("selectedFee"), ["eventId"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("userId"), "!=", ExpressionUtils.member(ExpressionUtils.field("registration"), ["userId"])))) }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.field("amountCents"), "<", ExpressionUtils.literal(0)) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("amountPaidCents"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.field("amountPaidCents"), "<", ExpressionUtils.literal(0))) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("amountPaidCents"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.field("amountPaidCents"), ">", ExpressionUtils.field("amountCents"))) }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("refundedAmountCents"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.field("refundedAmountCents"), "<", ExpressionUtils.literal(0))) }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("refundedAmountCents"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.field("refundedAmountCents"), ">", ExpressionUtils.field("amountCents"))) }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("issueHandledAt"), "!=", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.field("issueHandledNote"), "!=", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("issueHandledByUserId"), "!=", ExpressionUtils._null())), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("issueHandledAt"), "==", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.field("issueHandledNote"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("issueHandledNote"), "==", ExpressionUtils.literal(""))), "||", ExpressionUtils.binary(ExpressionUtils.field("issueHandledByUserId"), "==", ExpressionUtils._null())), "||", ExpressionUtils.binary(ExpressionUtils.field("issueKind"), "==", ExpressionUtils._null()))) }] },
@@ -5520,6 +5522,12 @@ export class SchemaType implements SchemaDef {
                     optional: true,
                     attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("CmsMediaUploadedBy") }, { name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("uploadedByUserId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
                     relation: { opposite: "cmsMediaAssets", name: "CmsMediaUploadedBy", fields: ["uploadedByUserId"], references: ["id"], onDelete: "SetNull" }
+                },
+                pavilionMedia: {
+                    name: "pavilionMedia",
+                    type: "PavilionReservableItemMedia",
+                    array: true,
+                    relation: { opposite: "mediaAsset" }
                 }
             },
             attributes: [
@@ -5813,6 +5821,12 @@ export class SchemaType implements SchemaDef {
                     optional: true,
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("min_duration_hours") }] }] as readonly AttributeApplication[]
                 },
+                publicGroup: {
+                    name: "publicGroup",
+                    type: "PavilionReservableItemPublicGroup",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("public_group") }] }] as readonly AttributeApplication[]
+                },
                 displayOrder: {
                     name: "displayOrder",
                     type: "Int",
@@ -5843,6 +5857,12 @@ export class SchemaType implements SchemaDef {
                     array: true,
                     relation: { opposite: "item" }
                 },
+                media: {
+                    name: "media",
+                    type: "PavilionReservableItemMedia",
+                    array: true,
+                    relation: { opposite: "item" }
+                },
                 reservationSlots: {
                     name: "reservationSlots",
                     type: "PavilionReservationSlot",
@@ -5859,6 +5879,7 @@ export class SchemaType implements SchemaDef {
             attributes: [
                 { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("id"), ExpressionUtils.field("kind")]) }] },
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("PavilionReservableItemKind", [ExpressionUtils.field("kind"), ExpressionUtils.field("isVisible"), ExpressionUtils.field("displayOrder")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("PavilionReservableItemPublicGroup", [ExpressionUtils.field("publicGroup"), ExpressionUtils.field("displayOrder")]) }] },
                 { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("pavilion_reservable_items") }] }
             ] as readonly AttributeApplication[],
             idFields: ["id"],
@@ -5866,6 +5887,80 @@ export class SchemaType implements SchemaDef {
                 id: { type: "String" },
                 slug: { type: "String" },
                 id_kind: { id: { type: "String" }, kind: { type: "PavilionReservableItemKind" } }
+            }
+        },
+        PavilionReservableItemMedia: {
+            name: "PavilionReservableItemMedia",
+            fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    id: true,
+                    attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("cuid") as FieldDefault
+                },
+                itemId: {
+                    name: "itemId",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("item_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "item"
+                    ] as readonly string[]
+                },
+                mediaAssetId: {
+                    name: "mediaAssetId",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("media_asset_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "mediaAsset"
+                    ] as readonly string[]
+                },
+                displayOrder: {
+                    name: "displayOrder",
+                    type: "Int",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(0) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("display_order") }] }] as readonly AttributeApplication[],
+                    default: 0 as FieldDefault
+                },
+                caption: {
+                    name: "caption",
+                    type: "String",
+                    optional: true
+                },
+                createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.call("now") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_at") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("now") as FieldDefault
+                },
+                updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    updatedAt: true,
+                    attributes: [{ name: "@updatedAt" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("updated_at") }] }] as readonly AttributeApplication[]
+                },
+                item: {
+                    name: "item",
+                    type: "PavilionReservableItem",
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("itemId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "media", fields: ["itemId"], references: ["id"], onDelete: "Cascade" }
+                },
+                mediaAsset: {
+                    name: "mediaAsset",
+                    type: "CmsMediaAsset",
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("mediaAssetId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Restrict") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "pavilionMedia", fields: ["mediaAssetId"], references: ["id"], onDelete: "Restrict" }
+                }
+            },
+            attributes: [
+                { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("itemId"), ExpressionUtils.field("mediaAssetId")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("itemId"), ExpressionUtils.field("displayOrder")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("mediaAssetId")]) }] },
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("pavilion_reservable_item_media") }] }
+            ] as readonly AttributeApplication[],
+            idFields: ["id"],
+            uniqueFields: {
+                id: { type: "String" },
+                itemId_mediaAssetId: { itemId: { type: "String" }, mediaAssetId: { type: "String" } }
             }
         },
         PavilionReservableItemPrice: {
@@ -6044,6 +6139,19 @@ export class SchemaType implements SchemaDef {
                     optional: true,
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("paid_at") }] }] as readonly AttributeApplication[]
                 },
+                resumeToken: {
+                    name: "resumeToken",
+                    type: "String",
+                    unique: true,
+                    optional: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("resume_token") }] }] as readonly AttributeApplication[]
+                },
+                abandonEmailSentAt: {
+                    name: "abandonEmailSentAt",
+                    type: "DateTime",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("abandon_email_sent_at") }] }] as readonly AttributeApplication[]
+                },
                 createdAt: {
                     name: "createdAt",
                     type: "DateTime",
@@ -6106,7 +6214,8 @@ export class SchemaType implements SchemaDef {
             idFields: ["id"],
             uniqueFields: {
                 id: { type: "String" },
-                referenceCode: { type: "String" }
+                referenceCode: { type: "String" },
+                resumeToken: { type: "String" }
             }
         },
         PavilionReservationSlot: {
@@ -6888,7 +6997,8 @@ export class SchemaType implements SchemaDef {
                 needs_info: "needs_info",
                 approved: "approved",
                 declined: "declined",
-                cancelled: "cancelled"
+                cancelled: "cancelled",
+                draft: "draft"
             },
             attributes: [
                 { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("pavilion_reservation_status") }] }
@@ -6914,6 +7024,17 @@ export class SchemaType implements SchemaDef {
             },
             attributes: [
                 { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("pavilion_reservable_item_kind") }] }
+            ] as readonly AttributeApplication[]
+        },
+        PavilionReservableItemPublicGroup: {
+            name: "PavilionReservableItemPublicGroup",
+            values: {
+                venue: "venue",
+                event_options: "event_options",
+                programs: "programs"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("pavilion_reservable_item_public_group") }] }
             ] as readonly AttributeApplication[]
         },
         PavilionPricingType: {

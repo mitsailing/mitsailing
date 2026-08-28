@@ -4,6 +4,11 @@ import {
 } from '@/libs/mit-sailing/pavilionReservationPersonas';
 import type { PavilionReservationPersonaValue } from '@/libs/mit-sailing/pavilionReservationPersonas';
 
+/**
+ * Bootstrap catalog shape used by the one-time SQL migration and regression
+ * tests. Not upserted by `db:seed` — staff edits via `/admin/pavilion_spaces`
+ * are the source of truth after migrate.
+ */
 export type PavilionReservableItemSeed = {
   id: string;
   slug: string;
@@ -13,6 +18,7 @@ export type PavilionReservableItemSeed = {
   imageUrl: string | null;
   pricingType: 'hourly' | 'flat';
   minDurationHours: number | null;
+  publicGroup: 'venue' | 'event_options' | 'programs' | null;
   displayOrder: number;
   isVisible: boolean;
   prices: Record<PavilionReservationPersonaValue, number | null>;
@@ -53,6 +59,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
         'Reserve grill access for your event. Staff can adjust grill quantity during review.',
       pricingType: 'flat',
       minDurationHours: null,
+      publicGroup: 'venue',
       imageUrl: null,
       displayOrder: 0,
       isVisible: true,
@@ -72,6 +79,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
         'Perfect for casual gatherings and events with up to 50 people.',
       pricingType: 'hourly',
       minDurationHours: 1,
+      publicGroup: 'venue',
       imageUrl: pavilionImageUrl,
       displayOrder: 10,
       isVisible: true,
@@ -91,6 +99,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
         'Spacious roof deck area ideal for larger events with up to 100 people.',
       pricingType: 'hourly',
       minDurationHours: 1,
+      publicGroup: 'venue',
       imageUrl: pavilionImageUrl,
       displayOrder: 20,
       isVisible: true,
@@ -109,6 +118,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
       description: 'Boat dock access for your event transportation needs.',
       pricingType: 'flat',
       minDurationHours: null,
+      publicGroup: 'venue',
       imageUrl: pavilionImageUrl,
       displayOrder: 30,
       isVisible: true,
@@ -127,6 +137,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
       description: 'Fees arranged with Sailing Master.',
       pricingType: 'flat',
       minDurationHours: null,
+      publicGroup: 'programs',
       imageUrl: pavilionImageUrl,
       displayOrder: 70,
       isVisible: true,
@@ -145,6 +156,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
       description: 'Special wedding package space reservation.',
       pricingType: 'flat',
       minDurationHours: null,
+      publicGroup: 'event_options',
       imageUrl: pavilionImageUrl,
       displayOrder: 40,
       isVisible: true,
@@ -164,6 +176,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
         'Request extended Pavilion use after regular closing until 10:00pm.',
       pricingType: 'flat',
       minDurationHours: null,
+      publicGroup: 'event_options',
       imageUrl: null,
       displayOrder: 50,
       isVisible: true,
@@ -183,6 +196,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
         'Request extended Pavilion use after regular closing until midnight.',
       pricingType: 'flat',
       minDurationHours: null,
+      publicGroup: 'event_options',
       imageUrl: null,
       displayOrder: 60,
       isVisible: true,
@@ -202,6 +216,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
         'Group sailing lessons for 20-40 people, available in summer.',
       pricingType: 'flat',
       minDurationHours: null,
+      publicGroup: 'programs',
       imageUrl: pavilionImageUrl,
       displayOrder: 80,
       isVisible: true,
@@ -220,6 +235,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
       description: 'Special wedding package (in addition to hourly rate).',
       pricingType: 'flat',
       minDurationHours: null,
+      publicGroup: null,
       imageUrl: null,
       displayOrder: 130,
       isVisible: false,

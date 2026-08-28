@@ -74,6 +74,7 @@ const CATALOG_EXTRA_PUBLIC_PATHS: Partial<
   sailing_ratings: ['/ratings', '/classes', '/fleet'],
   sailing_rating_rules: ['/ratings', '/classes', '/fleet'],
   fleet: ['/fleet'],
+  pavilion_spaces: ['/reserve', '/spaces'],
   site_alerts: ['/', '/alerts'],
   cms_pages: ['/', '/about'],
   cms_page_blocks: ['/', '/about'],

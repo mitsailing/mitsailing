@@ -9,6 +9,7 @@ import { SubmitButton } from '@/components/ui/submit-button';
 import { submitNewsletterSignupAction } from '@/libs/newsletter/newsletterActions';
 import type { NewsletterSignupFormState } from '@/libs/newsletter/newsletterActions';
 import { newsletterSignupFieldNames } from '@/libs/newsletter/newsletterValidation';
+import { ariaInvalidWhenShown } from '@/utils/ariaInvalidWhenShown';
 
 type NewsletterSignupFormProps = Readonly<{
   locale: string;
@@ -116,7 +117,10 @@ export function NewsletterSignupForm(props: NewsletterSignupFormProps) {
               <Input
                 autoComplete="email"
                 aria-describedby={emailErrorId}
-                aria-invalid={emailError ? true : undefined}
+                aria-invalid={ariaInvalidWhenShown({
+                  shown: Boolean(emailError),
+                  invalid: true,
+                })}
                 className="min-h-11 bg-background"
                 id="newsletter-email"
                 inputMode="email"

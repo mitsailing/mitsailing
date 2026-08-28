@@ -35,14 +35,25 @@ export function isAdminImagePath(value: string | undefined): value is string {
   return /^\/(?!\/).+\.(?:gif|jpe?g|png|webp)$/iu.test(value.trim());
 }
 
+export function isAdminVideoPath(value: string | undefined): value is string {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  return /^\/(?!\/).+\.(?:mp4|mov|webm)$/iu.test(value.trim());
+}
+
+function isAdminMediaPath(value: string | undefined): value is string {
+  return isAdminImagePath(value) || isAdminVideoPath(value);
+}
+
 export function parseImageListValue(value: string | string[]): string[] {
   if (Array.isArray(value)) {
-    return value.filter(isAdminImagePath);
+    return value.filter(isAdminMediaPath);
   }
   return value
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter(isAdminImagePath);
+    .filter(isAdminMediaPath);
 }
 
 export function currentPageId(form: HTMLFormElement | null): string {
