@@ -1,26 +1,24 @@
 name: Checkly
 
-on: [deployment_status]
+on:
+  workflow_dispatch:
 
 env:
   CHECKLY_API_KEY: ${{ secrets.CHECKLY_API_KEY }}
   CHECKLY_ACCOUNT_ID: ${{ secrets.CHECKLY_ACCOUNT_ID }}
   CHECKLY_REPO_URL: https://github.com/mitsailing/mitsailing
-  CHECKLY_TEST_ENVIRONMENT: ${{ github.event.deployment_status.environment }}
-  ENVIRONMENT_URL: ${{ github.event.deployment_status.environment_url || 'https://mitsailing.com' }}
+  CHECKLY_TEST_ENVIRONMENT: production
+  ENVIRONMENT_URL: https://mitsailing.com
   HEALTHCHECK_SECRET: ${{ secrets.HEALTHCHECK_SECRET }}
 
 jobs:
-  test-e2e:
+  deploy-health-checks:
     strategy:
       matrix:
         node-version: [24.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
-    # Only run after a successful production deployment.
-    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'production'
-
-    name: Test E2E on Checkly
+    name: Deploy Checkly health checks
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -33,24 +31,24 @@ jobs:
 
       - uses: actions/checkout@v6
         with:
-          ref: '${{ github.event.deployment.sha || github.event.deployment_status.deployment.sha }}'
+          ref: '${{ github.sha }}'
           fetch-depth: 0
 
       - name: Set Checkly git metadata
         run: |
-          echo "CHECKLY_REPO_BRANCH=${{ github.event.deployment.ref || github.event.deployment_status.deployment.ref }}" >> "$GITHUB_ENV"
-          echo "CHECKLY_REPO_SHA=${{ github.event.deployment.sha || github.event.deployment_status.deployment.sha }}" >> "$GITHUB_ENV"
+          echo "CHECKLY_REPO_BRANCH=${{ github.ref_name }}" >> "$GITHUB_ENV"
+          echo "CHECKLY_REPO_SHA=${{ github.sha }}" >> "$GITHUB_ENV"
 
       - name: Set up Node.js environment
         uses: ./.github/actions/setup-project
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Run checks # run the checks passing in the ENVIRONMENT_URL and recording a test session.
+      - name: Run checks
         id: run-checks
         run: npx dotenv -c production -- npx checkly test --reporter=github --record
 
-      - name: Create summary # export the markdown report to the job summary.
+      - name: Create summary
         id: create-summary
         if: always()
         run: |
@@ -58,7 +56,7 @@ jobs:
             cat checkly-github-report.md > "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Deploy checks # if the test run was successful and we are on production, deploy the checks
+      - name: Deploy checks
         id: deploy-checks
         if: steps.run-checks.outcome == 'success'
         run: npx dotenv -c production -- npx checkly deploy --force
