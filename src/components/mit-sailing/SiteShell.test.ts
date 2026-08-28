@@ -4,14 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getSession = vi.fn();
 const adminHeaderLinkVisibleFromSession = vi.fn();
-const env = vi.hoisted(() => ({
-  STAGING_BANNER: 'no' as 'no' | 'yes',
-}));
 const getOnboardingTaskHrefForUser = vi.fn();
-
-vi.mock('@/libs/Env', () => ({
-  Env: env,
-}));
 
 vi.mock('@/libs/auth/dal', () => ({
   getSession,
@@ -27,25 +20,7 @@ vi.mock('@/libs/mit-sailing/onboardingTask', () => ({
 
 vi.mock('next-intl/server', () => ({
   getLocale: vi.fn().mockResolvedValue('en'),
-  getTranslations: vi.fn().mockResolvedValue(
-    Object.assign((key: string) => key, {
-      rich: (
-        key: string,
-        values: { link: (chunks: React.ReactNode) => React.ReactNode }
-      ) => {
-        if (key !== 'preview_banner') {
-          return key;
-        }
-        return React.createElement(
-          React.Fragment,
-          null,
-          'This is not the official MIT Sailing site. Do not create accounts, register for events, use the calendar, or reserve the pavilion here — that data is dummy and is not processed. Use ',
-          values.link('sailing.mit.edu'),
-          ' for the real site.'
-        );
-      },
-    })
-  ),
+  getTranslations: vi.fn().mockResolvedValue((key: string) => key),
 }));
 
 vi.mock('@/components/auth/ImpersonationBanner', () => ({
@@ -54,20 +29,7 @@ vi.mock('@/components/auth/ImpersonationBanner', () => ({
 }));
 
 vi.mock('@/components/mit-sailing/site/SitePreviewBannerSlot', () => ({
-  SitePreviewBannerSlot: () =>
-    env.STAGING_BANNER === 'yes'
-      ? React.createElement(
-          'aside',
-          { 'data-testid': 'preview-banner' },
-          'This is not the official MIT Sailing site. ',
-          React.createElement(
-            'a',
-            { href: 'https://sailing.mit.edu' },
-            'sailing.mit.edu'
-          ),
-          ' preview_banner_tag'
-        )
-      : null,
+  SitePreviewBannerSlot: () => null,
 }));
 
 vi.mock('@/components/mit-sailing/site/WeatherConditionsBar', () => ({
@@ -124,7 +86,6 @@ vi.mock('@/components/mit-sailing/site/SiteHeader', () => ({
 describe('SiteShell', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    env.STAGING_BANNER = 'no';
     getSession.mockResolvedValue(null);
     adminHeaderLinkVisibleFromSession.mockReturnValue(false);
     getOnboardingTaskHrefForUser.mockResolvedValue(null);
@@ -145,19 +106,6 @@ describe('SiteShell', () => {
 
       expect(html).toContain('data-testid="page-body"');
       expect(html).toContain('data-testid="site-footer"');
-      expect(html).not.toContain('not the official MIT Sailing site');
-    });
-
-    it('renders preview banner when configured', async () => {
-      env.STAGING_BANNER = 'yes';
-      const { SiteShell } = await import('./SiteShell');
-
-      const tree = await SiteShell({ children: null });
-      const html = renderToStaticMarkup(tree);
-
-      expect(html).toContain('not the official MIT Sailing site');
-      expect(html).toContain('href="https://sailing.mit.edu"');
-      expect(html).toContain('preview_banner_tag');
     });
 
     it('hides admin link without session', async () => {

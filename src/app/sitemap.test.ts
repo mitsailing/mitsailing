@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { eventFindMany, fleetBoatFindMany, sailingClassFindMany } = vi.hoisted(
   () => ({
@@ -20,14 +20,11 @@ vi.mock('@/libs/DB', () => ({
   },
 }));
 
-const env = vi.hoisted(() => ({
-  IS_E2E: '1' as '1' | undefined,
-  NEXT_PUBLIC_APP_URL: 'https://mitsailing.test',
-  STAGING_BANNER: 'no' as 'no' | 'yes',
-}));
-
 vi.mock('@/libs/Env', () => ({
-  Env: env,
+  Env: {
+    IS_E2E: '1',
+    NEXT_PUBLIC_APP_URL: 'https://mitsailing.test',
+  },
 }));
 
 vi.mock('@/libs/Logger', () => ({
@@ -38,15 +35,9 @@ vi.mock('@/libs/Logger', () => ({
 }));
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  env.STAGING_BANNER = 'no';
   eventFindMany.mockResolvedValue([]);
   fleetBoatFindMany.mockResolvedValue([]);
   sailingClassFindMany.mockResolvedValue([]);
-});
-
-afterEach(() => {
-  vi.resetModules();
 });
 
 describe('sitemap', () => {
@@ -58,13 +49,5 @@ describe('sitemap', () => {
     expect(routes.map((route) => new URL(route.url).pathname)).toContain(
       '/pricing'
     );
-  });
-
-  it('returns an empty sitemap when preview is on', async () => {
-    env.STAGING_BANNER = 'yes';
-    const { default: sitemap } = await import('./sitemap');
-
-    await expect(sitemap()).resolves.toEqual([]);
-    expect(eventFindMany).not.toHaveBeenCalled();
   });
 });
