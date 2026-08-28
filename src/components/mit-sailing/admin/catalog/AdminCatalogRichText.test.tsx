@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/nextjs';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
@@ -18,9 +17,12 @@ import { uploadCmsMediaFile } from '@/components/mit-sailing/admin/catalog/Admin
 import { AdminCmsRevisionCompareView } from '@/components/mit-sailing/admin/catalog/AdminCmsRevisionCompareView';
 import { catalogResourceDefinitions } from '@/libs/admin/catalog/catalogDefinitions';
 
-vi.mock('@sentry/nextjs', () => ({
-  captureException: vi.fn(),
-  captureMessage: vi.fn(),
+const loggerMocks = vi.hoisted(() => ({
+  error: vi.fn(),
+}));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: loggerMocks,
 }));
 
 type TusUploadMockProps = {
@@ -826,18 +828,13 @@ describe('AdminRichTextEditor media controls', () => {
         file: new File(['png'], 'race.png', { type: 'image/png' }),
       })
     ).resolves.toBeNull();
-    expect(Sentry.captureMessage).toHaveBeenCalledWith(
+    expect(loggerMocks.error).toHaveBeenCalledWith(
       'CMS media upload finalize failed',
-      expect.objectContaining({
-        contexts: {
-          cmsMediaUpload: {
-            sessionAssetId: 'asset-1',
-            uploadAssetId: 'asset-1',
-          },
-        },
-        level: 'warning',
-        tags: { cmsMediaAction: 'finalizeUpload' },
-      })
+      {
+        cmsMediaAction: 'finalizeUpload',
+        sessionAssetId: 'asset-1',
+        uploadAssetId: 'asset-1',
+      }
     );
   });
 

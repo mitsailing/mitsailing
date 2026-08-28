@@ -282,7 +282,7 @@ describe('ResetPasswordForm', () => {
       expect(sentryMock.captureMessage).toHaveBeenCalledWith(
         'Unknown auth client error',
         {
-          level: 'warning',
+          level: 'error',
           tags: {
             authAction: 'reset-password.check-code',
             authErrorCode: 'missing',

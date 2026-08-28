@@ -48,23 +48,49 @@ vi.mock('@/libs/Logger', () => ({
   },
 }));
 
-vi.mock('@/libs/mit-sailing/cmsMediaTusStatus', async () => {
-  const actual = await vi.importActual<typeof cmsMediaTusStatusModule>(
-    '@/libs/mit-sailing/cmsMediaTusStatus'
-  );
-  return {
-    getCmsMediaTusUploadStatus: async (
-      props: Parameters<GetCmsMediaTusUploadStatus>[0]
-    ) => {
-      if (mocks.useMockTusStatus) {
-        const status = await mocks.getCmsMediaTusUploadStatus(props);
-        return status;
-      }
-      const status = await actual.getCmsMediaTusUploadStatus(props);
-      return status;
-    },
-  };
-});
+vi.mock('@/libs/mit-sailing/cmsMediaTusStatus', () => ({
+  getCmsMediaTusUploadStatus: async (
+    props: Parameters<GetCmsMediaTusUploadStatus>[0]
+  ) => {
+    if (mocks.useMockTusStatus) {
+      return mocks.getCmsMediaTusUploadStatus(props);
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(
+        `${props.baseUrl.replace(/\/$/u, '')}/cms-media/uploads/${encodeURIComponent(
+          props.assetId
+        )}`,
+        {
+          method: 'HEAD',
+          signal: AbortSignal.timeout(props.timeoutMs ?? 5000),
+        }
+      );
+    } catch {
+      return { complete: false, reason: 'upload_status_unavailable' };
+    }
+    if (response.status === 404) {
+      return { complete: false, reason: 'upload_not_found' };
+    }
+    if (!response.ok) {
+      return { complete: false, reason: 'upload_status_unavailable' };
+    }
+    const offsetHeader = response.headers.get('Upload-Offset');
+    const lengthHeader = response.headers.get('Upload-Length');
+    const offset =
+      offsetHeader && /^\d+$/u.test(offsetHeader) ? Number(offsetHeader) : null;
+    const length =
+      lengthHeader && /^\d+$/u.test(lengthHeader) ? Number(lengthHeader) : null;
+    if (offset === null || length === null) {
+      return { complete: false, reason: 'missing_upload_headers' };
+    }
+    if (offset === props.byteSize && length === props.byteSize) {
+      return { complete: true };
+    }
+    return { complete: false, reason: 'upload_incomplete' };
+  },
+}));
 
 vi.mock('@/worker/cmsMediaProcessingJob', () => ({
   enqueueCmsMediaProcessingJob: mocks.enqueueCmsMediaProcessingJob,
@@ -487,7 +513,7 @@ describe('cms media upload finalize route', () => {
       error: 'upload_status_unavailable',
     });
     expect(response.status).toBe(503);
-    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+    expect(mocks.loggerError).toHaveBeenCalledWith(
       'tusd upload status unavailable before finalize',
       { assetId: 'asset-1' }
     );
@@ -507,7 +533,7 @@ describe('cms media upload finalize route', () => {
       error: 'upload_status_unavailable',
     });
     expect(response.status).toBe(503);
-    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+    expect(mocks.loggerError).toHaveBeenCalledWith(
       'Failed to read tusd upload status before finalize: {error}',
       { assetId: 'asset-1', error }
     );
