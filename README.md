@@ -9,7 +9,7 @@
 
 The public site and internal operations app for the [MIT Sailing Pavilion](https://mitsailing.com): content, programs, events, reservations, admin workflows, CMS media, email, and production monitoring.
 
-Built with Next.js 16, React 19, TypeScript, Tailwind CSS v4, next-intl, Prisma/PostgreSQL, Redis/BullMQ, Better Auth, Vitest, Playwright, Checkly, and Docker Compose.
+Built with Next.js 16, React 19, TypeScript, Tailwind CSS v4, next-intl, Prisma/PostgreSQL, Redis/BullMQ, Better Auth, Vitest, Playwright, and Docker Compose.
 
 ## Quick Start
 

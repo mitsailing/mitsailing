@@ -1,8 +1,8 @@
 import type { KnipConfig } from 'knip';
 
 const config: KnipConfig = {
-  // Checkly loads API check constructs through checkly.config.ts checkMatch.
-  entry: ['checkly.config.ts', 'checkly/**/*.check.ts'],
+  // Checkly loads browser-check config from checkly.config.ts when adopted.
+  entry: ['checkly.config.ts'],
   // Files to exclude from Knip analysis
   ignore: [
     'src/libs/I18n.ts',
