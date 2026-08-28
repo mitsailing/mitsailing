@@ -1,8 +1,27 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getCmsMediaTusUploadStatus } from '@/libs/mit-sailing/cmsMediaTusStatus';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as CmsMediaTusStatusModule from '@/libs/mit-sailing/cmsMediaTusStatus';
+
+const loggerError = vi.hoisted(() => vi.fn());
+
+vi.mock('server-only', () => ({}));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: {
+    error: loggerError,
+  },
+}));
+
+let getCmsMediaTusUploadStatus: typeof CmsMediaTusStatusModule.getCmsMediaTusUploadStatus;
+
+beforeEach(async () => {
+  vi.resetModules();
+  ({ getCmsMediaTusUploadStatus } =
+    await import('@/libs/mit-sailing/cmsMediaTusStatus'));
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  loggerError.mockClear();
 });
 
 function headResponse(headers: Record<string, string>, status = 200): Response {
@@ -111,5 +130,12 @@ describe('cms media tus status', () => {
       complete: false,
       reason: 'upload_status_unavailable',
     });
+    expect(loggerError).toHaveBeenCalledWith(
+      'Failed to read CMS media tus upload status: {error}',
+      expect.objectContaining({
+        assetId: 'asset-1',
+        error: expect.any(Error),
+      })
+    );
   });
 });

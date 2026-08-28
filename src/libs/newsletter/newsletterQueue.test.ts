@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => {
   const add = vi.fn();
   const close = vi.fn();
+  const env = {
+    REDIS_URL: 'redis://localhost:6379' as string | undefined,
+  };
   const handlers = new Map<string, (...args: readonly unknown[]) => void>();
   const loggerError = vi.fn();
   const on = vi.fn(
@@ -21,6 +24,7 @@ const mocks = vi.hoisted(() => {
   return {
     add,
     close,
+    env,
     handlers,
     loggerError,
     on,
@@ -41,9 +45,7 @@ vi.mock('ioredis', () => ({
 }));
 
 vi.mock('@/libs/Env', () => ({
-  Env: {
-    REDIS_URL: 'redis://localhost:6379',
-  },
+  Env: mocks.env,
 }));
 
 vi.mock('@/libs/Logger', () => ({
@@ -55,6 +57,7 @@ vi.mock('@/libs/Logger', () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  mocks.env.REDIS_URL = 'redis://localhost:6379';
   mocks.handlers.clear();
   mocks.add.mockResolvedValue({});
 });
@@ -90,6 +93,21 @@ describe('enqueueNewsletterBroadcast', () => {
       'Newsletter queue error: {error}',
       { error }
     );
+  });
+
+  it('returns redis unavailable when Redis is not configured', async () => {
+    mocks.env.REDIS_URL = undefined;
+    const { enqueueNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterQueue');
+
+    await expect(enqueueNewsletterBroadcast('broadcast_1')).resolves.toEqual({
+      ok: false,
+      error: 'redis_unavailable',
+    });
+    expect(mocks.loggerError).toHaveBeenCalledWith(
+      'Newsletter broadcast enqueue unavailable: Redis is not configured'
+    );
+    expect(mocks.add).not.toHaveBeenCalled();
   });
 
   it('sets retry backoff and stable job ids', async () => {

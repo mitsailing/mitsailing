@@ -59,6 +59,9 @@ export async function enqueueNewsletterBroadcast(
   params: EnqueueNewsletterBroadcastParams | string
 ): Promise<EnqueueNewsletterBroadcastResult> {
   if (!Env.REDIS_URL) {
+    logger.error(
+      'Newsletter broadcast enqueue unavailable: Redis is not configured'
+    );
     return { ok: false, error: 'redis_unavailable' };
   }
 

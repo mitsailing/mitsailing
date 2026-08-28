@@ -1,5 +1,6 @@
 'use client';
 
+import * as Sentry from '@sentry/nextjs';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -33,7 +34,15 @@ export function ImpersonateButton(props: ImpersonateButtonProps) {
       }
       router.push(props.redirectHref);
       router.refresh();
-    } catch {
+    } catch (caughtError) {
+      Sentry.captureException(caughtError, {
+        tags: { authAction: 'admin.impersonate_user' },
+        contexts: {
+          adminImpersonation: {
+            userId: props.userId,
+          },
+        },
+      });
       setError(t('impersonate_error'));
     } finally {
       setSubmitting(false);

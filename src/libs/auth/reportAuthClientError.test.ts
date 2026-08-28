@@ -21,7 +21,7 @@ describe('reportUnknownAuthClientError', () => {
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       'Unknown auth client error',
       {
-        level: 'warning',
+        level: 'error',
         tags: {
           authAction: 'sign_up',
           authErrorCode: 'PROVIDER_DOWN',
@@ -46,7 +46,7 @@ describe('reportUnknownAuthClientError', () => {
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       'Unknown auth client error',
       {
-        level: 'warning',
+        level: 'error',
         tags: {
           authAction: 'sign_up',
           authErrorCode: 'PASSWORD_CHECK_FAILED',
@@ -71,7 +71,7 @@ describe('reportUnknownAuthClientError', () => {
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       'Unknown auth client error',
       {
-        level: 'warning',
+        level: 'error',
         tags: {
           authAction: 'reset_password',
           authErrorCode: 'missing',
@@ -96,7 +96,7 @@ describe('reportUnknownAuthClientError', () => {
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       'Unknown auth client error',
       {
-        level: 'warning',
+        level: 'error',
         tags: {
           authAction: 'reset_password',
           authErrorCode: 'unknown',

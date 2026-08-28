@@ -1,6 +1,7 @@
 import 'server-only';
 import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
 import type { PaymentStatus as PaymentStatusType } from '@/generated/prisma/enums';
+import { logger } from '@/libs/Logger';
 import type { EventPaymentCheckoutSessionPayment } from '@/libs/stripe/stripeCheckoutSessions';
 import { createEmbeddedEventPaymentCheckoutSession } from '@/libs/stripe/stripeCheckoutSessions';
 import { getI18nPath } from '@/utils/Helpers';
@@ -126,6 +127,13 @@ export async function createEventPaymentCheckoutClientSecret(options: {
   }
   const checkoutPayment = eventCheckoutSessionPayment(payment);
   if (!checkoutPayment) {
+    logger.error(
+      '[event-payment-checkout] payment_id={paymentId} reason=invalid_checkout_shape status={status}',
+      {
+        paymentId: payment.id,
+        status: payment.status,
+      }
+    );
     return null;
   }
   if (
@@ -145,6 +153,13 @@ export async function createEventPaymentCheckoutClientSecret(options: {
       },
     });
     if (claimResult.count === 0) {
+      logger.error(
+        '[event-payment-checkout] payment_id={paymentId} reason=checkout_claim_lost status={status}',
+        {
+          paymentId: payment.id,
+          status: payment.status,
+        }
+      );
       return null;
     }
   }
@@ -164,6 +179,13 @@ export async function createEventPaymentCheckoutClientSecret(options: {
     },
   });
   if (updateResult.count === 0) {
+    logger.error(
+      '[event-payment-checkout] payment_id={paymentId} reason=checkout_session_persist_lost checkout_session_id={checkoutSessionId}',
+      {
+        checkoutSessionId: checkoutSession.checkoutSessionId,
+        paymentId: payment.id,
+      }
+    );
     return null;
   }
 

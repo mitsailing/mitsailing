@@ -10,6 +10,7 @@ import { SubmitButton } from '@/components/ui/submit-button';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
+import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import { resolveSignInEmailAction } from '@/libs/auth/signInEmailActions';
 import {
   isValidEmailAddress,
@@ -43,13 +44,14 @@ export function SignInForm(props: SignInFormProps) {
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
 
-  function mapError(
-    code: string | undefined,
-    _message: string | undefined,
-    signInEmail?: string
-  ): MappedErrorState {
-    if (code === 'EMAIL_NOT_VERIFIED') {
-      return { kind: 'unverified', email: signInEmail ?? email };
+  function mapError(options: {
+    action: string;
+    code: string | undefined;
+    message: string | undefined;
+    signInEmail?: string;
+  }): MappedErrorState {
+    if (options.code === 'EMAIL_NOT_VERIFIED') {
+      return { kind: 'unverified', email: options.signInEmail ?? email };
     }
     const mapping: Record<string, string> = {
       INVALID_EMAIL_OR_PASSWORD: t('error_credentials'),
@@ -57,17 +59,26 @@ export function SignInForm(props: SignInFormProps) {
       TOO_MANY_REQUESTS: t('error_rate_limited'),
       BANNED_USER: t('error_banned'),
     };
-    if (code && mapping[code]) {
-      return { kind: 'generic', message: mapping[code] };
+    const mappedMessage = options.code ? mapping[options.code] : undefined;
+    if (mappedMessage) {
+      return { kind: 'generic', message: mappedMessage };
+    }
+    if (options.message || options.code) {
+      reportUnknownAuthClientError({
+        action: options.action,
+        code: options.code,
+        message: options.message,
+      });
     }
     return { kind: 'generic', message: t('error_credentials') };
   }
 
   function mapGenericMessage(
+    action: string,
     code: string | undefined,
     message: string | undefined
   ): string {
-    const mapped = mapError(code, message);
+    const mapped = mapError({ action, code, message });
     if (mapped.kind === 'generic') {
       return mapped.message;
     }
@@ -116,7 +127,15 @@ export function SignInForm(props: SignInFormProps) {
         return;
       }
       setError({ kind: 'generic', message: t('error_reset_failed') });
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'sign_in.email_lookup.thrown',
+        code: undefined,
+        message:
+          caughtError instanceof Error && caughtError.message.trim() !== ''
+            ? caughtError.message.trim()
+            : undefined,
+      });
       setError({ kind: 'generic', message: t('error_request_failed') });
     } finally {
       setSubmitting(false);
@@ -146,12 +165,27 @@ export function SignInForm(props: SignInFormProps) {
       });
 
       if (res.error) {
-        setError(mapError(res.error.code, res.error.message, normalizedEmail));
+        setError(
+          mapError({
+            action: 'sign_in.email',
+            code: res.error.code,
+            message: res.error.message,
+            signInEmail: normalizedEmail,
+          })
+        );
         return;
       }
       router.push(continuationHref);
       router.refresh();
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'sign_in.email.thrown',
+        code: undefined,
+        message:
+          caughtError instanceof Error && caughtError.message.trim() !== ''
+            ? caughtError.message.trim()
+            : undefined,
+      });
       setError({ kind: 'generic', message: t('error_request_failed') });
     } finally {
       setSubmitting(false);
@@ -177,7 +211,11 @@ export function SignInForm(props: SignInFormProps) {
       if (res.error) {
         setError({
           kind: 'generic',
-          message: mapGenericMessage(res.error.code, res.error.message),
+          message: mapGenericMessage(
+            'sign_in.send_verification_otp',
+            res.error.code,
+            res.error.message
+          ),
         });
         return;
       }
@@ -190,7 +228,15 @@ export function SignInForm(props: SignInFormProps) {
           props.callbackUrl
         )
       );
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'sign_in.send_verification_otp.thrown',
+        code: undefined,
+        message:
+          caughtError instanceof Error && caughtError.message.trim() !== ''
+            ? caughtError.message.trim()
+            : undefined,
+      });
       setError({ kind: 'generic', message: t('error_request_failed') });
     } finally {
       setResending(false);

@@ -6,6 +6,7 @@ import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
 import type { ProfileBannerState } from '@/components/auth/profile/profileBanner';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
+import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 
 export function ProfileSecurityClient() {
   const tCommon = useTranslations('Common');
@@ -29,7 +30,15 @@ export function ProfileSecurityClient() {
         kind: 'success',
         message: t('sign_out_all_success'),
       });
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'profile.revoke-sessions.thrown',
+        code: undefined,
+        message:
+          caughtError instanceof Error && caughtError.message.trim() !== ''
+            ? caughtError.message.trim()
+            : undefined,
+      });
       setSessionBanner({
         kind: 'error',
         message: t('sign_out_all_error'),

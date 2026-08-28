@@ -1,5 +1,6 @@
 'use server';
 
+import { isAPIError } from 'better-auth/api';
 import { headers } from 'next/headers';
 import { auth } from '@/libs/auth';
 import { prisma } from '@/libs/DB';
@@ -17,6 +18,21 @@ export type SignInEmailActionResult =
     };
 
 function describeResetEmailError(error: unknown) {
+  if (isAPIError(error)) {
+    const errorCode =
+      typeof error.body === 'object' &&
+      error.body !== null &&
+      'code' in error.body &&
+      typeof error.body.code === 'string'
+        ? error.body.code
+        : undefined;
+    return {
+      errorCode,
+      errorMessage: error.message,
+      errorName: 'APIError',
+      errorStatus: error.status,
+    };
+  }
   if (error instanceof Error) {
     return { errorMessage: error.message, errorName: error.name };
   }
@@ -68,7 +84,7 @@ export async function resolveSignInEmailAction(input: {
       headers: await headers(),
     });
   } catch (error) {
-    logger.warn('Failed to send password reset email OTP for user sign-in', {
+    logger.error('Failed to send password reset email OTP for user sign-in', {
       email,
       ...describeResetEmailError(error),
     });

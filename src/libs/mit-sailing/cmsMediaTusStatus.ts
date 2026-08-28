@@ -1,3 +1,6 @@
+import 'server-only';
+import { logger } from '@/libs/Logger';
+
 const CMS_MEDIA_TUS_HEAD_TIMEOUT_MS = 5000;
 
 export type CmsMediaTusUploadStatus =
@@ -49,7 +52,11 @@ export async function getCmsMediaTusUploadStatus(props: {
         ),
       }
     );
-  } catch {
+  } catch (error) {
+    logger.error('Failed to read CMS media tus upload status: {error}', {
+      assetId: props.assetId,
+      error,
+    });
     return { complete: false, reason: 'upload_status_unavailable' };
   }
   if (response.status === 404) {

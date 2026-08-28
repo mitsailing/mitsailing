@@ -13,7 +13,7 @@ export function reportUnknownAuthClientError(options: {
   message: string | undefined;
 }) {
   Sentry.captureMessage('Unknown auth client error', {
-    level: 'warning',
+    level: 'error',
     tags: {
       authAction: options.action,
       authErrorCode: options.code ?? 'missing',

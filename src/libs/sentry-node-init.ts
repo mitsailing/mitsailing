@@ -1,6 +1,17 @@
 import * as Sentry from '@sentry/nextjs';
 
 /**
+ * Intentional full capture until production error volume is understood.
+ * `sampleRate` controls error events; `tracesSampleRate` controls performance spans.
+ *
+ * @see https://docs.sentry.io/platforms/javascript/configuration/sampling/
+ */
+export const sentryCaptureRates = {
+  sampleRate: 1,
+  tracesSampleRate: 1,
+} as const;
+
+/**
  * Shared Sentry options for the Next.js Node runtime and the BullMQ worker.
  * Keep in sync with [`src/instrumentation.ts`](../instrumentation.ts) client-adjacent settings.
  */
@@ -9,7 +20,7 @@ export const sentryNodeOptions: Sentry.NodeOptions = {
   spotlight: process.env.NODE_ENV === 'development',
   integrations: [Sentry.consoleLoggingIntegration()],
   sendDefaultPii: true,
-  tracesSampleRate: 1,
+  ...sentryCaptureRates,
   enableLogs: true,
   debug: false,
 };

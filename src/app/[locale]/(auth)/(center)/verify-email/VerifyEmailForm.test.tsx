@@ -1,6 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { MockInstance } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { componentTestRouter } from '@/test/component';
 import { VerifyEmailForm } from './VerifyEmailForm';
@@ -11,12 +10,15 @@ const authClientMock = vi.hoisted(() => ({
     verifyEmail: vi.fn(),
   },
 }));
+const reportUnknownAuthClientErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
 }));
 
-let warnSpy: MockInstance<typeof console.warn> | undefined;
+vi.mock('@/libs/auth/reportAuthClientError', () => ({
+  reportUnknownAuthClientError: reportUnknownAuthClientErrorMock,
+}));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -25,8 +27,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  warnSpy?.mockRestore();
-  warnSpy = undefined;
   vi.useRealTimers();
 });
 
@@ -149,7 +149,6 @@ describe('VerifyEmailForm', () => {
 
     it('show invalid-code message for unmapped verification errors', async () => {
       const user = userEvent.setup();
-      warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       authClientMock.emailOtp.verifyEmail.mockResolvedValue({
         error: { message: 'Code was already used.' },
@@ -165,15 +164,15 @@ describe('VerifyEmailForm', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'That code is invalid.'
       );
-      expect(warnSpy).toHaveBeenCalledWith(
-        '[VerifyEmailForm] Unmapped OTP error',
-        expect.objectContaining({ message: 'Code was already used.' })
-      );
+      expect(reportUnknownAuthClientErrorMock).toHaveBeenCalledWith({
+        action: 'verify-email.unmapped-error',
+        code: undefined,
+        message: 'Code was already used.',
+      });
     });
 
     it('show invalid-code message for empty verification errors', async () => {
       const user = userEvent.setup();
-      warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       authClientMock.emailOtp.verifyEmail.mockResolvedValue({
         error: {},
@@ -189,7 +188,7 @@ describe('VerifyEmailForm', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'That code is invalid.'
       );
-      expect(warnSpy).not.toHaveBeenCalled();
+      expect(reportUnknownAuthClientErrorMock).not.toHaveBeenCalled();
     });
 
     it('show request message when verification fails', async () => {

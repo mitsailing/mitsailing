@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   PaymentPurpose,
   PaymentSource,
@@ -9,7 +9,15 @@ import {
   SailingCardMembershipPriceKind,
   SailingCardType,
 } from '@/generated/prisma/enums';
-import { createMembershipCheckoutForOnboarding } from '@/libs/mit-sailing/membershipBilling/membershipCheckoutActions';
+import {
+  createMembershipCheckoutForOnboarding,
+  createMembershipCheckoutUrlForOnboarding,
+} from '@/libs/mit-sailing/membershipBilling/membershipCheckoutActions';
+
+const mocks = vi.hoisted(() => ({
+  getCheckoutMembershipPrices: vi.fn(),
+  loggerError: vi.fn(),
+}));
 
 vi.mock('server-only', () => ({}));
 
@@ -18,12 +26,22 @@ vi.mock('@/libs/DB', () => ({
 }));
 
 vi.mock('@/libs/mit-sailing/membershipBilling/membershipPricing', () => ({
-  getCheckoutMembershipPrices: vi.fn(),
+  getCheckoutMembershipPrices: mocks.getCheckoutMembershipPrices,
 }));
 
 vi.mock('@/libs/stripe/stripeClient', () => ({
   getStripeClient: vi.fn(),
 }));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: {
+    error: mocks.loggerError,
+  },
+}));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 type MembershipCheckoutOptions = Parameters<
   typeof createMembershipCheckoutForOnboarding
@@ -312,5 +330,32 @@ describe('membershipCheckoutActions', () => {
       },
       where: { id: 'payment_1' },
     });
+  });
+
+  it('logs missing due-today price before returning without checkout', async () => {
+    mocks.getCheckoutMembershipPrices.mockResolvedValue({
+      status: 'missing_due_today_price',
+    });
+
+    await expect(
+      createMembershipCheckoutUrlForOnboarding({
+        cancelUrl: 'https://sailing.mit.edu/onboarding?checkout=cancelled',
+        cardType: SailingCardType.racing,
+        dateOfBirth: '1998-01-01',
+        email: 'member@example.com',
+        name: 'Member Example',
+        sailingAffiliation: SailingAffiliation.OTHER_NON_STUDENT,
+        successUrl: 'https://sailing.mit.edu/onboarding/success',
+        userId: 'user_1',
+      })
+    ).resolves.toBeUndefined();
+
+    expect(mocks.loggerError).toHaveBeenCalledWith(
+      '[membership-checkout:onboarding] user_id={userId} card_type={cardType} reason=missing_due_today_price',
+      {
+        cardType: SailingCardType.racing,
+        userId: 'user_1',
+      }
+    );
   });
 });

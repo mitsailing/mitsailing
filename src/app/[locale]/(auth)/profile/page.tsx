@@ -156,7 +156,7 @@ export default async function ProfilePage(props: ProfilePageProps) {
     where: { id: user.id },
   });
   if (!dbUser) {
-    logger.warn('Missing database user after profile auth', {
+    logger.error('Missing database user after profile auth', {
       email: user.email,
       userId: user.id,
     });

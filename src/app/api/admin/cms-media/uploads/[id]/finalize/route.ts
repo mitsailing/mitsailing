@@ -33,7 +33,7 @@ async function readCmsMediaTusUploadStatus(props: {
   try {
     return await getCmsMediaTusUploadStatus(props);
   } catch (error) {
-    logger.warn('Failed to read tusd upload status before finalize: {error}', {
+    logger.error('Failed to read tusd upload status before finalize: {error}', {
       assetId: props.assetId,
       error,
     });
@@ -129,7 +129,7 @@ export async function POST(
   }
   if (!uploadStatus.complete) {
     if (uploadStatus.reason === 'upload_status_unavailable') {
-      logger.warn('tusd upload status unavailable before finalize', {
+      logger.error('tusd upload status unavailable before finalize', {
         assetId: id,
       });
       return NextResponse.json(
@@ -145,7 +145,11 @@ export async function POST(
       id,
       processingErrorCode: asset.processingErrorCode,
     });
-  } catch {
+  } catch (error) {
+    logger.error('Failed to queue CMS media asset for processing: {error}', {
+      assetId: id,
+      error,
+    });
     return NextResponse.json(
       { error: 'processing_queue_unavailable' },
       { status: 503 }

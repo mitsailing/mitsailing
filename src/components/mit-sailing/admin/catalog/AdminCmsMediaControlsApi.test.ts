@@ -7,6 +7,7 @@ import {
 import { uploadCmsMediaWithTus } from './cmsMediaTusUpload';
 
 const loggerMocks = vi.hoisted(() => ({
+  error: vi.fn(),
   warn: vi.fn(),
 }));
 
@@ -17,6 +18,7 @@ vi.mock('@sentry/nextjs', () => ({
 
 vi.mock('@/libs/Logger', () => ({
   logger: {
+    error: loggerMocks.error,
     warn: loggerMocks.warn,
   },
 }));
@@ -252,7 +254,7 @@ describe('uploadCmsMediaFile', () => {
         tags: { cmsMediaAction: 'cancelUpload' },
       })
     );
-    expect(loggerMocks.warn).toHaveBeenCalledWith(
+    expect(loggerMocks.error).toHaveBeenCalledWith(
       'Failed to cancel CMS media upload: {error}',
       { assetId: 'session-asset', error: cancelError }
     );
@@ -296,7 +298,7 @@ describe('uploadCmsMediaFile', () => {
         tags: { cmsMediaAction: 'cancelUpload' },
       })
     );
-    expect(loggerMocks.warn).toHaveBeenCalledWith(
+    expect(loggerMocks.error).toHaveBeenCalledWith(
       'Failed to cancel CMS media upload: {error}',
       { assetId: 'session-asset', error }
     );
@@ -385,11 +387,11 @@ describe('uploadCmsMediaFile', () => {
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       'CMS media upload finalize failed',
       expect.objectContaining({
-        level: 'warning',
+        level: 'error',
         tags: { cmsMediaAction: 'finalizeUpload' },
       })
     );
-    expect(loggerMocks.warn).toHaveBeenCalledWith(
+    expect(loggerMocks.error).toHaveBeenCalledWith(
       'CMS media upload finalize failed',
       {
         sessionAssetId: 'session-asset',

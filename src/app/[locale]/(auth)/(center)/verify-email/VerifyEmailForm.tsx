@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
 import { safeAuthCallbackUrl } from '@/libs/auth/callbackUrl';
+import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import {
   isValidEmailAddress,
   normalizeEmailAddress,
@@ -107,7 +108,8 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
       return t('error_rate_limited');
     }
     if (message || codeValue) {
-      console.warn('[VerifyEmailForm] Unmapped OTP error', {
+      reportUnknownAuthClientError({
+        action: 'verify-email.unmapped-error',
         code: codeValue,
         message,
       });
@@ -156,7 +158,15 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
         return;
       }
       router.push(safeAuthCallbackUrl(props.callbackUrl, '/'));
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'verify-email.submit.thrown',
+        code: undefined,
+        message:
+          caughtError instanceof Error && caughtError.message.trim() !== ''
+            ? caughtError.message.trim()
+            : undefined,
+      });
       setBanner({ kind: 'error', message: t('error_request_failed') });
     } finally {
       setSubmitting(false);
@@ -191,7 +201,15 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
         setResendLocked,
         setResendSecondsLeft,
       });
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'verify-email.resend.thrown',
+        code: undefined,
+        message:
+          caughtError instanceof Error && caughtError.message.trim() !== ''
+            ? caughtError.message.trim()
+            : undefined,
+      });
       setBanner({ kind: 'error', message: t('error_request_failed') });
     } finally {
       setResending(false);

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
+import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import {
   isValidEmailAddress,
   normalizeEmailAddress,
@@ -48,7 +49,15 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
       await authClient.emailOtp.requestPasswordReset({
         email: normalizedEmail,
       });
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'forgot-password.request-reset.thrown',
+        code: undefined,
+        message:
+          caughtError instanceof Error && caughtError.message.trim() !== ''
+            ? caughtError.message.trim()
+            : undefined,
+      });
       // Keep the same client-visible result for known and unknown addresses.
     } finally {
       router.replace(resetHref);

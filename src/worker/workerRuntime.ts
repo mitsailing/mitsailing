@@ -89,7 +89,7 @@ export async function startWorkerRuntime(
     logger.error('Newsletter worker error: {error}', { error });
   });
   newsletterWorker.on('stalled', (jobId) => {
-    logger.warn('Newsletter broadcast job stalled', { jobId });
+    logger.error('Newsletter broadcast job stalled', { jobId });
   });
 
   return {

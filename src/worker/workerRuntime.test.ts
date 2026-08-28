@@ -306,7 +306,7 @@ describe('worker runtime', () => {
       'Newsletter worker error: {error}',
       { error }
     );
-    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+    expect(mocks.loggerError).toHaveBeenCalledWith(
       'Newsletter broadcast job stalled',
       { jobId: 'job-3' }
     );

@@ -1,6 +1,7 @@
+import * as Sentry from '@sentry/nextjs';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { componentTestRouter } from '@/test/component';
 import { StopImpersonationButton } from './StopImpersonationButton';
 
@@ -14,14 +15,13 @@ vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
 }));
 
+vi.mock('@sentry/nextjs', () => ({
+  captureException: vi.fn(),
+}));
+
 beforeEach(() => {
   vi.clearAllMocks();
   authClientMock.admin.stopImpersonating.mockResolvedValue({});
-  vi.spyOn(console, 'error').mockImplementation(() => {});
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
 });
 
 describe('StopImpersonationButton', () => {
@@ -73,10 +73,9 @@ describe('StopImpersonationButton', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Could not exit impersonation.'
     );
-    expect(console.error).toHaveBeenCalledWith(
-      'StopImpersonationButton stop impersonation failed.',
-      expect.any(Error)
-    );
+    expect(Sentry.captureException).toHaveBeenCalledWith(expect.any(Error), {
+      tags: { authAction: 'admin.stop_impersonating' },
+    });
     expect(router.push).not.toHaveBeenCalled();
     expect(router.refresh).not.toHaveBeenCalled();
   });

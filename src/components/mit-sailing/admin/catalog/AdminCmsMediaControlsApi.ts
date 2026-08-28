@@ -384,7 +384,7 @@ async function cancelCmsMediaUpload(assetId: string): Promise<void> {
       );
     }
   } catch (error) {
-    logger.warn('Failed to cancel CMS media upload: {error}', {
+    logger.error('Failed to cancel CMS media upload: {error}', {
       assetId,
       error,
     });
@@ -428,12 +428,12 @@ export async function uploadCmsMediaFile(props: {
     }
     return waitForCmsMediaReady(upload.assetId);
   }
-  logger.warn('CMS media upload finalize failed', {
+  logger.error('CMS media upload finalize failed', {
     sessionAssetId: session.asset.id,
     uploadAssetId: upload.assetId,
   });
   Sentry.captureMessage('CMS media upload finalize failed', {
-    level: 'warning',
+    level: 'error',
     tags: { cmsMediaAction: 'finalizeUpload' },
     contexts: {
       cmsMediaUpload: {

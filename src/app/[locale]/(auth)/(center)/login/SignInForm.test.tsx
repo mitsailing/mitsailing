@@ -16,9 +16,14 @@ const authClientMock = vi.hoisted(() => ({
 const signInEmailActionMock = vi.hoisted(() => ({
   resolveSignInEmailAction: vi.fn(),
 }));
+const reportUnknownAuthClientErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
+}));
+
+vi.mock('@/libs/auth/reportAuthClientError', () => ({
+  reportUnknownAuthClientError: reportUnknownAuthClientErrorMock,
 }));
 
 vi.mock('@/libs/auth/signInEmailActions', () => ({
@@ -203,6 +208,11 @@ describe('SignInForm', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'We could not complete that request right now.'
     );
+    expect(reportUnknownAuthClientErrorMock).toHaveBeenCalledWith({
+      action: 'sign_in.email_lookup.thrown',
+      code: undefined,
+      message: 'network',
+    });
     expect(screen.queryByLabelText('Password')).toBeNull();
   });
 
@@ -332,6 +342,12 @@ describe('SignInForm', () => {
       alertText: 'Invalid email or password.',
       password: 'correct-password',
     });
+
+    expect(reportUnknownAuthClientErrorMock).toHaveBeenCalledWith({
+      action: 'sign_in.email',
+      code: undefined,
+      message: 'Account requires staff approval.',
+    });
   });
 
   it('Visitor sees credentials message when sign-in fails without details', async () => {
@@ -342,6 +358,8 @@ describe('SignInForm', () => {
     await expectPasswordSignInAlert({
       alertText: 'Invalid email or password.',
     });
+
+    expect(reportUnknownAuthClientErrorMock).not.toHaveBeenCalled();
   });
 
   it('Visitor sees request-failed message when sign-in throws', async () => {
@@ -359,6 +377,11 @@ describe('SignInForm', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'We could not complete that request right now.'
     );
+    expect(reportUnknownAuthClientErrorMock).toHaveBeenCalledWith({
+      action: 'sign_in.email.thrown',
+      code: undefined,
+      message: 'network',
+    });
     expect(screen.getByRole('button', { name: 'Sign in' })).not.toBeDisabled();
   });
 
@@ -422,6 +445,11 @@ describe('SignInForm', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'We could not complete that request right now.'
     );
+    expect(reportUnknownAuthClientErrorMock).toHaveBeenCalledWith({
+      action: 'sign_in.send_verification_otp.thrown',
+      code: undefined,
+      message: 'network',
+    });
   });
 
   it('Unverified sailor sees fallback message when verification resend has no details', async () => {

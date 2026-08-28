@@ -6,6 +6,7 @@
  * @see https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
  */
 import * as Sentry from '@sentry/nextjs';
+import { sentryCaptureRates } from '@/libs/sentry-node-init';
 
 if (!process.env.NEXT_PUBLIC_SENTRY_DISABLED) {
   Sentry.init({
@@ -23,7 +24,7 @@ if (!process.env.NEXT_PUBLIC_SENTRY_DISABLED) {
         : []),
     ],
     sendDefaultPii: true,
-    tracesSampleRate: 1,
+    ...sentryCaptureRates,
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1,
     enableLogs: true,
