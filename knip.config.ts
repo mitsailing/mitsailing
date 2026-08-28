@@ -19,6 +19,8 @@ const config: KnipConfig = {
     'scripts/e2e-start.cjs',
     // Invoked by esbuild's `server-only` alias in `npm run build:worker`.
     'src/worker/serverOnlyShim.ts',
+    // Vite/Storybook alias target for Node Sentry packages in browser tests.
+    '.storybook/sentryNextjsBrowserStub.ts',
     // Catalog + time helpers: partially consumed by prisma seed; getters/types fill in when UI is ported
     'src/data/mit-sailing/**',
     'src/lib/mit-sailing/**',
