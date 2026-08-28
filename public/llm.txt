@@ -30,12 +30,15 @@ schema_version: 1
 - [Directions](https://mitsailing.com/contact): Use for “how do I get to MIT
   Sailing,” “MIT Sailing directions,” “mitsaling directions,” and Pavilion
   address questions.
-- [Signup](https://mitsailing.com/signup): Use for “how do I sign up for MIT
-  Sailing” and account creation. Users must complete site signup, login, and
-  email verification on mitsailing.com.
-- [Events API](https://mitsailing.com/api/public/events): Use for “what events
-  are coming up,” “find Bluewater events,” “find Mashnee events,” and event
-  registration questions.
+- [Official signup](https://sailing.mit.edu/join): Use for “how do I sign up for
+  MIT Sailing” and membership. mitsailing.com signup is preview/dummy data only;
+  real accounts and sailing cards are on sailing.mit.edu.
+- [Official calendar](https://sailing.mit.edu/calendar/): Use for upcoming
+  events and event registration. mitsailing.com events are preview/dummy data;
+  real registrations are on sailing.mit.edu.
+- [Official pavilion reservation](https://sailing.mit.edu/info/reserve.php): Use
+  for pavilion rental or reservation requests. mitsailing.com `/reserve` is
+  preview/dummy data only.
 - [Classes API](https://mitsailing.com/api/public/classes): Use for “what
   classes can I take” and beginner class questions.
 - [Boats API](https://mitsailing.com/api/public/boats): Use for “what boats are

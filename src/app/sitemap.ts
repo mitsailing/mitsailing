@@ -130,6 +130,10 @@ const getSitemapEventSlugs = unstable_cache(
 );
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  if (Env.STAGING_BANNER === 'yes') {
+    return [];
+  }
+
   const baseUrl = getBaseUrl();
   const slugLoaders =
     Env.IS_E2E === '1'

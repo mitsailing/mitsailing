@@ -33,15 +33,15 @@ vi.mock('next-intl/server', () => ({
         key: string,
         values: { link: (chunks: React.ReactNode) => React.ReactNode }
       ) => {
-        if (key !== 'staging_banner') {
+        if (key !== 'preview_banner') {
           return key;
         }
         return React.createElement(
           React.Fragment,
           null,
-          'Staging website. Visit the live MIT Sailing site at ',
-          values.link('https://sailing.mit.edu'),
-          '.'
+          'This is not the official MIT Sailing site. Do not create accounts, register for events, use the calendar, or reserve the pavilion here — that data is dummy and is not processed. Use ',
+          values.link('sailing.mit.edu'),
+          ' for the real site.'
         );
       },
     })
@@ -128,19 +128,19 @@ describe('SiteShell', () => {
 
       expect(html).toContain('data-testid="page-body"');
       expect(html).toContain('data-testid="site-footer"');
-      expect(html).not.toContain('Staging website');
+      expect(html).not.toContain('not the official MIT Sailing site');
     });
 
-    it('renders staging banner when configured', async () => {
+    it('renders preview banner when configured', async () => {
       env.STAGING_BANNER = 'yes';
       const { SiteShell } = await import('./SiteShell');
 
       const tree = await SiteShell({ children: null });
       const html = renderToStaticMarkup(tree);
 
-      expect(html).toContain('Staging website');
+      expect(html).toContain('not the official MIT Sailing site');
       expect(html).toContain('href="https://sailing.mit.edu"');
-      expect(html).toContain('https://sailing.mit.edu');
+      expect(html).toContain('preview_banner_tag');
     });
 
     it('hides admin link without session', async () => {

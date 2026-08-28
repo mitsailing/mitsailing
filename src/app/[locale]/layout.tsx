@@ -26,6 +26,9 @@ export const metadata: Metadata = {
     siteName: AppConfig.name,
     url: SITE_URL,
   },
+  ...(Env.STAGING_BANNER === 'yes'
+    ? { robots: { index: false, follow: false } }
+    : {}),
 };
 
 export const viewport: Viewport = {
