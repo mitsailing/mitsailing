@@ -1173,7 +1173,7 @@ export const EVENT_REGISTRATION_QUESTIONS: EventRegistrationQuestion[] = [
   {
     id: 'q-overnight-rating',
     event_id: 'evt-overnight-series',
-    question_text: 'Current sailing rating',
+    question_text: 'Current sail rating',
     answer_type: 'select',
     options: ['Provisional', 'Green', 'Orange', 'Red (skipper)'],
     required: true,

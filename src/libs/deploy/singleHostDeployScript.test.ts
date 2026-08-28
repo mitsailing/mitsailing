@@ -129,13 +129,16 @@ describe('single host deploy script', () => {
       'compose up --detach --no-recreate postgres redis mailpit tusd media'
     );
     expect(script).not.toContain(
+      'compose up --detach --no-recreate postgres redis mailpit pghero_query_stats pghero_space_stats tusd media'
+    );
+    expect(script).not.toContain(
       'compose up --detach --no-recreate postgres redis mailpit pghero tusd media'
     );
     expect(script).toMatch(
-      /ensure_ingress_services\(\) \{[\s\S]*compose up --detach --no-deps --force-recreate pghero[\s\S]*wait_for_service_health pghero "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"/u
+      /ensure_ingress_services\(\) \{[\s\S]*compose up --detach --no-deps --force-recreate pghero_query_stats pghero_space_stats[\s\S]*wait_for_service_health pghero_query_stats "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health pghero_space_stats "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*compose up --detach --no-deps --force-recreate pghero[\s\S]*wait_for_service_health pghero "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"/u
     );
     expect(script).toMatch(
-      /ensure_ingress_services\(\) \{[\s\S]*wait_for_service_health mailpit "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health pghero "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health tusd "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*verify_production_bind_mounts/u
+      /ensure_ingress_services\(\) \{[\s\S]*wait_for_service_health mailpit "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health pghero_query_stats "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health pghero_space_stats "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health pghero "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health tusd "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*verify_production_bind_mounts/u
     );
     expect(script).toContain('compose up --detach --no-deps cloudflared');
     expect(script).toMatch(
@@ -158,7 +161,13 @@ describe('single host deploy script', () => {
     expect(script).toContain(`location = ${mailpitRoute}`);
     expect(script).toContain(`return 308 ${mailpitRoute}/;`);
     expect(script).toContain(`location ${mailpitRoute}/`);
-    expect(script).toContain('proxy_pass http://mailpit:8025;');
+    expect(script).toContain('port_in_redirect off;');
+    expect(script).toContain('resolver 127.0.0.11 valid=1s ipv6=off;');
+    expect(script).toContain(String.raw`set \$mailpit_upstream mailpit:8025;`);
+    expect(script).toContain(String.raw`proxy_pass http://\$mailpit_upstream;`);
+    expect(script).toContain('proxy_connect_timeout 2s;');
+    expect(script).toContain('proxy_next_upstream error timeout;');
+    expect(script).toContain('proxy_next_upstream_tries 2;');
     expect(script).toContain(`proxy_send_timeout ${deployDrainSeconds};`);
     expect(script).toContain(`proxy_read_timeout ${deployDrainSeconds};`);
     for (const header of mailpitProxyHeaders) {

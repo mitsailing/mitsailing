@@ -328,7 +328,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     displayOrder: 3,
     requiredClassId: 'class-windsurfing-fundamentals',
     description:
-      'Windsurfing boards and rigs for sailors with the appropriate board sailing rating.',
+      'Windsurfing boards and rigs for sailors with the appropriate board sail rating.',
     image: '/images/boats/windsurfing.jpg',
   },
   {

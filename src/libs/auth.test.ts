@@ -387,7 +387,9 @@ describe('auth', () => {
     }
 
     expect(adminRole.authorize({ user: ['list'] }).success).toBe(true);
+    expect(adminRole.authorize({ user: ['set-email'] }).success).toBe(true);
     expect(staffRole.authorize({ user: ['list'] }).success).toBe(false);
+    expect(staffRole.authorize({ user: ['set-email'] }).success).toBe(false);
   });
 
   it('fails closed for Better Auth admin authorization when role mirror drifts', async () => {

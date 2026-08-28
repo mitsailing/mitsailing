@@ -88,7 +88,7 @@ describe('RatingsListView', () => {
     render(await RatingsListView({ locale: 'en', ratings: [techRating] }));
 
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Sailing ratings' })
+      screen.getByRole('heading', { level: 1, name: 'Sail ratings' })
     ).toBeVisible();
     const table = screen.getByRole('table');
     expect(

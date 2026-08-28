@@ -115,8 +115,9 @@ export default defineConfig<ChromaticConfig>({
     // Auth. `e2e:preflight` runs `e2e:killport` before we get here so the
     // port is free.
     reuseExistingServer: false,
-    stdout: 'ignore',
-    stderr: 'ignore',
+    // CI needs webServer crash logs; local stays quiet unless debugging.
+    stdout: isCi ? 'pipe' : 'ignore',
+    stderr: isCi ? 'pipe' : 'ignore',
     gracefulShutdown: { signal: 'SIGTERM', timeout: 5000 },
     env: {
       ...process.env,

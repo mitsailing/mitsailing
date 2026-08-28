@@ -131,27 +131,59 @@ and is not proxied through app nginx. PgHero owns HTTP basic auth through
 and use those credentials.
 
 PgHero uses a dedicated `PGHERO_DATABASE_URL`; do not point it at the app
-superuser URL. Follow PgHero's permissions guide for the exact monitoring role
-setup, then set `PGHERO_DATABASE_URL`, `PGHERO_USERNAME`, and
-`PGHERO_PASSWORD` in `.env.production`. Query stats use PgHero's documented
+superuser URL. The `enable_pghero_historical_stats` migration creates PgHero 4
+historical tables, the `pghero` schema helpers from PgHero's permissions guide,
+and a login `pghero` role with no password in source. After the first migrate,
+set the role password to match `PGHERO_DATABASE_URL` if the role did not already
+exist:
+
+```bash
+docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production \
+  exec postgres \
+  psql -U postgres -d "$POSTGRES_DB" \
+  -c "ALTER ROLE pghero WITH PASSWORD 'the-pghero-database-password';"
+```
+
+Set `PGHERO_DATABASE_URL`, `PGHERO_USERNAME`, and `PGHERO_PASSWORD` in
+`.env.production`. Live query stats use PgHero's documented
 `pg_stat_statements` settings in Compose plus the
-`CREATE EXTENSION IF NOT EXISTS pg_stat_statements` migration. The built-in
+`CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public`
+migration. Historical query stats are captured every five minutes by
+`pghero_query_stats` with `bin/rake pghero:capture_query_stats`. Historical
+space stats are captured daily by `pghero_space_stats` with
+`bin/rake pghero:capture_space_stats`, then old rows are pruned (`KEEP_DAYS=14`
+for queries, `KEEP_DAYS=90` for space). Using package PgHero because it provides
+the historical capture and cleanup rake tasks, and using the existing
+single-host Compose service pattern because these jobs must run beside the
+production PgHero container. Those capture jobs share the PgHero image and
+`PGHERO_DATABASE_URL`; they are not published and are force-recreated on deploy
+so credential and image changes apply. The dashboard container is still
+force-recreated so compose/env changes apply. The built-in
 PgHero Tune page links to `https://pgtune.leopard.in.ua/`; use that with the
 actual host RAM/CPU and PostgreSQL version before changing Postgres tuning in a
 reviewed Compose PR. Do not hand-edit production-only Postgres settings.
 
-Protect `/mail/*` in Cloudflare in addition to Mailpit basic auth:
+Protect `/mail/` with Mailpit HTTP basic auth (`MAILPIT_UI_AUTH`) only. There
+is no Cloudflare Access application on `/mail/`. Mailpit does not log failed
+HTTP basic-auth attempts in its UI (the changelog “failed login tracking” is
+POP3 only; production does not expose POP3).
 
-- Create a Cloudflare Access application for `mitsailing.com/mail/*`.
-- Allow only the operator identity that should inspect captured mail, currently
-  `ak@callred.com`.
-- Add a Cloudflare WAF rate-limit rule for URI path starting with `/mail/`.
+This zone’s Cloudflare plan allows one rate-limit rule, a 10-second counting
+window, and a 10-second block. That cannot lock out after a few failed
+passwords. The zone rule only covers `pghero.mitsailing.com` (20 requests /
+10 seconds / IP, 10-second block).
 
-Protect `pghero.mitsailing.com` the same way (already configured):
+To inspect `/mail/` 401s, use app nginx access logs:
+`docker logs mitsailing-app-1`.
 
-- Cloudflare Access application `PgHero` for `pghero.mitsailing.com`.
-- Allow only `ak@callred.com`.
-- Zone rate-limit ruleset blocks abusive traffic to that hostname.
+Do not expose Mailpit SMTP or POP3 on a public hostname. Recreating the Mailpit
+container is safe for `/mail/` because app nginx re-resolves `mailpit` through
+Docker DNS with a 1-second resolver cache and retries a failed connect. After
+replacing Mailpit, request `/mail/` immediately; it should still return 401 or
+403, not 502.
+
+Protect `pghero.mitsailing.com` with PgHero basic auth plus that PgHero-only
+rate-limit rule. There is no Cloudflare Access application on PgHero.
 
 ## GitHub Environment
 

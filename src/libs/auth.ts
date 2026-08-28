@@ -55,6 +55,7 @@ const authAdminStatements = {
     'impersonate',
     'delete',
     'set-password',
+    'set-email',
     'get',
     'update',
   ],

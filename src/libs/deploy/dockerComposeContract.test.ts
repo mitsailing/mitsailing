@@ -87,6 +87,18 @@ function expectContainsFragments(source: string, fragments: string[]): void {
   }
 }
 
+function expectCpuAndMemoryLimits(serviceBlock: string): void {
+  expect(serviceBlock).toContain('deploy:');
+  expect(serviceBlock).toContain('resources:');
+  expect(serviceBlock).toContain('limits:');
+  expect(serviceBlock).toContain('cpus:');
+  expect(serviceBlock).toContain('memory:');
+  expect(serviceBlock).toContain('reservations:');
+}
+
+const pgheroHistoricalStatsMigrationPath =
+  'prisma/migrations/20260828000000_enable_pghero_historical_stats/migration.sql';
+
 describe('production docker compose', () => {
   const productionCompose = readRepoFile('compose.prod.yaml');
   const productionDockerfile = readRepoFile('Dockerfile');
@@ -115,11 +127,13 @@ describe('production docker compose', () => {
     expect(productionCompose).toContain('worker:');
     expect(productionCompose).toContain("command: ['node', 'worker.mjs']");
     expect(productionCompose).toContain('mailpit:');
-    expect(productionCompose).toContain('image: axllent/mailpit:v1.30.1');
+    expect(productionCompose).toContain('image: axllent/mailpit:v1.31.0');
     expect(productionCompose).toContain('pghero:');
-    expect(productionCompose).toContain('image: ankane/pghero:v3.8.0');
+    expect(productionCompose).toContain('image: ankane/pghero:v4.0.1');
+    expect(productionCompose).toContain('pghero_query_stats:');
+    expect(productionCompose).toContain('pghero_space_stats:');
     expect(productionCompose).toContain('tusd:');
-    expect(productionCompose).toContain('image: tusproject/tusd:v2.9.2');
+    expect(productionCompose).toContain('image: tusproject/tusd:v2.10.0');
     expect(productionCompose).toContain("user: '1001:1001'");
     expect(productionCompose).toContain('media:');
     expect(productionCompose).toContain('cloudflared:');
@@ -199,6 +213,14 @@ describe('production docker compose', () => {
     const workerBlock = readYamlServiceBlock(productionCompose, 'worker');
     const mailpitBlock = readYamlServiceBlock(productionCompose, 'mailpit');
     const pgheroBlock = readYamlServiceBlock(productionCompose, 'pghero');
+    const pgheroQueryStatsBlock = readYamlServiceBlock(
+      productionCompose,
+      'pghero_query_stats'
+    );
+    const pgheroSpaceStatsBlock = readYamlServiceBlock(
+      productionCompose,
+      'pghero_space_stats'
+    );
     const tusdBlock = readYamlServiceBlock(productionCompose, 'tusd');
     const mediaBlock = readYamlServiceBlock(productionCompose, 'media');
     const cloudflaredBlock = readYamlServiceBlock(
@@ -208,6 +230,8 @@ describe('production docker compose', () => {
 
     expect(webBlueBlock).toContain('<<: *web');
     expect(webGreenBlock).toContain('<<: *web');
+    expect(pgheroQueryStatsBlock).toContain('<<: *pghero-capture');
+    expect(pgheroSpaceStatsBlock).toContain('<<: *pghero-capture');
 
     for (const serviceBlock of [
       webDefaultsBlock,
@@ -263,7 +287,7 @@ describe('production docker compose', () => {
       'cloudflared'
     );
     expect(productionCompose).toContain(
-      'image: cloudflare/cloudflared:2026.5.2'
+      'image: cloudflare/cloudflared:2026.8.2'
     );
     expect(productionCompose).not.toContain('cloudflare/cloudflared:latest');
     expect(productionCompose).toContain('CLOUDFLARE_TUNNEL_TOKEN');
@@ -314,7 +338,7 @@ describe('production docker compose', () => {
     const mailpitBlock = readYamlServiceBlock(productionCompose, 'mailpit');
 
     expectContainsFragments(mailpitBlock, [
-      'image: axllent/mailpit:v1.30.1',
+      'image: axllent/mailpit:v1.31.0',
       `MP_MAX_MESSAGES: ${composeVariable('MAILPIT_MAX_MESSAGES:-10000')}`,
       `MP_MAX_AGE: ${composeVariable('MAILPIT_MAX_AGE:-30d')}`,
       'MP_DATABASE: /data/mailpit.db',
@@ -348,7 +372,7 @@ describe('production docker compose', () => {
     const pgheroBlock = readYamlServiceBlock(productionCompose, 'pghero');
 
     expectContainsFragments(pgheroBlock, [
-      'image: ankane/pghero:v3.8.0',
+      'image: ankane/pghero:v4.0.1',
       `DATABASE_URL: ${composeVariable('PGHERO_DATABASE_URL:?set PGHERO_DATABASE_URL')}`,
       `PGHERO_USERNAME: ${composeVariable('PGHERO_USERNAME:?set PGHERO_USERNAME')}`,
       `PGHERO_PASSWORD: ${composeVariable('PGHERO_PASSWORD:?set PGHERO_PASSWORD')}`,
@@ -366,6 +390,124 @@ describe('production docker compose', () => {
     expect(deployRunbook).toContain('PGHERO_USERNAME');
     expect(deployRunbook).toContain('PGHERO_PASSWORD');
     expect(deployRunbook).toContain('https://pgtune.leopard.in.ua/');
+    expect(deployRunbook).toContain('bin/rake pghero:capture_query_stats');
+    expect(deployRunbook).toContain('bin/rake pghero:capture_space_stats');
+    expect(deployRunbook).not.toContain(
+      'PgHero 4.0 only needs extra SQL if historical query stats capture was already enabled'
+    );
+  });
+
+  it('captures historical PgHero query and space stats', () => {
+    const pgheroCaptureDefaultsBlock = productionCompose.slice(
+      productionCompose.indexOf('x-pghero-capture: &pghero-capture'),
+      productionCompose.indexOf('services:')
+    );
+    const pgheroQueryStatsBlock = readYamlServiceBlock(
+      productionCompose,
+      'pghero_query_stats'
+    );
+    const pgheroSpaceStatsBlock = readYamlServiceBlock(
+      productionCompose,
+      'pghero_space_stats'
+    );
+    const pgheroHistoricalStatsMigration = readRepoFile(
+      pgheroHistoricalStatsMigrationPath
+    );
+
+    expectContainsFragments(pgheroCaptureDefaultsBlock, [
+      'image: ankane/pghero:v4.0.1',
+      `DATABASE_URL: ${composeVariable('PGHERO_DATABASE_URL:?set PGHERO_DATABASE_URL')}`,
+      'no-new-privileges:true',
+      "cpus: '0.25'",
+      'memory: 512M',
+      "cpus: '0.05'",
+      'memory: 128M',
+      'kill -0 1',
+    ]);
+    expect(pgheroCaptureDefaultsBlock).not.toContain('ports:');
+    expect(pgheroCaptureDefaultsBlock).not.toContain('PGHERO_USERNAME');
+    expectContainsFragments(pgheroQueryStatsBlock, [
+      '<<: *pghero-capture',
+      'set -eu',
+      'bin/rake pghero:capture_query_stats',
+      'sleep 300',
+    ]);
+    expectContainsFragments(pgheroSpaceStatsBlock, [
+      '<<: *pghero-capture',
+      'set -eu',
+      'bin/rake pghero:capture_space_stats',
+      'bin/rake pghero:clean_query_stats KEEP_DAYS=14',
+      'bin/rake pghero:clean_space_stats KEEP_DAYS=90',
+      'sleep 86400',
+    ]);
+    expectContainsFragments(pgheroHistoricalStatsMigration, [
+      'CREATE TABLE pghero_queries',
+      'CREATE TABLE pghero_query_stats',
+      'query_id bigint',
+      'CREATE TABLE pghero_space_stats',
+      'CREATE SCHEMA IF NOT EXISTS pghero',
+      'CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public',
+      'ALTER EXTENSION pg_stat_statements SET SCHEMA public',
+      'CREATE ROLE pghero',
+      'REVOKE ALL ON ALL FUNCTIONS IN SCHEMA pghero FROM PUBLIC',
+      'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pghero TO pghero',
+      'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE pghero_queries',
+    ]);
+    expect(
+      pgheroHistoricalStatsMigration.indexOf(
+        'REVOKE ALL ON ALL FUNCTIONS IN SCHEMA pghero FROM PUBLIC'
+      )
+    ).toBeLessThan(
+      pgheroHistoricalStatsMigration.indexOf(
+        'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pghero TO pghero'
+      )
+    );
+    expect(pgheroHistoricalStatsMigration).not.toContain("PASSWORD 'secret'");
+    expect(pgheroHistoricalStatsMigration).not.toContain(
+      'ALTER TABLE pghero_query_stats ADD COLUMN query_id'
+    );
+    expect(productionReadinessChecklist).toContain(
+      'Historical query and space stats are captured on a schedule.'
+    );
+  });
+
+  it('sets cpu and memory limits on every compose image', () => {
+    const baseCompose = readRepoFile('compose.yaml');
+    const localCompose = readRepoFile('compose.override.yaml');
+    const pgheroCaptureDefaultsBlock = productionCompose.slice(
+      productionCompose.indexOf('x-pghero-capture: &pghero-capture'),
+      productionCompose.indexOf('services:')
+    );
+
+    for (const service of ['postgres', 'redis']) {
+      expectCpuAndMemoryLimits(readYamlServiceBlock(baseCompose, service));
+    }
+
+    expectCpuAndMemoryLimits(
+      productionCompose.slice(
+        productionCompose.indexOf('x-web: &web'),
+        productionCompose.indexOf('x-pghero-capture: &pghero-capture')
+      )
+    );
+    expectCpuAndMemoryLimits(pgheroCaptureDefaultsBlock);
+
+    for (const service of [
+      'app',
+      'worker',
+      'mailpit',
+      'pghero',
+      'tusd',
+      'media',
+      'cloudflared',
+    ]) {
+      expectCpuAndMemoryLimits(
+        readYamlServiceBlock(productionCompose, service)
+      );
+    }
+
+    for (const service of ['mailpit', 'tusd', 'media']) {
+      expectCpuAndMemoryLimits(readYamlServiceBlock(localCompose, service));
+    }
   });
 
   it('documents protected Mailpit UI verification', () => {
@@ -379,6 +521,10 @@ describe('production docker compose', () => {
     expect(deployRunbook).not.toContain(
       'curl -fsSI https://mitsailing.com/mail/'
     );
+    expect(deployRunbook).toContain(
+      'request `/mail/` immediately; it should still return 401 or'
+    );
+    expect(deployRunbook).toContain('not 502');
   });
 
   it('documents protected PgHero subdomain verification', () => {
@@ -642,7 +788,7 @@ describe('local Mailpit capture', () => {
 
   it('runs Mailpit as loopback-only bounded SMTP capture', () => {
     expect(localCompose).toContain('mailpit:');
-    expect(localCompose).toContain('image: axllent/mailpit:v1.30.1');
+    expect(localCompose).toContain('image: axllent/mailpit:v1.31.0');
     expect(localCompose).toContain(
       `'127.0.0.1:${composeVariable('MAILPIT_SMTP_PUBLISH_PORT:-1025')}:1025'`
     );
@@ -678,6 +824,28 @@ describe('local Mailpit capture', () => {
     );
     expect(playwrightConfig).toContain('process.env[key] ??= value');
     expect(playwrightConfig).toContain('...process.env,');
+  });
+
+  it('keeps the Playwright webServer alive if the worker exits early', () => {
+    const e2eStart = readRepoFile('scripts/e2e-start.cjs');
+
+    expect(e2eStart).toContain(`startNodeProcess(
+  'standalone server',
+  ['.next/standalone/server.js'],
+  { fatal: true }
+)`);
+    expect(e2eStart).toContain(`startNodeProcess('worker', ['worker.mjs'], {
+  fatal: false,
+}`);
+    expect(playwrightConfig).toContain("stdout: isCi ? 'pipe' : 'ignore'");
+    expect(playwrightConfig).toContain("stderr: isCi ? 'pipe' : 'ignore'");
+  });
+
+  it('does not search PATH for the e2e Node binary', () => {
+    const e2eStart = readRepoFile('scripts/e2e-start.cjs');
+
+    expect(e2eStart).not.toContain("spawn('node'");
+    expect(e2eStart).toContain('spawn(process.execPath');
   });
 
   it('uses the Mailpit API for isolated email assertions', () => {
@@ -758,7 +926,17 @@ describe('production deploy script', () => {
     expect(deployScript).toContain(`location = ${mailpitRouteVariable}`);
     expect(deployScript).toContain(`return 308 ${mailpitRouteVariable}/;`);
     expect(deployScript).toContain(`location ${mailpitRouteVariable}/`);
-    expect(deployScript).toContain('proxy_pass http://mailpit:8025;');
+    expect(deployScript).toContain('port_in_redirect off;');
+    expect(deployScript).toContain('resolver 127.0.0.11 valid=1s ipv6=off;');
+    expect(deployScript).toContain(
+      String.raw`set \$mailpit_upstream mailpit:8025;`
+    );
+    expect(deployScript).toContain(
+      String.raw`proxy_pass http://\$mailpit_upstream;`
+    );
+    expect(deployScript).toContain('proxy_connect_timeout 2s;');
+    expect(deployScript).toContain('proxy_next_upstream error timeout;');
+    expect(deployScript).toContain('proxy_next_upstream_tries 2;');
   });
 
   it('verifies production data mounts before running migrations', () => {
@@ -786,7 +964,7 @@ describe('local docker compose', () => {
 
   it('starts local upload and media services on loopback ports', () => {
     expect(localCompose).toContain('tusd:');
-    expect(localCompose).toContain('image: tusproject/tusd:v2.9.2');
+    expect(localCompose).toContain('image: tusproject/tusd:v2.10.0');
     expect(localCompose).toContain(
       `user: '${composeVariable('LOCAL_DOCKER_UID:-1000')}:${composeVariable('LOCAL_DOCKER_GID:-1000')}'`
     );

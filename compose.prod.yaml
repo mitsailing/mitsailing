@@ -56,6 +56,38 @@ x-web: &web
       max-size: '10m'
       max-file: '5'
 
+x-pghero-capture: &pghero-capture
+  image: ankane/pghero:v4.0.1
+  restart: unless-stopped
+  networks:
+    - internal
+  security_opt:
+    - no-new-privileges:true
+  environment:
+    DATABASE_URL: ${PGHERO_DATABASE_URL:?set PGHERO_DATABASE_URL}
+  depends_on:
+    postgres:
+      condition: service_healthy
+  healthcheck:
+    test: ['CMD-SHELL', 'kill -0 1']
+    interval: 30s
+    timeout: 5s
+    start_period: 60s
+    retries: 3
+  deploy:
+    resources:
+      limits:
+        cpus: '0.25'
+        memory: 512M
+      reservations:
+        cpus: '0.05'
+        memory: 128M
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '5'
+
 services:
   postgres:
     environment:
@@ -179,7 +211,7 @@ services:
         max-file: '5'
 
   mailpit:
-    image: axllent/mailpit:v1.30.1
+    image: axllent/mailpit:v1.31.0
     restart: unless-stopped
     networks:
       - internal
@@ -225,7 +257,7 @@ services:
         max-file: '5'
 
   pghero:
-    image: ankane/pghero:v3.8.0
+    image: ankane/pghero:v4.0.1
     restart: unless-stopped
     networks:
       - internal
@@ -262,8 +294,22 @@ services:
         max-size: '10m'
         max-file: '5'
 
+  pghero_query_stats:
+    <<: *pghero-capture
+    command:
+      - sh
+      - -c
+      - 'set -eu; while true; do bin/rake pghero:capture_query_stats || exit 1; sleep 300; done'
+
+  pghero_space_stats:
+    <<: *pghero-capture
+    command:
+      - sh
+      - -c
+      - 'set -eu; while true; do bin/rake pghero:capture_space_stats || exit 1; bin/rake pghero:clean_query_stats KEEP_DAYS=14 || exit 1; bin/rake pghero:clean_space_stats KEEP_DAYS=90 || exit 1; sleep 86400; done'
+
   tusd:
-    image: tusproject/tusd:v2.9.2
+    image: tusproject/tusd:v2.10.0
     user: '1001:1001'
     restart: unless-stopped
     networks:
@@ -306,6 +352,14 @@ services:
       timeout: 5s
       start_period: 30s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
     logging:
       driver: json-file
       options:
@@ -339,6 +393,14 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
     logging:
       driver: json-file
       options:
@@ -346,7 +408,7 @@ services:
         max-file: '5'
 
   cloudflared:
-    image: cloudflare/cloudflared:2026.5.2
+    image: cloudflare/cloudflared:2026.8.2
     restart: unless-stopped
     networks:
       - internal

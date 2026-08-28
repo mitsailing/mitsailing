@@ -26,7 +26,8 @@ export function mapAuthAdminErrorToCode(error: unknown): string {
     case 'YOU_ARE_NOT_ALLOWED_TO_DELETE_USERS':
     case 'YOU_ARE_NOT_ALLOWED_TO_UPDATE_USERS':
     case 'YOU_ARE_NOT_ALLOWED_TO_CREATE_USERS':
-    case 'YOU_ARE_NOT_ALLOWED_TO_SET_USERS_PASSWORD': {
+    case 'YOU_ARE_NOT_ALLOWED_TO_SET_USERS_PASSWORD':
+    case 'YOU_ARE_NOT_ALLOWED_TO_SET_USERS_EMAIL': {
       return 'not_allowed';
     }
     case 'NO_DATA_TO_UPDATE': {
