@@ -28,6 +28,43 @@ type ErrorState =
 type MappedErrorState = Exclude<ErrorState, null>;
 type SignInStep = 'email' | 'password';
 
+type SignInKnownErrorMessages = {
+  ACCOUNT_LOCKED: string;
+  BANNED_USER: string;
+  INVALID_EMAIL_OR_PASSWORD: string;
+  TOO_MANY_REQUESTS: string;
+};
+
+function mappedSignInErrorMessage(
+  code: string | undefined,
+  messages: SignInKnownErrorMessages
+): string | undefined {
+  if (code === 'INVALID_EMAIL_OR_PASSWORD') {
+    return messages.INVALID_EMAIL_OR_PASSWORD;
+  }
+  if (code === 'ACCOUNT_LOCKED') {
+    return messages.ACCOUNT_LOCKED;
+  }
+  if (code === 'TOO_MANY_REQUESTS') {
+    return messages.TOO_MANY_REQUESTS;
+  }
+  if (code === 'BANNED_USER') {
+    return messages.BANNED_USER;
+  }
+  return undefined;
+}
+
+function reportUnmappedSignInAuthError(options: {
+  action: string;
+  code: string | undefined;
+  message: string | undefined;
+}) {
+  if (!options.message && !options.code) {
+    return;
+  }
+  reportUnknownAuthClientError(options);
+}
+
 // Email-first sign-in form. The email gate determines whether to show the
 // password field, send a create-password reset code, or hand unknown emails to
 // sign-up. Known Better Auth error codes still map to translated page copy so
@@ -53,23 +90,20 @@ export function SignInForm(props: SignInFormProps) {
     if (options.code === 'EMAIL_NOT_VERIFIED') {
       return { kind: 'unverified', email: options.signInEmail ?? email };
     }
-    const mapping: Record<string, string> = {
+    const mappedMessage = mappedSignInErrorMessage(options.code, {
       INVALID_EMAIL_OR_PASSWORD: t('error_credentials'),
       ACCOUNT_LOCKED: t('error_locked'),
       TOO_MANY_REQUESTS: t('error_rate_limited'),
       BANNED_USER: t('error_banned'),
-    };
-    const mappedMessage = options.code ? mapping[options.code] : undefined;
+    });
     if (mappedMessage) {
       return { kind: 'generic', message: mappedMessage };
     }
-    if (options.message || options.code) {
-      reportUnknownAuthClientError({
-        action: options.action,
-        code: options.code,
-        message: options.message,
-      });
-    }
+    reportUnmappedSignInAuthError({
+      action: options.action,
+      code: options.code,
+      message: options.message,
+    });
     return { kind: 'generic', message: t('error_credentials') };
   }
 
