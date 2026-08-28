@@ -115,7 +115,7 @@ describe('production docker compose', () => {
     expect(productionCompose).toContain('worker:');
     expect(productionCompose).toContain("command: ['node', 'worker.mjs']");
     expect(productionCompose).toContain('mailpit:');
-    expect(productionCompose).toContain('image: axllent/mailpit:v1.30.1');
+    expect(productionCompose).toContain('image: axllent/mailpit:v1.31.0');
     expect(productionCompose).toContain('pghero:');
     expect(productionCompose).toContain('image: ankane/pghero:v3.8.0');
     expect(productionCompose).toContain('tusd:');
@@ -314,7 +314,7 @@ describe('production docker compose', () => {
     const mailpitBlock = readYamlServiceBlock(productionCompose, 'mailpit');
 
     expectContainsFragments(mailpitBlock, [
-      'image: axllent/mailpit:v1.30.1',
+      'image: axllent/mailpit:v1.31.0',
       `MP_MAX_MESSAGES: ${composeVariable('MAILPIT_MAX_MESSAGES:-10000')}`,
       `MP_MAX_AGE: ${composeVariable('MAILPIT_MAX_AGE:-30d')}`,
       'MP_DATABASE: /data/mailpit.db',
@@ -642,7 +642,7 @@ describe('local Mailpit capture', () => {
 
   it('runs Mailpit as loopback-only bounded SMTP capture', () => {
     expect(localCompose).toContain('mailpit:');
-    expect(localCompose).toContain('image: axllent/mailpit:v1.30.1');
+    expect(localCompose).toContain('image: axllent/mailpit:v1.31.0');
     expect(localCompose).toContain(
       `'127.0.0.1:${composeVariable('MAILPIT_SMTP_PUBLISH_PORT:-1025')}:1025'`
     );
@@ -758,7 +758,14 @@ describe('production deploy script', () => {
     expect(deployScript).toContain(`location = ${mailpitRouteVariable}`);
     expect(deployScript).toContain(`return 308 ${mailpitRouteVariable}/;`);
     expect(deployScript).toContain(`location ${mailpitRouteVariable}/`);
-    expect(deployScript).toContain('proxy_pass http://mailpit:8025;');
+    expect(deployScript).toContain('port_in_redirect off;');
+    expect(deployScript).toContain('resolver 127.0.0.11 valid=10s ipv6=off;');
+    expect(deployScript).toContain(
+      String.raw`set \$mailpit_upstream mailpit:8025;`
+    );
+    expect(deployScript).toContain(
+      String.raw`proxy_pass http://\$mailpit_upstream;`
+    );
   });
 
   it('verifies production data mounts before running migrations', () => {

@@ -268,6 +268,10 @@ server {
   listen 3000;
   server_name _;
   server_tokens off;
+  port_in_redirect off;
+
+  # Docker embedded DNS so Mailpit recreates do not leave a stale upstream IP.
+  resolver 127.0.0.11 valid=10s ipv6=off;
 
   client_max_body_size 500m;
   client_body_timeout ${DEPLOY_DRAIN_SECONDS}s;
@@ -279,7 +283,8 @@ server {
   }
 
   location ${MAILPIT_ROUTE}/ {
-    proxy_pass http://mailpit:8025;
+    set \$mailpit_upstream mailpit:8025;
+    proxy_pass http://\$mailpit_upstream;
     proxy_http_version 1.1;
     proxy_request_buffering off;
     proxy_buffering off;

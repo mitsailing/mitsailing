@@ -140,18 +140,31 @@ PgHero Tune page links to `https://pgtune.leopard.in.ua/`; use that with the
 actual host RAM/CPU and PostgreSQL version before changing Postgres tuning in a
 reviewed Compose PR. Do not hand-edit production-only Postgres settings.
 
-Protect `/mail/*` in Cloudflare in addition to Mailpit basic auth:
+Protect `/mail/` with two gates: Cloudflare Access, then Mailpit HTTP basic
+auth (`MAILPIT_UI_AUTH`). Access application `Mailpit` covers
+`mitsailing.com/mail*` and `www.mitsailing.com/mail*` and allows only
+`ak@callred.com`. Cloudflare logs Access sign-ins. Mailpit does not log failed
+HTTP basic-auth attempts in its UI (the changelog “failed login tracking” is
+POP3 only; production does not expose POP3).
 
-- Create a Cloudflare Access application for `mitsailing.com/mail/*`.
-- Allow only the operator identity that should inspect captured mail, currently
-  `ak@callred.com`.
-- Add a Cloudflare WAF rate-limit rule for URI path starting with `/mail/`.
+This zone’s Cloudflare plan allows one rate-limit rule, a 10-second counting
+window, and a 10-second block. That cannot lock out after a few failed
+passwords, so it is not used as the Mailpit brute-force control. The zone rule
+only covers `pghero.mitsailing.com` (20 requests / 10 seconds / IP, 10-second
+block).
 
-Protect `pghero.mitsailing.com` the same way (already configured):
+To inspect `/mail/` access:
 
-- Cloudflare Access application `PgHero` for `pghero.mitsailing.com`.
-- Allow only `ak@callred.com`.
-- Zone rate-limit ruleset blocks abusive traffic to that hostname.
+- Cloudflare Zero Trust Access logs for the `Mailpit` application.
+- App nginx access logs: `docker logs mitsailing-app-1` for `/mail/` `401`
+  lines after Access has already passed.
+
+Do not expose Mailpit SMTP or POP3 on a public hostname. Recreating the Mailpit
+container is safe for `/mail/` because app nginx re-resolves `mailpit` through
+Docker DNS.
+
+Protect `pghero.mitsailing.com` with PgHero basic auth plus that PgHero-only
+rate-limit rule. There is no Cloudflare Access application on PgHero.
 
 ## GitHub Environment
 

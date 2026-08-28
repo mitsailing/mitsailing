@@ -158,7 +158,10 @@ describe('single host deploy script', () => {
     expect(script).toContain(`location = ${mailpitRoute}`);
     expect(script).toContain(`return 308 ${mailpitRoute}/;`);
     expect(script).toContain(`location ${mailpitRoute}/`);
-    expect(script).toContain('proxy_pass http://mailpit:8025;');
+    expect(script).toContain('port_in_redirect off;');
+    expect(script).toContain('resolver 127.0.0.11 valid=10s ipv6=off;');
+    expect(script).toContain(String.raw`set \$mailpit_upstream mailpit:8025;`);
+    expect(script).toContain(String.raw`proxy_pass http://\$mailpit_upstream;`);
     expect(script).toContain(`proxy_send_timeout ${deployDrainSeconds};`);
     expect(script).toContain(`proxy_read_timeout ${deployDrainSeconds};`);
     for (const header of mailpitProxyHeaders) {

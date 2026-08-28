@@ -86,7 +86,7 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | Check | Status | Current evidence |
 | --- | --- | --- |
 | Local and E2E email flows use real SMTP capture instead of mocking the app mail driver. | Pass | `.env.example` and `playwright.config.ts` set `MAIL_TRANSPORT=smtp`, `SMTP_URL=smtp://127.0.0.1:1025`, and `MAILPIT_API_URL=http://127.0.0.1:8025`; E2E tests read captured messages through `tests/helpers/mailpit.ts`. |
-| The local Mailpit image is pinned to a current v1 release, not `latest`. | Pass | Compose uses `axllent/mailpit:v1.30.1`, the current security release reviewed for this checklist. Dependabot monitors Dockerfile and Docker Compose images. |
+| The local Mailpit image is pinned to a current v1 release, not `latest`. | Pass | Compose uses `axllent/mailpit:v1.31.0`, the current security release reviewed for this checklist. Dependabot monitors Dockerfile and Docker Compose images. |
 | Mailpit SMTP and HTTP/API ports are loopback-only in local development. | Pass | `compose.override.yaml` publishes both `1025` and `8025` on `127.0.0.1`, so unauthenticated local capture is not exposed on the LAN. |
 | Mailpit readiness uses the official healthcheck endpoint. | Pass | The Mailpit service healthcheck calls `http://localhost:8025/readyz`. |
 | Stored test mail is bounded and pruned. | Pass | `MP_DATABASE=/data/mailpit.db` persists local messages for debugging, while `MP_MAX_MESSAGES=5000` and `MP_MAX_AGE=7d` cap retention. |
@@ -94,7 +94,7 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | E2E standalone runtime has a complete SMTP sender config. | Pass | `playwright.config.ts` defaults `EMAIL_FROM` to `MIT Sailing <noreply@mitsailing.test>` before starting the standalone server. |
 | Tests isolate reads through recipient-scoped API queries. | Pass | `findLatestMessageToMatching` searches Mailpit with `to:<email>` and fetches full messages by ID before assertions. |
 | Test cleanup uses Mailpit API deletion. | Pass | `deleteAllMessages()` calls `DELETE /api/v1/messages`; individual tests also use unique recipient addresses to avoid parallel-worker collisions. |
-| Unauthenticated Mailpit is limited to local development. | Pass | Local Compose accepts any SMTP credentials only on loopback. Shared staging/production capture uses `MAILPIT_UI_AUTH`, app nginx proxies Mailpit at `/mail/`, and Cloudflare Access/rate limiting protects the path. |
+| Unauthenticated Mailpit is limited to local development. | Pass | Local Compose accepts any SMTP credentials only on loopback. Shared staging/production capture uses `MAILPIT_UI_AUTH`, app nginx proxies Mailpit at `/mail/`, and Cloudflare Access restricts the path to `ak@callred.com`. |
 | Mailpit CORS is not opened broadly. | Pass | No `MP_API_CORS=*` or browser cross-origin Mailpit API access is configured; tests call the API server-side from Playwright helpers. |
 
 ## PgHero
