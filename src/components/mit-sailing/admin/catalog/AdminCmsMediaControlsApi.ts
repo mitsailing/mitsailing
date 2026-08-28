@@ -1,4 +1,4 @@
-import { logger } from '@/libs/Logger';
+import { reportCmsMediaClientError } from '@/libs/cms/reportCmsMediaClientError';
 import type { CmsMediaTusUploadSession } from './cmsMediaTusUpload';
 import { uploadCmsMediaWithTus } from './cmsMediaTusUpload';
 
@@ -383,10 +383,11 @@ async function cancelCmsMediaUpload(assetId: string): Promise<void> {
       );
     }
   } catch (error) {
-    logger.error('Failed to cancel CMS media upload: {error}', {
+    reportCmsMediaClientError({
+      action: 'cancelUpload',
       assetId,
-      cmsMediaAction: 'cancelUpload',
       error,
+      message: 'Failed to cancel CMS media upload',
     });
   }
 }
@@ -420,8 +421,9 @@ export async function uploadCmsMediaFile(props: {
     }
     return waitForCmsMediaReady(upload.assetId);
   }
-  logger.error('CMS media upload finalize failed', {
-    cmsMediaAction: 'finalizeUpload',
+  reportCmsMediaClientError({
+    action: 'finalizeUpload',
+    message: 'CMS media upload finalize failed',
     sessionAssetId: session.asset.id,
     uploadAssetId: upload.assetId,
   });

@@ -5,16 +5,12 @@ import {
 } from './AdminCmsMediaControlsApi';
 import { uploadCmsMediaWithTus } from './cmsMediaTusUpload';
 
-const loggerMocks = vi.hoisted(() => ({
-  error: vi.fn(),
-  warn: vi.fn(),
+const cmsMediaClientErrorMocks = vi.hoisted(() => ({
+  report: vi.fn(),
 }));
 
-vi.mock('@/libs/Logger', () => ({
-  logger: {
-    error: loggerMocks.error,
-    warn: loggerMocks.warn,
-  },
+vi.mock('@/libs/cms/reportCmsMediaClientError', () => ({
+  reportCmsMediaClientError: cmsMediaClientErrorMocks.report,
 }));
 
 vi.mock(import('./cmsMediaTusUpload'), () => ({
@@ -242,14 +238,12 @@ describe('uploadCmsMediaFile', () => {
 
     await expect(uploadCmsMediaFile({ file })).rejects.toThrow('Upload failed');
 
-    expect(loggerMocks.error).toHaveBeenCalledWith(
-      'Failed to cancel CMS media upload: {error}',
-      {
-        assetId: 'session-asset',
-        cmsMediaAction: 'cancelUpload',
-        error: cancelError,
-      }
-    );
+    expect(cmsMediaClientErrorMocks.report).toHaveBeenCalledWith({
+      action: 'cancelUpload',
+      assetId: 'session-asset',
+      error: cancelError,
+      message: 'Failed to cancel CMS media upload',
+    });
   });
 
   it('reports non-ok cancel response', async () => {
@@ -284,13 +278,13 @@ describe('uploadCmsMediaFile', () => {
     const error = expect.objectContaining({
       message: 'CMS media upload cancel failed: 500 Internal Server Error',
     });
-    expect(loggerMocks.error).toHaveBeenCalledWith(
-      'Failed to cancel CMS media upload: {error}',
-      {
+    expect(cmsMediaClientErrorMocks.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'cancelUpload',
         assetId: 'session-asset',
-        cmsMediaAction: 'cancelUpload',
         error,
-      }
+        message: 'Failed to cancel CMS media upload',
+      })
     );
   });
 
@@ -374,14 +368,12 @@ describe('uploadCmsMediaFile', () => {
 
     await expect(uploadCmsMediaFile({ file })).resolves.toBeNull();
 
-    expect(loggerMocks.error).toHaveBeenCalledWith(
-      'CMS media upload finalize failed',
-      {
-        cmsMediaAction: 'finalizeUpload',
-        sessionAssetId: 'session-asset',
-        uploadAssetId: 'session-asset',
-      }
-    );
+    expect(cmsMediaClientErrorMocks.report).toHaveBeenCalledWith({
+      action: 'finalizeUpload',
+      message: 'CMS media upload finalize failed',
+      sessionAssetId: 'session-asset',
+      uploadAssetId: 'session-asset',
+    });
   });
 
   it('falls back to direct upload when resumable uploads are unavailable', async () => {
@@ -651,10 +643,10 @@ describe('uploadCmsMediaFile', () => {
       '/api/admin/cms-media/uploads/unsafe%2Fasset/finalize',
       { method: 'POST' }
     );
-    expect(loggerMocks.error).toHaveBeenCalledWith(
-      'CMS media upload finalize failed',
+    expect(cmsMediaClientErrorMocks.report).toHaveBeenCalledWith(
       expect.objectContaining({
-        cmsMediaAction: 'finalizeUpload',
+        action: 'finalizeUpload',
+        message: 'CMS media upload finalize failed',
       })
     );
   });

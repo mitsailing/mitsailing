@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as cmsMediaTusStatusModule from '@/libs/mit-sailing/cmsMediaTusStatus';
+import { mockTusUploadStatusFromFetch } from '@/libs/mit-sailing/cmsMediaTusStatusMock';
 import { POST } from './route';
 
 type GetCmsMediaTusUploadStatus =
@@ -16,7 +17,6 @@ const mocks = vi.hoisted(() => ({
   mediaUploadBaseUrl: 'https://mitsailing.com' as string | undefined,
   update: vi.fn(),
   updateMany: vi.fn(),
-  useMockTusStatus: false,
 }));
 
 vi.mock('@/libs/auth/dal', () => ({
@@ -49,47 +49,7 @@ vi.mock('@/libs/Logger', () => ({
 }));
 
 vi.mock('@/libs/mit-sailing/cmsMediaTusStatus', () => ({
-  getCmsMediaTusUploadStatus: async (
-    props: Parameters<GetCmsMediaTusUploadStatus>[0]
-  ) => {
-    if (mocks.useMockTusStatus) {
-      return mocks.getCmsMediaTusUploadStatus(props);
-    }
-
-    let response: Response;
-    try {
-      response = await fetch(
-        `${props.baseUrl.replace(/\/$/u, '')}/cms-media/uploads/${encodeURIComponent(
-          props.assetId
-        )}`,
-        {
-          method: 'HEAD',
-          signal: AbortSignal.timeout(props.timeoutMs ?? 5000),
-        }
-      );
-    } catch {
-      return { complete: false, reason: 'upload_status_unavailable' };
-    }
-    if (response.status === 404) {
-      return { complete: false, reason: 'upload_not_found' };
-    }
-    if (!response.ok) {
-      return { complete: false, reason: 'upload_status_unavailable' };
-    }
-    const offsetHeader = response.headers.get('Upload-Offset');
-    const lengthHeader = response.headers.get('Upload-Length');
-    const offset =
-      offsetHeader && /^\d+$/u.test(offsetHeader) ? Number(offsetHeader) : null;
-    const length =
-      lengthHeader && /^\d+$/u.test(lengthHeader) ? Number(lengthHeader) : null;
-    if (offset === null || length === null) {
-      return { complete: false, reason: 'missing_upload_headers' };
-    }
-    if (offset === props.byteSize && length === props.byteSize) {
-      return { complete: true };
-    }
-    return { complete: false, reason: 'upload_incomplete' };
-  },
+  getCmsMediaTusUploadStatus: mocks.getCmsMediaTusUploadStatus,
 }));
 
 vi.mock('@/worker/cmsMediaProcessingJob', () => ({
@@ -100,9 +60,15 @@ vi.mock('@/worker/defaultQueue', () => ({
   getDefaultQueue: mocks.getDefaultQueue,
 }));
 
+beforeEach(() => {
+  mocks.getCmsMediaTusUploadStatus.mockImplementation(async (props) => {
+    const status = await mockTusUploadStatusFromFetch(props);
+    return status;
+  });
+});
+
 afterEach(() => {
   mocks.mediaUploadBaseUrl = 'https://mitsailing.com';
-  mocks.useMockTusStatus = false;
   vi.clearAllMocks();
   vi.unstubAllGlobals();
 });
@@ -522,7 +488,6 @@ describe('cms media upload finalize route', () => {
 
   it('returns unavailable when the tusd status helper throws', async () => {
     const error = new Error('unexpected tus status failure');
-    mocks.useMockTusStatus = true;
     mocks.getCmsMediaTusUploadStatus.mockRejectedValue(error);
     stubAdminUser();
     mocks.findUnique.mockResolvedValue(asset());

@@ -17,12 +17,12 @@ import { uploadCmsMediaFile } from '@/components/mit-sailing/admin/catalog/Admin
 import { AdminCmsRevisionCompareView } from '@/components/mit-sailing/admin/catalog/AdminCmsRevisionCompareView';
 import { catalogResourceDefinitions } from '@/libs/admin/catalog/catalogDefinitions';
 
-const loggerMocks = vi.hoisted(() => ({
-  error: vi.fn(),
+const cmsMediaClientErrorMocks = vi.hoisted(() => ({
+  report: vi.fn(),
 }));
 
-vi.mock('@/libs/Logger', () => ({
-  logger: loggerMocks,
+vi.mock('@/libs/cms/reportCmsMediaClientError', () => ({
+  reportCmsMediaClientError: cmsMediaClientErrorMocks.report,
 }));
 
 type TusUploadMockProps = {
@@ -828,14 +828,12 @@ describe('AdminRichTextEditor media controls', () => {
         file: new File(['png'], 'race.png', { type: 'image/png' }),
       })
     ).resolves.toBeNull();
-    expect(loggerMocks.error).toHaveBeenCalledWith(
-      'CMS media upload finalize failed',
-      {
-        cmsMediaAction: 'finalizeUpload',
-        sessionAssetId: 'asset-1',
-        uploadAssetId: 'asset-1',
-      }
-    );
+    expect(cmsMediaClientErrorMocks.report).toHaveBeenCalledWith({
+      action: 'finalizeUpload',
+      message: 'CMS media upload finalize failed',
+      sessionAssetId: 'asset-1',
+      uploadAssetId: 'asset-1',
+    });
   });
 
   it('submits uploaded aligned cms image html', async () => {

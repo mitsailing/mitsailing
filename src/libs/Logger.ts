@@ -7,6 +7,7 @@ import {
   getLogger,
 } from '@logtape/logtape';
 import { getSentrySink } from '@logtape/sentry';
+import * as Sentry from '@sentry/nextjs';
 import { Env } from './Env';
 import {
   buildAppLoggerSinkNames,
@@ -37,7 +38,7 @@ await configure({
   sinks: {
     console: getConsoleSink({ formatter: getJsonLinesFormatter() }),
     betterStack: fromAsyncSink(betterStackSink),
-    sentry: getSentrySink(),
+    sentry: getSentrySink({ sentry: Sentry }),
   },
   loggers: [
     {
