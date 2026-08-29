@@ -129,7 +129,11 @@ describe('AdminPaymentsLedgerView', () => {
             {
               ...baseLedgerRow,
               stripePaymentIntentId: 'pi_test_abc',
-              user: { email: 'sailor@example.com', name: 'Sailor One' },
+              user: {
+                email: 'sailor@example.com',
+                id: 'user-sailor',
+                name: 'Sailor One',
+              },
             },
           ],
         }}
@@ -224,7 +228,11 @@ describe('AdminPaymentsLedgerView', () => {
           rows: [
             {
               ...baseLedgerRow,
-              user: { email: 'grace@example.com', name: 'Grace Hopper' },
+              user: {
+                email: 'grace@example.com',
+                id: 'user-grace',
+                name: 'Grace Hopper',
+              },
             },
           ],
         }}
@@ -232,7 +240,8 @@ describe('AdminPaymentsLedgerView', () => {
       />
     );
 
-    expect(screen.getByText(/Grace Hopper/)).toBeVisible();
+    const userLink = screen.getByRole('link', { name: 'Grace Hopper' });
+    expect(userLink).toHaveAttribute('href', '/admin/users/user-grace');
     expect(screen.getByText(/grace@example.com/)).toBeVisible();
   });
 

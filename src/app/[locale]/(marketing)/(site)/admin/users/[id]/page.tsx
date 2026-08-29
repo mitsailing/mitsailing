@@ -4,15 +4,11 @@ import { notFound } from 'next/navigation';
 import type * as React from 'react';
 import {
   AdminResponsiveColumnLabel,
-  AdminSummaryRows,
   AdminTableContainer,
 } from '@/components/mit-sailing/admin/AdminDataRows';
-import type { AdminDataRowItem } from '@/components/mit-sailing/admin/AdminDataRows';
-import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import {
   AdminPagination,
   adminPaginationPage,
-  adminPaginationRange,
 } from '@/components/mit-sailing/admin/AdminPagination';
 import {
   AdminSailingCardChangeNumberForm,
@@ -22,6 +18,10 @@ import {
   AdminSailingCardPrintActions,
 } from '@/components/mit-sailing/admin/cards/AdminSailingCardControls';
 import type { AdminSailingCardPaymentAccess } from '@/components/mit-sailing/admin/cards/AdminSailingCardControls';
+import { AdminMemberDetailsClient } from '@/components/mit-sailing/admin/users/AdminMemberDetailsClient';
+import { AdminUserAccountTabs } from '@/components/mit-sailing/admin/users/AdminUserAccountTabs';
+import { AdminUserAdminTabPanel } from '@/components/mit-sailing/admin/users/AdminUserAdminTabPanel';
+import { AdminUserProfileHeader } from '@/components/mit-sailing/admin/users/AdminUserProfileHeader';
 import { AdminUserRatingsPanel } from '@/components/mit-sailing/admin/users/AdminUserRatingsPanel';
 import { PaymentAmountDisplay } from '@/components/mit-sailing/payments/PaymentAmountDisplay';
 import {
@@ -34,9 +34,7 @@ import {
 } from '@/components/ui/table';
 import {
   PaymentSource,
-  PaymentStatus,
   SailingAffiliation,
-  SailingCardRequestStatus,
   SailingCardType,
 } from '@/generated/prisma/enums';
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
@@ -45,11 +43,25 @@ import {
   getAdminSailingCardHistory,
   getAdminUserSailingCardSummary,
 } from '@/libs/admin/cards/adminSailingCardUiQueries';
+import type { CatalogRow } from '@/libs/admin/catalog/types';
+import { parseAdminUserAccountTab } from '@/libs/admin/users/adminUserAccountTab';
+import type { AdminUserAccountTab } from '@/libs/admin/users/adminUserAccountTab';
+import {
+  adminUserCardWorkflowModel,
+  currentPendingSailingCardRequest,
+  latestMembershipPaymentAccess,
+  pendingRequestNeedsRecreationVerification,
+  sailingCardIssuePaymentAccess,
+  sailingCardStatusMessageKey,
+} from '@/libs/admin/users/adminUserCardWorkflow';
+import type {
+  AdminUserSailingCardRequestSummary,
+  AdminUserSailingCardSummary,
+} from '@/libs/admin/users/adminUserCardWorkflow';
 import { adminUserMembershipBlockers } from '@/libs/admin/users/adminUserMembershipStatus';
 import type { AdminUserMembershipBlocker } from '@/libs/admin/users/adminUserMembershipStatus';
 import { adminUsersShowPath } from '@/libs/admin/users/adminUserPaths';
 import {
-  ADMIN_USER_PAYMENT_HISTORY_PAGE_SIZE,
   listAdminUserCurrentMembershipPaymentAccessHistory,
   listAdminUserPaymentHistoryPage,
 } from '@/libs/admin/users/adminUserPaymentHistory';
@@ -58,23 +70,20 @@ import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
 import {
   getAppRolePermissions,
   hasPermission,
+  isAdminAppRole,
   Permission,
 } from '@/libs/auth/appPermissions';
 import { appRoleFromSessionUser, requirePermission } from '@/libs/auth/dal';
-import {
-  ADMIN_USER_EMAIL_MESSAGES_PAGE_SIZE,
-  getAdminUserEmailMessagesPage,
-} from '@/libs/email/emailMessages';
+import { getAdminUserEmailMessagesPage } from '@/libs/email/emailMessages';
 import type { AdminUserEmailMessageRow } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
-import { membershipPaymentAccessStatus } from '@/libs/mit-sailing/membershipBilling/membershipPaymentStatus';
-import { needsFitnessMembershipQuestion } from '@/libs/mit-sailing/sailingCardMembership';
 import {
   getCurrentSailingCardYear,
   hasCurrentSailingCard,
 } from '@/libs/mit-sailing/sailingCardValidity';
 import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
 import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
+import { getI18nPath } from '@/utils/Helpers';
 
 type EmailDeliverabilityStatus = 'ok' | 'bounced' | 'suppressed';
 
@@ -85,10 +94,13 @@ type AdminUserShowPageProps = Readonly<{
     error?: string | string[];
     paymentsPage?: string | string[];
     ratingsPage?: string | string[];
+    tab?: string | string[];
   }>;
 }>;
 
 const ADMIN_USER_RATINGS_PAGE_SIZE = 25;
+const ADMIN_USER_EMAIL_MESSAGES_PAGE_SIZE = 25;
+const ADMIN_USER_PAYMENT_HISTORY_PAGE_SIZE = 25;
 
 type AdminPaginationParams = Record<string, string | number | null | undefined>;
 
@@ -114,8 +126,33 @@ function pageParamValue(page: number) {
   return page > 1 ? page : undefined;
 }
 
+function resolveAdminUserAccountTab(props: {
+  readonly canEditUsers: boolean;
+  readonly canViewEmails: boolean;
+  readonly canViewPayments: boolean;
+  readonly requestedTab: AdminUserAccountTab;
+}): AdminUserAccountTab {
+  if (props.requestedTab === 'admin' && !props.canEditUsers) {
+    return 'account';
+  }
+  if (props.requestedTab === 'payments' && !props.canViewPayments) {
+    return 'account';
+  }
+  if (props.requestedTab === 'emails' && !props.canViewEmails) {
+    return 'account';
+  }
+  return props.requestedTab;
+}
+
 function adminPaginationSummary(props: AdminPaginationModel) {
-  return adminPaginationRange(props);
+  if (props.total === 0) {
+    return { end: 0, start: 0 };
+  }
+  const start = (props.page - 1) * props.pageSize + 1;
+  return {
+    end: Math.min(props.total, start + props.pageSize - 1),
+    start,
+  };
 }
 
 function AdminUserPanelPagination(props: {
@@ -180,12 +217,27 @@ function nonEmptyStringOr(value: unknown, fallback: string) {
   return typeof value === 'string' && value.trim() !== '' ? value : fallback;
 }
 
+function catalogStringValue(value: unknown) {
+  return typeof value === 'string' ? value : '';
+}
+
+function nullableCatalogString(value: unknown) {
+  return typeof value === 'string' ? value : null;
+}
+
+function isSailingAffiliation(value: unknown): value is SailingAffiliation {
+  return (
+    typeof value === 'string' &&
+    (Object.values(SailingAffiliation) as readonly string[]).includes(value)
+  );
+}
+
 function adminUserIdentitySummary(
   user: AdminUserIdentitySummaryInput,
   emptyValue: string
 ) {
-  const firstName = typeof user.firstName === 'string' ? user.firstName : '';
-  const lastName = typeof user.lastName === 'string' ? user.lastName : '';
+  const firstName = catalogStringValue(user.firstName);
+  const lastName = catalogStringValue(user.lastName);
   const fullName = `${firstName} ${lastName}`.trim();
 
   return {
@@ -202,37 +254,37 @@ function adminUserIdentitySummary(
   };
 }
 
+function adminUserShowAccess(role: ReturnType<typeof appRoleFromSessionUser>) {
+  const permissions = getAppRolePermissions(role);
+  return {
+    canAssignCards: hasPermission(permissions, Permission.CARDS_ASSIGN_NUMBER),
+    canAssignRatings: hasPermission(permissions, Permission.RATINGS_ASSIGN),
+    canEditUsers: hasPermission(permissions, Permission.USERS_EDIT),
+    canExpireCards: hasPermission(permissions, Permission.CARDS_EXPIRE),
+    canPrintCards: hasPermission(permissions, Permission.CARDS_PRINT),
+    canViewEmails: isAdminAppRole(role),
+    canViewPayments: hasPermission(permissions, Permission.PAYMENTS_VIEW),
+  };
+}
+
+function adminMemberDetailsInitialValues(user: CatalogRow) {
+  return {
+    emergencyContactName: catalogStringValue(user.emergencyContactName),
+    emergencyContactPhone: catalogStringValue(user.emergencyContactPhone),
+    firstName: catalogStringValue(user.firstName),
+    lastName: catalogStringValue(user.lastName),
+    mitClassYear: nullableCatalogString(user.mitClassYear),
+    mitId: nullableCatalogString(user.mitId),
+    phone: catalogStringValue(user.phone),
+    roleLabel: catalogStringValue(user.appRole),
+    sailingAffiliation: isSailingAffiliation(user.sailingAffiliation)
+      ? user.sailingAffiliation
+      : null,
+  };
+}
+
 function emailDeliverabilityStatus(value: unknown): EmailDeliverabilityStatus {
   return value === 'bounced' || value === 'suppressed' ? value : 'ok';
-}
-
-function userSailingAffiliationLabelKey(affiliation: SailingAffiliation) {
-  const keys = {
-    MIT_STUDENT: 'affiliation_mit_student',
-    MIT_FACULTY: 'affiliation_mit_faculty',
-    MIT_STAFF: 'affiliation_mit_staff',
-    MIT_ALUM: 'affiliation_mit_alum',
-    MIT_FAMILY: 'affiliation_mit_family',
-    MIT_AFFILIATE: 'affiliation_mit_affiliate',
-    WELLESLEY: 'affiliation_wellesley',
-    BRANDEIS: 'affiliation_brandeis',
-    NORTHEASTERN: 'affiliation_northeastern',
-    WINSOR: 'affiliation_winsor',
-    BROOKS: 'affiliation_brooks',
-    NROTC: 'affiliation_nrotc',
-    OTHER_STUDENT: 'affiliation_other_student',
-    OTHER_NON_STUDENT: 'affiliation_other_non_student',
-    NON_MIT: 'affiliation_non_mit',
-  } as const satisfies Record<SailingAffiliation, string>;
-
-  return keys[affiliation];
-}
-
-function isSailingAffiliation(value: unknown): value is SailingAffiliation {
-  return (
-    typeof value === 'string' &&
-    (Object.values(SailingAffiliation) as readonly string[]).includes(value)
-  );
 }
 
 type EmailEventMessageKey =
@@ -298,18 +350,11 @@ type AdminUserEmailsPanelProps = Readonly<{
   t: Awaited<ReturnType<typeof getTranslations>>;
 }>;
 
-type AdminUserSailingCardSummary = Awaited<
-  ReturnType<typeof getAdminUserSailingCardSummary>
->;
-
 type AdminUserSailingCardDetails = {
   readonly history: Awaited<ReturnType<typeof getAdminSailingCardHistory>>;
   readonly loadError: boolean;
-  readonly summary: AdminUserSailingCardSummary;
+  readonly summary: AdminUserSailingCardSummary | null;
 };
-
-type AdminUserSailingCardRequestSummary =
-  NonNullable<AdminUserSailingCardSummary>['sailingCardRequests'][number];
 
 type AdminUserRatingDetails = {
   readonly loadError: boolean;
@@ -473,132 +518,11 @@ function optionalAdminDate(
   return date ? formatAdminDate(date, locale) : emptyValue;
 }
 
-const sailingCardRequestStatusMessageKeys = {
-  [SailingCardRequestStatus.approved]: 'sailing_card_status_approved',
-  [SailingCardRequestStatus.cancelled]: 'sailing_card_status_cancelled',
-  [SailingCardRequestStatus.pending]: 'sailing_card_status_requested',
-} as const satisfies Record<SailingCardRequestStatus, string>;
-
 const sailingCardTypeMessageKeys = {
   [SailingCardType.normal]: 'sailing_card_type_normal',
   [SailingCardType.racing]: 'sailing_card_type_racing',
   [SailingCardType.team_racing]: 'sailing_card_type_team_racing',
 } as const satisfies Record<SailingCardType, string>;
-
-function currentPendingSailingCardRequest(
-  summary: AdminUserSailingCardSummary
-) {
-  const currentYear = getCurrentSailingCardYear();
-  return summary?.sailingCardRequests.find(
-    (request) =>
-      request.cardYear === currentYear &&
-      request.status === SailingCardRequestStatus.pending
-  );
-}
-
-function sailingCardStatusMessageKey(props: {
-  readonly hasCurrentCard: boolean;
-  readonly request: AdminUserSailingCardRequestSummary | undefined;
-}) {
-  if (props.request?.status === SailingCardRequestStatus.pending) {
-    return 'sailing_card_status_requested';
-  }
-  if (props.hasCurrentCard) {
-    return 'sailing_card_status_current';
-  }
-  if (props.request) {
-    return sailingCardRequestStatusMessageKeys[props.request.status];
-  }
-  return 'sailing_card_status_none';
-}
-
-function membershipPaymentAccessFromRow(props: {
-  readonly cardYear: number;
-  readonly row: AdminUserPaymentHistoryRow;
-}) {
-  const { cardType } = props.row;
-  if (props.row.status === PaymentStatus.checkout_created) {
-    return membershipPaymentAccessStatus({
-      cardYear: props.cardYear,
-      record: null,
-    });
-  }
-  if (
-    cardType !== SailingCardType.racing &&
-    cardType !== SailingCardType.team_racing
-  ) {
-    return membershipPaymentAccessStatus({
-      cardYear: props.cardYear,
-      record: null,
-    });
-  }
-
-  return membershipPaymentAccessStatus({
-    cardYear: props.cardYear,
-    record: {
-      cardType,
-      cardYear: props.cardYear,
-      source: props.row.source,
-      status: props.row.status,
-      stripeReceiptUrl: props.row.receiptHref,
-    },
-  });
-}
-
-function latestMembershipPaymentAccess(props: {
-  readonly cardType?: SailingCardType;
-  readonly cardYear: number;
-  readonly rows: readonly AdminUserPaymentHistoryRow[];
-}) {
-  const currentAccess = membershipPaymentAccessStatus({
-    cardYear: props.cardYear,
-    record: null,
-  });
-  const matchingRows = props.rows
-    .filter(
-      (row) =>
-        row.purpose === 'membership' &&
-        row.cardYear === props.cardYear &&
-        (props.cardType
-          ? row.cardType === props.cardType
-          : row.cardType === SailingCardType.racing ||
-            row.cardType === SailingCardType.team_racing)
-    )
-    .toSorted(
-      (left, right) => right.createdAt.getTime() - left.createdAt.getTime()
-    );
-
-  for (const row of matchingRows) {
-    if (row.status === PaymentStatus.checkout_created) {
-      continue;
-    }
-    return membershipPaymentAccessFromRow({ cardYear: props.cardYear, row });
-  }
-
-  return currentAccess;
-}
-
-function sailingCardIssuePaymentAccess(props: {
-  readonly request: AdminUserSailingCardRequestSummary | undefined;
-  readonly rows: readonly AdminUserPaymentHistoryRow[];
-}): AdminSailingCardPaymentAccess | undefined {
-  const { request } = props;
-  if (!request) {
-    return undefined;
-  }
-  if (
-    request.cardType !== SailingCardType.racing &&
-    request.cardType !== SailingCardType.team_racing
-  ) {
-    return 'none';
-  }
-
-  return latestMembershipPaymentAccess({
-    cardType: request.cardType,
-    cardYear: request.cardYear,
-    rows: props.rows,
-  }).access;
-}
 
 type AdminUserSailingCardSectionModel = {
   readonly agreement:
@@ -612,33 +536,19 @@ type AdminUserSailingCardSectionModel = {
   readonly needsRecreationVerification: boolean;
   readonly pendingCardNumber: number;
   readonly pendingRequest: AdminUserSailingCardRequestSummary | undefined;
-  readonly summary: AdminUserSailingCardSummary;
+  readonly summary: AdminUserSailingCardSummary | null;
 };
-
-function pendingRequestNeedsRecreationVerification(props: {
-  readonly request: AdminUserSailingCardRequestSummary | undefined;
-  readonly summary: AdminUserSailingCardSummary;
-}) {
-  if (!props.request) {
-    return false;
-  }
-
-  return (
-    props.request.cardType === SailingCardType.normal &&
-    props.summary?.gymMembershipVerifiedAt === null &&
-    needsFitnessMembershipQuestion(props.request.sailingAffiliation)
-  );
-}
 
 function adminUserSailingCardSectionModel(props: {
   readonly paymentRows: readonly AdminUserPaymentHistoryRow[];
   readonly suggestedCardNumber: number;
-  readonly summary: AdminUserSailingCardSummary;
+  readonly summary: AdminUserSailingCardSummary | null;
   readonly t: Awaited<ReturnType<typeof getTranslations>>;
 }): AdminUserSailingCardSectionModel {
   const hasCurrentCard =
     props.summary !== null && hasCurrentSailingCard(props.summary);
-  const pendingRequest = currentPendingSailingCardRequest(props.summary);
+  const pendingRequest =
+    currentPendingSailingCardRequest(props.summary) ?? undefined;
   const emptyValue = props.t('empty_value');
 
   return {
@@ -650,12 +560,12 @@ function adminUserSailingCardSectionModel(props: {
     emptyValue,
     hasCurrentCard,
     issuePaymentAccess: sailingCardIssuePaymentAccess({
-      request: pendingRequest,
+      request: pendingRequest ?? null,
       rows: props.paymentRows,
     }),
     latestRequest: pendingRequest ?? props.summary?.sailingCardRequests[0],
     needsRecreationVerification: pendingRequestNeedsRecreationVerification({
-      request: pendingRequest,
+      request: pendingRequest ?? null,
       summary: props.summary,
     }),
     pendingCardNumber:
@@ -760,7 +670,7 @@ function AdminUserSailingCardStatusPanel(props: {
 
 function sailingCardSwimAgreementValue(props: {
   readonly locale: string;
-  readonly summary: AdminUserSailingCardSummary;
+  readonly summary: AdminUserSailingCardSummary | null;
   readonly t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
   if (
@@ -781,7 +691,7 @@ function sailingCardSwimAgreementValue(props: {
 function AdminUserSailingCardDetailsList(props: {
   readonly locale: string;
   readonly model: AdminUserSailingCardSectionModel;
-  readonly summary: AdminUserSailingCardSummary;
+  readonly summary: AdminUserSailingCardSummary | null;
   readonly t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
   return (
@@ -861,7 +771,7 @@ function AdminUserSailingCardSection(props: {
   readonly locale: string;
   readonly paymentRows: readonly AdminUserPaymentHistoryRow[];
   readonly suggestedCardNumber: number;
-  readonly summary: AdminUserSailingCardSummary;
+  readonly summary: AdminUserSailingCardSummary | null;
   readonly t: Awaited<ReturnType<typeof getTranslations>>;
   readonly userId: string;
 }) {
@@ -1234,6 +1144,287 @@ function currentMembershipPaymentAccess(
   return latestMembershipPaymentAccess({ cardYear, rows });
 }
 
+function emptyAdminUserEmailDetails(): AdminUserEmailDetails {
+  return {
+    loadError: false,
+    messages: [],
+    page: 1,
+    pageSize: ADMIN_USER_EMAIL_MESSAGES_PAGE_SIZE,
+    total: 0,
+  };
+}
+
+function adminUserAccountTabs(props: {
+  readonly access: ReturnType<typeof adminUserShowAccess>;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  return [
+    { id: 'account' as const, label: props.t('tab_account') },
+    ...(props.access.canViewPayments
+      ? [{ id: 'payments' as const, label: props.t('tab_payments') }]
+      : []),
+    ...(props.access.canViewEmails
+      ? [{ id: 'emails' as const, label: props.t('tab_emails') }]
+      : []),
+    ...(props.access.canEditUsers
+      ? [{ id: 'admin' as const, label: props.t('tab_admin') }]
+      : []),
+  ];
+}
+
+function adminUserDisplayName(props: {
+  readonly emptyValue: string;
+  readonly name: unknown;
+  readonly userEmail: string;
+}) {
+  if (typeof props.name === 'string' && props.name.trim().length > 0) {
+    return props.name;
+  }
+  return props.userEmail || props.emptyValue;
+}
+
+async function suggestedSailingCardNumber(props: {
+  readonly canAssignCards: boolean;
+  readonly cardYear: number;
+  readonly pendingCardRequest: AdminUserSailingCardRequestSummary | null;
+}) {
+  if (!props.canAssignCards || props.pendingCardRequest === null) {
+    return 0;
+  }
+  const nextNumber = await getNextAvailableSailingCardNumber({
+    cardYear: props.cardYear,
+  });
+  return nextNumber;
+}
+
+function AdminMemberDetailsReadOnly(props: {
+  readonly emailVerifiedLabel: string;
+  readonly heading: string;
+  readonly identitySourceLabel: string;
+  readonly memberDetails: ReturnType<typeof adminMemberDetailsInitialValues>;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  const emptyValue = props.t('empty_value');
+  const fullName =
+    `${props.memberDetails.firstName} ${props.memberDetails.lastName}`.trim();
+
+  return (
+    <section
+      aria-labelledby="admin-member-details-readonly"
+      className="flex flex-col gap-3"
+    >
+      <h2
+        className="font-mit-serif text-xl font-semibold text-foreground"
+        id="admin-member-details-readonly"
+      >
+        {props.heading}
+      </h2>
+      <dl className="grid gap-x-5 gap-y-2 sm:grid-cols-2">
+        <AdminUserDetailValue
+          label={props.t('identity_name')}
+          value={fullName || emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('identity_affiliation')}
+          value={props.memberDetails.sailingAffiliation ?? emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('column_mit_id')}
+          value={props.memberDetails.mitId ?? emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('identity_mit_class_year')}
+          value={props.memberDetails.mitClassYear ?? emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('identity_phone')}
+          value={props.memberDetails.phone || emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('identity_emergency_contact_name')}
+          value={props.memberDetails.emergencyContactName || emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('identity_emergency_contact_phone')}
+          value={props.memberDetails.emergencyContactPhone || emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('column_role')}
+          value={props.memberDetails.roleLabel || emptyValue}
+        />
+        <AdminUserDetailValue
+          label={props.t('identity_source')}
+          value={props.identitySourceLabel}
+        />
+        <AdminUserDetailValue
+          label={props.t('column_email_verified')}
+          value={props.emailVerifiedLabel}
+        />
+      </dl>
+    </section>
+  );
+}
+
+function AdminUserShowTabPanels(props: {
+  readonly access: ReturnType<typeof adminUserShowAccess>;
+  readonly activeTab: AdminUserAccountTab;
+  readonly blockers: AdminUserMembershipBlocker[];
+  readonly emailDetails: AdminUserEmailDetails;
+  readonly emailStatusReason: string;
+  readonly errorCode: string | undefined;
+  readonly hasEmailDeliverabilityWarning: boolean;
+  readonly identitySourceLabel: string;
+  readonly locale: string;
+  readonly memberDetails: ReturnType<typeof adminMemberDetailsInitialValues>;
+  readonly mitIdentityLocked: boolean;
+  readonly paginationParams: AdminPaginationParams;
+  readonly paymentDetails: AdminUserPaymentDetails;
+  readonly ratingDetails: AdminUserRatingDetails;
+  readonly ratingsPage: ReturnType<
+    typeof paginatedRows<UserRatingAssignmentRow>
+  >;
+  readonly sailingCardDetails: AdminUserSailingCardDetails;
+  readonly suggestedCardNumber: number;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+  readonly user: CatalogRow;
+  readonly userId: string;
+  readonly userShowPath: string;
+}) {
+  if (props.activeTab === 'account') {
+    const emailVerifiedLabel = props.user.emailVerified
+      ? props.t('email_verified_badge')
+      : props.t('email_unverified_badge');
+    const memberDetailsPanel = props.access.canEditUsers ? (
+      <AdminMemberDetailsClient
+        description={props.t('member_details_form_description')}
+        emailVerifiedLabel={emailVerifiedLabel}
+        heading={props.t('account_panel_heading')}
+        identitySourceLabel={props.identitySourceLabel}
+        initialEmergencyContactName={props.memberDetails.emergencyContactName}
+        initialEmergencyContactPhone={props.memberDetails.emergencyContactPhone}
+        initialFirstName={props.memberDetails.firstName}
+        initialLastName={props.memberDetails.lastName}
+        initialMitClassYear={props.memberDetails.mitClassYear}
+        initialMitId={props.memberDetails.mitId}
+        initialMitIdentityLocked={props.mitIdentityLocked}
+        initialPhone={props.memberDetails.phone}
+        initialSailingAffiliation={props.memberDetails.sailingAffiliation}
+        locale={props.locale}
+        roleLabel={props.memberDetails.roleLabel}
+        userId={props.userId}
+      />
+    ) : (
+      <AdminMemberDetailsReadOnly
+        emailVerifiedLabel={emailVerifiedLabel}
+        heading={props.t('account_panel_heading')}
+        identitySourceLabel={props.identitySourceLabel}
+        memberDetails={props.memberDetails}
+        t={props.t}
+      />
+    );
+
+    return (
+      <>
+        {memberDetailsPanel}
+        <AdminUserCurrentBlockers blockers={props.blockers} t={props.t} />
+        {props.hasEmailDeliverabilityWarning ? (
+          <output className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-semibold">
+              {props.t('email_status_warning_title')}
+            </p>
+            <p className="mt-1">
+              {props.t('email_status_warning_body', {
+                reason: props.emailStatusReason,
+              })}
+            </p>
+          </output>
+        ) : null}
+        <AdminUserSailingCardSection
+          canAssignCards={props.access.canAssignCards}
+          canExpireCards={props.access.canExpireCards}
+          canPrintCards={props.access.canPrintCards}
+          history={props.sailingCardDetails.history}
+          loadError={props.sailingCardDetails.loadError}
+          locale={props.locale}
+          paymentRows={props.paymentDetails.accessRows}
+          suggestedCardNumber={props.suggestedCardNumber}
+          summary={props.sailingCardDetails.summary}
+          t={props.t}
+          userId={props.userId}
+        />
+        <AdminUserRatingsPanel
+          canAssignRatings={props.access.canAssignRatings}
+          errorCode={props.errorCode}
+          locale={props.locale}
+          ratingsLoadFailed={props.ratingDetails.loadError}
+          rows={props.ratingsPage.rows}
+          userId={props.userId}
+        />
+        <AdminUserPanelPagination
+          basePath={props.userShowPath}
+          pageParamName="ratingsPage"
+          pagination={props.ratingsPage}
+          params={props.paginationParams}
+          t={props.t}
+        />
+      </>
+    );
+  }
+
+  if (props.activeTab === 'payments' && props.access.canViewPayments) {
+    return (
+      <>
+        <AdminUserPaymentHistoryPanel
+          loadFailed={props.paymentDetails.loadError}
+          locale={props.locale}
+          rows={props.paymentDetails.rows}
+          t={props.t}
+        />
+        <AdminUserPanelPagination
+          basePath={props.userShowPath}
+          pageParamName="paymentsPage"
+          pagination={props.paymentDetails}
+          params={props.paginationParams}
+          t={props.t}
+        />
+      </>
+    );
+  }
+
+  if (props.activeTab === 'emails' && props.access.canViewEmails) {
+    return (
+      <>
+        <AdminUserEmailsPanel
+          emails={props.emailDetails.messages}
+          loadFailed={props.emailDetails.loadError}
+          locale={props.locale}
+          t={props.t}
+        />
+        <AdminUserPanelPagination
+          basePath={props.userShowPath}
+          pageParamName="emailsPage"
+          pagination={props.emailDetails}
+          params={props.paginationParams}
+          t={props.t}
+        />
+      </>
+    );
+  }
+
+  if (props.activeTab === 'admin' && props.access.canEditUsers) {
+    return (
+      <AdminUserAdminTabPanel
+        errorCode={props.errorCode}
+        locale={props.locale}
+        row={props.user}
+        userId={props.userId}
+      />
+    );
+  }
+
+  return null;
+}
+
 export async function generateMetadata(
   props: AdminUserShowPageProps
 ): Promise<Metadata> {
@@ -1247,24 +1438,15 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
   const searchParams = await props.searchParams;
   setRequestLocale(locale);
   const session = await requirePermission(Permission.USERS_VIEW, locale);
-  const role = appRoleFromSessionUser(session.user);
-  const permissions = getAppRolePermissions(role);
-  const canAssignRatings = hasPermission(
-    permissions,
-    Permission.RATINGS_ASSIGN
-  );
-  const canAssignCards = hasPermission(
-    permissions,
-    Permission.CARDS_ASSIGN_NUMBER
-  );
-  const canExpireCards = hasPermission(permissions, Permission.CARDS_EXPIRE);
-  const canPrintCards = hasPermission(permissions, Permission.CARDS_PRINT);
+  const access = adminUserShowAccess(appRoleFromSessionUser(session.user));
+  const accountHref = getI18nPath('/', locale);
 
   const user = await usersAdminHandlers.getById(id);
   if (!user) {
     notFound();
   }
-  const userEmail = typeof user.email === 'string' ? user.email : '';
+  const userEmail = catalogStringValue(user.email);
+  const memberDetails = adminMemberDetailsInitialValues(user);
   const cardYear = getCurrentSailingCardYear();
   const userShowPath = adminUsersShowPath(id);
   const requestedEmailsPage = adminPaginationPage(
@@ -1280,11 +1462,13 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     await Promise.all([
       loadAdminUserSailingCardDetails(id),
       loadAdminUserRatingDetails(id),
-      loadAdminUserEmailDetails({
-        email: userEmail,
-        page: requestedEmailsPage,
-        userId: id,
-      }),
+      access.canViewEmails
+        ? loadAdminUserEmailDetails({
+            email: userEmail,
+            page: requestedEmailsPage,
+            userId: id,
+          })
+        : Promise.resolve(emptyAdminUserEmailDetails()),
       loadAdminUserPaymentDetails({
         cardYear,
         page: requestedPaymentsPage,
@@ -1296,17 +1480,15 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     pageSize: ADMIN_USER_RATINGS_PAGE_SIZE,
     rows: ratingDetails.rows,
   });
-  const shouldLoadSuggestedCardNumber =
-    canAssignCards &&
-    currentPendingSailingCardRequest(sailingCardDetails.summary) !== undefined;
-  const suggestedCardNumber = shouldLoadSuggestedCardNumber
-    ? await getNextAvailableSailingCardNumber({ cardYear })
-    : 0;
-  const t = await getTranslations({ locale, namespace: 'AdminUsers' });
-  const tOnboarding = await getTranslations({
-    locale,
-    namespace: 'OnboardingPage',
+  const pendingCardRequest = currentPendingSailingCardRequest(
+    sailingCardDetails.summary
+  );
+  const suggestedCardNumber = await suggestedSailingCardNumber({
+    canAssignCards: access.canAssignCards,
+    cardYear,
+    pendingCardRequest,
   });
+  const t = await getTranslations({ locale, namespace: 'AdminUsers' });
   const emailStatus = emailDeliverabilityStatus(user.emailDeliverabilityStatus);
   const emailStatusReason =
     typeof user.emailSuppressionReason === 'string'
@@ -1314,131 +1496,98 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
       : emailStatus;
   const hasEmailDeliverabilityWarning = emailStatus !== 'ok';
   const identitySummary = adminUserIdentitySummary(user, t('empty_value'));
-  const userSailingAffiliation = isSailingAffiliation(user.sailingAffiliation)
-    ? tOnboarding(userSailingAffiliationLabelKey(user.sailingAffiliation))
-    : t('empty_value');
   const userIdentitySource =
     typeof user.mitDataWarehouseVerifiedAt === 'string'
       ? t('identity_source_mit_id')
       : t('identity_source_manual');
-  const userSummaryRows = [
-    [
-      { label: t('identity_name'), value: identitySummary.profileName },
-      { label: t('column_email'), value: userEmail },
-      { label: t('identity_phone'), value: identitySummary.phone },
-    ],
-    [
-      { label: t('identity_affiliation'), value: userSailingAffiliation },
-      { label: t('column_mit_id'), value: user.mitId ?? t('empty_value') },
-      {
-        label: t('identity_mit_class_year'),
-        value: user.mitClassYear ?? t('empty_value'),
-      },
-    ],
-    [
-      {
-        label: t('identity_emergency_contact_name'),
-        value: identitySummary.emergencyContactName,
-      },
-      {
-        label: t('identity_emergency_contact_phone'),
-        value: identitySummary.emergencyContactPhone,
-      },
-      { label: t('column_role'), value: user.appRole },
-    ],
-    [
-      { label: t('identity_source'), value: userIdentitySource },
-      {
-        label: t('column_email_verified'),
-        value: user.emailVerified ? t('boolean_yes') : t('boolean_no'),
-      },
-      {
-        label: t('column_sailing_card_number'),
-        value: user.sailingCardNumber ?? t('empty_value'),
-      },
-    ],
-  ] as const satisfies readonly (readonly AdminDataRowItem[])[];
+  const displayName = adminUserDisplayName({
+    emptyValue: t('empty_value'),
+    name: user.name,
+    userEmail,
+  });
+  const mitIdentityLocked =
+    memberDetails.mitId !== null && user.mitDataWarehouseVerifiedAt !== null;
   const blockers = adminUserMembershipBlockers({
-    cardRequest:
-      currentPendingSailingCardRequest(sailingCardDetails.summary) ?? null,
+    cardRequest: pendingCardRequest,
     introClassRequired: false,
     membershipAccess: currentMembershipPaymentAccess(paymentDetails.accessRows),
-    recreationVerificationRequired: false,
+    recreationVerificationRequired: pendingRequestNeedsRecreationVerification({
+      request: pendingCardRequest,
+      summary: sailingCardDetails.summary,
+    }),
   });
+  const cardWorkflow = adminUserCardWorkflowModel({
+    paymentRows: paymentDetails.accessRows,
+    suggestedCardNumber,
+    summary: sailingCardDetails.summary,
+  });
+  const cardStatusLabel = cardWorkflow
+    ? t(cardWorkflow.statusMessageKey)
+    : t('sailing_card_status_none');
+  const requestedTab = parseAdminUserAccountTab(searchParams.tab);
+  const activeTab = resolveAdminUserAccountTab({
+    canEditUsers: access.canEditUsers,
+    canViewEmails: access.canViewEmails,
+    canViewPayments: access.canViewPayments,
+    requestedTab,
+  });
+  const accountTabs = adminUserAccountTabs({ access, t });
+  const errorCode = optionalSearchParamString(searchParams.error);
   const paginationParams = {
     emailsPage: pageParamValue(emailDetails.page),
+    error: errorCode,
     paymentsPage: pageParamValue(paymentDetails.page),
     ratingsPage: pageParamValue(ratingsPage.page),
+    tab: activeTab === 'account' ? undefined : activeTab,
   };
 
   return (
     <div className="flex w-full max-w-5xl flex-col gap-6">
-      <AdminPageHeader title={user.name} />
-      <AdminUserCurrentBlockers blockers={blockers} t={t} />
-      <AdminSummaryRows rows={userSummaryRows} />
-      {hasEmailDeliverabilityWarning ? (
-        <output className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-          <p className="font-semibold">{t('email_status_warning_title')}</p>
-          <p className="mt-1">
-            {t('email_status_warning_body', {
-              reason: emailStatusReason,
-            })}
-          </p>
-        </output>
-      ) : null}
-      <AdminUserSailingCardSection
-        canAssignCards={canAssignCards}
-        canExpireCards={canExpireCards}
-        canPrintCards={canPrintCards}
-        history={sailingCardDetails.history}
-        loadError={sailingCardDetails.loadError}
+      <AdminUserProfileHeader
+        accountRedirectHref={accountHref}
+        canEditUsers={access.canEditUsers}
+        canImpersonate={access.canEditUsers}
+        canPrintCards={access.canPrintCards}
+        cardNumber={cardWorkflow?.cardNumber ?? null}
+        cardStatusLabel={cardStatusLabel}
+        currentUserId={session.user.id}
+        displayName={displayName}
+        email={userEmail}
+        hasCurrentCard={cardWorkflow?.hasCurrentCard ?? false}
         locale={locale}
-        paymentRows={paymentDetails.rows}
+        pdfHref={`${userShowPath}/sailing-card/print`}
+        phone={identitySummary.phone}
+        showEditAction={false}
+        userId={id}
+      />
+      <AdminUserAccountTabs
+        activeTab={activeTab}
+        ariaLabel={t('account_tabs_aria_label')}
+        tabs={accountTabs}
+        userId={id}
+      />
+      <AdminUserShowTabPanels
+        access={access}
+        activeTab={activeTab}
+        blockers={blockers}
+        emailDetails={emailDetails}
+        emailStatusReason={emailStatusReason}
+        errorCode={errorCode}
+        hasEmailDeliverabilityWarning={hasEmailDeliverabilityWarning}
+        identitySourceLabel={userIdentitySource}
+        locale={locale}
+        memberDetails={memberDetails}
+        mitIdentityLocked={mitIdentityLocked}
+        paginationParams={paginationParams}
+        paymentDetails={paymentDetails}
+        ratingDetails={ratingDetails}
+        ratingsPage={ratingsPage}
+        sailingCardDetails={sailingCardDetails}
         suggestedCardNumber={suggestedCardNumber}
-        summary={sailingCardDetails.summary}
         t={t}
+        user={user}
         userId={id}
-      />
-      <AdminUserRatingsPanel
-        canAssignRatings={canAssignRatings}
-        errorCode={optionalSearchParamString(searchParams.error)}
-        locale={locale}
-        ratingsLoadFailed={ratingDetails.loadError}
-        rows={ratingsPage.rows}
-        userId={id}
-      />
-      <AdminUserPanelPagination
-        basePath={userShowPath}
-        pageParamName="ratingsPage"
-        pagination={ratingsPage}
-        params={paginationParams}
-        t={t}
-      />
-      <AdminUserPaymentHistoryPanel
-        loadFailed={paymentDetails.loadError}
-        locale={locale}
-        rows={paymentDetails.rows}
-        t={t}
-      />
-      <AdminUserPanelPagination
-        basePath={userShowPath}
-        pageParamName="paymentsPage"
-        pagination={paymentDetails}
-        params={paginationParams}
-        t={t}
-      />
-      <AdminUserEmailsPanel
-        emails={emailDetails.messages}
-        loadFailed={emailDetails.loadError}
-        locale={locale}
-        t={t}
-      />
-      <AdminUserPanelPagination
-        basePath={userShowPath}
-        pageParamName="emailsPage"
-        pagination={emailDetails}
-        params={paginationParams}
-        t={t}
+        userShowPath={userShowPath}
       />
     </div>
   );

@@ -12,21 +12,6 @@ export function adminPaginationPage(value: unknown): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
-export function adminPaginationRange(props: {
-  readonly page: number;
-  readonly pageSize: number;
-  readonly total: number;
-}) {
-  if (props.total === 0) {
-    return { end: 0, start: 0 };
-  }
-  const start = (props.page - 1) * props.pageSize + 1;
-  return {
-    end: Math.min(props.total, start + props.pageSize - 1),
-    start,
-  };
-}
-
 function paginationHref(props: {
   readonly basePath: string;
   readonly page: number;

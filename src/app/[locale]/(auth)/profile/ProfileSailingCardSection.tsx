@@ -62,7 +62,7 @@ const statusHelpMessageKeys = {
   requested: 'profile_sailing_card_status_requested_help',
 } as const satisfies Record<ProfileSailingCardStatus, string>;
 
-export const sailingCardStatusMessageKeys = {
+const sailingCardStatusMessageKeys = {
   active: 'profile_sailing_card_status_active',
   approved: 'profile_sailing_card_status_approved',
   cancelled: 'profile_sailing_card_status_cancelled',

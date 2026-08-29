@@ -15,6 +15,8 @@ type FinalEnv = {
   HEALTHCHECK_SECRET?: string;
   IS_E2E?: '1';
   LEGACY_MYSQL_PASSWORD?: string;
+  LEGACY_MYSQL_HOST?: string;
+  LEGACY_MYSQL_PORT?: number;
   LEGACY_MYSQL_SYNC_ENABLED: 'false' | 'true';
   MEDIA_PUBLIC_BASE_URL?: string;
   MEDIA_STORAGE_ROOT: string;
@@ -167,7 +169,6 @@ export const Env = createEnv({
   skipValidation:
     process.env.SKIP_ENV_VALIDATION === 'true' || isStorybookNpmScript,
   server: {
-    ARCJET_KEY: z.string().startsWith('ajkey_').optional(),
     BETTER_AUTH_SECRET: z.string().min(32),
     DATABASE_URL: z.string().min(1),
     NEWSLETTER_REVALIDATE_SECRET: z.string().min(32).optional(),
@@ -185,6 +186,8 @@ export const Env = createEnv({
           'LEGACY_MYSQL_SYNC_CRON must be a six-field BullMQ cron (seconds first), e.g. 0 0 * * * *.',
       }),
     LEGACY_MYSQL_PASSWORD: z.string().min(1).optional(),
+    LEGACY_MYSQL_HOST: z.string().min(1).optional(),
+    LEGACY_MYSQL_PORT: z.coerce.number().int().positive().optional(),
 
     // APP_ENV is orthogonal to NODE_ENV: it names the deployment target
     // (staging runs a production build but behaves like staging — Mailpit
@@ -298,7 +301,6 @@ export const Env = createEnv({
       validateFinalEnv(env, ctx);
     }),
   runtimeEnv: {
-    ARCJET_KEY: process.env.ARCJET_KEY,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
     NEWSLETTER_REVALIDATE_SECRET: process.env.NEWSLETTER_REVALIDATE_SECRET,
@@ -307,6 +309,8 @@ export const Env = createEnv({
     LEGACY_MYSQL_SYNC_ENABLED: process.env.LEGACY_MYSQL_SYNC_ENABLED,
     LEGACY_MYSQL_SYNC_CRON: process.env.LEGACY_MYSQL_SYNC_CRON,
     LEGACY_MYSQL_PASSWORD: process.env.LEGACY_MYSQL_PASSWORD,
+    LEGACY_MYSQL_HOST: process.env.LEGACY_MYSQL_HOST,
+    LEGACY_MYSQL_PORT: process.env.LEGACY_MYSQL_PORT,
     APP_ENV: process.env.APP_ENV,
     STAGING_BANNER: process.env.STAGING_BANNER,
     MAIL_TRANSPORT: process.env.MAIL_TRANSPORT,

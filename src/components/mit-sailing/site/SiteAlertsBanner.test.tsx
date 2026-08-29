@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SiteAlertsBanner } from '@/components/mit-sailing/site/SiteAlertsBanner';
+import { resetSiteAlertBannerCollapseStateForTests } from '@/components/mit-sailing/site/useSiteAlertBannerCollapsed';
 import { buildSiteAlertBannerCollapseAlerts } from '@/libs/mit-sailing/siteAlertBannerCollapse';
 import type { SiteAlertBannerRow } from '@/libs/mit-sailing/siteAlertTypes';
 import enMessages from '@/locales/en.json';
@@ -29,6 +30,8 @@ const collapseAlerts = buildSiteAlertBannerCollapseAlerts(rows);
 
 describe('SiteAlertsBanner', () => {
   afterEach(() => {
+    cleanup();
+    resetSiteAlertBannerCollapseStateForTests();
     vi.restoreAllMocks();
   });
 

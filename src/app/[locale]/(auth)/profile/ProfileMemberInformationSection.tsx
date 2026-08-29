@@ -11,10 +11,11 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
 import type { SailingAffiliation } from '@/generated/prisma/enums';
-import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
 import { updateProfileDetailsAction } from '@/libs/auth/profileIdentityActions';
-import type { UpdateProfileDetailsResult } from '@/libs/auth/profileIdentityActions';
-import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
+import type {
+  ProfileDetailsInput,
+  UpdateProfileDetailsResult,
+} from '@/libs/auth/profileIdentityActions';
 import {
   getSailingAffiliationOptions,
   getSailingAffiliationRule,
@@ -58,7 +59,7 @@ function profileDetailsErrorMessageKey(
   return profileDetailsErrorMessageKeys[error];
 }
 
-export function affiliationLabelKey(affiliation: SailingAffiliation) {
+function affiliationLabelKey(affiliation: SailingAffiliation) {
   const keys = {
     MIT_STUDENT: 'affiliation_mit_student',
     MIT_FACULTY: 'affiliation_mit_faculty',
@@ -110,33 +111,17 @@ function mitIdHelpKey(props: {
   return null;
 }
 
-export function ProfileMemberInformationSection(props: {
-  readonly emergencyContactName: string;
-  readonly emergencyContactPhone: string;
-  readonly firstName: string;
-  readonly lastName: string;
-  readonly locale: string;
-  readonly mitClassYear: string | null;
+type ProfileMemberFormMessageKey =
+  | 'member_details_save'
+  | 'member_details_saved'
+  | 'profile_details_save'
+  | 'profile_details_updated';
+
+function profileMemberMitFieldState(props: {
   readonly mitId: string;
   readonly mitIdentityLocked: boolean;
-  readonly onEmergencyContactNameChange: (value: string) => void;
-  readonly onEmergencyContactPhoneChange: (value: string) => void;
-  readonly onFirstNameChange: (value: string) => void;
-  readonly onLastNameChange: (value: string) => void;
-  readonly onMitClassYearChange: (value: string | null) => void;
-  readonly onMitIdChange: (value: string) => void;
-  readonly onMitIdentityLockedChange: (value: boolean) => void;
-  readonly onPhoneChange: (value: string) => void;
-  readonly onSailingAffiliationChange: (value: SailingAffiliation | '') => void;
-  readonly phone: string;
   readonly sailingAffiliation: SailingAffiliation | '';
 }) {
-  const tCommon = useTranslations('Common');
-  const t = useTranslations('UserProfilePage');
-  const tOnboarding = useTranslations('OnboardingPage');
-  const router = useRouter();
-  const [banner, setBanner] = useState<ProfileBannerState>(null);
-  const [pending, setPending] = useState(false);
   const affiliationRule =
     props.sailingAffiliation === ''
       ? null
@@ -155,7 +140,75 @@ export function ProfileMemberInformationSection(props: {
     optional: mitIdOptional,
     required: mitIdRequired,
   });
+
+  return {
+    affiliationRule,
+    helpKey,
+    mitIdOptional,
+    mitIdRequired,
+    showManualName,
+    showMitId,
+  };
+}
+
+export function ProfileMemberInformationSection(props: {
+  readonly emergencyContactName: string;
+  readonly emergencyContactPhone: string;
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly locale: string;
+  readonly mitClassYear: string | null;
+  readonly mitId: string;
+  readonly mitIdentityLocked: boolean;
+  readonly onEmergencyContactNameChange: (value: string) => void;
+  readonly onEmergencyContactPhoneChange: (value: string) => void;
+  readonly onFirstNameChange: (value: string) => void;
+  readonly onLastNameChange: (value: string) => void;
+  readonly onMitClassYearChange: (value: string | null) => void;
+  readonly onMitIdChange: (value: string) => void;
+  readonly onMitIdentityLockedChange: (value: boolean) => void;
+  readonly onPhoneChange: (value: string) => void;
+  readonly onSailingAffiliationChange: (value: SailingAffiliation | '') => void;
+  readonly onSaveDetails?: (
+    locale: string,
+    input: ProfileDetailsInput
+  ) => Promise<UpdateProfileDetailsResult>;
+  readonly phone: string;
+  readonly sailingAffiliation: SailingAffiliation | '';
+  readonly saveButtonKey?: ProfileMemberFormMessageKey;
+  readonly sectionDescription?: string;
+  readonly sectionHeading?: string;
+  readonly sectionId?: string;
+  readonly successMessageKey?: ProfileMemberFormMessageKey;
+  readonly translationNamespace?: 'AdminUsers' | 'UserProfilePage';
+}) {
+  const tCommon = useTranslations('Common');
+  const t = useTranslations('UserProfilePage');
+  const tForm = useTranslations(
+    props.translationNamespace ?? 'UserProfilePage'
+  );
+  const tOnboarding = useTranslations('OnboardingPage');
+  const router = useRouter();
+  const [banner, setBanner] = useState<ProfileBannerState>(null);
+  const [pending, setPending] = useState(false);
+  const { helpKey, mitIdRequired, showManualName, showMitId } =
+    profileMemberMitFieldState({
+      mitId: props.mitId,
+      mitIdentityLocked: props.mitIdentityLocked,
+      sailingAffiliation: props.sailingAffiliation,
+    });
   const mitIdHelpId = helpKey ? 'mitId-help' : undefined;
+  const sectionId = props.sectionId ?? 'profile-details-section';
+  const headingId = `${sectionId}-heading`;
+  const sectionHeading = props.sectionHeading ?? t('profile_details_heading');
+  const sectionDescription =
+    props.sectionDescription ??
+    (props.mitIdentityLocked
+      ? t('profile_details_locked_help')
+      : t('profile_details_description'));
+  const successMessageKey =
+    props.successMessageKey ?? 'profile_details_updated';
+  const saveButtonKey = props.saveButtonKey ?? 'profile_details_save';
 
   async function onUpdateProfileDetails(
     event: React.SubmitEvent<HTMLFormElement>
@@ -164,7 +217,7 @@ export function ProfileMemberInformationSection(props: {
     setBanner(null);
     setPending(true);
     try {
-      const result = await updateProfileDetailsAction(props.locale, {
+      const input = {
         affiliation: props.sailingAffiliation,
         emergencyContactName: props.emergencyContactName,
         emergencyContactPhone: props.emergencyContactPhone,
@@ -172,7 +225,10 @@ export function ProfileMemberInformationSection(props: {
         lastName: props.lastName,
         mitId: props.mitId,
         phone: props.phone,
-      });
+      };
+      const result = props.onSaveDetails
+        ? await props.onSaveDetails(props.locale, input)
+        : await updateProfileDetailsAction(props.locale, input);
       if (!result.ok) {
         setBanner({
           kind: 'error',
@@ -186,14 +242,9 @@ export function ProfileMemberInformationSection(props: {
       props.onMitIdChange(result.identity.mitId ?? '');
       props.onMitClassYearChange(result.identity.mitClassYear);
       props.onMitIdentityLockedChange(result.identity.lockedByMitId);
-      setBanner({ kind: 'success', message: t('profile_details_updated') });
+      setBanner({ kind: 'success', message: tForm(successMessageKey) });
       router.refresh();
-    } catch (caughtError) {
-      reportUnknownAuthClientError({
-        action: 'profile.details-update.thrown',
-        code: undefined,
-        message: authClientThrownMessage(caughtError),
-      });
+    } catch {
       setBanner({
         kind: 'error',
         message: t('error_request_failed'),
@@ -205,231 +256,253 @@ export function ProfileMemberInformationSection(props: {
 
   return (
     <section
-      aria-labelledby="profile-details-heading"
+      aria-labelledby={headingId}
       className="rounded-lg border border-mit-line bg-card p-6 shadow-sm"
-      id="profile-details-section"
+      id={sectionId}
     >
-      <h2 className="text-lg font-medium" id="profile-details-heading">
-        {t('profile_details_heading')}
+      <h2 className="text-lg font-semibold text-foreground" id={headingId}>
+        {sectionHeading}
       </h2>
-      <p className="mt-2 text-sm text-mit-text">
-        {props.mitIdentityLocked
-          ? t('profile_details_locked_help')
-          : t('profile_details_description')}
+      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+        {sectionDescription}
       </p>
       <ProfileInlineBanner banner={banner} />
       <form
-        className="mt-4 flex flex-col gap-4"
+        className="mt-5 flex flex-col gap-6"
         onSubmit={(event) => {
           // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the form promise.
           void onUpdateProfileDetails(event);
         }}
       >
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="flex flex-col gap-1.5 md:col-span-2">
-            <Label className="text-foreground" htmlFor="sailingAffiliation">
-              {t('affiliation')}
-            </Label>
-            <NativeSelect
-              disabled={props.mitIdentityLocked}
-              id="sailingAffiliation"
-              name="sailingAffiliation"
-              onChange={(event) => {
-                const value = profileAffiliationFromValue(
-                  event.currentTarget.value
-                );
-                props.onMitIdChange(
-                  value === '' ||
-                    getSailingAffiliationRule(value).mitIdMode === 'hidden'
-                    ? ''
-                    : props.mitId
-                );
-                props.onSailingAffiliationChange(value);
-              }}
-              required
-              value={props.sailingAffiliation}
-            >
-              <option value="">{t('affiliation_placeholder')}</option>
-              {getSailingAffiliationOptions().map((option) => (
-                <option key={option.value} value={option.value}>
-                  {tOnboarding(affiliationLabelKey(option.value))}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
-
-          {showMitId ? (
+        <div className="flex flex-col gap-4">
+          <h3 className="m-0 text-sm font-semibold text-foreground">
+            {t('identity_subsection_heading')}
+          </h3>
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-1.5 md:col-span-2">
-              <Label className="text-foreground" htmlFor="mitId">
-                {t('mit_id')}
+              <Label className="text-foreground" htmlFor="sailingAffiliation">
+                {t('affiliation')}
               </Label>
-              <Input
-                aria-describedby={mitIdHelpId}
-                aria-required={mitIdRequired}
-                autoComplete="off"
+              <NativeSelect
                 disabled={props.mitIdentityLocked}
-                id="mitId"
-                inputMode="numeric"
-                name="mitId"
+                id="sailingAffiliation"
+                name="sailingAffiliation"
                 onChange={(event) => {
-                  props.onMitIdChange(event.currentTarget.value);
+                  const value = profileAffiliationFromValue(
+                    event.currentTarget.value
+                  );
+                  props.onMitIdChange(
+                    value === '' ||
+                      getSailingAffiliationRule(value).mitIdMode === 'hidden'
+                      ? ''
+                      : props.mitId
+                  );
+                  props.onSailingAffiliationChange(value);
                 }}
-                required={mitIdRequired}
-                type="text"
-                value={props.mitId}
-              />
-              {helpKey ? (
-                <p
-                  className="text-xs leading-5 text-muted-foreground"
-                  id={mitIdHelpId}
-                >
-                  {t(helpKey)}
-                </p>
-              ) : null}
+                required
+                value={props.sailingAffiliation}
+              >
+                <option value="">{t('affiliation_placeholder')}</option>
+                {getSailingAffiliationOptions().map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {tOnboarding(affiliationLabelKey(option.value))}
+                  </option>
+                ))}
+              </NativeSelect>
             </div>
-          ) : null}
 
-          {showManualName ? (
-            <>
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-foreground" htmlFor="firstName">
-                  {t('first_name')}
+            {showMitId ? (
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <Label className="text-foreground" htmlFor="mitId">
+                  {t('mit_id')}
                 </Label>
                 <Input
-                  autoComplete="given-name"
-                  id="firstName"
-                  name="firstName"
+                  aria-describedby={mitIdHelpId}
+                  aria-required={mitIdRequired}
+                  autoComplete="off"
+                  disabled={props.mitIdentityLocked}
+                  id="mitId"
+                  inputMode="numeric"
+                  name="mitId"
                   onChange={(event) => {
-                    props.onFirstNameChange(event.currentTarget.value);
+                    props.onMitIdChange(event.currentTarget.value);
                   }}
-                  required
+                  required={mitIdRequired}
                   type="text"
-                  value={props.firstName}
+                  value={props.mitId}
                 />
+                {helpKey ? (
+                  <p
+                    className="text-xs leading-5 text-muted-foreground"
+                    id={mitIdHelpId}
+                  >
+                    {t(helpKey)}
+                  </p>
+                ) : null}
               </div>
+            ) : null}
+
+            {showManualName ? (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-foreground" htmlFor="firstName">
+                    {t('first_name')}
+                  </Label>
+                  <Input
+                    autoComplete="given-name"
+                    id="firstName"
+                    name="firstName"
+                    onChange={(event) => {
+                      props.onFirstNameChange(event.currentTarget.value);
+                    }}
+                    required
+                    type="text"
+                    value={props.firstName}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-foreground" htmlFor="lastName">
+                    {t('last_name')}
+                  </Label>
+                  <Input
+                    autoComplete="family-name"
+                    id="lastName"
+                    name="lastName"
+                    onChange={(event) => {
+                      props.onLastNameChange(event.currentTarget.value);
+                    }}
+                    required
+                    type="text"
+                    value={props.lastName}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-foreground" htmlFor="firstName">
+                    {t('first_name')}
+                  </Label>
+                  <Input
+                    disabled
+                    id="firstName"
+                    name="firstName"
+                    type="text"
+                    value={props.firstName}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-foreground" htmlFor="lastName">
+                    {t('last_name')}
+                  </Label>
+                  <Input
+                    disabled
+                    id="lastName"
+                    name="lastName"
+                    type="text"
+                    value={props.lastName}
+                  />
+                </div>
+              </>
+            )}
+
+            {props.mitClassYear ? (
               <div className="flex flex-col gap-1.5">
-                <Label className="text-foreground" htmlFor="lastName">
-                  {t('last_name')}
-                </Label>
-                <Input
-                  autoComplete="family-name"
-                  id="lastName"
-                  name="lastName"
-                  onChange={(event) => {
-                    props.onLastNameChange(event.currentTarget.value);
-                  }}
-                  required
-                  type="text"
-                  value={props.lastName}
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-foreground" htmlFor="firstName">
-                  {t('first_name')}
+                <Label className="text-foreground" htmlFor="mitClassYear">
+                  {t('mit_class_year')}
                 </Label>
                 <Input
                   disabled
-                  id="firstName"
-                  name="firstName"
+                  id="mitClassYear"
+                  name="mitClassYear"
                   type="text"
-                  value={props.firstName}
+                  value={props.mitClassYear}
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-foreground" htmlFor="lastName">
-                  {t('last_name')}
-                </Label>
-                <Input
-                  disabled
-                  id="lastName"
-                  name="lastName"
-                  type="text"
-                  value={props.lastName}
-                />
-              </div>
-            </>
-          )}
+            ) : null}
+          </div>
+        </div>
 
-          {props.mitClassYear ? (
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-foreground" htmlFor="mitClassYear">
-                {t('mit_class_year')}
+        <div className="flex flex-col gap-4 border-t border-border pt-5">
+          <h3 className="m-0 text-sm font-semibold text-foreground">
+            {t('contact_subsection_heading')}
+          </h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-1.5 md:col-span-2">
+              <Label className="text-foreground" htmlFor="phone">
+                {t('phone')}
               </Label>
               <Input
-                disabled
-                id="mitClassYear"
-                name="mitClassYear"
-                type="text"
-                value={props.mitClassYear}
+                autoComplete="tel"
+                id="phone"
+                inputMode="tel"
+                name="phone"
+                onChange={(event) => {
+                  props.onPhoneChange(event.currentTarget.value);
+                }}
+                required
+                type="tel"
+                value={props.phone}
               />
             </div>
-          ) : null}
+          </div>
+        </div>
 
-          <div className="flex flex-col gap-1.5 md:col-span-2">
-            <Label className="text-foreground" htmlFor="phone">
-              {t('phone')}
-            </Label>
-            <Input
-              autoComplete="tel"
-              id="phone"
-              inputMode="tel"
-              name="phone"
-              onChange={(event) => {
-                props.onPhoneChange(event.currentTarget.value);
-              }}
-              required
-              type="tel"
-              value={props.phone}
-            />
+        <div className="flex flex-col gap-4 border-t border-border pt-5">
+          <h3 className="m-0 text-sm font-semibold text-foreground">
+            {t('emergency_subsection_heading')}
+          </h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-foreground" htmlFor="emergencyContactName">
+                {t('emergency_contact_name')}
+              </Label>
+              <Input
+                autoComplete="name"
+                id="emergencyContactName"
+                name="emergencyContactName"
+                onChange={(event) => {
+                  props.onEmergencyContactNameChange(event.currentTarget.value);
+                }}
+                required
+                type="text"
+                value={props.emergencyContactName}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label
+                className="text-foreground"
+                htmlFor="emergencyContactPhone"
+              >
+                {t('emergency_contact_phone')}
+              </Label>
+              <Input
+                autoComplete="tel"
+                id="emergencyContactPhone"
+                inputMode="tel"
+                name="emergencyContactPhone"
+                onChange={(event) => {
+                  props.onEmergencyContactPhoneChange(
+                    event.currentTarget.value
+                  );
+                }}
+                required
+                type="tel"
+                value={props.emergencyContactPhone}
+              />
+            </div>
+            <p className="text-xs leading-relaxed text-muted-foreground md:col-span-2">
+              {t('emergency_contact_help')}
+            </p>
           </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-foreground" htmlFor="emergencyContactName">
-              {t('emergency_contact_name')}
-            </Label>
-            <Input
-              autoComplete="name"
-              id="emergencyContactName"
-              name="emergencyContactName"
-              onChange={(event) => {
-                props.onEmergencyContactNameChange(event.currentTarget.value);
-              }}
-              required
-              type="text"
-              value={props.emergencyContactName}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-foreground" htmlFor="emergencyContactPhone">
-              {t('emergency_contact_phone')}
-            </Label>
-            <Input
-              autoComplete="tel"
-              id="emergencyContactPhone"
-              inputMode="tel"
-              name="emergencyContactPhone"
-              onChange={(event) => {
-                props.onEmergencyContactPhoneChange(event.currentTarget.value);
-              }}
-              required
-              type="tel"
-              value={props.emergencyContactPhone}
-            />
-          </div>
-          <p className="text-xs leading-relaxed text-muted-foreground md:col-span-2">
-            {t('emergency_contact_help')}
-          </p>
         </div>
         <SubmitButton
-          className="mt-2 min-h-11 w-full sm:w-fit"
+          className="min-h-11 w-full sm:w-fit"
           pending={pending}
           pendingLabel={tCommon('pending_saving')}
           variant="mit"
         >
-          {t('profile_details_save')}
+          {tForm(saveButtonKey)}
         </SubmitButton>
       </form>
     </section>

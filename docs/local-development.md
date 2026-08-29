@@ -140,6 +140,44 @@ node scripts/sync-prod-media.mjs \
   --local-root local/cms-media
 ```
 
+## Legacy MySQL Import (Local)
+
+Use this when you need legacy users, events, ratings, news, Pavilion reservations,
+or payments from the Pavilion MySQL database.
+
+Production reads `sailing.pavilion.lan` directly from the worker host. Locally,
+tunnel through `sailing-dock.mit.edu` and override the host and port:
+
+```shell
+ssh -N -L 127.0.0.1:13306:sailing.pavilion.lan:3306 ak@sailing-dock.mit.edu
+```
+
+Add to `.env` (see `.env.example`):
+
+```dotenv
+LEGACY_MYSQL_PASSWORD=<dock_readonly password>
+LEGACY_MYSQL_HOST=127.0.0.1
+LEGACY_MYSQL_PORT=13306
+```
+
+Run with Postgres up (`npm run dev` or `npm run db:up`):
+
+```shell
+npm run legacy:import
+```
+
+That reads the needed legacy tables from MySQL and imports users, events,
+ratings, news, Pavilion reservations, and payments into app tables.
+
+Safety guards:
+
+- `LEGACY_MYSQL_SYNC_ENABLED=true` is rejected outside production, so the
+  worker never schedules production sync locally.
+- The import script aborts outside production unless `DATABASE_URL` targets
+  `dev_db` on `127.0.0.1` or `localhost`.
+
+App tables are upserted by legacy keys; event dates for legacy events are replaced.
+
 ## Port Overrides
 
 If a default port is already in use, change the matching value in `.env`:

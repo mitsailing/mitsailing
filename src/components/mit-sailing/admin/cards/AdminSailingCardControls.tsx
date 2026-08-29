@@ -202,7 +202,7 @@ function AdminSailingCardRecreationVerification(props: {
   }
 
   return (
-    <div className="rounded-lg border border-border p-3">
+    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-950">
       <div className="flex items-start gap-2">
         <input
           className="mt-0.5 size-4"
@@ -212,11 +212,15 @@ function AdminSailingCardRecreationVerification(props: {
           type="checkbox"
           value="true"
         />
-        <Label htmlFor={props.id}>{t('fitness_membership_verify_label')}</Label>
+        <div className="min-w-0">
+          <Label className="font-semibold text-amber-950" htmlFor={props.id}>
+            {t('fitness_membership_verify_label')}
+          </Label>
+          <p className="m-0 pt-1 text-sm text-amber-950/90">
+            {t('fitness_membership_verify_help')}
+          </p>
+        </div>
       </div>
-      <p className="m-0 pt-1 pl-6 text-xs text-muted-foreground">
-        {t('fitness_membership_verify_help')}
-      </p>
     </div>
   );
 }
@@ -249,6 +253,9 @@ export function AdminSailingCardIssueForm(
       aria-label={t('issue_form_label')}
       className="flex flex-col gap-1"
     >
+      <p className="m-0 text-sm text-muted-foreground">
+        {t('issue_number_help', { number: props.suggestedCardNumber })}
+      </p>
       <AdminSailingCardNumberField
         actionLabel={t('action_issue')}
         defaultValue={props.suggestedCardNumber}
@@ -323,6 +330,9 @@ export function AdminSailingCardChangeNumberForm(props: {
       aria-label={t('change_number_form_label')}
       className="flex flex-col gap-1"
     >
+      <p className="m-0 text-xs text-muted-foreground">
+        {t('change_number_help', { number: props.currentCardNumber })}
+      </p>
       <AdminSailingCardNumberField
         actionLabel={t('action_save_correction')}
         defaultValue={props.currentCardNumber}

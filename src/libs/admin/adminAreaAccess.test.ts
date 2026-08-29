@@ -102,4 +102,16 @@ describe('requireAdminAreaAccess', () => {
     expect(access.appRole).toBe(Role.ADMIN);
     expect(access.permissions).toContain(Permission.ADMIN_VIEW);
   });
+
+  it('redirects volunteers without admin access', async () => {
+    mocks.verifySession.mockResolvedValue(
+      session(Role.VOLUNTEER, 'volunteer-1')
+    );
+    const { requireAdminAreaAccess } =
+      await import('@/libs/admin/adminAreaAccess');
+
+    await requireAdminAreaAccess('en');
+
+    expect(mocks.redirect).toHaveBeenCalledWith('/');
+  });
 });

@@ -5,18 +5,21 @@ import {
   instantForNyWallClock,
 } from '@/lib/mit-sailing/nyTime';
 import { prisma } from '@/libs/DB';
-import { loadLegacyUserIdentityMaps } from '@/libs/legacy-sync/legacyPaymentImport';
-import type { LegacyMemberRow } from '@/libs/legacy-sync/legacyPaymentImport';
+import { legacyImportTransactionOptions } from '@/libs/legacy-sync/legacyImportTransaction';
+import { loadLegacyUserIdentityMaps } from '@/libs/legacy-sync/legacyMemberIdentity';
+import type { LegacyMemberRow } from '@/libs/legacy-sync/legacyMemberIdentity';
+import type { LegacyMysqlReader } from '@/libs/legacy-sync/legacyMysqlReader';
+import { legacyMysqlReaderFromEnv } from '@/libs/legacy-sync/legacyMysqlReader';
 import { logger } from '@/libs/Logger';
 import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 
-type LegacyEventTypeRow = {
+export type LegacyEventTypeRow = {
   readonly name: string | null;
   readonly rank: string | null;
   readonly type: string | null;
 };
 
-type LegacyEventRow = {
+export type LegacyEventRow = {
   readonly ask_notes: string | null;
   readonly boat_size: string | null;
   readonly description: string | null;
@@ -52,14 +55,14 @@ type LegacyEventRow = {
   readonly url: string | null;
 };
 
-type LegacyEventDateRow = {
+export type LegacyEventDateRow = {
   readonly date: string | null;
   readonly eid: string | null;
   readonly end: string | null;
   readonly start: string | null;
 };
 
-type LegacyEventRegistrationRow = {
+export type LegacyEventRegistrationRow = {
   readonly activereg: string | null;
   readonly confirm: string | null;
   readonly eid: string | null;
@@ -68,19 +71,19 @@ type LegacyEventRegistrationRow = {
   readonly userid: string | null;
 };
 
-type LegacyEventContactRow = {
+export type LegacyEventContactRow = {
   readonly eid: string | null;
   readonly userid: string | null;
 };
 
-type LegacyEventFeeRow = {
+export type LegacyEventFeeRow = {
   readonly eid: string | null;
   readonly feeid: string | null;
   readonly name: string | null;
   readonly price: string | null;
 };
 
-type LegacyEventBoatRow = {
+export type LegacyEventBoatRow = {
   readonly boat_num: string | null;
   readonly boat_pos: string | null;
   readonly e_mail: string | null;
@@ -91,7 +94,7 @@ type LegacyEventBoatRow = {
 
 type LegacyEventImportDb = Pick<
   Prisma.TransactionClient,
-  '$executeRaw' | '$queryRaw' | 'event' | 'eventCategory' | 'user'
+  '$executeRaw' | '$queryRaw' | 'event' | 'eventCategory'
 >;
 
 type LegacyEventDateStageRow = Readonly<{
@@ -142,11 +145,6 @@ type LegacyTeamRegistrationRow = Readonly<{
   legacy_team_key: string;
   registration_id: string;
 }>;
-
-const legacyEventImportTransactionOptions = {
-  maxWait: 10_000,
-  timeout: 120_000,
-} as const;
 
 export type LegacyEventImportRows = {
   readonly boats: readonly LegacyEventBoatRow[];
@@ -860,13 +858,18 @@ async function importEventRegistrations(props: {
       VALUES ${Prisma.join(chunk.map(eventRegistrationStageSql), ', ')}
       ON CONFLICT (legacy_source_key) DO UPDATE
       SET status = EXCLUDED.status,
-          team_name = EXCLUDED.team_name
+          team_name = EXCLUDED.team_name,
+          user_id = EXCLUDED.user_id
     `;
   }
   if (rows.length > 0) {
     await props.db.$executeRaw`
       UPDATE "event_registrations" AS target
-      SET "status" = source.status::text::"EventRegistrationStatus"
+      SET "status" = source.status::text::"EventRegistrationStatus",
+          "user_id" = CASE
+            WHEN target."user_id" IS NULL THEN source.user_id
+            ELSE target."user_id"
+          END
       FROM legacy_import_event_registrations AS source
       WHERE target."legacy_source_key" = source.legacy_source_key
     `;
@@ -1121,11 +1124,13 @@ export async function importLegacyEventRows(
       registrationsImported: registrations.imported,
       registrationsSkipped: registrations.skipped,
     };
-  }, legacyEventImportTransactionOptions);
+  }, legacyImportTransactionOptions);
   return result;
 }
 
-export async function importLegacyEventsFromSchema(): Promise<LegacyEventImportResult> {
+export async function importLegacyEvents(
+  reader: LegacyMysqlReader = legacyMysqlReaderFromEnv()
+): Promise<LegacyEventImportResult> {
   const [
     eventTypes,
     events,
@@ -1136,47 +1141,14 @@ export async function importLegacyEventsFromSchema(): Promise<LegacyEventImportR
     boats,
     members,
   ] = await Promise.all([
-    prisma.$queryRaw<LegacyEventTypeRow[]>`
-      SELECT *
-      FROM legacy.event_types
-      ORDER BY rank
-    `,
-    prisma.$queryRaw<LegacyEventRow[]>`
-      SELECT *
-      FROM legacy.events
-      ORDER BY idx
-    `,
-    prisma.$queryRaw<LegacyEventDateRow[]>`
-      SELECT *
-      FROM legacy.event_dates
-      ORDER BY eid, date, start
-    `,
-    prisma.$queryRaw<LegacyEventRegistrationRow[]>`
-      SELECT *
-      FROM legacy.event_regs
-      ORDER BY eid, team_id, userid
-    `,
-    prisma.$queryRaw<LegacyEventContactRow[]>`
-      SELECT *
-      FROM legacy.event_contact
-      ORDER BY eid, userid
-    `,
-    prisma.$queryRaw<LegacyEventFeeRow[]>`
-      SELECT *
-      FROM legacy.event_fees
-      ORDER BY eid, feeid
-    `,
-    prisma.$queryRaw<LegacyEventBoatRow[]>`
-      SELECT *
-      FROM legacy.event_boats
-      ORDER BY eid, team_id, boat_num, boat_pos
-    `,
-    prisma.$queryRaw<LegacyMemberRow[]>`
-      SELECT *
-      FROM legacy.members
-      WHERE active = '1'
-      ORDER BY lower(trim(email)), record_date DESC, record DESC
-    `,
+    reader.fetchEventTypes(),
+    reader.fetchEvents(),
+    reader.fetchEventDates(),
+    reader.fetchEventRegs(),
+    reader.fetchEventContacts(),
+    reader.fetchEventFees(),
+    reader.fetchEventBoats(),
+    reader.fetchActiveMembers(),
   ]);
   return importLegacyEventRows({
     boats,

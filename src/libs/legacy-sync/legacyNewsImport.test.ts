@@ -80,25 +80,28 @@ describe('importLegacyNewsRows', () => {
     );
   });
 
-  it('imports legacy news from the legacy schema query', async () => {
-    mocks.queryRaw.mockResolvedValueOnce([
-      {
-        end_date: '2026-06-30',
-        id: '12',
-        news: 'Sailing &amp; racing',
-        news_date: '2026-06-01',
-        updater: 'admin',
-      },
-    ]);
-    const { importLegacyNewsFromSchema } =
+  it('imports legacy news from mysql reader fixtures', async () => {
+    const { createFixtureLegacyMysqlReader } =
+      await import('@/libs/legacy-sync/legacyMysqlReader');
+    const { importLegacyNews } =
       await import('@/libs/legacy-sync/legacyNewsImport');
+    const reader = createFixtureLegacyMysqlReader({
+      news: [
+        {
+          end_date: '2026-06-30',
+          id: '12',
+          news: 'Sailing &amp; racing',
+          news_date: '2026-06-01',
+          updater: 'admin',
+        },
+      ],
+    });
 
-    await expect(importLegacyNewsFromSchema()).resolves.toEqual({
+    await expect(importLegacyNews(reader)).resolves.toEqual({
       imported: 1,
       skipped: 0,
     });
 
-    expect(mocks.queryRaw).toHaveBeenCalledOnce();
     expect(mocks.siteAlertUpsert).toHaveBeenCalledOnce();
   });
 });

@@ -1,5 +1,6 @@
 import 'server-only';
 import { cache } from 'react';
+import { CATALOG_SAILING_RATING_IDS } from '@/data/mit-sailing/sailingRatingsSeed';
 import { prisma } from '@/libs/DB';
 import { evaluateSailingRatingGrantEligibility } from '@/libs/mit-sailing/sailingRatingRules';
 import type {
@@ -37,7 +38,7 @@ type RatingRuleWithRating = SailingRatingRuleInput & {
 
 type SailingRatingTargetType = 'boat' | 'class' | 'rating';
 
-type SailingRatingReadClient = Pick<
+export type SailingRatingReadClient = Pick<
   typeof prisma,
   | 'fleetBoat'
   | 'sailingClass'
@@ -50,6 +51,25 @@ type ListUserRatingAssignmentRowsOptions = {
   includeDeprecated?: boolean;
   client?: SailingRatingReadClient;
 };
+
+const catalogSailingRatingIdSet = new Set(CATALOG_SAILING_RATING_IDS);
+
+function isCatalogSailingRatingId(ratingId: string): boolean {
+  return catalogSailingRatingIdSet.has(ratingId);
+}
+
+const publicSailingRatingSelect = {
+  id: true,
+  slug: true,
+  name: true,
+  shortName: true,
+  description: true,
+  category: true,
+  level: true,
+  windCondition: true,
+  guideUrl: true,
+  isDeprecated: true,
+} as const;
 
 function isPresent<T>(value: T | null | undefined): value is T {
   return value !== undefined && value !== null;
@@ -114,22 +134,12 @@ async function listPublicSailingRatingsForClient(
   const [ratings, classRules, boatRules] = await Promise.all([
     client.sailingRating.findMany({
       where: {
+        id: { in: [...CATALOG_SAILING_RATING_IDS] },
         isVisible: true,
         ...(props.includeDeprecated === false ? { isDeprecated: false } : {}),
       },
       orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        shortName: true,
-        description: true,
-        category: true,
-        level: true,
-        windCondition: true,
-        guideUrl: true,
-        isDeprecated: true,
-      },
+      select: publicSailingRatingSelect,
     }),
     client.sailingRatingRule.findMany({
       where: { classId: { not: null }, ruleType: 'grants' },
@@ -180,6 +190,47 @@ async function listPublicSailingRatingsForClient(
   }));
 }
 
+async function listGrantedLegacyOnlyPublicRatings(
+  client: SailingRatingReadClient,
+  props: {
+    grantRatingIds: readonly string[];
+    includeDeprecated?: boolean;
+  }
+): Promise<PublicSailingRating[]> {
+  const legacyOnlyIds = props.grantRatingIds.filter(
+    (ratingId) => !isCatalogSailingRatingId(ratingId)
+  );
+  if (legacyOnlyIds.length === 0) {
+    return [];
+  }
+
+  const ratings = await client.sailingRating.findMany({
+    where: {
+      id: { in: legacyOnlyIds },
+      ...(props.includeDeprecated === false ? { isDeprecated: false } : {}),
+    },
+    orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
+    select: publicSailingRatingSelect,
+  });
+
+  return ratings.map((rating) => ({
+    ...rating,
+    grantableClasses: [],
+    unlockedBoats: [],
+  }));
+}
+
+function mergeCatalogAndLegacyGrantRatings(props: {
+  catalogRows: readonly PublicSailingRating[];
+  legacyGrantRows: readonly PublicSailingRating[];
+}): PublicSailingRating[] {
+  const catalogIds = new Set(props.catalogRows.map((row) => row.id));
+  const appendedLegacyRows = props.legacyGrantRows.filter(
+    (row) => !catalogIds.has(row.id)
+  );
+  return [...props.catalogRows, ...appendedLegacyRows];
+}
+
 export const listPublicSailingRatings = cache(
   async (): Promise<PublicSailingRating[]> => {
     const rows = await listPublicSailingRatingsForClient(prisma);
@@ -192,10 +243,11 @@ export async function listUserRatingAssignmentRows(
   options: ListUserRatingAssignmentRowsOptions = {}
 ): Promise<UserRatingAssignmentRow[]> {
   const client = options.client ?? prisma;
-  const publicRatingRows =
-    options.client || options.includeDeprecated === false
+  const { includeDeprecated } = options;
+  const catalogRatingRows =
+    options.client || includeDeprecated === false
       ? await listPublicSailingRatingsForClient(client, {
-          includeDeprecated: options.includeDeprecated,
+          includeDeprecated,
         })
       : await listPublicSailingRatings();
   const [grants, prerequisiteRules] = await Promise.all([
@@ -217,6 +269,14 @@ export async function listUserRatingAssignmentRows(
       },
     }),
   ]);
+  const legacyGrantRows = await listGrantedLegacyOnlyPublicRatings(client, {
+    grantRatingIds: grants.map((row) => row.sailingRatingId),
+    includeDeprecated,
+  });
+  const publicRatingRows = mergeCatalogAndLegacyGrantRatings({
+    catalogRows: catalogRatingRows,
+    legacyGrantRows,
+  });
 
   const activeIds = new Set(grants.map((row) => row.sailingRatingId));
   const grantByRatingId = new Map(

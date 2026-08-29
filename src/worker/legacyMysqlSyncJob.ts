@@ -1,6 +1,6 @@
 import type { JobsOptions, Queue } from 'bullmq';
-import { importLegacyDataFromSchema } from '@/libs/legacy-sync/legacyDataImport';
-import { runLegacyMysqlSync } from '@/libs/legacy-sync/legacyMysqlSync';
+import { importLegacyData } from '@/libs/legacy-sync/legacyDataImport';
+import { createLegacyMysqlReader } from '@/libs/legacy-sync/legacyMysqlReader';
 import type { LegacyMysqlSyncConfig } from '@/libs/legacy-sync/legacyMysqlSyncConfig';
 import {
   LEGACY_MYSQL_SYNC_JOB_NAME,
@@ -58,9 +58,17 @@ export async function processLegacyMysqlSyncJob(): Promise<void> {
   if (!config.enabled) {
     return;
   }
-  const result = await runLegacyMysqlSync(config);
-  if (result.skipped) {
-    return;
+  const reader = createLegacyMysqlReader({ password: config.mysqlPassword });
+  try {
+    const outcome = await importLegacyData({
+      reader,
+      sourceHost: config.sourceHost,
+      useAdvisoryLock: true,
+    });
+    if (!outcome.skipped) {
+      // import completed
+    }
+  } finally {
+    await reader.close();
   }
-  await importLegacyDataFromSchema();
 }

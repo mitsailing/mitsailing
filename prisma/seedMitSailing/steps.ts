@@ -239,6 +239,7 @@ async function seedSailingRatingRows(
         displayOrder: rating.displayOrder,
         isVisible: rating.isVisible,
         isDeprecated: rating.isDeprecated,
+        legacyRatingType: rating.legacyRatingType ?? null,
       },
     });
   }

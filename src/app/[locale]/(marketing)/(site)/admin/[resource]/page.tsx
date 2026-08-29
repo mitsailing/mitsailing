@@ -112,7 +112,7 @@ export default async function AdminCatalogResourceIndexPage(props: PageProps) {
   });
 
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="flex w-full flex-col gap-4">
       <AdminPageHeader
         actions={
           <div className="flex flex-wrap items-center gap-2">

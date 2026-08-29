@@ -9,6 +9,7 @@ type RegistrationBooleanSwitchProps = {
   defaultChecked?: boolean;
   id: string;
   name: string;
+  onCheckedChange?: (checked: boolean) => void;
   required?: boolean;
   'aria-describedby'?: string;
   'aria-invalid'?: boolean;
@@ -57,7 +58,9 @@ export function RegistrationBooleanSwitch(
         id={props.id}
         name={props.name}
         onChange={(event) => {
-          setChecked(event.currentTarget.checked);
+          const nextChecked = event.currentTarget.checked;
+          setChecked(nextChecked);
+          props.onCheckedChange?.(nextChecked);
         }}
         ref={inputRef}
         required={isRequired ? true : undefined}
@@ -76,7 +79,10 @@ export function RegistrationBooleanSwitch(
         )}
         checked={checked}
         data-switch-id={props.id}
-        onChange={setChecked}
+        onChange={(nextChecked) => {
+          setChecked(nextChecked);
+          props.onCheckedChange?.(nextChecked);
+        }}
         value="true"
       >
         <span

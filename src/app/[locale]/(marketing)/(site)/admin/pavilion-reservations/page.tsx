@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import Form from 'next/form';
-import { AdminTableContainer } from '@/components/mit-sailing/admin/AdminDataRows';
+import { AdminActiveFilterChips } from '@/components/mit-sailing/admin/AdminActiveFilterChips';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
+import { AdminTableSurface } from '@/components/mit-sailing/admin/AdminTableSurface';
+import { AdminUrlFilterToolbar } from '@/components/mit-sailing/admin/AdminUrlFilterToolbar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { NativeSelect } from '@/components/ui/native-select';
 import {
   Table,
   TableBody,
@@ -14,6 +13,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  adminPavilionReservationActiveFilterCount,
+  adminPavilionReservationClearFiltersHref,
+  adminPavilionDefaultOmit,
+  adminPavilionReservationFilterChips,
+  adminPavilionReservationToolbarParams,
+} from '@/libs/admin/pavilion-reservations/adminPavilionReservationFilterUrl';
 import {
   adminPavilionReservationDetailPath,
   adminPavilionReservationIndexPath,
@@ -186,71 +192,100 @@ export default async function AdminPavilionReservationsPage(
     }
   }
 
+  const listFilters = {
+    date,
+    direction,
+    paymentStatus,
+    search,
+    sort,
+    status,
+    week: weekStart,
+  };
+  const hasActiveFilters =
+    adminPavilionReservationActiveFilterCount(listFilters) > 0;
+  const statusOptions = Object.fromEntries(
+    adminPavilionReservationStatuses.map((statusOption) => [
+      statusOption,
+      t(`status_${statusOption}`),
+    ])
+  );
+  const paymentOptions = Object.fromEntries(
+    adminPavilionReservationPaymentStatuses.map((paymentOption) => [
+      paymentOption,
+      t(`payment_${paymentOption}`),
+    ])
+  );
+  const filterChips = adminPavilionReservationFilterChips(listFilters, {
+    chipRemoveAria: (label) => t('filter_chip_remove_aria', { label }),
+    dateLabel: t('filter_date_label'),
+    paymentLabel: t('filter_payment_label'),
+    paymentOptions,
+    searchLabel: t('filter_search_label'),
+    statusLabel: t('filter_status_label'),
+    statusOptions,
+  });
+
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="flex w-full flex-col gap-4">
       <AdminPageHeader title={t('list_title')} />
 
-      <Form
-        action={pavilionReservationListPath}
-        className="grid gap-3 border-y border-border py-4 lg:grid-cols-[minmax(180px,240px)_minmax(180px,240px)_minmax(180px,240px)_minmax(220px,1fr)_auto]"
-      >
-        <input name="sort" type="hidden" value={sort} />
-        <input name="direction" type="hidden" value={direction} />
-        <input name="week" type="hidden" value={weekStart} />
-        <label className="flex min-w-0 flex-col gap-1.5 text-sm">
-          <span className="font-medium text-foreground">
-            {t('filter_status_label')}
-          </span>
-          <NativeSelect defaultValue={status ?? ''} name="status">
-            <option value="">{t('filter_status_all')}</option>
-            {adminPavilionReservationStatuses.map((statusOption) => (
-              <option key={statusOption} value={statusOption}>
-                {t(`status_${statusOption}`)}
-              </option>
-            ))}
-          </NativeSelect>
-        </label>
-        <label className="flex min-w-0 flex-col gap-1.5 text-sm">
-          <span className="font-medium text-foreground">
-            {t('filter_payment_label')}
-          </span>
-          <NativeSelect defaultValue={paymentStatus ?? ''} name="paymentStatus">
-            <option value="">{t('filter_payment_all')}</option>
-            {adminPavilionReservationPaymentStatuses.map((paymentOption) => (
-              <option key={paymentOption} value={paymentOption}>
-                {t(`payment_${paymentOption}`)}
-              </option>
-            ))}
-          </NativeSelect>
-        </label>
-        <label className="flex min-w-0 flex-col gap-1.5 text-sm">
-          <span className="font-medium text-foreground">
-            {t('filter_date_label')}
-          </span>
-          <Input defaultValue={date ?? ''} name="date" type="date" />
-        </label>
-        <label className="flex min-w-0 flex-col gap-1.5 text-sm">
-          <span className="font-medium text-foreground">
-            {t('filter_search_label')}
-          </span>
-          <Input
-            defaultValue={search ?? ''}
-            name="search"
-            placeholder={t('filter_search_placeholder')}
-            type="search"
-          />
-        </label>
-        <div className="flex items-end gap-2">
-          <Button type="submit" variant="outline">
-            {t('action_filter')}
-          </Button>
-          <Button asChild type="button" variant="ghost">
-            <Link href={adminPavilionReservationIndexPath()}>
-              {t('action_reset')}
-            </Link>
-          </Button>
-        </div>
-      </Form>
+      <AdminUrlFilterToolbar
+        basePath={pavilionReservationListPath}
+        dateFields={[
+          {
+            label: t('filter_date_label'),
+            param: 'date',
+            value: date ?? '',
+          },
+        ]}
+        omitWhenDefault={adminPavilionDefaultOmit}
+        params={adminPavilionReservationToolbarParams(listFilters)}
+        search={{
+          label: t('filter_search_label'),
+          param: 'search',
+          placeholder: t('filter_search_placeholder'),
+          value: search ?? '',
+        }}
+        selects={[
+          {
+            defaultValue: '',
+            label: t('filter_status_label'),
+            options: [
+              { label: t('filter_status_all'), value: '' },
+              ...adminPavilionReservationStatuses.map((statusOption) => ({
+                label: t(`status_${statusOption}`),
+                value: statusOption,
+              })),
+            ],
+            param: 'status',
+            value: status ?? '',
+          },
+          {
+            defaultValue: '',
+            label: t('filter_payment_label'),
+            options: [
+              { label: t('filter_payment_all'), value: '' },
+              ...adminPavilionReservationPaymentStatuses.map(
+                (paymentOption) => ({
+                  label: t(`payment_${paymentOption}`),
+                  value: paymentOption,
+                })
+              ),
+            ],
+            param: 'paymentStatus',
+            value: paymentStatus ?? '',
+          },
+        ]}
+      />
+      <AdminActiveFilterChips
+        chips={filterChips}
+        clearHref={
+          hasActiveFilters
+            ? adminPavilionReservationClearFiltersHref(listFilters)
+            : undefined
+        }
+        clearLabel={hasActiveFilters ? t('filter_clear') : undefined}
+      />
 
       <section className="rounded-lg border border-border bg-card p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -362,7 +397,7 @@ export default async function AdminPavilionReservationsPage(
         {t('list_count', { count: result.rows.length })}
       </p>
 
-      <AdminTableContainer>
+      <AdminTableSurface>
         <Table className="min-w-[1100px] text-left">
           <caption className="sr-only">{t('table_caption')}</caption>
           <TableHeader>
@@ -471,7 +506,7 @@ export default async function AdminPavilionReservationsPage(
             )}
           </TableBody>
         </Table>
-      </AdminTableContainer>
+      </AdminTableSurface>
     </div>
   );
 }

@@ -14,9 +14,8 @@
     "url": "git+https://github.com/mitsailing/mitsailing.git"
   },
   "scripts": {
-    "dev:spotlight": "npx @spotlightjs/spotlight",
     "dev:next": "next dev",
-    "dev:app": "run-p dev:next dev:spotlight",
+    "dev:app": "next dev",
     "db:up": "node scripts/prepare-local-media-storage.cjs && docker compose up -d postgres mailpit redis tusd media",
     "db:down": "docker compose down",
     "db:test:up": "npm run db:up",
@@ -49,6 +48,7 @@
     "e2e:build": "node scripts/e2e-build.cjs",
     "db:seed": "dotenv -c -- prisma db seed",
     "db:seed:donation-funds": "dotenv -c -- tsx scripts/seed-donation-funds.ts",
+    "legacy:import": "node scripts/run-import-legacy-data.mjs",
     "e2e": "cross-env IS_E2E=1 playwright test",
     "e2e:a11y": "cross-env IS_E2E=1 playwright test --project=a11y-chromium",
     "test:e2e": "run-s e2e:preflight e2e:build e2e",
@@ -68,7 +68,6 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@arcjet/next": "^1.4.0",
     "@better-auth/i18n": "~1.6.30",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
@@ -87,6 +86,7 @@
     "@sentry/node": "^10.56.0",
     "@stripe/stripe-js": "9.7.0",
     "@t3-oss/env-nextjs": "^0.13.11",
+    "@tanstack/react-table": "^8.21.3",
     "@tiptap/extension-image": "^3.24.0",
     "@tiptap/extension-link": "^3.24.0",
     "@tiptap/pm": "^3.23.1",
@@ -102,6 +102,7 @@
     "bullmq": "^5.78.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "cron-parser": "5.5.0",
     "dotenv": "^17.4.2",
     "ioredis": "5.11.1",
@@ -114,6 +115,7 @@
     "pdf-lib": "1.17.1",
     "pg": "^8.21.0",
     "radix-ui": "^1.4.3",
+    "rate-limiter-flexible": "11.2.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-email": "^6.5.0",
@@ -139,7 +141,6 @@
     "@next/bundle-analyzer": "^16.3.3",
     "@playwright/test": "^1.60.0",
     "@react-email/ui": "6.5.0",
-    "@spotlightjs/spotlight": "^4.11.4",
     "@storybook/addon-a11y": "^10.4.2",
     "@storybook/addon-docs": "^10.4.2",
     "@storybook/addon-vitest": "^10.4.2",

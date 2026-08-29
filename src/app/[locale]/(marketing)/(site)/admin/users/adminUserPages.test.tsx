@@ -13,6 +13,14 @@ import {
   sailingCardAgreement,
   sailingCardAgreementHash,
 } from '@/libs/mit-sailing/sailingCardAgreement';
+import {
+  getCurrentSailingCardYear,
+  getSailingCardExpirationDate,
+} from '@/libs/mit-sailing/sailingCardValidity';
+
+// Resolve after tests/setup/clock.ts pins TEST_NOW, not at import time.
+const testCardYear = () => getCurrentSailingCardYear();
+const testCardExpiresOn = () => getSailingCardExpirationDate(testCardYear());
 
 const mocks = vi.hoisted(() => ({
   createAdminUserAction: vi.fn(),
@@ -113,7 +121,7 @@ function membershipPaymentHistoryRow() {
     amountCents: 12_000,
     amountPaidCents: null,
     cardType: SailingCardType.racing,
-    cardYear: 2026,
+    cardYear: testCardYear(),
     createdAt: new Date('2026-05-19T16:00:00.000Z'),
     currency: 'usd',
     detailHref: null,
@@ -179,6 +187,10 @@ vi.mock('next-intl/server', () => ({
 
 vi.mock('next/navigation', () => ({
   notFound: mocks.notFound,
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+  }),
 }));
 
 vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogForm', () => ({
@@ -201,6 +213,36 @@ vi.mock('@/components/mit-sailing/admin/AdminPageHeader', () => ({
   ),
 }));
 
+vi.mock(
+  '@/components/mit-sailing/admin/users/AdminMemberDetailsClient',
+  () => ({
+    AdminMemberDetailsClient: () => (
+      <section data-testid="member-details-form">member-details-form</section>
+    ),
+  })
+);
+
+vi.mock('@/components/mit-sailing/admin/users/AdminUserAccountTabs', () => ({
+  AdminUserAccountTabs: (props: {
+    activeTab: string;
+    tabs: readonly { id: string; label: string }[];
+  }) => (
+    <nav aria-label="account-tabs" data-active-tab={props.activeTab}>
+      {props.tabs.map((tab) => (
+        <span key={tab.id}>{tab.label}</span>
+      ))}
+    </nav>
+  ),
+}));
+
+vi.mock('@/components/mit-sailing/admin/users/AdminUserProfileHeader', () => ({
+  AdminUserProfileHeader: (props: { displayName: string }) => (
+    <header>
+      <h1>{props.displayName}</h1>
+    </header>
+  ),
+}));
+
 vi.mock('@/components/mit-sailing/admin/AdminPrimaryActionLink', () => ({
   AdminPrimaryActionLink: (props: {
     children: React.ReactNode;
@@ -208,38 +250,21 @@ vi.mock('@/components/mit-sailing/admin/AdminPrimaryActionLink', () => ({
   }) => <a href={props.href}>{props.children}</a>,
 }));
 
-vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogTable', () => ({
-  AdminCatalogTable: (props: {
-    definition: {
-      capabilities: {
-        create: boolean;
-        delete: boolean;
-        reorder: boolean;
-        update: boolean;
-      };
-    };
-    filters?: readonly { field: string }[];
+vi.mock('@/components/mit-sailing/admin/users/AdminUsersTable', () => ({
+  AdminUsersTable: (props: {
+    canDelete: boolean;
+    canUpdate: boolean;
     rows: unknown[];
-    search?: { fields: readonly string[] };
     userImpersonation?: unknown;
-  }) => {
-    const { capabilities } = props.definition;
-    return (
-      <div
-        data-can-create={String(capabilities.create)}
-        data-can-delete={String(capabilities.delete)}
-        data-can-reorder={String(capabilities.reorder)}
-        data-can-update={String(capabilities.update)}
-        data-has-impersonation={String(Boolean(props.userImpersonation))}
-        data-filter-fields={
-          props.filters?.map((filter) => filter.field).join(',') ?? ''
-        }
-        data-row-count={props.rows.length}
-        data-search-fields={props.search?.fields.join(',') ?? ''}
-        data-testid="admin-catalog-table"
-      />
-    );
-  },
+  }) => (
+    <div
+      data-can-delete={String(props.canDelete)}
+      data-can-update={String(props.canUpdate)}
+      data-has-impersonation={String(Boolean(props.userImpersonation))}
+      data-row-count={props.rows.length}
+      data-testid="admin-users-table"
+    />
+  ),
 }));
 
 vi.mock('@/components/mit-sailing/admin/users/AdminUserRatingsPanel', () => ({
@@ -434,14 +459,14 @@ beforeEach(() => {
     ],
     gymMembershipVerifiedAt: null,
     sailingCardRequests: [],
-    sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
+    sailingCardExpiresOn: testCardExpiresOn(),
     sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
     sailingCardIssuedBy: { name: 'Dock Master' },
     sailingCardNumber: 61,
     sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
     sailingCardSwimAgreementInitialedAt: new Date('2026-06-01T16:00:00.000Z'),
     sailingCardSwimAgreementInitials: 'AK',
-    sailingCardYear: 2026,
+    sailingCardYear: testCardYear(),
   });
   mocks.list.mockResolvedValue([
     {
@@ -496,7 +521,7 @@ function pendingCardSummary() {
     sailingCardRequests: [
       {
         cardType: SailingCardType.normal,
-        cardYear: 2026,
+        cardYear: testCardYear(),
         hasFitnessMembership: true,
         issuedCardNumber: null,
         requestedAt: new Date('2026-05-21T16:00:00.000Z'),
@@ -583,20 +608,21 @@ describe('admin user pages', () => {
     );
   });
 
-  it('keeps user edit behind the edit-users permission', async () => {
-    const { default: AdminUsersEditPage } = await import('./[id]/edit/page');
+  it('renders admin settings on the admin tab for editors', async () => {
+    const { default: AdminUserShowPage } = await import('./[id]/page');
 
-    await AdminUsersEditPage({
+    const page = await AdminUserShowPage({
       params: Promise.resolve({ id: 'user-1', locale: 'en' }),
-      searchParams: Promise.resolve({}),
+      searchParams: Promise.resolve({ tab: 'admin' }),
     });
+    const { container } = render(page);
 
-    expect(mocks.setRequestLocale).toHaveBeenCalledWith('en');
-    expect(mocks.requirePermission).toHaveBeenCalledWith(
-      Permission.USERS_EDIT,
-      'en'
-    );
-    expect(mocks.getById).toHaveBeenCalledWith('user-1');
+    expect(
+      screen.getByRole('navigation', { name: 'account-tabs' })
+    ).toHaveAttribute('data-active-tab', 'admin');
+    expect(
+      container.querySelector('form[data-heading="edit_heading"]')
+    ).not.toBeNull();
   });
 
   it('keeps user deletion behind the delete-users permission', async () => {
@@ -653,26 +679,10 @@ describe('admin user pages', () => {
       })
     );
 
+    expect(screen.getByTestId('member-details-form')).toBeInTheDocument();
     expect(screen.getByText('sailing_card_heading')).toBeInTheDocument();
-    expect(screen.getByText('identity_name')).toBeInTheDocument();
-    expect(screen.getByText('identity_affiliation')).toBeInTheDocument();
-    expect(
-      screen.getByText('affiliation_other_non_student')
-    ).toBeInTheDocument();
-    expect(screen.getByText('identity_source_manual')).toBeInTheDocument();
-    expect(screen.getByText('identity_phone')).toBeInTheDocument();
-    expect(screen.getByText('+15555550101')).toBeInTheDocument();
-    expect(
-      screen.getByText('identity_emergency_contact_name')
-    ).toBeInTheDocument();
-    expect(screen.getByText('Emergency One')).toBeInTheDocument();
-    expect(
-      screen.getByText('identity_emergency_contact_phone')
-    ).toBeInTheDocument();
-    expect(screen.getByText('+15555550102')).toBeInTheDocument();
-    expect(screen.getByText('123456789')).toBeInTheDocument();
     expect(screen.getAllByText('61').length).toBeGreaterThan(0);
-    expect(screen.getByText('2026')).toBeInTheDocument();
+    expect(screen.getByText(String(testCardYear()))).toBeInTheDocument();
     expect(screen.getByText(/Jun 1, 2026/)).toBeInTheDocument();
     expect(screen.getByTestId('card-history-panel')).toBeInTheDocument();
     expect(screen.getByTestId('ratings-panel')).toBeInTheDocument();
@@ -702,7 +712,7 @@ describe('admin user pages', () => {
       screen.getByRole('form', { name: 'Issue sailing card' })
     ).toHaveAttribute('data-suggested-card-number', '2471');
     expect(mocks.getNextAvailableSailingCardNumber).toHaveBeenCalledWith({
-      cardYear: 2026,
+      cardYear: testCardYear(),
     });
   });
 
@@ -734,14 +744,14 @@ describe('admin user pages', () => {
         },
       ],
       sailingCardRequests: [],
-      sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
+      sailingCardExpiresOn: testCardExpiresOn(),
       sailingCardIssuedAt: new Date('2026-05-21T16:00:00.000Z'),
       sailingCardIssuedBy: { name: 'Dock Master' },
       sailingCardNumber: 61,
       sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
       sailingCardSwimAgreementInitialedAt: new Date('2026-05-21T16:00:00.000Z'),
       sailingCardSwimAgreementInitials: 'AK',
-      sailingCardYear: 2026,
+      sailingCardYear: testCardYear(),
       gymMembershipVerifiedAt: null,
     });
     const { default: AdminUserShowPage } = await import('./[id]/page');
@@ -848,7 +858,7 @@ describe('admin user pages', () => {
       screen.getByRole('heading', { name: 'Sailor One' })
     ).toBeInTheDocument();
     expect(screen.getByText('ratings-load-failed')).toBeInTheDocument();
-    expect(screen.getByText('emails_heading')).toBeInTheDocument();
+    expect(screen.getByText('tab_emails')).toBeInTheDocument();
   });
 
   it('keeps user detail available when email history fails to load', async () => {
@@ -860,7 +870,7 @@ describe('admin user pages', () => {
     render(
       await AdminUserShowPage({
         params: Promise.resolve({ id: 'user-1', locale: 'en' }),
-        searchParams: Promise.resolve({}),
+        searchParams: Promise.resolve({ tab: 'emails' }),
       })
     );
 
@@ -880,7 +890,7 @@ describe('admin user pages', () => {
     render(
       await AdminUserShowPage({
         params: Promise.resolve({ id: 'user-1', locale: 'en' }),
-        searchParams: Promise.resolve({}),
+        searchParams: Promise.resolve({ tab: 'emails' }),
       })
     );
 
@@ -906,10 +916,9 @@ describe('admin user pages', () => {
     render(
       await AdminUserShowPage({
         params: Promise.resolve({ id: 'user-1', locale: 'en' }),
-        searchParams: Promise.resolve({}),
+        searchParams: Promise.resolve({ tab: 'payments' }),
       })
     );
-
     expect(mocks.listAdminUserPaymentHistory).toHaveBeenCalledWith('user-1');
     expect(screen.getByText('payments_heading')).toBeInTheDocument();
     expect(
@@ -930,7 +939,7 @@ describe('admin user pages', () => {
       {
         amountCents: 12_000,
         cardType: SailingCardType.racing,
-        cardYear: 2026,
+        cardYear: testCardYear(),
         createdAt: new Date('2026-05-19T16:00:00.000Z'),
         currency: 'usd',
         detailHref: null,
@@ -967,7 +976,7 @@ describe('admin user pages', () => {
       {
         amountCents: 12_000,
         cardType: SailingCardType.racing,
-        cardYear: 2026,
+        cardYear: testCardYear(),
         createdAt: new Date('2026-05-20T16:00:00.000Z'),
         currency: 'usd',
         detailHref: null,
@@ -984,7 +993,7 @@ describe('admin user pages', () => {
       {
         amountCents: 12_000,
         cardType: SailingCardType.racing,
-        cardYear: 2026,
+        cardYear: testCardYear(),
         createdAt: new Date('2026-05-19T16:00:00.000Z'),
         currency: 'usd',
         detailHref: null,
@@ -1023,7 +1032,7 @@ describe('admin user pages', () => {
       {
         amountCents: 12_000,
         cardType: SailingCardType.racing,
-        cardYear: 2026,
+        cardYear: testCardYear(),
         createdAt: new Date('2026-05-19T16:00:00.000Z'),
         currency: 'usd',
         detailHref: null,
@@ -1060,7 +1069,7 @@ describe('admin user pages', () => {
       {
         amountCents: 12_000,
         cardType: SailingCardType.racing,
-        cardYear: 2026,
+        cardYear: testCardYear(),
         createdAt: new Date('2026-05-20T16:00:00.000Z'),
         currency: 'usd',
         detailHref: null,
@@ -1077,7 +1086,7 @@ describe('admin user pages', () => {
       {
         amountCents: 12_000,
         cardType: SailingCardType.racing,
-        cardYear: 2026,
+        cardYear: testCardYear(),
         createdAt: new Date('2026-05-19T16:00:00.000Z'),
         currency: 'usd',
         detailHref: null,
@@ -1134,14 +1143,14 @@ describe('admin user pages', () => {
         },
       ],
       sailingCardRequests: [],
-      sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
+      sailingCardExpiresOn: testCardExpiresOn(),
       sailingCardIssuedAt: new Date('2025-08-01T16:00:00.000Z'),
       sailingCardIssuedBy: { name: 'Dock Master' },
       sailingCardNumber: 61,
       sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
       sailingCardSwimAgreementInitialedAt: new Date('2026-05-21T16:00:00.000Z'),
       sailingCardSwimAgreementInitials: 'AK',
-      sailingCardYear: 2026,
+      sailingCardYear: testCardYear(),
     });
     const { default: AdminUserShowPage } = await import('./[id]/page');
 
@@ -1170,33 +1179,17 @@ describe('admin user pages', () => {
       'href',
       '/admin/users/new'
     );
-    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
-      'data-can-create',
-      'true'
-    );
-    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+    expect(screen.getByTestId('admin-users-table')).toHaveAttribute(
       'data-can-update',
       'true'
     );
-    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+    expect(screen.getByTestId('admin-users-table')).toHaveAttribute(
       'data-can-delete',
       'true'
     );
-    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
-      'data-can-reorder',
-      'false'
-    );
-    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+    expect(screen.getByTestId('admin-users-table')).toHaveAttribute(
       'data-has-impersonation',
       'true'
-    );
-    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
-      'data-search-fields',
-      ''
-    );
-    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
-      'data-filter-fields',
-      ''
     );
   });
 
@@ -1222,19 +1215,15 @@ describe('admin user pages', () => {
     expect(
       screen.queryByRole('link', { name: 'action_create' })
     ).not.toBeInTheDocument();
-    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
-      'data-can-create',
-      'false'
-    );
-    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+    expect(screen.getByTestId('admin-users-table')).toHaveAttribute(
       'data-can-update',
       'false'
     );
-    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+    expect(screen.getByTestId('admin-users-table')).toHaveAttribute(
       'data-can-delete',
       'false'
     );
-    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+    expect(screen.getByTestId('admin-users-table')).toHaveAttribute(
       'data-has-impersonation',
       'false'
     );

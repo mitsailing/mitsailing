@@ -418,7 +418,6 @@ model User {
     auditLogs AuditLog[]
     userAudits UserAudit[] @relation("UserAuditUser")
     impersonatedUserAudits UserAudit[] @relation("UserAuditImpersonatedUser")
-    siteTextOverrides SiteTextOverride[]
     cmsMediaAssets CmsMediaAsset[] @relation("CmsMediaUploadedBy")
     sailingCardIssuedBy User? @relation("SailingCardIssuer", fields: [sailingCardIssuedByUserId], references: [id], onDelete: SetNull)
     sailingCardsIssued User[] @relation("SailingCardIssuer")
@@ -621,23 +620,6 @@ model UserAudit {
     @@index([impersonatedUserId])
     @@index([action])
     @@map("user_audit")
-}
-
-model SiteTextOverride {
-    id String @id() @default(cuid())
-    locale String
-    namespace String
-    key String
-    value String @db.Text()
-    updatedByUserId String? @map("updated_by_user_id")
-    createdAt DateTime @default(now()) @map("created_at")
-    updatedAt DateTime @updatedAt() @map("updated_at")
-    updatedBy User? @relation(fields: [updatedByUserId], references: [id], onDelete: SetNull)
-
-    @@unique([locale, namespace, key])
-    @@index([locale])
-    @@index([updatedByUserId])
-    @@map("site_text_overrides")
 }
 
 model NewsletterSubscriber {
