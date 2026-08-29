@@ -5,22 +5,22 @@ import { Link } from '@/libs/I18nNavigation';
 import type { PublicSailingRating } from '@/libs/mit-sailing/sailingRatingQueries';
 
 type RatingsListViewProps = {
-  locale: string;
-  ratings: PublicSailingRating[];
+  readonly locale: string;
+  readonly ratings: PublicSailingRating[];
 };
 
 type RatingFactLink = {
-  href: string;
-  id: string;
-  name: string;
+  readonly href: string;
+  readonly id: string;
+  readonly name: string;
 };
 
 const ratingLinkClassName = `font-semibold text-mit-red hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`;
 
 function RatingPageIntro(props: {
-  heading: string;
-  intro: string;
-  staffNote: string;
+  readonly heading: string;
+  readonly intro: string;
+  readonly staffNote: string;
 }) {
   return (
     <>
@@ -36,8 +36,8 @@ function RatingPageIntro(props: {
 }
 
 function RatingFactLinks(props: {
-  emptyLabel: string;
-  items: RatingFactLink[];
+  readonly emptyLabel: string;
+  readonly items: RatingFactLink[];
 }) {
   if (props.items.length === 0) {
     return <span>{props.emptyLabel}</span>;
@@ -56,7 +56,10 @@ function RatingFactLinks(props: {
   );
 }
 
-function RatingFact(props: { label: string; value: React.ReactNode }) {
+function RatingFact(props: {
+  readonly label: string;
+  readonly value: React.ReactNode;
+}) {
   return (
     <div className="min-w-0">
       <dt className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -70,16 +73,16 @@ function RatingFact(props: { label: string; value: React.ReactNode }) {
 }
 
 function RatingCatalogItem(props: {
-  emptyLabel: string;
-  guideLabel: string;
-  labels: {
-    boats: string;
-    classes: string;
-    guide: string;
-    wind: string;
+  readonly emptyLabel: string;
+  readonly guideLabel: string;
+  readonly labels: {
+    readonly boats: string;
+    readonly classes: string;
+    readonly guide: string;
+    readonly wind: string;
   };
-  levelLabel: string | null;
-  rating: PublicSailingRating;
+  readonly levelLabel: string | null;
+  readonly rating: PublicSailingRating;
 }) {
   const { rating } = props;
   const headingId = `${rating.slug}-heading`;

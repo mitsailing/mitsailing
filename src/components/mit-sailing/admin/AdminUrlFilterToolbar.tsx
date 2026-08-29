@@ -37,13 +37,13 @@ type AdminUrlFilterDateField = {
 };
 
 type AdminUrlFilterToolbarProps = {
-  basePath: string;
-  className?: string;
-  dateFields?: AdminUrlFilterDateField[];
-  omitWhenDefault?: Record<string, string>;
-  params: AdminUrlFilterParams;
-  search?: AdminUrlFilterSearchField;
-  selects: AdminUrlFilterSelectField[];
+  readonly basePath: string;
+  readonly className?: string;
+  readonly dateFields?: AdminUrlFilterDateField[];
+  readonly omitWhenDefault?: Record<string, string>;
+  readonly params: AdminUrlFilterParams;
+  readonly search?: AdminUrlFilterSearchField;
+  readonly selects: AdminUrlFilterSelectField[];
 };
 
 function navigateToFilterHref(

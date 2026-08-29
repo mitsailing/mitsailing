@@ -7,8 +7,8 @@ import type * as React from 'react';
  * @returns Table container markup
  */
 export function AdminTableSurface(props: {
-  children: React.ReactNode;
-  footer?: React.ReactNode;
+  readonly children: React.ReactNode;
+  readonly footer?: React.ReactNode;
 }) {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">

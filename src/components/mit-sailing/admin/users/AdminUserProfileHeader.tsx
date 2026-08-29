@@ -29,6 +29,44 @@ type AdminUserProfileHeaderProps = {
   readonly userId: string;
 };
 
+function AdminUserProfileActions(props: {
+  readonly accountRedirectHref: string;
+  readonly canEditUsers: boolean;
+  readonly canImpersonate: boolean;
+  readonly canPrintCards: boolean;
+  readonly currentUserId: string;
+  readonly editLabel: string;
+  readonly hasCurrentCard: boolean;
+  readonly pdfHref: string;
+  readonly printLabel: string;
+  readonly showEditAction: boolean;
+  readonly userId: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {props.canPrintCards && props.hasCurrentCard ? (
+        <Button asChild className="gap-2" size="sm" variant="mit">
+          <a href={props.pdfHref} rel="noopener noreferrer" target="_blank">
+            <Printer aria-hidden className="size-4" />
+            {props.printLabel}
+          </a>
+        </Button>
+      ) : null}
+      {props.showEditAction && props.canEditUsers ? (
+        <Button asChild size="sm" variant="outline">
+          <Link href={adminUsersEditPath(props.userId)}>{props.editLabel}</Link>
+        </Button>
+      ) : null}
+      {props.canImpersonate && props.userId !== props.currentUserId ? (
+        <ImpersonateButton
+          redirectHref={props.accountRedirectHref}
+          userId={props.userId}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * Member profile header with back navigation and role-aware actions.
  *
@@ -86,29 +124,19 @@ export async function AdminUserProfileHeader(
             </p>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {props.canPrintCards && props.hasCurrentCard ? (
-            <Button asChild className="gap-2" size="sm" variant="mit">
-              <a href={props.pdfHref} rel="noopener noreferrer" target="_blank">
-                <Printer aria-hidden className="size-4" />
-                {t('action_print_card')}
-              </a>
-            </Button>
-          ) : null}
-          {showEditAction && props.canEditUsers ? (
-            <Button asChild size="sm" variant="outline">
-              <Link href={adminUsersEditPath(props.userId)}>
-                {t('action_edit')}
-              </Link>
-            </Button>
-          ) : null}
-          {props.canImpersonate && props.userId !== props.currentUserId ? (
-            <ImpersonateButton
-              redirectHref={props.accountRedirectHref}
-              userId={props.userId}
-            />
-          ) : null}
-        </div>
+        <AdminUserProfileActions
+          accountRedirectHref={props.accountRedirectHref}
+          canEditUsers={props.canEditUsers}
+          canImpersonate={props.canImpersonate}
+          canPrintCards={props.canPrintCards}
+          currentUserId={props.currentUserId}
+          editLabel={t('action_edit')}
+          hasCurrentCard={props.hasCurrentCard}
+          pdfHref={props.pdfHref}
+          printLabel={t('action_print_card')}
+          showEditAction={showEditAction}
+          userId={props.userId}
+        />
       </div>
     </header>
   );

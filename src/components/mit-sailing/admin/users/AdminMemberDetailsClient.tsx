@@ -90,21 +90,26 @@ export function AdminMemberDetailsClient(props: AdminMemberDetailsClientProps) {
         successMessageKey="member_details_saved"
         translationNamespace="AdminUsers"
       />
-      <div
+      <ul
         aria-label={t('member_metadata_aria_label')}
-        className="flex flex-wrap items-center gap-2 px-1"
-        role="list"
+        className="m-0 flex list-none flex-wrap items-center gap-2 px-1"
       >
-        <Badge className="font-normal" role="listitem" variant="secondary">
-          {props.roleLabel}
-        </Badge>
-        <Badge className="font-normal" role="listitem" variant="outline">
-          {props.identitySourceLabel}
-        </Badge>
-        <Badge className="font-normal" role="listitem" variant="outline">
-          {props.emailVerifiedLabel}
-        </Badge>
-      </div>
+        <li>
+          <Badge className="font-normal" variant="secondary">
+            {props.roleLabel}
+          </Badge>
+        </li>
+        <li>
+          <Badge className="font-normal" variant="outline">
+            {props.identitySourceLabel}
+          </Badge>
+        </li>
+        <li>
+          <Badge className="font-normal" variant="outline">
+            {props.emailVerifiedLabel}
+          </Badge>
+        </li>
+      </ul>
     </div>
   );
 }

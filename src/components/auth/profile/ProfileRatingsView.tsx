@@ -11,9 +11,9 @@ type ProfileRatingsTranslations = Awaited<
 type ProfileRatingsFormatter = Awaited<ReturnType<typeof getFormatter>>;
 
 type ProfileRatingsViewProps = {
-  format: ProfileRatingsFormatter;
-  rows: UserRatingAssignmentRow[];
-  t: ProfileRatingsTranslations;
+  readonly format: ProfileRatingsFormatter;
+  readonly rows: UserRatingAssignmentRow[];
+  readonly t: ProfileRatingsTranslations;
 };
 
 function grantedCount(rows: readonly UserRatingAssignmentRow[]): number {
@@ -49,9 +49,9 @@ function ProfileRatingStatus(props: {
 }
 
 function ProfileRatingIssuedCell(props: {
-  format: ProfileRatingsFormatter;
-  row: UserRatingAssignmentRow;
-  t: ProfileRatingsTranslations;
+  readonly format: ProfileRatingsFormatter;
+  readonly row: UserRatingAssignmentRow;
+  readonly t: ProfileRatingsTranslations;
 }) {
   if (props.row.issuedAt) {
     const issuedDate = props.format.dateTime(props.row.issuedAt, {
@@ -96,9 +96,9 @@ function ProfileRatingIssuedCell(props: {
 }
 
 function ProfileRatingRow(props: {
-  format: ProfileRatingsFormatter;
-  row: UserRatingAssignmentRow;
-  t: ProfileRatingsTranslations;
+  readonly format: ProfileRatingsFormatter;
+  readonly row: UserRatingAssignmentRow;
+  readonly t: ProfileRatingsTranslations;
 }) {
   const granted = props.row.issuedAt !== null;
 
@@ -152,7 +152,7 @@ export function ProfileRatingsView(props: ProfileRatingsViewProps) {
           })}
         </p>
       ) : (
-        <p className="mb-6 text-sm text-mit-readable-ink" role="status">
+        <p className="mb-6 text-sm text-mit-readable-ink">
           {props.t('ratings_empty_state')}
         </p>
       )}

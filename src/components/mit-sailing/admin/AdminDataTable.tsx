@@ -25,11 +25,11 @@ export type AdminDataTableColumnMeta = {
 };
 
 type AdminDataTableProps<TData> = {
-  columns: ColumnDef<TData>[];
-  data: TData[];
-  emptyMessage?: string;
-  getRowId: (row: TData) => string;
-  mobilePrimaryColumnId?: string;
+  readonly columns: ColumnDef<TData>[];
+  readonly data: TData[];
+  readonly emptyMessage?: string;
+  readonly getRowId: (row: TData) => string;
+  readonly mobilePrimaryColumnId?: string;
 };
 
 function adminDataTableSummaryColumnIds<TData>(
@@ -45,10 +45,10 @@ function adminDataTableSummaryColumnIds<TData>(
 }
 
 function AdminDataTableMobileRow<TData>(props: {
-  actionsColumnId: string;
-  primaryColumnId: string;
-  row: Row<TData>;
-  summaryColumnIds: readonly string[];
+  readonly actionsColumnId: string;
+  readonly primaryColumnId: string;
+  readonly row: Row<TData>;
+  readonly summaryColumnIds: readonly string[];
 }) {
   const cellsById = new Map(
     props.row.getVisibleCells().map((cell) => [cell.column.id, cell])

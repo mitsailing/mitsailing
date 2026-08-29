@@ -2,8 +2,8 @@ import type { ReactNode } from 'react';
 import { SiteSidebarLayout } from '@/components/mit-sailing/SiteSidebarLayout';
 
 type AdminWorkspaceLayoutProps = {
-  children: ReactNode;
-  sidebar: ReactNode;
+  readonly children: ReactNode;
+  readonly sidebar: ReactNode;
 };
 
 /**

@@ -20,7 +20,6 @@ type ProfileAccountClientProps = {
   initialMitClassYear: string | null;
   initialMitId: string | null;
   initialMitIdentityLocked: boolean;
-  initialName: string | null;
   initialPhone: string;
   initialSailingAffiliation: SailingAffiliation | null;
   initialSailingCardSummary: ProfileSailingCardSummary;

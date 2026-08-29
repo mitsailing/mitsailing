@@ -253,7 +253,6 @@ vi.mock('./profile/ProfileAccountClient', () => ({
     initialMitClassYear: string | null;
     initialMitId: string | null;
     initialMitIdentityLocked: boolean;
-    initialName: string | null;
     initialPhone: string;
     initialSailingAffiliation: string | null;
     initialSailingCardSummary: { status: string };
@@ -273,7 +272,6 @@ vi.mock('./profile/ProfileAccountClient', () => ({
       data-locked-identity={String(props.initialMitIdentityLocked)}
       data-mit-class-year={props.initialMitClassYear ?? ''}
       data-mit-id={props.initialMitId ?? ''}
-      data-name={props.initialName ?? ''}
       data-phone={props.initialPhone}
       data-sailing-affiliation={props.initialSailingAffiliation ?? ''}
       data-sailing-card-status={props.initialSailingCardSummary.status}

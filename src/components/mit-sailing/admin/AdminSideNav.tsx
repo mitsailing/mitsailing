@@ -140,11 +140,11 @@ function isAdminNavItemActive(
 }
 
 function AdminNavLink(props: {
-  active: boolean;
-  collapsed: boolean;
-  href: string;
-  item: AdminNavItem;
-  label: string;
+  readonly active: boolean;
+  readonly collapsed: boolean;
+  readonly href: string;
+  readonly item: AdminNavItem;
+  readonly label: string;
 }) {
   const Icon = ADMIN_NAV_ICONS[props.item.labelKey] ?? LayoutDashboard;
   return (
@@ -179,8 +179,8 @@ function AdminNavLink(props: {
  * @returns Sidebar navigation for admin routes
  */
 export function AdminSideNav(props: {
-  groups: readonly AdminNavGroup[];
-  homeItem?: AdminNavItem;
+  readonly groups: readonly AdminNavGroup[];
+  readonly homeItem?: AdminNavItem;
 }) {
   const t = useTranslations('AdminSideNav');
   const pathname = usePathname();

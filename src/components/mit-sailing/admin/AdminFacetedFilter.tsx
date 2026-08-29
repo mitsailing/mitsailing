@@ -25,12 +25,12 @@ type AdminFacetedFilterOption = {
 };
 
 type AdminFacetedFilterProps = {
-  defaultValue: string;
-  emptyLabel?: string;
-  label: string;
-  onSelect: (value: string) => void;
-  options: AdminFacetedFilterOption[];
-  value: string;
+  readonly defaultValue: string;
+  readonly emptyLabel?: string;
+  readonly label: string;
+  readonly onSelect: (value: string) => void;
+  readonly options: AdminFacetedFilterOption[];
+  readonly value: string;
 };
 
 /**

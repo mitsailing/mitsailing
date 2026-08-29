@@ -9,7 +9,7 @@ const formDataString = (formData: FormData, name: string) => {
 };
 
 const formDataHasTrue = (formData: FormData, name: string) =>
-  formData.getAll(name).some((value) => value === 'true');
+  formData.getAll(name).includes('true');
 
 const teamBoatMemberFieldName = (props: {
   readonly boatNumber: number;
@@ -22,6 +22,69 @@ const teamBoatMemberFieldName = (props: {
   }
   return `teamBoatMember_${props.boatNumber}_${props.position}_${props.suffix}`;
 };
+
+function collectTeamRegistrationFieldErrors(options: {
+  readonly event: PublicEventDetail;
+  readonly fieldErrors: Record<string, EventRegistrationMutationCode>;
+  readonly formData: FormData;
+}) {
+  if (!options.event.teamRegistration.usesTeamRegistration) {
+    return;
+  }
+  if (formDataString(options.formData, 'teamName') === '') {
+    options.fieldErrors.teamName = 'questions_required';
+  }
+  const { boatsPerTeam } = options.event.teamRegistration;
+  const { personsPerBoat } = options.event.teamRegistration;
+  for (let boatIndex = 0; boatIndex < boatsPerTeam; boatIndex += 1) {
+    const boatNumber = boatIndex + 1;
+    for (let position = 0; position < personsPerBoat; position += 1) {
+      const nameField = teamBoatMemberFieldName({
+        boatNumber,
+        boatsPerTeam,
+        position,
+        suffix: 'name',
+      });
+      const emailField = teamBoatMemberFieldName({
+        boatNumber,
+        boatsPerTeam,
+        position,
+        suffix: 'email',
+      });
+      if (formDataString(options.formData, nameField) === '') {
+        options.fieldErrors[nameField] = 'questions_required';
+      }
+      const email = formDataString(options.formData, emailField);
+      if (email === '') {
+        options.fieldErrors[emailField] = 'questions_required';
+      } else if (!isValidEmailAddress(email)) {
+        options.fieldErrors[emailField] = 'answers_invalid';
+      }
+    }
+  }
+}
+
+function collectRequiredQuestionFieldErrors(options: {
+  readonly event: PublicEventDetail;
+  readonly fieldErrors: Record<string, EventRegistrationMutationCode>;
+  readonly formData: FormData;
+}) {
+  for (const question of options.event.registrationQuestions) {
+    if (!question.required) {
+      continue;
+    }
+    const name = `question_${question.id}`;
+    if (question.answerType === 'checkbox') {
+      if (!formDataHasTrue(options.formData, name)) {
+        options.fieldErrors[name] = 'questions_required';
+      }
+      continue;
+    }
+    if (formDataString(options.formData, name) === '') {
+      options.fieldErrors[name] = 'questions_required';
+    }
+  }
+}
 
 /**
  * Collects client-side required-field errors before a server registration action.
@@ -42,55 +105,16 @@ export function collectEventRegistrationClientFieldErrors(props: {
     }
   }
 
-  if (props.event.teamRegistration.usesTeamRegistration) {
-    if (formDataString(props.formData, 'teamName') === '') {
-      fieldErrors.teamName = 'questions_required';
-    }
-    const { boatsPerTeam } = props.event.teamRegistration;
-    const { personsPerBoat } = props.event.teamRegistration;
-    for (let boatIndex = 0; boatIndex < boatsPerTeam; boatIndex += 1) {
-      const boatNumber = boatIndex + 1;
-      for (let position = 0; position < personsPerBoat; position += 1) {
-        const nameField = teamBoatMemberFieldName({
-          boatNumber,
-          boatsPerTeam,
-          position,
-          suffix: 'name',
-        });
-        const emailField = teamBoatMemberFieldName({
-          boatNumber,
-          boatsPerTeam,
-          position,
-          suffix: 'email',
-        });
-        if (formDataString(props.formData, nameField) === '') {
-          fieldErrors[nameField] = 'questions_required';
-        }
-        const email = formDataString(props.formData, emailField);
-        if (email === '') {
-          fieldErrors[emailField] = 'questions_required';
-        } else if (!isValidEmailAddress(email)) {
-          fieldErrors[emailField] = 'answers_invalid';
-        }
-      }
-    }
-  }
-
-  for (const question of props.event.registrationQuestions) {
-    if (!question.required) {
-      continue;
-    }
-    const name = `question_${question.id}`;
-    if (question.answerType === 'checkbox') {
-      if (!formDataHasTrue(props.formData, name)) {
-        fieldErrors[name] = 'questions_required';
-      }
-      continue;
-    }
-    if (formDataString(props.formData, name) === '') {
-      fieldErrors[name] = 'questions_required';
-    }
-  }
+  collectTeamRegistrationFieldErrors({
+    event: props.event,
+    fieldErrors,
+    formData: props.formData,
+  });
+  collectRequiredQuestionFieldErrors({
+    event: props.event,
+    fieldErrors,
+    formData: props.formData,
+  });
 
   const phone = formDataString(props.formData, 'phone');
   if (phone === '') {

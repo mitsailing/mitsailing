@@ -33,7 +33,7 @@ export function legacyMysqlStringScalar(value: unknown): string | null {
   if (typeof normalized === 'boolean') {
     return normalized ? '1' : '0';
   }
-  if (Buffer.isBuffer(normalized)) {
+  if (normalized instanceof Buffer) {
     return normalized.toString('utf8');
   }
   return null;

@@ -5,9 +5,9 @@ import type { AdminFilterChip } from '@/libs/admin/adminFilterChip';
 import { Link } from '@/libs/I18nNavigation';
 
 type AdminActiveFilterChipsProps = {
-  chips: AdminFilterChip[];
-  clearHref?: string;
-  clearLabel?: string;
+  readonly chips: AdminFilterChip[];
+  readonly clearHref?: string;
+  readonly clearLabel?: string;
 };
 
 /**

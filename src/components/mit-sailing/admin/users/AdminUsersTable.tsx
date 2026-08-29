@@ -11,49 +11,50 @@ import { adminUsersEditPath } from '@/libs/admin/users/adminUserPaths';
 import { Link } from '@/libs/I18nNavigation';
 
 type AdminUsersTableProps = {
-  adminBasePath: string;
-  canDelete: boolean;
-  canUpdate: boolean;
-  emptyMessage?: string;
-  rows: CatalogRow[];
-  userImpersonation?: {
-    accountRedirectHref: string;
-    currentUserId: string;
-    selfLabel: string;
+  readonly adminBasePath: string;
+  readonly canDelete: boolean;
+  readonly canUpdate: boolean;
+  readonly emptyMessage?: string;
+  readonly rows: CatalogRow[];
+  readonly userImpersonation?: {
+    readonly accountRedirectHref: string;
+    readonly currentUserId: string;
+    readonly selfLabel: string;
   };
 };
 
-/**
- * Users admin directory table with compact mobile rows.
- *
- * @param props - Users list props
- * @returns Users table markup
- */
-export function AdminUsersTable(props: AdminUsersTableProps) {
-  const t = useTranslations('AdminUsers');
+type AdminUsersColumnOptions = {
+  readonly adminBasePath: string;
+  readonly canDelete: boolean;
+  readonly canUpdate: boolean;
+  readonly t: ReturnType<typeof useTranslations<'AdminUsers'>>;
+  readonly userImpersonation: AdminUsersTableProps['userImpersonation'];
+};
 
-  function primaryHref(id: string) {
-    return `${props.adminBasePath}/${encodeURIComponent(id)}`;
-  }
+function adminUsersPrimaryHref(adminBasePath: string, id: string) {
+  return `${adminBasePath}/${encodeURIComponent(id)}`;
+}
 
-  function editHref(id: string) {
-    return adminUsersEditPath(id);
-  }
+function adminUsersDeleteHref(adminBasePath: string, id: string) {
+  return `${adminBasePath}/${encodeURIComponent(id)}/delete`;
+}
 
-  function deleteHref(id: string) {
-    return `${props.adminBasePath}/${encodeURIComponent(id)}/delete`;
-  }
-
-  const columns: ColumnDef<CatalogRow>[] = [
+function buildAdminUsersColumns(
+  options: AdminUsersColumnOptions
+): ColumnDef<CatalogRow>[] {
+  return [
     {
       accessorKey: 'name',
       cell: ({ row }) => {
         const nameRaw = row.original.name;
         const listNameEditHref =
-          props.canUpdate &&
+          options.canUpdate &&
           typeof nameRaw === 'string' &&
           nameRaw.trim().length > 0
-            ? primaryHref(String(row.original.id))
+            ? adminUsersPrimaryHref(
+                options.adminBasePath,
+                String(row.original.id)
+              )
             : undefined;
         return (
           <AdminCatalogListCell
@@ -64,7 +65,7 @@ export function AdminUsersTable(props: AdminUsersTableProps) {
           />
         );
       },
-      header: () => t('column_name_label'),
+      header: () => options.t('column_name_label'),
       id: 'name',
     },
     {
@@ -72,7 +73,7 @@ export function AdminUsersTable(props: AdminUsersTableProps) {
       cell: ({ row }) => (
         <AdminCatalogListCell field="email" kind="string" row={row.original} />
       ),
-      header: () => t('column_email'),
+      header: () => options.t('column_email'),
       id: 'email',
       meta: { mobileSummary: true } satisfies AdminDataTableColumnMeta,
     },
@@ -81,7 +82,7 @@ export function AdminUsersTable(props: AdminUsersTableProps) {
       cell: ({ row }) => (
         <AdminCatalogListCell field="mitId" kind="string" row={row.original} />
       ),
-      header: () => t('column_mit_id'),
+      header: () => options.t('column_mit_id'),
       id: 'mitId',
       meta: { desktopOnly: true } satisfies AdminDataTableColumnMeta,
     },
@@ -90,7 +91,7 @@ export function AdminUsersTable(props: AdminUsersTableProps) {
       cell: ({ row }) => (
         <AdminCatalogListCell field="phone" kind="string" row={row.original} />
       ),
-      header: () => t('column_phone'),
+      header: () => options.t('column_phone'),
       id: 'phone',
       meta: { desktopOnly: true } satisfies AdminDataTableColumnMeta,
     },
@@ -103,7 +104,7 @@ export function AdminUsersTable(props: AdminUsersTableProps) {
           row={row.original}
         />
       ),
-      header: () => t('column_sailing_card_number'),
+      header: () => options.t('column_sailing_card_number'),
       id: 'sailingCardNumber',
       meta: { desktopOnly: true } satisfies AdminDataTableColumnMeta,
     },
@@ -116,7 +117,7 @@ export function AdminUsersTable(props: AdminUsersTableProps) {
           row={row.original}
         />
       ),
-      header: () => t('column_sailing_card_status'),
+      header: () => options.t('column_sailing_card_status'),
       id: 'sailingCardStatus',
       meta: { mobileSummary: true } satisfies AdminDataTableColumnMeta,
     },
@@ -129,7 +130,7 @@ export function AdminUsersTable(props: AdminUsersTableProps) {
           row={row.original}
         />
       ),
-      header: () => t('column_pending_card_type'),
+      header: () => options.t('column_pending_card_type'),
       id: 'pendingCardType',
       meta: { desktopOnly: true } satisfies AdminDataTableColumnMeta,
     },
@@ -142,7 +143,7 @@ export function AdminUsersTable(props: AdminUsersTableProps) {
           row={row.original}
         />
       ),
-      header: () => t('column_role'),
+      header: () => options.t('column_role'),
       id: 'appRole',
       meta: { desktopOnly: true } satisfies AdminDataTableColumnMeta,
     },
@@ -156,48 +157,67 @@ export function AdminUsersTable(props: AdminUsersTableProps) {
           row={row.original}
         />
       ),
-      header: () => t('column_email_verified'),
+      header: () => options.t('column_email_verified'),
       id: 'emailVerified',
       meta: { desktopOnly: true } satisfies AdminDataTableColumnMeta,
     },
     {
-      cell: ({ row }) => (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {props.canUpdate ? (
-            <Link
-              className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-              href={editHref(String(row.original.id))}
-            >
-              {t('action_edit')}
-            </Link>
-          ) : null}
-          {props.canDelete ? (
-            <Link
-              className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-              href={deleteHref(String(row.original.id))}
-            >
-              {t('action_delete')}
-            </Link>
-          ) : null}
-          {props.userImpersonation &&
-          String(row.original.id) === props.userImpersonation.currentUserId ? (
-            <span className="text-xs text-mit-text">
-              {props.userImpersonation.selfLabel}
-            </span>
-          ) : null}
-          {props.userImpersonation &&
-          String(row.original.id) !== props.userImpersonation.currentUserId ? (
-            <ImpersonateButton
-              redirectHref={props.userImpersonation.accountRedirectHref}
-              userId={String(row.original.id)}
-            />
-          ) : null}
-        </div>
-      ),
-      header: () => t('column_actions'),
+      cell: ({ row }) => {
+        const rowId = String(row.original.id);
+        const impersonation = options.userImpersonation;
+        return (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {options.canUpdate ? (
+              <Link
+                className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
+                href={adminUsersEditPath(rowId)}
+              >
+                {options.t('action_edit')}
+              </Link>
+            ) : null}
+            {options.canDelete ? (
+              <Link
+                className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
+                href={adminUsersDeleteHref(options.adminBasePath, rowId)}
+              >
+                {options.t('action_delete')}
+              </Link>
+            ) : null}
+            {impersonation?.currentUserId === rowId ? (
+              <span className="text-xs text-mit-text">
+                {impersonation.selfLabel}
+              </span>
+            ) : null}
+            {impersonation && impersonation.currentUserId !== rowId ? (
+              <ImpersonateButton
+                redirectHref={impersonation.accountRedirectHref}
+                userId={rowId}
+              />
+            ) : null}
+          </div>
+        );
+      },
+      header: () => options.t('column_actions'),
       id: 'actions',
     },
   ];
+}
+
+/**
+ * Users admin directory table with compact mobile rows.
+ *
+ * @param props - Users list props
+ * @returns Users table markup
+ */
+export function AdminUsersTable(props: AdminUsersTableProps) {
+  const t = useTranslations('AdminUsers');
+  const columns = buildAdminUsersColumns({
+    adminBasePath: props.adminBasePath,
+    canDelete: props.canDelete,
+    canUpdate: props.canUpdate,
+    t,
+    userImpersonation: props.userImpersonation,
+  });
 
   return (
     <AdminDataTable

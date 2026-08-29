@@ -77,7 +77,6 @@ function renderAccountClient(
         initialMitClassYear={null}
         initialMitId={null}
         initialMitIdentityLocked={false}
-        initialName="Old Name"
         initialPhone=""
         initialSailingAffiliation={SailingAffiliation.OTHER_NON_STUDENT}
         initialSailingCardSummary={{
@@ -316,7 +315,6 @@ describe('ProfileAccountClient', () => {
       initialEmergencyContactPhone: '+16175550100',
       initialFirstName: '',
       initialLastName: '',
-      initialName: null,
       initialPhone: '+16175550100',
     });
 

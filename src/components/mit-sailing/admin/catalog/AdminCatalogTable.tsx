@@ -60,42 +60,91 @@ type AdminTableMessageKey =
 const ADMIN_CATALOG_TABLE_PAGE_SIZE = 50;
 
 type AdminCatalogTableProps = {
-  locale: string;
-  resourceId: string;
-  definition: CatalogResourceDefinition;
-  rows: CatalogRow[];
+  readonly locale: string;
+  readonly resourceId: string;
+  readonly definition: CatalogResourceDefinition;
+  readonly rows: CatalogRow[];
   /** When set (e.g. sailing classes), reorder applies only within this category scope. */
-  reorderScope?: CatalogReorderScope;
+  readonly reorderScope?: CatalogReorderScope;
   /** Overrides `/admin/:resourceId` for edit/delete links (e.g. `/admin/users`). */
-  adminBasePath?: string;
+  readonly adminBasePath?: string;
   /** Users admin: impersonation controls (must be serializable; no server callbacks). */
-  userImpersonation?: {
-    accountRedirectHref: string;
-    currentUserId: string;
-    selfLabel: string;
+  readonly userImpersonation?: {
+    readonly accountRedirectHref: string;
+    readonly currentUserId: string;
+    readonly selfLabel: string;
   };
   /** Message bundle for column headers, mobile labels, and actions (not list cell pills). */
-  messageNamespace?: 'AdminCatalogResource' | 'AdminUsers';
+  readonly messageNamespace?: 'AdminCatalogResource' | 'AdminUsers';
   /** Optional client-side list filter for small admin directories such as users. */
-  search?: {
-    emptyKey: AdminTableMessageKey;
-    fields: readonly string[];
-    labelKey: AdminTableMessageKey;
-    placeholderKey: AdminTableMessageKey;
+  readonly search?: {
+    readonly emptyKey: AdminTableMessageKey;
+    readonly fields: readonly string[];
+    readonly labelKey: AdminTableMessageKey;
+    readonly placeholderKey: AdminTableMessageKey;
   };
   /** Optional empty-state message when server-side filters return no rows. */
-  emptyKey?: AdminTableMessageKey;
+  readonly emptyKey?: AdminTableMessageKey;
   /** Optional exact-match filters for secondary states that do not need table columns. */
-  filters?: readonly {
-    allKey: AdminTableMessageKey;
-    field: string;
-    labelKey: AdminTableMessageKey;
-    options: readonly {
-      labelKey: AdminTableMessageKey;
-      value: string;
+  readonly filters?: readonly {
+    readonly allKey: AdminTableMessageKey;
+    readonly field: string;
+    readonly labelKey: AdminTableMessageKey;
+    readonly options: readonly {
+      readonly labelKey: AdminTableMessageKey;
+      readonly value: string;
     }[];
   }[];
 };
+
+function catalogEditHref(
+  adminBasePath: string | undefined,
+  resourceId: string,
+  id: string
+) {
+  if (adminBasePath) {
+    return `${adminBasePath}/${encodeURIComponent(id)}/edit`;
+  }
+  return adminCatalogResourceEditPath(resourceId, id);
+}
+
+function catalogDeleteHref(
+  adminBasePath: string | undefined,
+  resourceId: string,
+  id: string
+) {
+  if (adminBasePath) {
+    return `${adminBasePath}/${encodeURIComponent(id)}/delete`;
+  }
+  return adminCatalogResourceDeletePath(resourceId, id);
+}
+
+function catalogPrimaryHref(
+  adminBasePath: string | undefined,
+  resourceId: string,
+  id: string
+) {
+  if (adminBasePath) {
+    return `${adminBasePath}/${encodeURIComponent(id)}`;
+  }
+  return catalogEditHref(adminBasePath, resourceId, id);
+}
+
+function catalogPublicViewHref(
+  definition: CatalogResourceDefinition,
+  row: CatalogRow
+) {
+  const field = definition.publicViewHrefField;
+  if (!field) {
+    return null;
+  }
+  const raw = row[field];
+  if (typeof raw !== 'string') {
+    return null;
+  }
+  const href = safeCmsHref(raw);
+  return href && isAppRelativeCmsHref(href) ? href : null;
+}
 
 function SortableRow(props: {
   id: string;
@@ -281,15 +330,15 @@ function buildCatalogTablePagination(options: {
 }
 
 function AdminCatalogTableMobileRow(props: {
-  canDelete: boolean;
-  canUpdate: boolean;
-  deleteHref: (id: string) => string;
-  displayColumns: AdminListColumnDef[];
-  editHref: (id: string) => string;
-  primaryHref: (id: string) => string;
-  row: CatalogRow;
-  t: (key: AdminTableMessageKey) => string;
-  userImpersonation?: AdminCatalogTableProps['userImpersonation'];
+  readonly canDelete: boolean;
+  readonly canUpdate: boolean;
+  readonly deleteHref: (id: string) => string;
+  readonly displayColumns: AdminListColumnDef[];
+  readonly editHref: (id: string) => string;
+  readonly primaryHref: (id: string) => string;
+  readonly row: CatalogRow;
+  readonly t: (key: AdminTableMessageKey) => string;
+  readonly userImpersonation: AdminCatalogTableProps['userImpersonation'];
 }) {
   const ordered = listColumnsWithNameFirst(props.displayColumns);
   const primaryColumn =
@@ -350,8 +399,7 @@ function AdminCatalogTableMobileRow(props: {
               {props.t('action_delete')}
             </Link>
           ) : null}
-          {props.userImpersonation &&
-          String(props.row.id) === props.userImpersonation.currentUserId ? (
+          {props.userImpersonation?.currentUserId === String(props.row.id) ? (
             <span className="text-xs text-mit-text">
               {props.userImpersonation.selfLabel}
             </span>
@@ -370,16 +418,16 @@ function AdminCatalogTableMobileRow(props: {
 }
 
 function AdminCatalogTableRowCells(props: {
-  canDelete: boolean;
-  canUpdate: boolean;
-  displayColumns: AdminListColumnDef[];
-  deleteHref: (id: string) => string;
-  editHref: (id: string) => string;
-  primaryHref: (id: string) => string;
-  publicViewHref: (row: CatalogRow) => string | null;
-  row: CatalogRow;
-  t: (key: AdminTableMessageKey) => string;
-  userImpersonation?: AdminCatalogTableProps['userImpersonation'];
+  readonly canDelete: boolean;
+  readonly canUpdate: boolean;
+  readonly displayColumns: AdminListColumnDef[];
+  readonly deleteHref: (id: string) => string;
+  readonly editHref: (id: string) => string;
+  readonly primaryHref: (id: string) => string;
+  readonly publicViewHref: (row: CatalogRow) => string | null;
+  readonly row: CatalogRow;
+  readonly t: (key: AdminTableMessageKey) => string;
+  readonly userImpersonation: AdminCatalogTableProps['userImpersonation'];
 }) {
   const cols = props.displayColumns.map((col) => {
     const nameRaw = props.row.name;
@@ -433,8 +481,7 @@ function AdminCatalogTableRowCells(props: {
             {props.t('action_delete')}
           </Link>
         ) : null}
-        {props.userImpersonation &&
-        String(props.row.id) === props.userImpersonation.currentUserId ? (
+        {props.userImpersonation?.currentUserId === String(props.row.id) ? (
           <span className="text-xs text-mit-text">
             {props.userImpersonation.selfLabel}
           </span>
@@ -457,6 +504,20 @@ function AdminCatalogTableRowCells(props: {
   );
 }
 
+function catalogTableMessage(options: {
+  readonly key: AdminTableMessageKey;
+  readonly messageNamespace: AdminCatalogTableProps['messageNamespace'];
+  readonly tCatalog: ReturnType<typeof useTranslations<'AdminCatalogResource'>>;
+  readonly tUsers: ReturnType<typeof useTranslations<'AdminUsers'>>;
+}) {
+  if (options.messageNamespace === 'AdminUsers') {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- messageNamespace picks users keys
+    return options.tUsers(options.key as AdminUsersMessageKey);
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- default catalog keys
+  return options.tCatalog(options.key as AdminCatalogResourceMessageKey);
+}
+
 /**
  * Catalog index table with optional drag-and-drop reordering (auto-save).
  *
@@ -468,49 +529,21 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
   const tUsers = useTranslations('AdminUsers');
   const router = useRouter();
   const canReorder = props.definition.capabilities.reorder;
-
-  function t(key: AdminTableMessageKey): string {
-    if (props.messageNamespace === 'AdminUsers') {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- messageNamespace picks users keys
-      return tUsers(key as AdminUsersMessageKey);
-    }
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- default catalog keys
-    return tCatalog(key as AdminCatalogResourceMessageKey);
-  }
-
-  function editHref(id: string): string {
-    if (props.adminBasePath) {
-      return `${props.adminBasePath}/${encodeURIComponent(id)}/edit`;
-    }
-    return adminCatalogResourceEditPath(props.resourceId, id);
-  }
-
-  function deleteHref(id: string): string {
-    if (props.adminBasePath) {
-      return `${props.adminBasePath}/${encodeURIComponent(id)}/delete`;
-    }
-    return adminCatalogResourceDeletePath(props.resourceId, id);
-  }
-
-  function publicViewHref(row: CatalogRow): string | null {
-    const field = props.definition.publicViewHrefField;
-    if (!field) {
-      return null;
-    }
-    const raw = row[field];
-    if (typeof raw !== 'string') {
-      return null;
-    }
-    const href = safeCmsHref(raw);
-    return href && isAppRelativeCmsHref(href) ? href : null;
-  }
-
-  function primaryHref(id: string): string {
-    if (props.adminBasePath) {
-      return `${props.adminBasePath}/${encodeURIComponent(id)}`;
-    }
-    return editHref(id);
-  }
+  const t = (key: AdminTableMessageKey) =>
+    catalogTableMessage({
+      key,
+      messageNamespace: props.messageNamespace,
+      tCatalog,
+      tUsers,
+    });
+  const editHref = (id: string) =>
+    catalogEditHref(props.adminBasePath, props.resourceId, id);
+  const deleteHref = (id: string) =>
+    catalogDeleteHref(props.adminBasePath, props.resourceId, id);
+  const publicViewHref = (row: CatalogRow) =>
+    catalogPublicViewHref(props.definition, row);
+  const primaryHref = (id: string) =>
+    catalogPrimaryHref(props.adminBasePath, props.resourceId, id);
 
   const [orderedIds, setOrderedIds] = useState<string[]>(() =>
     props.rows.map((r) => String(r.id))

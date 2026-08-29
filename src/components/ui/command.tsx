@@ -22,10 +22,7 @@ function CommandInput(
   props: React.ComponentProps<typeof CommandPrimitive.Input>
 ) {
   return (
-    <div
-      className="flex items-center border-b border-border px-3"
-      cmdk-input-wrapper=""
-    >
+    <div className="flex items-center border-b border-border px-3">
       <SearchIcon
         aria-hidden
         className="mr-2 size-4 shrink-0 text-muted-foreground"

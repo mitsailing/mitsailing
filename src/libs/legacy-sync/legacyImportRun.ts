@@ -56,6 +56,18 @@ export type LegacyImportRunResult<T> =
   | { readonly result: T; readonly skipped: false }
   | { readonly skipped: true };
 
+async function recordSkippedLegacyImport(sourceHost: string) {
+  await prisma.legacyMysqlSyncRun.create({
+    data: {
+      errorMessage: 'Skipped because another legacy import is still running.',
+      finishedAt: new Date(),
+      sourceDatabase: LEGACY_MYSQL_SOURCE.database,
+      sourceHost,
+      status: 'skipped',
+    },
+  });
+}
+
 /**
  * Runs a legacy import under the Postgres advisory lock and audit table.
  *
@@ -63,10 +75,13 @@ export type LegacyImportRunResult<T> =
  * @returns Imported rows or a skipped outcome when the advisory lock is held
  */
 export async function runLegacyImportWithAudit<T>(props: {
-  importRows: () => Promise<T>;
-  recordImportedRows?: (result: T) => { rowCount: bigint; tableCount: number };
-  sourceHost?: string;
-  useAdvisoryLock?: boolean;
+  readonly importRows: () => Promise<T>;
+  readonly recordImportedRows?: (result: T) => {
+    rowCount: bigint;
+    tableCount: number;
+  };
+  readonly sourceHost?: string;
+  readonly useAdvisoryLock?: boolean;
 }): Promise<LegacyImportRunResult<T>> {
   const sourceHost = props.sourceHost ?? legacyMysqlHostFromEnv();
   const useAdvisoryLock = props.useAdvisoryLock ?? Env.APP_ENV === 'production';
@@ -81,16 +96,7 @@ export async function runLegacyImportWithAudit<T>(props: {
     if (pg !== null) {
       acquired = await tryAcquireLegacyImportLock(pg);
       if (!acquired) {
-        await prisma.legacyMysqlSyncRun.create({
-          data: {
-            errorMessage:
-              'Skipped because another legacy import is still running.',
-            finishedAt: new Date(),
-            sourceDatabase: LEGACY_MYSQL_SOURCE.database,
-            sourceHost,
-            status: 'skipped',
-          },
-        });
+        await recordSkippedLegacyImport(sourceHost);
         return { skipped: true };
       }
     }
