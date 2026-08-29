@@ -3,12 +3,14 @@ import { randomUUID } from 'node:crypto';
 import { hash } from '@node-rs/argon2';
 import { selectPasswordHashingOptions } from '../src/libs/auth/passwordHashing';
 import { Role } from '../src/libs/auth/roles';
-import { prisma } from '../src/libs/DB';
+import { createSeedPrisma, seedDatabaseUrl } from './seedClient';
 import { seedMitSailing } from './seedMitSailing/index';
 
 const argonOpts = selectPasswordHashingOptions({
   isE2E: process.env.IS_E2E === '1',
 });
+
+const { pool, prisma } = createSeedPrisma(seedDatabaseUrl());
 
 /**
  * Admin bootstrap when `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set (defaults
@@ -16,7 +18,7 @@ const argonOpts = selectPasswordHashingOptions({
  * alongside the matching User. Run: `npm run db:seed` / `npx prisma db seed`
  */
 async function main() {
-  await seedMitSailing();
+  await seedMitSailing(prisma);
 
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD;
@@ -68,6 +70,12 @@ async function run(): Promise<void> {
   }
   try {
     await prisma.$disconnect();
+  } catch (error: unknown) {
+    console.error(error);
+    process.exitCode = 1;
+  }
+  try {
+    await pool.end();
   } catch (error: unknown) {
     console.error(error);
     process.exitCode = 1;

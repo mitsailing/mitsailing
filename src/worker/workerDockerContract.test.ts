@@ -101,22 +101,10 @@ describe('worker Docker contract', () => {
       `${readonlySeedCopyPrefix} /app/src/generated ./src/generated`
     );
     expect(dockerfile).toContain(
-      `${readonlySeedCopyPrefix} /app/src/libs/DB.ts ./src/libs/DB.ts`
-    );
-    expect(dockerfile).toContain(
-      `${readonlySeedCopyPrefix} /app/src/libs/postgresApplicationName.ts ./src/libs/postgresApplicationName.ts`
-    );
-    expect(dockerfile).toContain(
-      `${readonlySeedCopyPrefix} /app/src/libs/Env.ts ./src/libs/Env.ts`
-    );
-    expect(dockerfile).toContain(
       `${readonlySeedCopyPrefix} /app/src/libs/auth/passwordHashing.ts ./src/libs/auth/passwordHashing.ts`
     );
     expect(dockerfile).toContain(
       `${readonlySeedCopyPrefix} /app/src/libs/auth/roles.ts ./src/libs/auth/roles.ts`
-    );
-    expect(dockerfile).toContain(
-      `${readonlySeedCopyPrefix} /app/src/libs/legacy-sync/legacyMysqlSyncConstants.ts ./src/libs/legacy-sync/legacyMysqlSyncConstants.ts`
     );
     expect(dockerfile).toContain(
       `${readonlySeedCopyPrefix} /app/src/libs/mit-sailing/pavilionReservationPersonas.ts ./src/libs/mit-sailing/pavilionReservationPersonas.ts`
