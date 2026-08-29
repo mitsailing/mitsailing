@@ -1,5 +1,4 @@
-import * as Sentry from '@sentry/nextjs';
-import { logger } from '@/libs/Logger';
+import { reportCmsMediaClientError } from '@/libs/cms/reportCmsMediaClientError';
 import type { CmsMediaTusUploadSession } from './cmsMediaTusUpload';
 import { uploadCmsMediaWithTus } from './cmsMediaTusUpload';
 
@@ -395,17 +394,11 @@ async function cancelCmsMediaUpload(assetId: string): Promise<void> {
       );
     }
   } catch (error) {
-    logger.warn('Failed to cancel CMS media upload: {error}', {
+    reportCmsMediaClientError({
+      action: 'cancelUpload',
       assetId,
       error,
-    });
-    Sentry.captureException(error, {
-      tags: { cmsMediaAction: 'cancelUpload' },
-      contexts: {
-        cmsMediaUpload: {
-          assetId,
-        },
-      },
+      message: 'Failed to cancel CMS media upload',
     });
   }
 }
@@ -439,19 +432,11 @@ export async function uploadCmsMediaFile(props: {
     }
     return waitForCmsMediaReady(upload.assetId);
   }
-  logger.warn('CMS media upload finalize failed', {
+  reportCmsMediaClientError({
+    action: 'finalizeUpload',
+    message: 'CMS media upload finalize failed',
     sessionAssetId: session.asset.id,
     uploadAssetId: upload.assetId,
-  });
-  Sentry.captureMessage('CMS media upload finalize failed', {
-    level: 'warning',
-    tags: { cmsMediaAction: 'finalizeUpload' },
-    contexts: {
-      cmsMediaUpload: {
-        sessionAssetId: session.asset.id,
-        uploadAssetId: upload.assetId,
-      },
-    },
   });
   return null;
 }

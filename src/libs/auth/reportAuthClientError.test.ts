@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/nextjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { authClientThrownMessage } from './authClientThrownMessage';
 import { reportUnknownAuthClientError } from './reportAuthClientError';
 
 vi.mock('@sentry/nextjs', () => ({
@@ -8,6 +9,22 @@ vi.mock('@sentry/nextjs', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe('authClientThrownMessage', () => {
+  it('returns trimmed Error messages', () => {
+    expect(authClientThrownMessage(new Error('  network down  '))).toBe(
+      'network down'
+    );
+  });
+
+  it('returns undefined for empty Error messages', () => {
+    expect(authClientThrownMessage(new Error('   '))).toBeUndefined();
+  });
+
+  it('returns undefined for non-Error throws', () => {
+    expect(authClientThrownMessage('network down')).toBeUndefined();
+  });
 });
 
 describe('reportUnknownAuthClientError', () => {
@@ -21,7 +38,7 @@ describe('reportUnknownAuthClientError', () => {
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       'Unknown auth client error',
       {
-        level: 'warning',
+        level: 'error',
         tags: {
           authAction: 'sign_up',
           authErrorCode: 'PROVIDER_DOWN',
@@ -46,7 +63,7 @@ describe('reportUnknownAuthClientError', () => {
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       'Unknown auth client error',
       {
-        level: 'warning',
+        level: 'error',
         tags: {
           authAction: 'sign_up',
           authErrorCode: 'PASSWORD_CHECK_FAILED',
@@ -71,7 +88,7 @@ describe('reportUnknownAuthClientError', () => {
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       'Unknown auth client error',
       {
-        level: 'warning',
+        level: 'error',
         tags: {
           authAction: 'reset_password',
           authErrorCode: 'missing',
@@ -96,7 +113,7 @@ describe('reportUnknownAuthClientError', () => {
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       'Unknown auth client error',
       {
-        level: 'warning',
+        level: 'error',
         tags: {
           authAction: 'reset_password',
           authErrorCode: 'unknown',

@@ -9,10 +9,17 @@ import { createEmbeddedEventPaymentCheckoutSession } from '@/libs/stripe/stripeC
 const mocks = vi.hoisted(() => ({
   eventPaymentFindFirst: vi.fn(),
   eventPaymentUpdateMany: vi.fn(),
+  loggerError: vi.fn(),
   stripeCheckoutSessionsCreate: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: {
+    error: mocks.loggerError,
+  },
+}));
 
 describe('createEmbeddedEventPaymentCheckoutSession', () => {
   beforeEach(() => {
@@ -103,6 +110,7 @@ describe('createEventPaymentCheckoutClientSecret', () => {
     mocks.eventPaymentFindFirst.mockReset();
     mocks.eventPaymentUpdateMany.mockReset();
     mocks.stripeCheckoutSessionsCreate.mockReset();
+    mocks.loggerError.mockReset();
     mocks.stripeCheckoutSessionsCreate.mockResolvedValue({
       client_secret: 'cs_secret_123',
       customer: null,
@@ -221,6 +229,13 @@ describe('createEventPaymentCheckoutClientSecret', () => {
       },
     });
     expect(mocks.stripeCheckoutSessionsCreate).not.toHaveBeenCalled();
+    expect(mocks.loggerError).toHaveBeenCalledWith(
+      '[event-payment-checkout] payment_id={paymentId} reason=checkout_claim_lost status={status}',
+      {
+        paymentId: 'payment-1',
+        status: PaymentStatus.pending,
+      }
+    );
   });
 
   it('returns null while another request is creating the checkout session', async () => {
@@ -258,6 +273,50 @@ describe('createEventPaymentCheckoutClientSecret', () => {
     ).resolves.toBeNull();
 
     expect(mocks.eventPaymentUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.stripeCheckoutSessionsCreate).not.toHaveBeenCalled();
+  });
+
+  it('returns null for corrupt checkout payment shape', async () => {
+    mocks.eventPaymentFindFirst.mockResolvedValue({
+      amountCents: 2500,
+      currency: 'usd',
+      eventId: null,
+      id: 'payment-1',
+      registrationId: 'registration-1',
+      selectedFeeDescription: 'Adult entry',
+      status: PaymentStatus.pending,
+      stripeCheckoutSessionId: null,
+      userId: 'user-1',
+    });
+
+    await expect(
+      createEventPaymentCheckoutClientSecret({
+        db: {
+          payment: {
+            findFirst: mocks.eventPaymentFindFirst,
+            updateMany: mocks.eventPaymentUpdateMany,
+          },
+        },
+        paymentId: 'payment-1',
+        returnUrl: 'https://sailing.mit.edu/events/intro/checkout/return',
+        stripe: {
+          checkout: {
+            sessions: {
+              create: mocks.stripeCheckoutSessionsCreate,
+            },
+          },
+        },
+        userId: 'user-1',
+      })
+    ).resolves.toBeNull();
+
+    expect(mocks.loggerError).toHaveBeenCalledWith(
+      '[event-payment-checkout] payment_id={paymentId} reason=invalid_checkout_shape status={status}',
+      {
+        paymentId: 'payment-1',
+        status: PaymentStatus.pending,
+      }
+    );
     expect(mocks.stripeCheckoutSessionsCreate).not.toHaveBeenCalled();
   });
 

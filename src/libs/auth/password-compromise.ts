@@ -2,6 +2,7 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import { APIError } from 'better-auth/api';
 import { Env } from '@/libs/Env';
+import { logger } from '@/libs/Logger';
 import enMessages from '@/locales/en.json';
 
 const HIBP_RANGE_URL = 'https://api.pwnedpasswords.com/range/';
@@ -74,7 +75,7 @@ export async function assertPasswordNotCompromised(
     });
 
     if (!response.ok) {
-      console.warn('Password breach lookup failed.', {
+      logger.error('Password breach lookup failed', {
         status: response.status,
       });
       return;
@@ -97,12 +98,10 @@ export async function assertPasswordNotCompromised(
     }
 
     if (isAbortError(error)) {
-      console.warn('Password breach lookup timed out or aborted.');
+      logger.error('Password breach lookup timed out or aborted', { error });
       return;
     }
 
-    console.warn('Password breach lookup failed.', {
-      message: error instanceof Error ? error.message : String(error),
-    });
+    logger.error('Password breach lookup failed', { error });
   }
 }

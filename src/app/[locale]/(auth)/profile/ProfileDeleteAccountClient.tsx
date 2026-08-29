@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
+import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
+import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 
 type ProfileDeleteAccountClientProps = {
   signInHref: string;
@@ -51,7 +53,12 @@ export function ProfileDeleteAccountClient(
       setDeletePassword('');
       setDeleteConfirmation('');
       router.push(props.signInHref);
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'profile.delete-account.thrown',
+        code: undefined,
+        message: authClientThrownMessage(caughtError),
+      });
       setDeleteBanner({
         kind: 'error',
         message: t('delete_unknown_error'),

@@ -11,6 +11,8 @@ import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
+import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
+import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 
 export function ProfilePasswordClient() {
@@ -65,7 +67,12 @@ export function ProfilePasswordClient() {
       setCurrentPassword('');
       setNewPassword('');
       setNewPasswordConfirm('');
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'profile.password-change.thrown',
+        code: undefined,
+        message: authClientThrownMessage(caughtError),
+      });
       setPasswordBanner({
         kind: 'error',
         message: t('error_request_failed'),

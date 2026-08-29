@@ -1,10 +1,12 @@
 'use client';
 
+import * as Sentry from '@sentry/nextjs';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
+import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import { getI18nPath } from '@/utils/Helpers';
 
 type SignOutFormProps = {
@@ -29,10 +31,22 @@ export function SignOutForm(props: SignOutFormProps) {
     props.onSignOutStart?.();
     setSubmitting(true);
     try {
-      await authClient.signOut();
+      const res = await authClient.signOut();
+      if (res.error) {
+        reportUnknownAuthClientError({
+          action: 'sign_out',
+          code: res.error.code,
+          message: res.error.message,
+        });
+        setSubmitting(false);
+        return;
+      }
       router.push(getI18nPath(props.redirectPath ?? '/login', props.locale));
       router.refresh();
-    } catch {
+    } catch (caughtError) {
+      Sentry.captureException(caughtError, {
+        tags: { authAction: 'sign_out' },
+      });
       setSubmitting(false);
     }
   }

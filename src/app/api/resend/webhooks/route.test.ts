@@ -131,8 +131,9 @@ describe('resend webhook route', () => {
     expect(mocks.handleResendEmailMessageWebhook).not.toHaveBeenCalled();
     expect(mocks.handleResendNewsletterWebhook).not.toHaveBeenCalled();
     expect(mocks.handleResendAccountEmailWebhook).not.toHaveBeenCalled();
-    expect(mocks.sentry.captureException).toHaveBeenCalledWith(
-      expect.any(Error)
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      'Failed to verify Resend webhook: {error}',
+      { error: expect.any(Error) }
     );
   });
 
@@ -253,8 +254,11 @@ describe('resend webhook route', () => {
     expect(response.status).toBe(500);
     expect(mocks.handleResendEmailMessageWebhook).toHaveBeenCalled();
     expect(mocks.handleResendNewsletterWebhook).toHaveBeenCalled();
-    expect(mocks.sentry.captureException).toHaveBeenCalledWith(
-      expect.any(Error)
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      'Failed to process Resend webhook: {error}',
+      expect.objectContaining({
+        error: expect.any(Error),
+      })
     );
   });
 

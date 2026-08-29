@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
+import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
 import {
   authHrefWithCallback,
   safeAuthCallbackUrl,
@@ -222,7 +223,12 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
         );
         return;
       }
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'reset-password.check-code.thrown',
+        code: undefined,
+        message: authClientThrownMessage(caughtError),
+      });
       setError(t('error_request_failed'));
       return;
     } finally {
@@ -267,7 +273,12 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
         setResendLocked,
         setResendSecondsLeft,
       });
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'reset-password.resend-code.thrown',
+        code: undefined,
+        message: authClientThrownMessage(caughtError),
+      });
       setError(t('error_resend_failed'));
     } finally {
       resendInFlightRef.current = false;
@@ -299,7 +310,12 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
         return;
       }
       setStatus(t('support_sent'));
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'reset-password.report-issue.thrown',
+        code: undefined,
+        message: authClientThrownMessage(caughtError),
+      });
       setError(t('error_support_failed'));
     } finally {
       setReportingIssue(false);
@@ -383,7 +399,12 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       }
       router.push(safeCallbackUrl);
       router.refresh();
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'reset-password.update-password.thrown',
+        code: undefined,
+        message: authClientThrownMessage(caughtError),
+      });
       setError(t('error_request_failed'));
     } finally {
       setSubmitting(false);

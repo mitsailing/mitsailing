@@ -14,7 +14,7 @@ const {
   sendAccountLockedEmailMock,
   sendPasswordChangedNoticeMock,
   assertPasswordNotCompromisedMock,
-  warn,
+  loggerError,
 } = vi.hoisted(() => ({
   count: vi.fn(),
   create: vi.fn(),
@@ -23,7 +23,7 @@ const {
   sendAccountLockedEmailMock: vi.fn(),
   sendPasswordChangedNoticeMock: vi.fn(),
   assertPasswordNotCompromisedMock: vi.fn(),
-  warn: vi.fn(),
+  loggerError: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -61,6 +61,12 @@ vi.mock('@/libs/auth/password-compromise', () => ({
 vi.mock('@/libs/email/account-emails', () => ({
   sendAccountLockedEmail: sendAccountLockedEmailMock,
   sendPasswordChangedNotice: sendPasswordChangedNoticeMock,
+}));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: {
+    error: loggerError,
+  },
 }));
 
 type AuthHook = (ctx: TestAuthContext) => Promise<void>;
@@ -158,7 +164,6 @@ beforeEach(() => {
   sendAccountLockedEmailMock.mockImplementation(async () => {});
   sendPasswordChangedNoticeMock.mockImplementation(async () => {});
   assertPasswordNotCompromisedMock.mockImplementation(async () => {});
-  vi.spyOn(console, 'warn').mockImplementation(warn);
 });
 
 afterEach(() => {
@@ -413,9 +418,9 @@ describe('signInEmailHooks after sign-in', () => {
       )
     ).resolves.toBeUndefined();
 
-    expect(warn).toHaveBeenCalledWith(
-      'Failed to send account-locked email:',
-      deliveryError
+    expect(loggerError).toHaveBeenCalledWith(
+      'Failed to send account-locked email: {error}',
+      { error: deliveryError }
     );
   });
 });
@@ -478,9 +483,9 @@ describe('signInEmailHooks after change password', () => {
       )
     ).resolves.toBeUndefined();
 
-    expect(warn).toHaveBeenCalledWith(
-      'Failed to send password-changed notice:',
-      deliveryError
+    expect(loggerError).toHaveBeenCalledWith(
+      'Failed to send password-changed notice: {error}',
+      { error: deliveryError }
     );
   });
 });

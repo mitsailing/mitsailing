@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/nextjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   isAdminImagePath,
@@ -6,19 +5,12 @@ import {
 } from './AdminCmsMediaControlsApi';
 import { uploadCmsMediaWithTus } from './cmsMediaTusUpload';
 
-const loggerMocks = vi.hoisted(() => ({
-  warn: vi.fn(),
+const cmsMediaClientErrorMocks = vi.hoisted(() => ({
+  report: vi.fn(),
 }));
 
-vi.mock('@sentry/nextjs', () => ({
-  captureException: vi.fn(),
-  captureMessage: vi.fn(),
-}));
-
-vi.mock('@/libs/Logger', () => ({
-  logger: {
-    warn: loggerMocks.warn,
-  },
+vi.mock('@/libs/cms/reportCmsMediaClientError', () => ({
+  reportCmsMediaClientError: cmsMediaClientErrorMocks.report,
 }));
 
 vi.mock(import('./cmsMediaTusUpload'), () => ({
@@ -246,16 +238,12 @@ describe('uploadCmsMediaFile', () => {
 
     await expect(uploadCmsMediaFile({ file })).rejects.toThrow('Upload failed');
 
-    expect(Sentry.captureException).toHaveBeenCalledWith(
-      cancelError,
-      expect.objectContaining({
-        tags: { cmsMediaAction: 'cancelUpload' },
-      })
-    );
-    expect(loggerMocks.warn).toHaveBeenCalledWith(
-      'Failed to cancel CMS media upload: {error}',
-      { assetId: 'session-asset', error: cancelError }
-    );
+    expect(cmsMediaClientErrorMocks.report).toHaveBeenCalledWith({
+      action: 'cancelUpload',
+      assetId: 'session-asset',
+      error: cancelError,
+      message: 'Failed to cancel CMS media upload',
+    });
   });
 
   it('reports non-ok cancel response', async () => {
@@ -290,15 +278,13 @@ describe('uploadCmsMediaFile', () => {
     const error = expect.objectContaining({
       message: 'CMS media upload cancel failed: 500 Internal Server Error',
     });
-    expect(Sentry.captureException).toHaveBeenCalledWith(
-      error,
+    expect(cmsMediaClientErrorMocks.report).toHaveBeenCalledWith(
       expect.objectContaining({
-        tags: { cmsMediaAction: 'cancelUpload' },
+        action: 'cancelUpload',
+        assetId: 'session-asset',
+        error,
+        message: 'Failed to cancel CMS media upload',
       })
-    );
-    expect(loggerMocks.warn).toHaveBeenCalledWith(
-      'Failed to cancel CMS media upload: {error}',
-      { assetId: 'session-asset', error }
     );
   });
 
@@ -382,20 +368,12 @@ describe('uploadCmsMediaFile', () => {
 
     await expect(uploadCmsMediaFile({ file })).resolves.toBeNull();
 
-    expect(Sentry.captureMessage).toHaveBeenCalledWith(
-      'CMS media upload finalize failed',
-      expect.objectContaining({
-        level: 'warning',
-        tags: { cmsMediaAction: 'finalizeUpload' },
-      })
-    );
-    expect(loggerMocks.warn).toHaveBeenCalledWith(
-      'CMS media upload finalize failed',
-      {
-        sessionAssetId: 'session-asset',
-        uploadAssetId: 'session-asset',
-      }
-    );
+    expect(cmsMediaClientErrorMocks.report).toHaveBeenCalledWith({
+      action: 'finalizeUpload',
+      message: 'CMS media upload finalize failed',
+      sessionAssetId: 'session-asset',
+      uploadAssetId: 'session-asset',
+    });
   });
 
   it('falls back to direct upload when resumable uploads are unavailable', async () => {
@@ -665,10 +643,10 @@ describe('uploadCmsMediaFile', () => {
       '/api/admin/cms-media/uploads/unsafe%2Fasset/finalize',
       { method: 'POST' }
     );
-    expect(Sentry.captureMessage).toHaveBeenCalledWith(
-      'CMS media upload finalize failed',
+    expect(cmsMediaClientErrorMocks.report).toHaveBeenCalledWith(
       expect.objectContaining({
-        tags: { cmsMediaAction: 'finalizeUpload' },
+        action: 'finalizeUpload',
+        message: 'CMS media upload finalize failed',
       })
     );
   });

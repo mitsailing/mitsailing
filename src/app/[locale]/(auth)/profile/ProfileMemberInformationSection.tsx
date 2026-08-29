@@ -11,8 +11,10 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import { SubmitButton } from '@/components/ui/submit-button';
 import type { SailingAffiliation } from '@/generated/prisma/enums';
+import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
 import { updateProfileDetailsAction } from '@/libs/auth/profileIdentityActions';
 import type { UpdateProfileDetailsResult } from '@/libs/auth/profileIdentityActions';
+import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import {
   getSailingAffiliationOptions,
   getSailingAffiliationRule,
@@ -186,7 +188,12 @@ export function ProfileMemberInformationSection(props: {
       props.onMitIdentityLockedChange(result.identity.lockedByMitId);
       setBanner({ kind: 'success', message: t('profile_details_updated') });
       router.refresh();
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'profile.details-update.thrown',
+        code: undefined,
+        message: authClientThrownMessage(caughtError),
+      });
       setBanner({
         kind: 'error',
         message: t('error_request_failed'),

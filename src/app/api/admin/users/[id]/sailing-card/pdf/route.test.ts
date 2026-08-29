@@ -3,17 +3,12 @@ import { Permission } from '@/libs/auth/permissions';
 import { GET } from './route';
 
 const mocks = vi.hoisted(() => ({
-  captureException: vi.fn(),
   generateSailingCardPdf: vi.fn(),
   getTranslations: vi.fn(),
   getSailingCardPdfData: vi.fn(),
   loadSailingCardPdfAssets: vi.fn(),
   loggerError: vi.fn(),
   requirePermission: vi.fn(),
-}));
-
-vi.mock('@sentry/nextjs', () => ({
-  captureException: mocks.captureException,
 }));
 
 vi.mock('@/libs/admin/cards/sailingCardPdf', () => ({
@@ -119,7 +114,7 @@ describe('sailing card PDF route', () => {
     );
   });
 
-  it('reports PDF generation failures to Sentry', async () => {
+  it('logs PDF generation failures through logger', async () => {
     const error = new Error('pdf failed');
     mocks.generateSailingCardPdf.mockRejectedValue(error);
 
@@ -134,28 +129,13 @@ describe('sailing card PDF route', () => {
     expect(mocks.loggerError).toHaveBeenCalledWith(
       'Failed to generate sailing-card PDF: {error}',
       expect.objectContaining({
+        action: 'generate',
         adminUserId: 'admin-1',
         cardNumber: 61,
         cardYear: 2026,
         error,
+        feature: 'sailing-card-pdf',
         targetUserId: 'user-1',
-      })
-    );
-    expect(mocks.captureException).toHaveBeenCalledWith(
-      error,
-      expect.objectContaining({
-        contexts: {
-          sailingCardPdf: expect.objectContaining({
-            adminUserId: 'admin-1',
-            cardNumber: 61,
-            cardYear: 2026,
-            targetUserId: 'user-1',
-          }),
-        },
-        tags: {
-          action: 'generate',
-          feature: 'sailing-card-pdf',
-        },
       })
     );
   });

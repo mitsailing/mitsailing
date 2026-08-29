@@ -1,5 +1,6 @@
 'use client';
 
+import * as Sentry from '@sentry/nextjs';
 import { loadStripe } from '@stripe/stripe-js';
 import { ExternalLink } from 'lucide-react';
 import * as React from 'react';
@@ -217,7 +218,10 @@ function useEmbeddedCheckout(props: {
         }
         checkout.mount(target);
         mountedCheckout = checkout;
-      } catch {
+      } catch (caughtError) {
+        Sentry.captureException(caughtError, {
+          tags: { checkout: 'event_payment_embed' },
+        });
         if (!checkoutEffectWasCancelled(effectState)) {
           setError(checkoutLoadError);
         }

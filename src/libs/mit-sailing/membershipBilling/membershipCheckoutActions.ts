@@ -10,6 +10,7 @@ import type {
   SailingCardType,
 } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
+import { logger } from '@/libs/Logger';
 import type { SailingCardMembershipPriceRow } from '@/libs/mit-sailing/membershipBilling/membershipPricing';
 import { getCheckoutMembershipPrices } from '@/libs/mit-sailing/membershipBilling/membershipPricing';
 import { createStripeMembershipCheckoutSession } from '@/libs/mit-sailing/membershipBilling/membershipStripeCheckout';
@@ -294,6 +295,15 @@ export async function createMembershipCheckoutUrlForOnboarding(options: {
     now,
   });
   if (prices.status !== 'ready') {
+    if (prices.status === 'missing_due_today_price') {
+      logger.error(
+        '[membership-checkout:onboarding] user_id={userId} card_type={cardType} reason=missing_due_today_price',
+        {
+          cardType: options.cardType,
+          userId: options.userId,
+        }
+      );
+    }
     return;
   }
   const result = await createMembershipCheckoutForOnboarding({

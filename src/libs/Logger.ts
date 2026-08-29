@@ -6,7 +6,13 @@ import {
   getJsonLinesFormatter,
   getLogger,
 } from '@logtape/logtape';
+import { getSentrySink } from '@logtape/sentry';
+import * as Sentry from '@sentry/node';
 import { Env } from './Env';
+import {
+  buildAppLoggerSinkNames,
+  shouldForwardLogsToSentry,
+} from './loggerSinks';
 
 const betterStackSink: AsyncSink = async (record) => {
   await fetch(`https://${Env.NEXT_PUBLIC_BETTER_STACK_INGESTING_HOST}`, {
@@ -23,10 +29,16 @@ const canForwardToBetterStack =
   Boolean(Env.NEXT_PUBLIC_BETTER_STACK_SOURCE_TOKEN) &&
   Boolean(Env.NEXT_PUBLIC_BETTER_STACK_INGESTING_HOST);
 
+const appSinks = buildAppLoggerSinkNames({
+  forwardToBetterStack: canForwardToBetterStack,
+  forwardToSentry: shouldForwardLogsToSentry(),
+});
+
 await configure({
   sinks: {
     console: getConsoleSink({ formatter: getJsonLinesFormatter() }),
     betterStack: fromAsyncSink(betterStackSink),
+    sentry: getSentrySink({ sentry: Sentry }),
   },
   loggers: [
     {
@@ -36,7 +48,7 @@ await configure({
     },
     {
       category: ['app'],
-      sinks: canForwardToBetterStack ? ['console', 'betterStack'] : ['console'],
+      sinks: [...appSinks],
       lowestLevel: Env.NEXT_PUBLIC_LOGGING_LEVEL,
     },
   ],

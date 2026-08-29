@@ -1,3 +1,4 @@
+import '@/libs/sentry-worker-init';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';

@@ -96,7 +96,7 @@ export async function handleResendAccountEmailWebhook(
   const email = normalizeEmailAddress(recipient);
   const occurredAt = resendWebhookOccurredAt(event);
   if (!occurredAt) {
-    logger.warn('Skipping account email webhook with invalid timestamp', {
+    logger.error('Skipping account email webhook with invalid timestamp', {
       email,
       timestamp: event.created_at,
       type: event.type,

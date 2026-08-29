@@ -1,10 +1,11 @@
+import { APIError } from 'better-auth/api';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { findUnique, headers, loggerWarn, requestPasswordResetEmailOTP } =
+const { findUnique, headers, loggerError, requestPasswordResetEmailOTP } =
   vi.hoisted(() => ({
     findUnique: vi.fn(),
     headers: vi.fn(() => new Headers({ 'x-test': '1' })),
-    loggerWarn: vi.fn(),
+    loggerError: vi.fn(),
     requestPasswordResetEmailOTP: vi.fn(),
   }));
 
@@ -32,7 +33,7 @@ vi.mock('@/libs/DB', () => ({
 
 vi.mock('@/libs/Logger', () => ({
   logger: {
-    warn: loggerWarn,
+    error: loggerError,
   },
 }));
 
@@ -112,7 +113,7 @@ describe('signInEmailActions', () => {
       resolveSignInEmailAction({ email: 'legacy@mit.edu' })
     ).resolves.toEqual({ email: 'legacy@mit.edu', state: 'reset_failed' });
 
-    expect(loggerWarn).toHaveBeenCalledWith(
+    expect(loggerError).toHaveBeenCalledWith(
       'Failed to send password reset email OTP for user sign-in',
       {
         email: 'legacy@mit.edu',
@@ -132,12 +133,65 @@ describe('signInEmailActions', () => {
       resolveSignInEmailAction({ email: 'legacy@mit.edu' })
     ).resolves.toEqual({ email: 'legacy@mit.edu', state: 'reset_failed' });
 
-    expect(loggerWarn).toHaveBeenCalledWith(
+    expect(loggerError).toHaveBeenCalledWith(
       'Failed to send password reset email OTP for user sign-in',
       {
         email: 'legacy@mit.edu',
         errorMessage: 'smtp down',
         errorName: 'string',
+      }
+    );
+  });
+
+  it('log APIError reset delivery failure without a body code', async () => {
+    findUnique.mockResolvedValue({ accounts: [] });
+    requestPasswordResetEmailOTP.mockRejectedValue(
+      new APIError('INTERNAL_SERVER_ERROR', {
+        message: 'smtp down',
+      })
+    );
+    const { resolveSignInEmailAction } =
+      await import('@/libs/auth/signInEmailActions');
+
+    await expect(
+      resolveSignInEmailAction({ email: 'legacy@mit.edu' })
+    ).resolves.toEqual({ email: 'legacy@mit.edu', state: 'reset_failed' });
+
+    expect(loggerError).toHaveBeenCalledWith(
+      'Failed to send password reset email OTP for user sign-in',
+      {
+        email: 'legacy@mit.edu',
+        errorCode: undefined,
+        errorMessage: 'smtp down',
+        errorName: 'APIError',
+        errorStatus: 'INTERNAL_SERVER_ERROR',
+      }
+    );
+  });
+
+  it('log APIError reset delivery failure with status and code', async () => {
+    findUnique.mockResolvedValue({ accounts: [] });
+    requestPasswordResetEmailOTP.mockRejectedValue(
+      new APIError('TOO_MANY_REQUESTS', {
+        code: 'TOO_MANY_REQUESTS',
+        message: 'Too many requests',
+      })
+    );
+    const { resolveSignInEmailAction } =
+      await import('@/libs/auth/signInEmailActions');
+
+    await expect(
+      resolveSignInEmailAction({ email: 'legacy@mit.edu' })
+    ).resolves.toEqual({ email: 'legacy@mit.edu', state: 'reset_failed' });
+
+    expect(loggerError).toHaveBeenCalledWith(
+      'Failed to send password reset email OTP for user sign-in',
+      {
+        email: 'legacy@mit.edu',
+        errorCode: 'TOO_MANY_REQUESTS',
+        errorMessage: 'Too many requests',
+        errorName: 'APIError',
+        errorStatus: 'TOO_MANY_REQUESTS',
       }
     );
   });
@@ -152,7 +206,7 @@ describe('signInEmailActions', () => {
       resolveSignInEmailAction({ email: 'legacy@mit.edu' })
     ).resolves.toEqual({ email: 'legacy@mit.edu', state: 'reset_failed' });
 
-    expect(loggerWarn).toHaveBeenCalledWith(
+    expect(loggerError).toHaveBeenCalledWith(
       'Failed to send password reset email OTP for user sign-in',
       {
         email: 'legacy@mit.edu',

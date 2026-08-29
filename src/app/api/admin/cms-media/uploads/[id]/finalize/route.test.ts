@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as cmsMediaTusStatusModule from '@/libs/mit-sailing/cmsMediaTusStatus';
+import { mockTusUploadStatusFromFetch } from '@/libs/mit-sailing/cmsMediaTusStatusMock';
 import { POST } from './route';
 
 type GetCmsMediaTusUploadStatus =
@@ -16,7 +17,6 @@ const mocks = vi.hoisted(() => ({
   mediaUploadBaseUrl: 'https://mitsailing.com' as string | undefined,
   update: vi.fn(),
   updateMany: vi.fn(),
-  useMockTusStatus: false,
 }));
 
 vi.mock('@/libs/auth/dal', () => ({
@@ -48,23 +48,9 @@ vi.mock('@/libs/Logger', () => ({
   },
 }));
 
-vi.mock('@/libs/mit-sailing/cmsMediaTusStatus', async () => {
-  const actual = await vi.importActual<typeof cmsMediaTusStatusModule>(
-    '@/libs/mit-sailing/cmsMediaTusStatus'
-  );
-  return {
-    getCmsMediaTusUploadStatus: async (
-      props: Parameters<GetCmsMediaTusUploadStatus>[0]
-    ) => {
-      if (mocks.useMockTusStatus) {
-        const status = await mocks.getCmsMediaTusUploadStatus(props);
-        return status;
-      }
-      const status = await actual.getCmsMediaTusUploadStatus(props);
-      return status;
-    },
-  };
-});
+vi.mock('@/libs/mit-sailing/cmsMediaTusStatus', () => ({
+  getCmsMediaTusUploadStatus: mocks.getCmsMediaTusUploadStatus,
+}));
 
 vi.mock('@/worker/cmsMediaProcessingJob', () => ({
   enqueueCmsMediaProcessingJob: mocks.enqueueCmsMediaProcessingJob,
@@ -74,9 +60,15 @@ vi.mock('@/worker/defaultQueue', () => ({
   getDefaultQueue: mocks.getDefaultQueue,
 }));
 
+beforeEach(() => {
+  mocks.getCmsMediaTusUploadStatus.mockImplementation(async (props) => {
+    const status = await mockTusUploadStatusFromFetch(props);
+    return status;
+  });
+});
+
 afterEach(() => {
   mocks.mediaUploadBaseUrl = 'https://mitsailing.com';
-  mocks.useMockTusStatus = false;
   vi.clearAllMocks();
   vi.unstubAllGlobals();
 });
@@ -487,7 +479,7 @@ describe('cms media upload finalize route', () => {
       error: 'upload_status_unavailable',
     });
     expect(response.status).toBe(503);
-    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+    expect(mocks.loggerError).toHaveBeenCalledWith(
       'tusd upload status unavailable before finalize',
       { assetId: 'asset-1' }
     );
@@ -496,7 +488,6 @@ describe('cms media upload finalize route', () => {
 
   it('returns unavailable when the tusd status helper throws', async () => {
     const error = new Error('unexpected tus status failure');
-    mocks.useMockTusStatus = true;
     mocks.getCmsMediaTusUploadStatus.mockRejectedValue(error);
     stubAdminUser();
     mocks.findUnique.mockResolvedValue(asset());
@@ -507,7 +498,7 @@ describe('cms media upload finalize route', () => {
       error: 'upload_status_unavailable',
     });
     expect(response.status).toBe(503);
-    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+    expect(mocks.loggerError).toHaveBeenCalledWith(
       'Failed to read tusd upload status before finalize: {error}',
       { assetId: 'asset-1', error }
     );

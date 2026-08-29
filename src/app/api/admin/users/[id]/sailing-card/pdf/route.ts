@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/nextjs';
 import { getTranslations } from 'next-intl/server';
 import { generateSailingCardPdf } from '@/libs/admin/cards/sailingCardPdf';
 import type { SailingCardPdfLabels } from '@/libs/admin/cards/sailingCardPdf';
@@ -60,25 +59,13 @@ function reportSailingCardPdfError(props: {
   readonly targetUserId: string;
 }) {
   logger.error('Failed to generate sailing-card PDF: {error}', {
+    action: 'generate',
     adminUserId: props.adminUserId,
     cardNumber: props.cardNumber,
     cardYear: props.cardYear,
     error: props.error,
+    feature: 'sailing-card-pdf',
     targetUserId: props.targetUserId,
-  });
-  Sentry.captureException(props.error, {
-    contexts: {
-      sailingCardPdf: {
-        adminUserId: props.adminUserId,
-        cardNumber: props.cardNumber,
-        cardYear: props.cardYear,
-        targetUserId: props.targetUserId,
-      },
-    },
-    tags: {
-      action: 'generate',
-      feature: 'sailing-card-pdf',
-    },
   });
 }
 

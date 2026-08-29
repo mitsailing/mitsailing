@@ -6,6 +6,7 @@ import {
   sendAccountLockedEmail,
   sendPasswordChangedNotice,
 } from '@/libs/email/account-emails';
+import { logger } from '@/libs/Logger';
 import { normalizeEmailAddress } from '@/utils/emailValidation';
 
 /** Maximum failed password attempts inside the rolling window before lockout. */
@@ -75,7 +76,7 @@ async function notifyPasswordChange(ctx: {
     return;
   }
   await sendPasswordChangedNotice(email).catch((error: unknown) => {
-    console.warn('Failed to send password-changed notice:', error);
+    logger.error('Failed to send password-changed notice: {error}', { error });
   });
 }
 
@@ -138,7 +139,7 @@ export const signInEmailHooks = {
     if (failures === MAX_FAILED_ATTEMPTS) {
       // Email delivery must never undo the lock, hence the swallow.
       await sendAccountLockedEmail(email).catch((error: unknown) => {
-        console.warn('Failed to send account-locked email:', error);
+        logger.error('Failed to send account-locked email: {error}', { error });
       });
     }
   }),

@@ -22,6 +22,7 @@ const authClientMock = vi.hoisted(() => {
 
 const sentryMock = vi.hoisted(() => ({
   captureException: vi.fn(),
+  captureMessage: vi.fn(),
 }));
 
 vi.mock('@/libs/auth-client', () => ({
@@ -147,6 +148,21 @@ describe('ProfilePasswordClient', () => {
       'New passwords do not match.'
     );
     expect(authClientMock.changePassword).not.toHaveBeenCalled();
+  });
+
+  it('profile owner sees request failed when password change throws', async () => {
+    authClientMock.changePassword.mockRejectedValue(new Error('network'));
+    render(<ProfilePasswordClient />);
+
+    const user = await fillPasswordForm({
+      currentPassword: 'current-password',
+      newPassword: 'new-password',
+    });
+    await user.click(screen.getByRole('button', { name: 'Update password' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not complete that request right now.'
+    );
   });
 
   it('profile owner sees breach guidance for a compromised password', async () => {

@@ -380,7 +380,7 @@ export async function handleResendEmailMessageWebhook(
   const client = context?.client ?? prisma;
   const occurredAt = resendWebhookOccurredAt(event);
   if (!occurredAt) {
-    logger.warn('Skipping Resend email event with invalid timestamp', {
+    logger.error('Skipping Resend email event with invalid timestamp', {
       providerMessageId,
       timestamp: event.created_at,
       type: event.type,

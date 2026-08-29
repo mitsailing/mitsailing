@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
+import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
+import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import {
   isValidEmailAddress,
   normalizeEmailAddress,
@@ -158,7 +160,12 @@ export function ProfileEmailSection(props: {
       props.onPendingEmailChange(normalizedNewEmail);
       setEmailCode('');
       setNewEmail('');
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'profile.email-change-request.thrown',
+        code: undefined,
+        message: authClientThrownMessage(caughtError),
+      });
       setEmailBanner({
         kind: 'error',
         message: t('error_request_failed'),
@@ -191,7 +198,12 @@ export function ProfileEmailSection(props: {
       props.onCurrentEmailChange(options.emailToConfirm);
       props.onPendingEmailChange(null);
       setEmailCode('');
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'profile.email-change-confirm.thrown',
+        code: undefined,
+        message: authClientThrownMessage(caughtError),
+      });
       setEmailOtpBanner({
         kind: 'error',
         message: t('error_request_failed'),
@@ -223,7 +235,12 @@ export function ProfileEmailSection(props: {
         }),
       });
       lockEmailResend();
-    } catch {
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'profile.email-change-resend.thrown',
+        code: undefined,
+        message: authClientThrownMessage(caughtError),
+      });
       setResendBanner({
         kind: 'error',
         message: t('error_request_failed'),

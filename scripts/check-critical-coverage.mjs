@@ -76,6 +76,7 @@ const authCoverageFiles = [
   'src/libs/auth-client.ts',
   'src/libs/auth/adminHeaderLink.ts',
   'src/libs/auth/appPermissions.ts',
+  'src/libs/auth/authClientThrownMessage.ts',
   'src/libs/auth/callbackUrl.ts',
   'src/libs/auth/devAuthShortcut.ts',
   'src/libs/auth/dal.ts',

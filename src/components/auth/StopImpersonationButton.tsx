@@ -1,5 +1,6 @@
 'use client';
 
+import * as Sentry from '@sentry/nextjs';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -30,10 +31,9 @@ export function StopImpersonationButton(props: StopImpersonationButtonProps) {
       router.push(getI18nPath('/admin/users', props.locale));
       router.refresh();
     } catch (caughtError) {
-      console.error(
-        'StopImpersonationButton stop impersonation failed.',
-        caughtError
-      );
+      Sentry.captureException(caughtError, {
+        tags: { authAction: 'admin.stop_impersonating' },
+      });
       setError(true);
     } finally {
       setSubmitting(false);
