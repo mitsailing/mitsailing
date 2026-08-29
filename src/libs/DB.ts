@@ -4,6 +4,7 @@ import { Pool } from 'pg';
 import type { Prisma } from '@/generated/prisma/client';
 import { PrismaClient } from '@/generated/prisma/client';
 import { Env } from './Env';
+import { postgresApplicationName } from './postgresApplicationName';
 
 declare global {
   var cachedPool: Pool | undefined;
@@ -32,6 +33,7 @@ function createPrisma(): PrismaClient {
   const pool =
     globalThis.cachedPool ??
     new Pool({
+      application_name: postgresApplicationName(),
       connectionString: Env.DATABASE_URL,
       connectionTimeoutMillis: 10_000,
     });
