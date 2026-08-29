@@ -154,6 +154,7 @@ COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/lib/mit-sailing/
 COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/data ./src/data
 COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/generated ./src/generated
 COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/DB.ts ./src/libs/DB.ts
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/postgresApplicationName.ts ./src/libs/postgresApplicationName.ts
 COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/Env.ts ./src/libs/Env.ts
 COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/auth/passwordHashing.ts ./src/libs/auth/passwordHashing.ts
 COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/auth/roles.ts ./src/libs/auth/roles.ts

@@ -104,6 +104,9 @@ describe('worker Docker contract', () => {
       `${readonlySeedCopyPrefix} /app/src/libs/DB.ts ./src/libs/DB.ts`
     );
     expect(dockerfile).toContain(
+      `${readonlySeedCopyPrefix} /app/src/libs/postgresApplicationName.ts ./src/libs/postgresApplicationName.ts`
+    );
+    expect(dockerfile).toContain(
       `${readonlySeedCopyPrefix} /app/src/libs/Env.ts ./src/libs/Env.ts`
     );
     expect(dockerfile).toContain(
