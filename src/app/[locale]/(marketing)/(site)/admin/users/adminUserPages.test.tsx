@@ -18,8 +18,9 @@ import {
   getSailingCardExpirationDate,
 } from '@/libs/mit-sailing/sailingCardValidity';
 
-const testCardYear = getCurrentSailingCardYear();
-const testCardExpiresOn = getSailingCardExpirationDate(testCardYear);
+// Resolve after tests/setup/clock.ts pins TEST_NOW, not at import time.
+const testCardYear = () => getCurrentSailingCardYear();
+const testCardExpiresOn = () => getSailingCardExpirationDate(testCardYear());
 
 const mocks = vi.hoisted(() => ({
   createAdminUserAction: vi.fn(),
@@ -120,7 +121,7 @@ function membershipPaymentHistoryRow() {
     amountCents: 12_000,
     amountPaidCents: null,
     cardType: SailingCardType.racing,
-    cardYear: testCardYear,
+    cardYear: testCardYear(),
     createdAt: new Date('2026-05-19T16:00:00.000Z'),
     currency: 'usd',
     detailHref: null,
@@ -458,14 +459,14 @@ beforeEach(() => {
     ],
     gymMembershipVerifiedAt: null,
     sailingCardRequests: [],
-    sailingCardExpiresOn: testCardExpiresOn,
+    sailingCardExpiresOn: testCardExpiresOn(),
     sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
     sailingCardIssuedBy: { name: 'Dock Master' },
     sailingCardNumber: 61,
     sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
     sailingCardSwimAgreementInitialedAt: new Date('2026-06-01T16:00:00.000Z'),
     sailingCardSwimAgreementInitials: 'AK',
-    sailingCardYear: testCardYear,
+    sailingCardYear: testCardYear(),
   });
   mocks.list.mockResolvedValue([
     {
@@ -520,7 +521,7 @@ function pendingCardSummary() {
     sailingCardRequests: [
       {
         cardType: SailingCardType.normal,
-        cardYear: testCardYear,
+        cardYear: testCardYear(),
         hasFitnessMembership: true,
         issuedCardNumber: null,
         requestedAt: new Date('2026-05-21T16:00:00.000Z'),
@@ -681,7 +682,7 @@ describe('admin user pages', () => {
     expect(screen.getByTestId('member-details-form')).toBeInTheDocument();
     expect(screen.getByText('sailing_card_heading')).toBeInTheDocument();
     expect(screen.getAllByText('61').length).toBeGreaterThan(0);
-    expect(screen.getByText(String(testCardYear))).toBeInTheDocument();
+    expect(screen.getByText(String(testCardYear()))).toBeInTheDocument();
     expect(screen.getByText(/Jun 1, 2026/)).toBeInTheDocument();
     expect(screen.getByTestId('card-history-panel')).toBeInTheDocument();
     expect(screen.getByTestId('ratings-panel')).toBeInTheDocument();
@@ -711,7 +712,7 @@ describe('admin user pages', () => {
       screen.getByRole('form', { name: 'Issue sailing card' })
     ).toHaveAttribute('data-suggested-card-number', '2471');
     expect(mocks.getNextAvailableSailingCardNumber).toHaveBeenCalledWith({
-      cardYear: testCardYear,
+      cardYear: testCardYear(),
     });
   });
 
@@ -743,14 +744,14 @@ describe('admin user pages', () => {
         },
       ],
       sailingCardRequests: [],
-      sailingCardExpiresOn: testCardExpiresOn,
+      sailingCardExpiresOn: testCardExpiresOn(),
       sailingCardIssuedAt: new Date('2026-05-21T16:00:00.000Z'),
       sailingCardIssuedBy: { name: 'Dock Master' },
       sailingCardNumber: 61,
       sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
       sailingCardSwimAgreementInitialedAt: new Date('2026-05-21T16:00:00.000Z'),
       sailingCardSwimAgreementInitials: 'AK',
-      sailingCardYear: testCardYear,
+      sailingCardYear: testCardYear(),
       gymMembershipVerifiedAt: null,
     });
     const { default: AdminUserShowPage } = await import('./[id]/page');
@@ -938,7 +939,7 @@ describe('admin user pages', () => {
       {
         amountCents: 12_000,
         cardType: SailingCardType.racing,
-        cardYear: testCardYear,
+        cardYear: testCardYear(),
         createdAt: new Date('2026-05-19T16:00:00.000Z'),
         currency: 'usd',
         detailHref: null,
@@ -975,7 +976,7 @@ describe('admin user pages', () => {
       {
         amountCents: 12_000,
         cardType: SailingCardType.racing,
-        cardYear: testCardYear,
+        cardYear: testCardYear(),
         createdAt: new Date('2026-05-20T16:00:00.000Z'),
         currency: 'usd',
         detailHref: null,
@@ -992,7 +993,7 @@ describe('admin user pages', () => {
       {
         amountCents: 12_000,
         cardType: SailingCardType.racing,
-        cardYear: testCardYear,
+        cardYear: testCardYear(),
         createdAt: new Date('2026-05-19T16:00:00.000Z'),
         currency: 'usd',
         detailHref: null,
@@ -1031,7 +1032,7 @@ describe('admin user pages', () => {
       {
         amountCents: 12_000,
         cardType: SailingCardType.racing,
-        cardYear: testCardYear,
+        cardYear: testCardYear(),
         createdAt: new Date('2026-05-19T16:00:00.000Z'),
         currency: 'usd',
         detailHref: null,
@@ -1068,7 +1069,7 @@ describe('admin user pages', () => {
       {
         amountCents: 12_000,
         cardType: SailingCardType.racing,
-        cardYear: testCardYear,
+        cardYear: testCardYear(),
         createdAt: new Date('2026-05-20T16:00:00.000Z'),
         currency: 'usd',
         detailHref: null,
@@ -1085,7 +1086,7 @@ describe('admin user pages', () => {
       {
         amountCents: 12_000,
         cardType: SailingCardType.racing,
-        cardYear: testCardYear,
+        cardYear: testCardYear(),
         createdAt: new Date('2026-05-19T16:00:00.000Z'),
         currency: 'usd',
         detailHref: null,
@@ -1142,14 +1143,14 @@ describe('admin user pages', () => {
         },
       ],
       sailingCardRequests: [],
-      sailingCardExpiresOn: testCardExpiresOn,
+      sailingCardExpiresOn: testCardExpiresOn(),
       sailingCardIssuedAt: new Date('2025-08-01T16:00:00.000Z'),
       sailingCardIssuedBy: { name: 'Dock Master' },
       sailingCardNumber: 61,
       sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
       sailingCardSwimAgreementInitialedAt: new Date('2026-05-21T16:00:00.000Z'),
       sailingCardSwimAgreementInitials: 'AK',
-      sailingCardYear: testCardYear,
+      sailingCardYear: testCardYear(),
     });
     const { default: AdminUserShowPage } = await import('./[id]/page');
 

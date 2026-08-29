@@ -85,6 +85,7 @@ const routeMocks = vi.hoisted(() => ({
   getTranslations: vi.fn(),
   listUserRatingAssignmentRows:
     vi.fn() as MockedFunction<ListUserRatingAssignmentRowsFn>,
+  loggerError: vi.fn(),
   loggerWarn: vi.fn(),
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
@@ -134,6 +135,7 @@ vi.mock('@/libs/DB', () => ({
 
 vi.mock('@/libs/Logger', () => ({
   logger: {
+    error: routeMocks.loggerError,
     warn: routeMocks.loggerWarn,
   },
 }));
@@ -155,6 +157,10 @@ vi.mock('@/libs/newsletter/newsletterSubscriptions', () => ({
 
 vi.mock('@/components/mit-sailing/site/AuthCenterBrandMark', () => ({
   AuthCenterBrandMark: () => <div data-testid="auth-center-brand" />,
+}));
+
+vi.mock('@/components/mit-sailing/site/SitePreviewBannerSlot', () => ({
+  SitePreviewBannerSlot: () => null,
 }));
 
 vi.mock('@/components/auth/profile/ProfileSettingsChrome', () => ({
@@ -922,7 +928,7 @@ describe('auth route shells', () => {
       })
     ).rejects.toThrow('Missing db user after auth');
 
-    expect(routeMocks.loggerWarn).toHaveBeenCalledWith(
+    expect(routeMocks.loggerError).toHaveBeenCalledWith(
       'Missing database user after profile auth',
       {
         email: 'sailor@example.com',
