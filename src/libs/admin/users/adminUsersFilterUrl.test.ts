@@ -25,6 +25,7 @@ describe('adminUsersFilterChips', () => {
       {
         cardType: 'all',
         emailStatus: 'bounced',
+        membershipPaymentStatus: 'all',
         query: '',
         sailingCardStatus: 'all',
       },
@@ -45,6 +46,7 @@ describe('adminUsersFilterChips', () => {
       {
         cardType: 'all',
         emailStatus: 'all',
+        membershipPaymentStatus: 'all',
         query: 'ada',
         sailingCardStatus: 'all',
       },

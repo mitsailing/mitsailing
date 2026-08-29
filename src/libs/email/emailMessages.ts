@@ -96,7 +96,7 @@ export type AdminUserEmailMessageRow = {
   toEmail: string;
 };
 
-export const ADMIN_USER_EMAIL_MESSAGES_PAGE_SIZE = 25;
+const ADMIN_USER_EMAIL_MESSAGES_PAGE_SIZE = 25;
 
 export type AdminUserEmailMessagesPage = {
   readonly page: number;

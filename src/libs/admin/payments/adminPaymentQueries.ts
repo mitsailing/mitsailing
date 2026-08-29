@@ -34,6 +34,7 @@ export type AdminPaymentLedgerRow = {
   stripePaymentIntentId: string | null;
   user: {
     email: string;
+    id: string;
     name: string;
   } | null;
 };

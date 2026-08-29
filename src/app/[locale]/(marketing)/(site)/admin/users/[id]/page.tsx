@@ -74,7 +74,7 @@ import {
   Permission,
 } from '@/libs/auth/appPermissions';
 import { appRoleFromSessionUser, requirePermission } from '@/libs/auth/dal';
-import { getAdminUserEmailMessages } from '@/libs/email/emailMessages';
+import { getAdminUserEmailMessagesPage } from '@/libs/email/emailMessages';
 import type { AdminUserEmailMessageRow } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
 import {
@@ -419,14 +419,9 @@ async function loadAdminUserEmailDetails(props: {
   readonly userId: string;
 }): Promise<AdminUserEmailDetails> {
   try {
-    const messages = await getAdminUserEmailMessages({
-      email: props.email,
-      userId: props.userId,
-    });
-    const emailPage = paginatedRows({
-      page: props.page,
+    const emailPage = await getAdminUserEmailMessagesPage({
+      ...props,
       pageSize: ADMIN_USER_EMAIL_MESSAGES_PAGE_SIZE,
-      rows: messages,
     });
     return {
       loadError: false,
@@ -1155,17 +1150,6 @@ function emptyAdminUserEmailDetails(): AdminUserEmailDetails {
     messages: [],
     page: 1,
     pageSize: ADMIN_USER_EMAIL_MESSAGES_PAGE_SIZE,
-    total: 0,
-  };
-}
-
-function emptyAdminUserPaymentDetails(): AdminUserPaymentDetails {
-  return {
-    accessRows: [],
-    loadError: false,
-    page: 1,
-    pageSize: ADMIN_USER_PAYMENT_HISTORY_PAGE_SIZE,
-    rows: [],
     total: 0,
   };
 }

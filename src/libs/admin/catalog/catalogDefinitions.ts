@@ -766,7 +766,7 @@ const pavilionSpacesDefinition = {
   publicViewHrefField: 'publicSpaceUrl',
 } as const satisfies CatalogResourceDefinition;
 
-export const CATALOG_RESOURCE_IDS = [
+const CATALOG_RESOURCE_IDS = [
   'donation_funds',
   'event_categories',
   'class_categories',

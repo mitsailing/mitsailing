@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { Prisma } from '@/generated/prisma/client';
+import type { PrismaClient } from '@/generated/prisma/client';
 import {
   PaymentPurpose,
   PaymentSource,
@@ -783,6 +784,33 @@ export async function importLegacyPayments(options?: {
   const [members, payments] = await Promise.all([
     reader.fetchActiveMembers(),
     reader.fetchPayments(),
+  ]);
+  return importLegacyPaymentRows({ members, payments });
+}
+
+/**
+ * Imports legacy payments from the local `legacy` Postgres schema used by seed
+ * fixtures and mirror-backed local development.
+ *
+ * @param options - Optional Prisma client used for raw legacy schema queries.
+ * @returns Import counts for users and payments written into app tables.
+ */
+export async function importLegacyPaymentsFromSchema(options?: {
+  readonly prisma?: Pick<PrismaClient, '$queryRaw'>;
+}): Promise<LegacyPaymentImportResult> {
+  const db = options?.prisma ?? prisma;
+  const [members, payments] = await Promise.all([
+    db.$queryRaw<LegacyMemberRow[]>`
+      SELECT *
+      FROM legacy.members
+      WHERE active = '1'
+      ORDER BY lower(trim(email)), record_date DESC, record DESC
+    `,
+    db.$queryRaw<LegacyPaymentRow[]>`
+      SELECT *
+      FROM legacy.payments
+      ORDER BY date, omarsid
+    `,
   ]);
   return importLegacyPaymentRows({ members, payments });
 }
