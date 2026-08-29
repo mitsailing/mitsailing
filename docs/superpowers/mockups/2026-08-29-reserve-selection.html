@@ -1,0 +1,2335 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reserve a Pavilion — selection mockup</title>
+    <style>
+      :root {
+        /* Product restrained + DESIGN.md MIT red / zinc */
+        --bg: oklch(97.5% 0.006 55);
+        --surface: oklch(99.2% 0.004 55);
+        --ink: oklch(18% 0.012 40);
+        --muted: oklch(45% 0.015 40);
+        --line: oklch(90% 0.008 55);
+        --brand: #750014;
+        --brand-hover: #5c0010;
+        --brand-soft: color-mix(in srgb, var(--brand) 9%, var(--surface));
+        --ok: #16a34a;
+        --ok-soft: color-mix(in srgb, var(--ok) 12%, var(--surface));
+        --warn: #b45309;
+        --warn-bg: color-mix(in srgb, var(--warn) 12%, var(--surface));
+        --warn-line: color-mix(in srgb, var(--warn) 35%, var(--surface));
+        --focus: var(--brand);
+        --radius: 10px;
+        --shadow: 0 4px 8px oklch(18% 0.012 40 / 8%);
+        --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        --serif: Georgia, 'Times New Roman', serif;
+        /* Spacing scale */
+        --space-1: 0.25rem;
+        --space-2: 0.5rem;
+        --space-3: 0.75rem;
+        --space-4: 1rem;
+        --space-5: 1.5rem;
+        --space-6: 2.25rem;
+        /* Type ramp (product fixed rem, ~1.2) */
+        --text-caption: 0.8125rem;
+        --text-label: 0.875rem;
+        --text-body: 1rem;
+        --text-title: 1.125rem;
+        --text-heading: clamp(1.75rem, 3vw, 2.5rem);
+        --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+        --dur-fast: 140ms;
+        --dur: 200ms;
+        --z-sticky: 20;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--font);
+        font-size: var(--text-body);
+        color: var(--ink);
+        background: var(--bg);
+        line-height: 1.55;
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: var(--space-5) var(--space-4) var(--space-6);
+      }
+      h1 {
+        font-family: var(--serif);
+        font-weight: 600;
+        font-size: var(--text-heading);
+        line-height: 1.12;
+        margin: 0 0 var(--space-2);
+        text-wrap: balance;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+      }
+      .lede {
+        color: var(--muted);
+        margin: 0 0 var(--space-5);
+        max-width: 42rem;
+        font-size: var(--text-body);
+        line-height: 1.55;
+      }
+      .steps {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2) var(--space-5);
+        list-style: none;
+        padding: 0;
+        margin: 0 0 var(--space-5);
+        border-bottom: 1px solid var(--line);
+        padding-bottom: var(--space-3);
+      }
+      .steps li {
+        font-size: var(--text-label);
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        transition: color var(--dur) var(--ease-out);
+      }
+      .steps .num {
+        width: 1.4rem;
+        height: 1.4rem;
+        border-radius: var(--radius);
+        display: grid;
+        place-items: center;
+        font-size: var(--text-caption);
+        font-weight: 600;
+        background: var(--line);
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+        transition:
+          background var(--dur) var(--ease-out),
+          color var(--dur) var(--ease-out);
+      }
+      .steps li[aria-current='step'] {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .steps li[aria-current='step'] .num {
+        background: var(--brand);
+        color: oklch(99% 0.01 55);
+      }
+      .steps li.done .num {
+        background: var(--ok);
+        color: oklch(99% 0.01 55);
+      }
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: var(--space-5) var(--space-5);
+      }
+      .panel.enter {
+        animation: panel-in var(--dur) var(--ease-out) both;
+      }
+      @keyframes panel-in {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      label.field,
+      .field {
+        display: block;
+        font-weight: 600;
+        font-size: var(--text-label);
+        margin-bottom: var(--space-1);
+        letter-spacing: 0.01em;
+      }
+      .hint {
+        font-weight: 400;
+        color: var(--muted);
+        font-size: var(--text-label);
+        margin: var(--space-1) 0 0;
+      }
+      input[type='email'],
+      input[type='text'],
+      input[type='tel'],
+      input[type='number'],
+      textarea,
+      select {
+        width: 100%;
+        max-width: 28rem;
+        padding: 0.65rem 0.75rem;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        font: inherit;
+        background: var(--surface);
+        color: var(--ink);
+        transition:
+          border-color var(--dur) var(--ease-out),
+          box-shadow var(--dur) var(--ease-out);
+      }
+      input:focus-visible,
+      textarea:focus-visible,
+      button:focus-visible,
+      .persona:focus-visible,
+      summary:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 45%, transparent);
+      }
+      textarea {
+        min-height: 5rem;
+        max-width: 100%;
+      }
+      .personas {
+        display: grid;
+        gap: var(--space-2);
+        grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+        margin: var(--space-2) 0 var(--space-4);
+      }
+      .persona {
+        text-align: left;
+        padding: var(--space-3) var(--space-3);
+        border-radius: var(--radius);
+        border: 1px solid var(--line);
+        background: var(--surface);
+        cursor: pointer;
+        font: inherit;
+        transition:
+          border-color var(--dur) var(--ease-out),
+          background var(--dur) var(--ease-out),
+          transform var(--dur-fast) var(--ease-out);
+      }
+      .persona:hover {
+        border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
+      }
+      .persona:active {
+        transform: translateY(1px);
+      }
+      .persona strong {
+        display: block;
+        margin-bottom: 0.15rem;
+        font-weight: 600;
+        font-size: var(--text-body);
+      }
+      .persona span {
+        color: var(--muted);
+        font-size: var(--text-label);
+      }
+      .persona[aria-pressed='true'] {
+        border-color: var(--brand);
+        background: var(--brand-soft);
+      }
+      .rate-note {
+        font-size: var(--text-label);
+        color: var(--muted);
+        min-height: 1.3em;
+        margin: 0 0 var(--space-4);
+      }
+      .btn {
+        appearance: none;
+        border: none;
+        border-radius: var(--radius);
+        font: inherit;
+        font-weight: 600;
+        padding: 0.7rem 1rem;
+        cursor: pointer;
+        transition:
+          background var(--dur) var(--ease-out),
+          transform var(--dur-fast) var(--ease-out),
+          opacity var(--dur) var(--ease-out);
+      }
+      .btn:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .btn-primary {
+        background: var(--brand);
+        color: oklch(99% 0.01 55);
+      }
+      .btn-primary:hover:not(:disabled) {
+        background: var(--brand-hover);
+      }
+      .btn-ghost {
+        background: var(--surface);
+        color: var(--ink);
+        border: 1px solid var(--line);
+      }
+      .btn-ghost:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--brand) 4%, var(--surface));
+      }
+      .btn-link {
+        background: none;
+        border: none;
+        color: var(--brand);
+        font: inherit;
+        font-weight: 600;
+        padding: 0;
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 0.15em;
+      }
+      .row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        margin-top: var(--space-4);
+      }
+      .hidden {
+        display: none !important;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .live {
+        position: absolute;
+        left: -9999px;
+      }
+
+      .step2-grid {
+        display: grid;
+        gap: var(--space-5);
+        grid-template-columns: 1fr;
+      }
+      @media (min-width: 900px) {
+        .step2-grid {
+          grid-template-columns: minmax(0, 1fr) 18.5rem;
+          align-items: start;
+          gap: var(--space-5);
+        }
+        .mobile-summary {
+          display: none !important;
+        }
+      }
+      @media (max-width: 899px) {
+        .desktop-rail {
+          display: none !important;
+        }
+        .mobile-summary {
+          position: sticky;
+          top: 0;
+          z-index: var(--z-sticky);
+          background: color-mix(in srgb, var(--surface) 92%, transparent);
+          backdrop-filter: blur(8px);
+          border: 1px solid var(--line);
+          border-radius: var(--radius);
+          padding: var(--space-3) var(--space-3);
+          margin-bottom: var(--space-3);
+        }
+      }
+      .desktop-rail {
+        position: sticky;
+        top: var(--space-3);
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: var(--space-4);
+      }
+      .desktop-rail.has-items {
+        border-color: color-mix(in srgb, var(--brand) 28%, var(--line));
+        background: color-mix(in srgb, var(--brand) 3%, var(--surface));
+      }
+      .summary h2 {
+        font-size: var(--text-title);
+        font-weight: 600;
+        margin: 0 0 var(--space-2);
+        font-family: var(--font);
+      }
+      .summary-lines {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 var(--space-3);
+        font-size: var(--text-label);
+      }
+      .summary-lines li {
+        border-top: 1px solid var(--line);
+        padding: var(--space-2) 0;
+      }
+      .summary-lines li:first-child {
+        border-top: none;
+      }
+      .summary-lines li.flash {
+        animation: line-flash 480ms var(--ease-out);
+      }
+      @keyframes line-flash {
+        0% {
+          background: var(--ok-soft);
+        }
+        100% {
+          background: transparent;
+        }
+      }
+      .summary-meta {
+        color: var(--muted);
+        font-size: var(--text-label);
+      }
+      .summary-total {
+        font-weight: 600;
+        font-size: var(--text-title);
+        margin: var(--space-2) 0;
+        font-variant-numeric: tabular-nums;
+      }
+      .summary-empty {
+        color: var(--muted);
+        font-size: var(--text-label);
+        margin: 0 0 var(--space-3);
+      }
+      .mobile-summary-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2) var(--space-3);
+        justify-content: space-between;
+      }
+      .section-title {
+        font-family: var(--font);
+        font-size: var(--text-title);
+        font-weight: 600;
+        margin: var(--space-6) 0 var(--space-2);
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+      }
+      .section-lede {
+        color: var(--muted);
+        margin: 0 0 var(--space-3);
+        font-size: var(--text-label);
+        max-width: 48rem;
+      }
+      .venue-card,
+      .addon-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        margin-bottom: var(--space-3);
+        overflow: hidden;
+        transition: border-color var(--dur) var(--ease-out);
+      }
+      .venue-card:focus-within,
+      .venue-card:hover {
+        border-color: color-mix(in srgb, var(--brand) 35%, var(--line));
+      }
+      .venue-head {
+        display: grid;
+        grid-template-columns: 5.5rem 1fr auto;
+        gap: var(--space-3);
+        padding: var(--space-3);
+        align-items: start;
+      }
+      .thumb {
+        width: 5.5rem;
+        height: 4rem;
+        border-radius: 8px;
+        background: linear-gradient(
+          160deg,
+          color-mix(in srgb, var(--brand) 22%, var(--line)),
+          var(--line)
+        );
+      }
+      .venue-head h3 {
+        margin: 0 0 var(--space-1);
+        font-size: var(--text-body);
+        font-weight: 600;
+      }
+      .venue-head p {
+        margin: 0;
+        color: var(--muted);
+        font-size: var(--text-label);
+      }
+      .price {
+        font-weight: 600;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .venue-editor {
+        border-top: 1px solid var(--line);
+        padding: var(--space-3);
+        background: var(--bg);
+        animation: editor-in var(--dur) var(--ease-out) both;
+      }
+      @keyframes editor-in {
+        from {
+          opacity: 0.4;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      .cal-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: var(--space-2);
+      }
+      .cal-nav strong {
+        font-size: var(--text-body);
+      }
+      .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: var(--space-1);
+        margin-bottom: var(--space-3);
+      }
+      .cal-grid .dow {
+        text-align: center;
+        font-size: var(--text-caption);
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .cal-grid button {
+        aspect-ratio: 1;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: var(--surface);
+        font: inherit;
+        cursor: pointer;
+        font-size: var(--text-label);
+        font-variant-numeric: tabular-nums;
+        transition:
+          background var(--dur-fast) var(--ease-out),
+          border-color var(--dur-fast) var(--ease-out);
+      }
+      .cal-grid button:hover:not(:disabled) {
+        background: var(--brand-soft);
+      }
+      .cal-grid button:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+      .cal-grid button[aria-pressed='true'] {
+        border-color: var(--brand);
+        background: var(--brand-soft);
+        font-weight: 600;
+      }
+      .date-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 0.35rem 0.65rem;
+        font-size: var(--text-label);
+        margin-bottom: var(--space-3);
+      }
+      .band {
+        margin-bottom: var(--space-2);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+      .band summary {
+        cursor: pointer;
+        padding: var(--space-2) var(--space-3);
+        font-weight: 600;
+        font-size: var(--text-label);
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1);
+        padding: 0 var(--space-3) var(--space-3);
+      }
+      .chips button {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+        padding: 0.4rem 0.65rem;
+        font: inherit;
+        font-size: var(--text-label);
+        cursor: pointer;
+        font-variant-numeric: tabular-nums;
+        transition:
+          background var(--dur-fast) var(--ease-out),
+          border-color var(--dur-fast) var(--ease-out),
+          transform var(--dur-fast) var(--ease-out);
+      }
+      .chips button:hover:not(:disabled) {
+        border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
+      }
+      .chips button:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+      .chips button[aria-pressed='true'] {
+        border-color: var(--brand);
+        background: var(--brand-soft);
+        font-weight: 600;
+      }
+      .chips button:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+      .end-chip small {
+        display: block;
+        color: var(--muted);
+        font-size: var(--text-caption);
+      }
+      .end-chip.has-fee {
+        border-color: var(--warn-line);
+        background: var(--warn-bg);
+      }
+      .addon-card {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: var(--space-3);
+        align-items: center;
+        padding: var(--space-3);
+        transition: background var(--dur) var(--ease-out);
+      }
+      .addon-card:has(input:checked) {
+        background: var(--brand-soft);
+      }
+      .addon-card.disabled {
+        opacity: 0.55;
+      }
+      .addon-card input {
+        width: 1.1rem;
+        height: 1.1rem;
+        accent-color: var(--brand);
+      }
+      .confirm {
+        text-align: center;
+        padding: var(--space-6) var(--space-4);
+      }
+      .confirm h2 {
+        font-family: var(--serif);
+        font-weight: 600;
+        font-size: var(--text-heading);
+        margin: 0 0 var(--space-3);
+      }
+      .confirm .burst {
+        display: inline-grid;
+        place-items: center;
+        width: 3rem;
+        height: 3rem;
+        border-radius: 999px;
+        background: var(--ok-soft);
+        color: var(--ok);
+        font-size: 1.5rem;
+        margin-bottom: var(--space-3);
+        animation: burst-in 360ms var(--ease-out) both;
+      }
+      @keyframes burst-in {
+        from {
+          transform: scale(0.6);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      .info-panel {
+        background: color-mix(in srgb, var(--brand) 4%, var(--bg));
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: var(--space-3) var(--space-4);
+        margin: 0 0 var(--space-4);
+        font-size: var(--text-label);
+      }
+      .info-panel h3 {
+        margin: 0 0 var(--space-2);
+        font-size: var(--text-body);
+        font-weight: 600;
+      }
+      .info-panel ul {
+        margin: var(--space-1) 0 0;
+        padding-left: 1.1rem;
+      }
+      .info-panel li {
+        margin: var(--space-1) 0;
+      }
+      .fee-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--text-label);
+        margin-top: var(--space-2);
+        font-variant-numeric: tabular-nums;
+      }
+      .fee-table th,
+      .fee-table td {
+        text-align: left;
+        padding: var(--space-1) var(--space-2);
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      .fee-table th {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .sunset-banner {
+        background: var(--warn-bg);
+        border: 1px solid var(--warn-line);
+        border-radius: var(--radius);
+        padding: var(--space-3);
+        margin: 0 0 var(--space-3);
+        font-size: var(--text-label);
+      }
+      .sunset-banner strong {
+        display: block;
+        margin-bottom: var(--space-1);
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+      a {
+        color: var(--brand);
+      }
+      .help-block {
+        margin-top: var(--space-3);
+        padding-top: var(--space-3);
+        border-top: 1px solid var(--line);
+        font-size: var(--text-label);
+      }
+      .help-block h3 {
+        margin: 0 0 var(--space-2);
+        font-size: var(--text-label);
+        font-weight: 600;
+      }
+      .help-block p {
+        margin: 0 0 var(--space-2);
+        color: var(--muted);
+      }
+      .help-block p:last-child {
+        margin-bottom: 0;
+      }
+      .help-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1) var(--space-3);
+        margin: var(--space-1) 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .help-links a {
+        font-weight: 600;
+      }
+      .fee-summary {
+        margin: 0 0 var(--space-5);
+        font-size: var(--text-label);
+        color: var(--muted);
+      }
+      .fee-summary details {
+        margin-top: var(--space-2);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--bg);
+        padding: var(--space-2) var(--space-3);
+      }
+      .fee-summary summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--ink);
+        font-size: var(--text-label);
+      }
+      .fee-summary .fee-details {
+        margin-top: var(--space-3);
+        font-size: var(--text-label);
+        color: var(--ink);
+      }
+      .band-picks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        margin: 0 0 var(--space-3);
+      }
+      .band-picks button {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+        padding: var(--space-2) var(--space-3);
+        font: inherit;
+        font-size: var(--text-label);
+        cursor: pointer;
+        transition:
+          border-color var(--dur) var(--ease-out),
+          background var(--dur) var(--ease-out),
+          transform var(--dur-fast) var(--ease-out);
+      }
+      .band-picks button:hover {
+        border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
+      }
+      .band-picks button:active {
+        transform: translateY(1px);
+      }
+      .band-picks button[aria-pressed='true'] {
+        border-color: var(--brand);
+        background: var(--brand-soft);
+        font-weight: 600;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Reserve a Pavilion</h1>
+      <p class="lede">
+        Request space, dates, and services for a waterfront event. We will
+        review availability before confirming. See the
+        <a
+          href="https://sailing.mit.edu/info/faq.php"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Pavilion FAQ</a
+        >
+        for spaces, grills, tents, and alcohol rules.
+      </p>
+
+      <ol class="steps" aria-label="Reservation steps">
+        <li id="step-indicator-1">
+          <span class="num">1</span> Email and group type
+        </li>
+        <li id="step-indicator-2"><span class="num">2</span> Your request</li>
+        <li id="step-indicator-3">
+          <span class="num">3</span> Review and submit
+        </li>
+      </ol>
+
+      <p class="live" id="live" aria-live="polite"></p>
+
+      <!-- STEP 1 -->
+      <section id="step-1" class="panel" aria-labelledby="s1-title">
+        <h2 id="s1-title" class="sr-only">Email and group type</h2>
+        <label class="field" for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          autocomplete="email"
+          placeholder="you@example.com"
+        />
+        <p class="hint">We’ll use this to save your request and reply.</p>
+
+        <p class="field" style="margin-top: 1.25rem">Group type</p>
+        <p class="hint" style="margin-top: 0">Prices depend on who you are.</p>
+        <div class="personas" role="group" aria-label="Group type">
+          <button
+            type="button"
+            class="persona"
+            data-persona="academic"
+            aria-pressed="false"
+          >
+            <strong>MIT Academic</strong
+            ><span>Faculty, staff, or department</span>
+          </button>
+          <button
+            type="button"
+            class="persona"
+            data-persona="student"
+            aria-pressed="false"
+          >
+            <strong>MIT Student</strong><span>Student groups</span>
+          </button>
+          <button
+            type="button"
+            class="persona"
+            data-persona="community"
+            aria-pressed="false"
+          >
+            <strong>MIT Community</strong><span>Alumni or affiliates</span>
+          </button>
+          <button
+            type="button"
+            class="persona"
+            data-persona="nonmit"
+            aria-pressed="false"
+          >
+            <strong>Non-MIT</strong><span>External groups</span>
+          </button>
+        </div>
+        <div class="rate-note" id="rate-note" hidden></div>
+        <div class="row-actions">
+          <button type="button" class="btn btn-primary" id="to-step-2" disabled>
+            Continue to your request
+          </button>
+        </div>
+        <p class="hint" style="margin-top: 0.75rem">
+          Questions about spaces, grills, or tents?
+          <a
+            href="https://sailing.mit.edu/info/faq.php"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Pavilion FAQ</a
+          >
+        </p>
+      </section>
+
+      <!-- STEP 2 -->
+      <section id="step-2" class="hidden" aria-labelledby="s2-title">
+        <h2 id="s2-title" class="sr-only">Your request</h2>
+
+        <div class="mobile-summary summary" id="mobile-summary">
+          <div class="mobile-summary-bar">
+            <div>
+              <strong>Your request</strong>
+              <div class="summary-meta" id="mobile-count">0 items · $0</div>
+            </div>
+            <button
+              type="button"
+              class="btn-link"
+              id="mobile-expand"
+              aria-expanded="false"
+            >
+              Details
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="mobile-continue"
+              disabled
+            >
+              Continue
+            </button>
+          </div>
+          <div id="mobile-details" class="hidden">
+            <ul class="summary-lines" id="mobile-lines"></ul>
+            <p class="summary-empty" id="mobile-empty">
+              Add a venue booking, grill, party boat dock, or program.
+            </p>
+            <p class="summary-total" id="mobile-total">Estimated total $0</p>
+            <p
+              class="summary-meta"
+              id="mobile-pay-note"
+              style="margin: 0.35rem 0 0.5rem"
+            >
+              No payment due today.
+            </p>
+            <div class="help-block" aria-labelledby="mobile-help-title">
+              <h3 id="mobile-help-title">Cancellation and FAQ</h3>
+              <p>
+                <strong>Cancellation:</strong> Terms come with your
+                confirmation. Ask if you need to change or cancel.
+              </p>
+              <ul class="help-links">
+                <li>
+                  <a
+                    href="https://sailing.mit.edu/info/faq.php"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >Pavilion FAQ</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="https://sailing.mit.edu/gallery/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >Pavilion photos</a
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="step2-grid">
+          <div>
+            <div
+              class="fee-summary"
+              id="hours-fees-panel"
+              aria-labelledby="hours-fees-title"
+            >
+              <p style="margin: 0">
+                <strong id="hours-fees-title">Hours and fees.</strong> Dates are
+                a request only. Regular close is sunset. 48 hours notice
+                required.
+                <a
+                  href="https://sailing.mit.edu/info/faq.php"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >Pavilion FAQ</a
+                >
+              </p>
+              <details>
+                <summary>How fees and after-close work</summary>
+                <div class="fee-details" id="hours-fees-body"></div>
+              </details>
+            </div>
+
+            <h2 class="section-title" style="margin-top: 0">Venue spaces</h2>
+            <p class="section-lede">
+              Hourly spaces. Add one date at a time — you can add the same space
+              again for another date. Chosen times are subject to availability.
+            </p>
+            <div id="venue-list"></div>
+
+            <h2 class="section-title">Add-ons</h2>
+            <p class="section-lede">
+              Flat fees. No date or time picker — just add them to your request.
+            </p>
+            <div id="addon-list"></div>
+
+            <h2 class="section-title">Programs</h2>
+            <div id="program-list"></div>
+
+            <div class="row-actions">
+              <button type="button" class="btn btn-ghost" id="back-1">
+                Back
+              </button>
+            </div>
+          </div>
+
+          <aside class="desktop-rail summary" aria-label="Your request">
+            <h2>Your request</h2>
+            <ul class="summary-lines" id="desktop-lines"></ul>
+            <p class="summary-empty" id="desktop-empty">
+              Add a venue booking, grill, party boat dock, or program.
+            </p>
+            <p
+              class="summary-meta"
+              id="desktop-avail-note"
+              style="margin: 0 0 0.5rem"
+            >
+              Requested times are not held until we confirm.
+            </p>
+            <p class="summary-total" id="desktop-total">Estimated total $0</p>
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="desktop-continue"
+              disabled
+              style="width: 100%"
+            >
+              Continue to review and submit
+            </button>
+            <p
+              class="summary-meta"
+              id="desktop-pay-note"
+              style="margin: 0.5rem 0 0; text-align: center"
+            >
+              No payment due today.
+            </p>
+            <div class="help-block" aria-labelledby="rail-help-title">
+              <h3 id="rail-help-title">Cancellation and FAQ</h3>
+              <p>
+                <strong>Cancellation:</strong> Terms come with your
+                confirmation. Ask if you need to change or cancel.
+              </p>
+              <ul class="help-links">
+                <li>
+                  <a
+                    href="https://sailing.mit.edu/info/faq.php"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >Pavilion FAQ</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="https://sailing.mit.edu/gallery/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >Pavilion photos</a
+                  >
+                </li>
+              </ul>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- STEP 3 -->
+      <section id="step-3" class="panel hidden" aria-labelledby="s3-title">
+        <h2
+          id="s3-title"
+          style="
+            font-family: var(--serif);
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin: 0 0 0.75rem;
+          "
+        >
+          Review and submit
+        </h2>
+
+        <div
+          class="summary"
+          style="
+            margin-bottom: 1.25rem;
+            padding: 0.85rem;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: #f4f4f5;
+          "
+        >
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              gap: 0.5rem;
+            "
+          >
+            <h3 style="margin: 0; font-size: 1rem">Your request</h3>
+            <button type="button" class="btn-link" id="edit-request">
+              Edit request
+            </button>
+          </div>
+          <ul class="summary-lines" id="review-lines"></ul>
+          <p class="summary-meta" style="margin: 0 0 0.35rem">
+            Requested dates and times are subject to availability and may change
+            after review.
+          </p>
+          <p class="summary-total" id="review-total">Estimated total $0</p>
+        </div>
+
+        <h3 style="font-size: 1rem">Event</h3>
+        <label class="field" for="event-name">Event name</label>
+        <input id="event-name" type="text" required />
+        <label class="field" for="group-name" style="margin-top: 0.75rem"
+          >Group name
+          <span style="font-weight: 400; color: var(--muted)"
+            >(optional)</span
+          ></label
+        >
+        <input id="group-name" type="text" />
+        <label class="field" for="group-size" style="margin-top: 0.75rem"
+          >Group size</label
+        >
+        <input
+          id="group-size"
+          type="number"
+          min="1"
+          required
+          style="max-width: 8rem"
+        />
+        <label class="field" for="description" style="margin-top: 0.75rem"
+          >Description and special requests</label
+        >
+        <textarea id="description"></textarea>
+        <fieldset style="border: none; padding: 0; margin: 0.75rem 0">
+          <legend class="field">Do you plan to rent a tent?</legend>
+          <label><input type="radio" name="tent" value="yes" /> Yes</label>
+          <label style="margin-left: 1rem"
+            ><input type="radio" name="tent" value="no" checked /> No</label
+          >
+        </fieldset>
+        <fieldset style="border: none; padding: 0; margin: 0.75rem 0">
+          <legend class="field">Do you plan to have alcohol?</legend>
+          <label><input type="radio" name="alcohol" value="yes" /> Yes</label>
+          <label style="margin-left: 1rem"
+            ><input type="radio" name="alcohol" value="no" checked /> No</label
+          >
+          <p class="hint">
+            Alcohol is only allowed at the Sailing Pavilion for officially
+            registered and approved events. Alcohol is never allowed in the
+            boats.
+          </p>
+        </fieldset>
+        <label class="field" for="mit-account"
+          >MIT account number
+          <span style="font-weight: 400; color: var(--muted)"
+            >(optional)</span
+          ></label
+        >
+        <input id="mit-account" type="text" placeholder="Personal account" />
+
+        <div
+          id="academic-block"
+          class="hidden"
+          style="
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--line);
+          "
+        >
+          <h3 style="font-size: 1rem">Academic information</h3>
+          <label class="field" for="project">Project title</label>
+          <input id="project" type="text" />
+          <label class="field" for="advisor" style="margin-top: 0.75rem"
+            >Faculty advisor</label
+          >
+          <input id="advisor" type="text" />
+          <label class="field" for="advisor-email" style="margin-top: 0.75rem"
+            >Faculty advisor email</label
+          >
+          <input id="advisor-email" type="email" />
+          <label class="field" for="cost-center" style="margin-top: 0.75rem"
+            >Cost center</label
+          >
+          <input id="cost-center" type="text" />
+        </div>
+
+        <h3 style="font-size: 1rem; margin-top: 1.25rem">Contact</h3>
+        <p class="hint">
+          Email: <strong id="review-email"></strong> ·
+          <button type="button" class="btn-link" id="edit-email">
+            Edit email
+          </button>
+        </p>
+        <div
+          style="
+            display: grid;
+            gap: 0.75rem;
+            grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+            max-width: 28rem;
+          "
+        >
+          <div>
+            <label class="field" for="first">First name</label>
+            <input id="first" type="text" required style="max-width: 100%" />
+          </div>
+          <div>
+            <label class="field" for="last">Last name</label>
+            <input id="last" type="text" required style="max-width: 100%" />
+          </div>
+        </div>
+        <label class="field" for="phone" style="margin-top: 0.75rem"
+          >Phone</label
+        >
+        <input id="phone" type="tel" required />
+        <label class="field" for="mit-id" style="margin-top: 0.75rem"
+          >MIT ID
+          <span style="font-weight: 400; color: var(--muted)"
+            >(optional)</span
+          ></label
+        >
+        <input id="mit-id" type="text" style="max-width: 12rem" />
+
+        <p class="hint" style="margin-top: 1rem">
+          This is a reservation <strong>request</strong>, not a confirmed
+          booking. Stew will review availability (your preferred date or time
+          may not be open) and contact you shortly. Prefer another channel? See
+          the
+          <a
+            href="https://sailing.mit.edu/info/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >MIT Sailing contact and hours page</a
+          >.
+        </p>
+
+        <div
+          class="row-actions"
+          style="flex-direction: column; align-items: stretch; max-width: 28rem"
+        >
+          <div style="display: flex; flex-wrap: wrap; gap: 0.5rem">
+            <button type="button" class="btn btn-ghost" id="back-2">
+              Back
+            </button>
+            <button type="button" class="btn btn-primary" id="submit">
+              Submit request
+            </button>
+          </div>
+          <p
+            class="summary-meta"
+            id="review-pay-note"
+            style="margin: 0.5rem 0 0"
+          >
+            No payment due today.
+          </p>
+          <div class="help-block" aria-labelledby="review-help-title">
+            <h3 id="review-help-title">Cancellation and FAQ</h3>
+            <p>
+              <strong>Cancellation:</strong> Terms come with your confirmation.
+              Ask if you need to change or cancel.
+            </p>
+            <ul class="help-links">
+              <li>
+                <a
+                  href="https://sailing.mit.edu/info/faq.php"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >Pavilion FAQ</a
+                >
+              </li>
+              <li>
+                <a
+                  href="https://sailing.mit.edu/gallery/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >Pavilion photos</a
+                >
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="step-done" class="panel confirm hidden">
+        <h2>Request received</h2>
+        <p>
+          Stew will contact you shortly about availability and next steps. This
+          mockup does not send email.
+        </p>
+        <button type="button" class="btn btn-ghost" id="start-over">
+          Start over
+        </button>
+      </section>
+    </div>
+
+    <script>
+      (function () {
+        const FEES = {
+          academic: {
+            dock: 320,
+            roof: 320,
+            grill: 30,
+            boat: 130,
+            wedding: null,
+            after10: null,
+            midnight: null,
+            lab: 0,
+            lesson: 3500,
+          },
+          student: {
+            dock: 200,
+            roof: 200,
+            grill: 30,
+            boat: 130,
+            wedding: 650,
+            after10: 325,
+            midnight: 585,
+            lab: 0,
+            lesson: 3500,
+          },
+          community: {
+            dock: 320,
+            roof: 320,
+            grill: 30,
+            boat: 130,
+            wedding: 650,
+            after10: 410,
+            midnight: 650,
+            lab: 0,
+            lesson: 3500,
+          },
+          nonmit: {
+            dock: 580,
+            roof: 610,
+            grill: 30,
+            boat: 130,
+            wedding: 825,
+            after10: 575,
+            midnight: 775,
+            lab: 0,
+            lesson: 4500,
+          },
+        };
+        const PERSONA_LABEL = {
+          academic: 'MIT Academic',
+          student: 'MIT Student',
+          community: 'MIT Community',
+          nonmit: 'Non-MIT',
+        };
+        const VENUES = [
+          {
+            id: 'dock',
+            name: 'Casual party space — Shore School / wooden dock',
+            capacity: 50,
+            feeKey: 'dock',
+          },
+          {
+            id: 'roof',
+            name: 'Entire east roof deck',
+            capacity: 100,
+            feeKey: 'roof',
+          },
+        ];
+        const START_MIN = 7 * 60;
+        const END_MIN = 26 * 60;
+        const GRID = 30;
+        const NOTICE_MS = 48 * 60 * 60 * 1000;
+
+        const state = {
+          step: 1,
+          email: '',
+          persona: null,
+          lines: [], // {id, kind:'venue'|'addon'|'program', ...}
+          addons: {
+            grill: false,
+            boat: false,
+            wedding: false,
+            lab: false,
+            lesson: false,
+          },
+          editor: null, // { venueId, phase, date, start, end, editLineId }
+          calMonth: null,
+        };
+
+        const $ = (id) => document.getElementById(id);
+        const money = (n) => '$' + n.toLocaleString('en-US');
+
+        function announce(msg) {
+          $('live').textContent = msg;
+        }
+
+        function isEmailValid(v) {
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+        }
+
+        function fees() {
+          return FEES[state.persona] || FEES.student;
+        }
+
+        function todayLocal() {
+          const d = new Date();
+          return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        }
+
+        function parseISO(iso) {
+          const [y, m, d] = iso.split('-').map(Number);
+          return new Date(y, m - 1, d);
+        }
+
+        function toISO(d) {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        }
+
+        function earliestBookableDate() {
+          return new Date(Date.now() + NOTICE_MS);
+        }
+
+        function isDateBookable(iso) {
+          const d = parseISO(iso);
+          const earliest = earliestBookableDate();
+          const earliestDay = new Date(
+            earliest.getFullYear(),
+            earliest.getMonth(),
+            earliest.getDate()
+          );
+          return d >= earliestDay;
+        }
+
+        /** Fixture sunset ~7:00 PM for mockup dates (minutes from midnight). */
+        function sunsetMinutes(_iso) {
+          return 19 * 60;
+        }
+
+        function labelTime(mins) {
+          const day = Math.floor(mins / (24 * 60));
+          const m = mins % (24 * 60);
+          let h = Math.floor(m / 60);
+          const min = m % 60;
+          const ap = h >= 12 ? 'PM' : 'AM';
+          h = h % 12;
+          if (h === 0) h = 12;
+          const base = `${h}:${String(min).padStart(2, '0')} ${ap}`;
+          return day > 0 ? `${base} (next day)` : base;
+        }
+
+        function bandForStart(mins) {
+          if (mins < 12 * 60) return 'morning';
+          if (mins < 17 * 60) return 'afternoon';
+          return 'evening';
+        }
+
+        function afterHoursBand(endMins, sunset) {
+          if (state.persona === 'academic') return null;
+          const f = fees();
+          if (endMins <= sunset) return null;
+          if (endMins <= 22 * 60)
+            return {
+              key: 'after10',
+              label: 'After close through 10:00 PM',
+              amount: f.after10,
+            };
+          return {
+            key: 'midnight',
+            label: 'After close through 2:00 AM',
+            amount: f.midnight,
+          };
+        }
+
+        function hoursBetween(start, end) {
+          return (end - start) / 60;
+        }
+
+        function venueLineTotal(line) {
+          const rate = fees()[line.feeKey];
+          const hrs = hoursBetween(line.start, line.end);
+          let total = rate * hrs;
+          if (line.afterHours) total += line.afterHours.amount;
+          return total;
+        }
+
+        function requestTotal() {
+          let t = 0;
+          for (const line of state.lines) {
+            if (line.kind === 'venue') t += venueLineTotal(line);
+            else t += line.amount;
+          }
+          return t;
+        }
+
+        function hasVenueLine() {
+          return state.lines.some((l) => l.kind === 'venue');
+        }
+
+        function canContinueStep2() {
+          return state.lines.length > 0;
+        }
+
+        function syncStep1() {
+          const ok = isEmailValid(state.email) && !!state.persona;
+          $('to-step-2').disabled = !ok;
+          const note = $('rate-note');
+          if (!state.persona) {
+            note.hidden = true;
+            note.innerHTML = '';
+            return;
+          }
+          const f = fees();
+          note.hidden = false;
+          const after =
+            state.persona === 'academic' || f.after10 == null
+              ? '<li><strong>After regular close:</strong> not offered for Academic use</li>'
+              : `<li><strong>After sunset through 10:00 PM:</strong> ${money(f.after10)} flat (in addition to hourly)</li>
+           <li><strong>After 10:00 PM through 2:00 AM:</strong> ${money(f.midnight)} flat (in addition to hourly; replaces the 10pm fee)</li>`;
+          note.innerHTML = `
+      <div class="info-panel" style="margin:0">
+        <h3>${PERSONA_LABEL[state.persona]} rates (from sailing.mit.edu)</h3>
+        <ul>
+          <li><strong>Casual dock / roof deck:</strong> ${f.dock === f.roof ? `${money(f.dock)}/hr` : `${money(f.dock)}/hr and ${money(f.roof)}/hr`}</li>
+          <li><strong>Grill:</strong> ${money(f.grill)} flat · <strong>Party boat dock:</strong> ${money(f.boat)} flat</li>
+          ${f.wedding != null ? `<li><strong>Wedding (in addition to hourly):</strong> ${money(f.wedding)} flat</li>` : '<li><strong>Wedding:</strong> not offered for Academic use</li>'}
+          ${after}
+          <li><strong>Regular close</strong> follows sunset for the event date. Bookable times: 7:00 AM–2:00 AM next day.</li>
+        </ul>
+      </div>`;
+        }
+
+        function renderHoursFeesPanel() {
+          const el = $('hours-fees-body');
+          if (!el || !state.persona) return;
+          const f = fees();
+          if (state.persona === 'academic' || f.after10 == null) {
+            el.innerHTML = `
+        <p style="margin:0 0 0.4rem">Pavilion regular hours end at <strong>sunset</strong> for your event date. Academic use has <strong>no after-close fees</strong> on this form.</p>
+        <ul>
+          <li>Bookable window: <strong>7:00 AM–2:00 AM</strong> (next day)</li>
+          <li>Requests need <strong>48 hours notice</strong></li>
+          <li>Hourly space: dock ${money(f.dock)}/hr · roof ${money(f.roof)}/hr</li>
+          <li><strong>Availability is not guaranteed</strong> when you pick a slot. We confirm after you submit.</li>
+        </ul>`;
+            return;
+          }
+          el.innerHTML = `
+      <p style="margin:0 0 0.4rem">Ending after sunset adds one flat after-close fee in addition to the hourly space charge (never both after-close fees on the same booking).</p>
+      <table class="fee-table">
+        <thead><tr><th>If your end time is…</th><th>Extra fee (${PERSONA_LABEL[state.persona]})</th></tr></thead>
+        <tbody>
+          <tr><td>At or before sunset</td><td>No after-close fee (hourly only)</td></tr>
+          <tr><td>After sunset through 10:00 PM</td><td><strong>${money(f.after10)}</strong></td></tr>
+          <tr><td>After 10:00 PM through 2:00 AM</td><td><strong>${money(f.midnight)}</strong></td></tr>
+        </tbody>
+      </table>
+      <ul>
+        <li>Bookable window: <strong>7:00 AM–2:00 AM</strong> next day</li>
+        <li>Requests need <strong>48 hours notice</strong></li>
+        <li>Hourly space: dock ${money(f.dock)}/hr · roof ${money(f.roof)}/hr</li>
+        <li><strong>Availability is not guaranteed</strong> when you pick a slot. We confirm after you submit.</li>
+      </ul>`;
+        }
+
+        function setStep(n) {
+          state.step = n;
+          state.editor = null;
+          [1, 2, 3].forEach((i) => {
+            const panel = $(`step-${i}`);
+            const active = i === n;
+            panel.classList.toggle('hidden', !active);
+            panel.toggleAttribute('inert', !active);
+            panel.setAttribute('aria-hidden', String(!active));
+          });
+          $('step-done').classList.add('hidden');
+          $('step-done').setAttribute('aria-hidden', 'true');
+          for (let i = 1; i <= 3; i++) {
+            const el = $(`step-indicator-${i}`);
+            el.removeAttribute('aria-current');
+            el.classList.toggle('done', i < n);
+            if (i === n) el.setAttribute('aria-current', 'step');
+          }
+          window.scrollTo({
+            top: 0,
+            behavior: 'instant' in window ? 'instant' : 'auto',
+          });
+          if (n === 2) {
+            renderHoursFeesPanel();
+            renderVenues();
+            renderAddons();
+            renderSummary();
+          }
+          if (n === 3) {
+            $('review-email').textContent = state.email;
+            $('academic-block').classList.toggle(
+              'hidden',
+              state.persona !== 'academic'
+            );
+            renderSummary();
+          }
+        }
+
+        function defaultCalMonth() {
+          const start = earliestBookableDate();
+          let y = start.getFullYear();
+          let m = start.getMonth();
+          const bookableThisMonth = countBookableInMonth(y, m);
+          if (bookableThisMonth <= 1) {
+            m += 1;
+            if (m > 11) {
+              m = 0;
+              y += 1;
+            }
+          }
+          return { y, m };
+        }
+
+        function countBookableInMonth(y, m) {
+          const days = new Date(y, m + 1, 0).getDate();
+          let n = 0;
+          for (let d = 1; d <= days; d++) {
+            if (isDateBookable(toISO(new Date(y, m, d)))) n++;
+          }
+          return n;
+        }
+
+        function openEditor(venueId, editLine) {
+          state.calMonth = defaultCalMonth();
+          if (editLine) {
+            const d = parseISO(editLine.date);
+            state.calMonth = { y: d.getFullYear(), m: d.getMonth() };
+            state.editor = {
+              venueId,
+              phase: 'end',
+              date: editLine.date,
+              start: editLine.start,
+              end: editLine.end,
+              startBand: bandForStart(editLine.start),
+              editLineId: editLine.id,
+            };
+          } else {
+            state.editor = {
+              venueId,
+              phase: 'date',
+              date: null,
+              start: null,
+              end: null,
+              startBand: null,
+              editLineId: null,
+            };
+            announce('Choose a date');
+          }
+          renderVenues();
+        }
+
+        function closeEditor() {
+          state.editor = null;
+          renderVenues();
+        }
+
+        function commitVenue() {
+          const ed = state.editor;
+          const venue = VENUES.find((v) => v.id === ed.venueId);
+          const sunset = sunsetMinutes(ed.date);
+          const ah = afterHoursBand(ed.end, sunset);
+          const line = {
+            id: ed.editLineId || `v-${Date.now()}`,
+            kind: 'venue',
+            venueId: venue.id,
+            feeKey: venue.feeKey,
+            name: venue.name,
+            date: ed.date,
+            start: ed.start,
+            end: ed.end,
+            afterHours: ah && ah.amount != null ? ah : null,
+          };
+          if (ed.editLineId) {
+            state.lines = state.lines.map((l) =>
+              l.id === ed.editLineId ? line : l
+            );
+          } else {
+            state.lines.push(line);
+          }
+          announce(
+            `Added ${venue.name} ${formatDateShort(ed.date)} ${labelTime(ed.start)}–${labelTime(ed.end)} to your request.`
+          );
+          if (line.afterHours) {
+            announce(
+              `Added ${venue.name} ${formatDateShort(ed.date)} ${labelTime(ed.start)}–${labelTime(ed.end)}. After-close fee ${money(line.afterHours.amount)} added (${line.afterHours.label}).`
+            );
+          }
+          state.editor = null;
+          syncWeddingAddon();
+          renderVenues();
+          renderAddons();
+          renderSummary();
+          // Make add-ons (esp. wedding) obvious after a venue lands
+          const addonsEl = $('addon-list');
+          if (addonsEl) {
+            addonsEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+          if (
+            state.persona !== 'academic' &&
+            fees().wedding != null &&
+            !state.addons.wedding
+          ) {
+            const tip = document.createElement('p');
+            tip.id = 'wedding-tip';
+            tip.className = 'sunset-banner';
+            tip.innerHTML = `<strong>Wedding add-on available:</strong> ${money(fees().wedding)} flat in addition to hourly. Check “Wedding / rehearsal / reception” under Add-ons to add it.`;
+            const existing = $('wedding-tip');
+            if (existing) existing.remove();
+            const section = addonsEl?.previousElementSibling;
+            addonsEl?.parentElement?.insertBefore(tip, addonsEl);
+          }
+        }
+
+        function formatDateShort(iso) {
+          return parseISO(iso).toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+          });
+        }
+
+        function formatDateLong(iso) {
+          return parseISO(iso).toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          });
+        }
+
+        function syncWeddingAddon() {
+          if (!hasVenueLine() || state.persona === 'academic') {
+            state.addons.wedding = false;
+            state.lines = state.lines.filter((l) => l.id !== 'addon-wedding');
+          }
+        }
+
+        function setAddon(key, on) {
+          state.addons[key] = on;
+          const id = `addon-${key}`;
+          state.lines = state.lines.filter((l) => l.id !== id);
+          if (!on) {
+            const tip = $('wedding-tip');
+            if (key === 'wedding' && tip) tip.remove();
+            renderSummary();
+            renderAddons();
+            return;
+          }
+          const f = fees();
+          const meta = {
+            grill: {
+              name: 'Barbecue grill (per grill)',
+              amount: f.grill,
+              kind: 'addon',
+            },
+            boat: {
+              name: 'Party boat dock, 15 minutes each way',
+              amount: f.boat,
+              kind: 'addon',
+            },
+            wedding: {
+              name: 'Wedding / rehearsal / reception (in addition to hourly)',
+              amount: f.wedding,
+              kind: 'addon',
+            },
+            lab: {
+              name: 'Lab access / dock experiment (arranged with Sailing Master)',
+              amount: f.lab,
+              kind: 'program',
+            },
+            lesson: {
+              name: 'Group sailing lesson (20–40, summer)',
+              amount: f.lesson,
+              kind: 'program',
+            },
+          }[key];
+          if (!meta || meta.amount == null) {
+            state.addons[key] = false;
+            renderSummary();
+            renderAddons();
+            return;
+          }
+          state.lines.push({
+            id,
+            kind: meta.kind,
+            name: meta.name,
+            amount: meta.amount,
+            addonKey: key,
+          });
+          if (key === 'wedding') {
+            const tip = $('wedding-tip');
+            if (tip) tip.remove();
+            announce(`Added wedding package for ${money(meta.amount)}.`);
+          }
+          renderSummary();
+          renderAddons();
+        }
+
+        function lineHtml(line, { editable }) {
+          if (line.kind === 'venue') {
+            const hrs = hoursBetween(line.start, line.end);
+            const space = fees()[line.feeKey] * hrs;
+            const actions = editable
+              ? `<div style="margin-top:0.25rem">
+            <button type="button" class="btn-link" data-edit-line="${line.id}">Edit</button>
+            · <button type="button" class="btn-link" data-remove-line="${line.id}">Remove</button>
+          </div>`
+              : '';
+            const afterBlock = line.afterHours
+              ? `<div class="summary-meta" style="margin-top:0.35rem;padding:0.35rem 0.45rem;background:var(--warn-bg);border-radius:var(--radius);border:1px solid var(--warn-line)">
+            <strong>Added: ${line.afterHours.label}</strong> · ${money(line.afterHours.amount)}
+            <span style="color:var(--muted)"> (in addition to hourly)</span>
+          </div>`
+              : '';
+            return `<li>
+        <div><strong>${line.name}</strong></div>
+        <div class="summary-meta">${formatDateLong(line.date)} · ${labelTime(line.start)}–${labelTime(line.end)}</div>
+        <div class="summary-meta">Hourly space (${hrs} hr): ${money(space)}</div>
+        ${afterBlock}
+        ${actions}
+      </li>`;
+          }
+          const actions = editable
+            ? `<div style="margin-top:0.25rem">
+          <button type="button" class="btn-link" data-remove-line="${line.id}">Remove</button>
+        </div>`
+            : '';
+          const addonTag =
+            line.kind === 'addon'
+              ? `<div class="summary-meta" style="margin-top:0.2rem"><strong>Added on</strong> · flat fee</div>`
+              : '';
+          return `<li>
+      <div><strong>${line.name}</strong> · ${money(line.amount)}</div>
+      ${addonTag}
+      ${actions}
+    </li>`;
+        }
+
+        function bindSummaryActions(root) {
+          root.querySelectorAll('[data-remove-line]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const id = btn.getAttribute('data-remove-line');
+              const line = state.lines.find((l) => l.id === id);
+              state.lines = state.lines.filter((l) => l.id !== id);
+              if (line && line.addonKey) state.addons[line.addonKey] = false;
+              syncWeddingAddon();
+              renderAddons();
+              renderVenues();
+              renderSummary();
+            });
+          });
+          root.querySelectorAll('[data-edit-line]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const id = btn.getAttribute('data-edit-line');
+              const line = state.lines.find((l) => l.id === id);
+              if (!line || line.kind !== 'venue') return;
+              if (state.step !== 2) setStep(2);
+              openEditor(line.venueId, line);
+            });
+          });
+        }
+
+        function renderSummary() {
+          const total = requestTotal();
+          const editableHtml = state.lines
+            .map((line) => lineHtml(line, { editable: true }))
+            .join('');
+          const reviewHtml = state.lines
+            .map((line) => lineHtml(line, { editable: false }))
+            .join('');
+
+          $('desktop-lines').innerHTML = editableHtml;
+          $('mobile-lines').innerHTML = editableHtml;
+          $('review-lines').innerHTML = reviewHtml;
+
+          const empty = state.lines.length === 0;
+          $('desktop-empty').classList.toggle('hidden', !empty);
+          $('mobile-empty').classList.toggle('hidden', !empty);
+          $('desktop-total').textContent = `Estimated total ${money(total)}`;
+          $('mobile-total').textContent = `Estimated total ${money(total)}`;
+          $('review-total').textContent = `Estimated total ${money(total)}`;
+          $('mobile-count').textContent =
+            `${state.lines.length} item${state.lines.length === 1 ? '' : 's'} · ${money(total)}`;
+          // Brief fee breakdown on collapsed mobile bar when after-hours or add-ons present
+          const feeBits = [];
+          for (const line of state.lines) {
+            if (line.kind === 'venue' && line.afterHours) {
+              feeBits.push(`after-close ${money(line.afterHours.amount)}`);
+            }
+            if (line.addonKey === 'wedding')
+              feeBits.push(`wedding ${money(line.amount)}`);
+            if (line.addonKey === 'grill')
+              feeBits.push(`grill ${money(line.amount)}`);
+            if (line.addonKey === 'boat')
+              feeBits.push(`boat dock ${money(line.amount)}`);
+          }
+          let feeNote = $('mobile-fee-note');
+          if (!feeNote) {
+            feeNote = document.createElement('div');
+            feeNote.id = 'mobile-fee-note';
+            feeNote.className = 'summary-meta';
+            $('mobile-count').after(feeNote);
+          }
+          feeNote.textContent = feeBits.length
+            ? `Includes: ${feeBits.join(' · ')}`
+            : '';
+          feeNote.hidden = feeBits.length === 0;
+
+          const can = canContinueStep2();
+          $('desktop-continue').disabled = !can;
+          $('mobile-continue').disabled = !can;
+          $('mobile-continue').title = can
+            ? ''
+            : 'Add a venue booking, grill, party boat dock, or program.';
+          $('desktop-continue').title = can
+            ? ''
+            : 'Add a venue booking, grill, party boat dock, or program.';
+
+          bindSummaryActions($('desktop-lines'));
+          bindSummaryActions($('mobile-lines'));
+        }
+
+        function renderVenues() {
+          const f = fees();
+          const root = $('venue-list');
+          root.innerHTML = VENUES.map((v) => {
+            const editing = state.editor && state.editor.venueId === v.id;
+            const booked = state.lines.filter(
+              (l) => l.kind === 'venue' && l.venueId === v.id
+            ).length;
+            const short = v.id === 'dock' ? 'casual dock' : 'east roof deck';
+            return `<article class="venue-card" data-venue="${v.id}">
+        <div class="venue-head">
+          <div class="thumb" aria-hidden="true"></div>
+          <div>
+            <h3>${v.name}</h3>
+            <p>Up to ${v.capacity} people · ${money(f[v.feeKey])}/hour</p>
+            <p class="hint" style="margin-top:0.35rem">${
+              state.persona === 'academic' || f.after10 == null
+                ? 'Regular close at sunset · no after-close fee for Academic'
+                : `After sunset add-on: ${money(f.after10)} through 10:00 PM or ${money(f.midnight)} through 2:00 AM`
+            }</p>
+            ${booked ? `<p class="hint" style="margin-top:0.25rem"><strong>${booked}</strong> booking${booked === 1 ? '' : 's'} on your request — you can add another date.</p>` : ''}
+          </div>
+          <div>
+            ${
+              editing
+                ? ''
+                : `<button type="button" class="btn btn-ghost" data-select-venue="${v.id}" aria-label="${booked ? `Add another date for ${short}` : `Select ${short}`}">${booked ? 'Add another date' : 'Select'}</button>`
+            }
+          </div>
+        </div>
+        ${editing ? renderEditor(v) : ''}
+      </article>`;
+          }).join('');
+
+          root.querySelectorAll('[data-select-venue]').forEach((btn) => {
+            btn.addEventListener('click', () =>
+              openEditor(btn.getAttribute('data-select-venue'))
+            );
+          });
+          bindEditorEvents();
+        }
+
+        function renderEditor(venue) {
+          const ed = state.editor;
+          let body = '';
+          if (ed.date) {
+            const sunset = sunsetMinutes(ed.date);
+            const f = fees();
+            const afterBlock =
+              state.persona === 'academic' || f.after10 == null
+                ? `<p style="margin:0.35rem 0 0">Academic use: no after-close fee. Hourly rate still applies (${money(f[venue.feeKey])}/hr). Late hours may still need staff approval.</p>`
+                : `<ul style="margin:0.35rem 0 0;padding-left:1.1rem">
+              <li>End by sunset: hourly only (${money(f[venue.feeKey])}/hr)</li>
+              <li>End after sunset through 10:00 PM: +${money(f.after10)} after-close</li>
+              <li>End after 10:00 PM through 2:00 AM: +${money(f.midnight)} after-close (replaces the 10pm fee)</li>
+            </ul>`;
+            // Sunset sits with the date once chosen (before start/end chips).
+            if (ed.phase !== 'date') {
+              body += `<div class="date-chip">${formatDateLong(ed.date)}
+          <button type="button" class="btn-link" data-change-date>Change date</button></div>`;
+              body += `<div class="sunset-banner" role="status">
+          <strong>Sunset (regular close) ${labelTime(sunset)}</strong>
+          <p style="margin:0.35rem 0 0">For ${formatDateLong(ed.date)}. This date and time are a request only.</p>
+          ${afterBlock}
+        </div>`;
+            }
+          }
+          if (ed.phase === 'date' || (ed.phase !== 'date' && !ed.date)) {
+            body += renderCalendar();
+            body += `<p class="hint">After you pick a date, we show that day’s sunset before you choose times.</p>`;
+          }
+          if (
+            ed.date &&
+            (ed.phase === 'start' || ed.phase === 'end' || ed.start != null)
+          ) {
+            if (ed.phase === 'start' || !ed.start) body += renderStarts();
+            else {
+              body += `<p style="margin:0 0 0.5rem;font-size:0.9rem">Start <strong>${labelTime(ed.start)}</strong>
+          <button type="button" class="btn-link" data-change-start>Change start</button></p>`;
+            }
+          }
+          if (ed.start != null && ed.phase === 'end') {
+            body += renderEnds();
+          }
+          const canAdd = ed.date && ed.start != null && ed.end != null;
+          body += `<div class="row-actions">
+      <button type="button" class="btn btn-ghost" data-cancel-editor>Cancel</button>
+      <button type="button" class="btn btn-primary" data-add-venue ${canAdd ? '' : 'disabled'}>
+        ${ed.editLineId ? 'Save changes' : 'Add to request'}
+      </button>
+    </div>`;
+          return `<div class="venue-editor">${body}</div>`;
+        }
+
+        function renderCalendar() {
+          const { y, m } = state.calMonth;
+          const label = new Date(y, m, 1).toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric',
+          });
+          const firstDow = new Date(y, m, 1).getDay();
+          const days = new Date(y, m + 1, 0).getDate();
+          let cells = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+            .map((d) => `<div class="dow">${d}</div>`)
+            .join('');
+          for (let i = 0; i < firstDow; i++) cells += '<div></div>';
+          for (let d = 1; d <= days; d++) {
+            const iso = toISO(new Date(y, m, d));
+            const ok = isDateBookable(iso);
+            const pressed = state.editor.date === iso;
+            cells += `<button type="button" data-pick-date="${iso}" ${ok ? '' : 'disabled'} aria-pressed="${pressed}" aria-label="${formatDateLong(iso)}${ok ? '' : ', unavailable'}">${d}</button>`;
+          }
+          return `<div class="cal-nav">
+      <button type="button" class="btn btn-ghost" data-cal-prev aria-label="Previous month">‹</button>
+      <strong>${label}</strong>
+      <button type="button" class="btn btn-ghost" data-cal-next aria-label="Next month">›</button>
+    </div>
+    <div class="cal-grid">${cells}</div>
+    <p class="hint">Dates within 48 hours are unavailable. Picking a date and time does not hold the space — staff confirm availability after you submit.</p>`;
+        }
+
+        function startsWithEnds() {
+          const list = [];
+          for (let s = START_MIN; s < END_MIN; s += GRID) {
+            const ends = [];
+            for (let e = s + GRID; e <= END_MIN; e += GRID) ends.push(e);
+            if (ends.length) list.push({ start: s, ends });
+          }
+          return list;
+        }
+
+        function renderStarts() {
+          const options = startsWithEnds();
+          const bands = [
+            { key: 'morning', title: 'Morning', range: '7:00 AM–11:30 AM' },
+            { key: 'afternoon', title: 'Afternoon', range: '12:00–4:30 PM' },
+            { key: 'evening', title: 'Evening', range: '5:00 PM–1:30 AM' },
+          ];
+          const band = state.editor.startBand;
+          const picks = `<div class="band-picks" role="group" aria-label="Time of day">
+      ${bands
+        .map(
+          (b) => `
+        <button type="button" data-pick-band="${b.key}" aria-pressed="${band === b.key}">
+          ${b.title}<span class="summary-meta" style="display:block;font-weight:400">${b.range}</span>
+        </button>`
+        )
+        .join('')}
+    </div>`;
+          if (!band) {
+            return `<p class="hint" style="margin:0 0 0.5rem">Choose a time of day, then a start time.</p>${picks}`;
+          }
+          const group = options.filter((o) => bandForStart(o.start) === band);
+          const chips = group
+            .map((o) => {
+              const disabled = o.ends.length === 0;
+              const pressed = state.editor.start === o.start;
+              return `<button type="button" data-pick-start="${o.start}" ${disabled ? 'disabled' : ''} aria-pressed="${pressed}" aria-label="Start ${labelTime(o.start)}">${labelTime(o.start)}</button>`;
+            })
+            .join('');
+          const title = bands.find((b) => b.key === band)?.title || '';
+          return `${picks}<p class="hint" style="margin:0 0 0.35rem">${title} start times</p><div class="chips">${chips}</div>`;
+        }
+
+        function renderEnds() {
+          const start = state.editor.start;
+          const sunset = sunsetMinutes(state.editor.date);
+          const ends = [];
+          for (let e = start + GRID; e <= END_MIN; e += GRID) ends.push(e);
+          if (!ends.length) {
+            return `<p class="hint">No end times for this start. Choose another start.</p>`;
+          }
+          const chips = ends
+            .map((e) => {
+              const hrs = hoursBetween(start, e);
+              const ah = afterHoursBand(e, sunset);
+              const feeNote =
+                ah && ah.amount != null ? ` · +${money(ah.amount)}` : '';
+              const pressed = state.editor.end === e;
+              return `<button type="button" class="end-chip" data-pick-end="${e}" aria-pressed="${pressed}" aria-label="End ${labelTime(e)}, ${hrs} hours${feeNote}">
+        ${labelTime(e)}<small>${hrs} hr${feeNote}</small>
+      </button>`;
+            })
+            .join('');
+          const legend =
+            state.persona === 'academic'
+              ? `<p class="hint">End times show duration. No after-close fee for Academic.</p>`
+              : `<p class="hint">Each end chip shows duration and any after-close add-on (+${money(fees().after10)} or +${money(fees().midnight)}).</p>`;
+          return `${legend}<div class="chips">${chips}</div>`;
+        }
+
+        function bindEditorEvents() {
+          const root = $('venue-list');
+          root
+            .querySelector('[data-cal-prev]')
+            ?.addEventListener('click', () => {
+              let { y, m } = state.calMonth;
+              m -= 1;
+              if (m < 0) {
+                m = 11;
+                y -= 1;
+              }
+              state.calMonth = { y, m };
+              renderVenues();
+            });
+          root
+            .querySelector('[data-cal-next]')
+            ?.addEventListener('click', () => {
+              let { y, m } = state.calMonth;
+              m += 1;
+              if (m > 11) {
+                m = 0;
+                y += 1;
+              }
+              state.calMonth = { y, m };
+              renderVenues();
+            });
+          root.querySelectorAll('[data-pick-date]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              state.editor.date = btn.getAttribute('data-pick-date');
+              state.editor.start = null;
+              state.editor.end = null;
+              state.editor.startBand = null;
+              state.editor.phase = 'start';
+              announce('Choose a time of day');
+              renderVenues();
+            });
+          });
+          root
+            .querySelector('[data-change-date]')
+            ?.addEventListener('click', () => {
+              state.editor.phase = 'date';
+              state.editor.start = null;
+              state.editor.end = null;
+              state.editor.startBand = null;
+              announce('Choose a date');
+              renderVenues();
+            });
+          root.querySelectorAll('[data-pick-band]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              state.editor.startBand = btn.getAttribute('data-pick-band');
+              state.editor.start = null;
+              state.editor.end = null;
+              state.editor.phase = 'start';
+              announce('Choose a start time');
+              renderVenues();
+            });
+          });
+          root.querySelectorAll('[data-pick-start]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const start = Number(btn.getAttribute('data-pick-start'));
+              const ends = [];
+              for (let e = start + GRID; e <= END_MIN; e += GRID) ends.push(e);
+              if (!ends.length) return;
+              state.editor.start = start;
+              state.editor.startBand = bandForStart(start);
+              state.editor.end = null;
+              state.editor.phase = 'end';
+              announce('Choose an end time');
+              renderVenues();
+            });
+          });
+          root
+            .querySelector('[data-change-start]')
+            ?.addEventListener('click', () => {
+              state.editor.phase = 'start';
+              state.editor.end = null;
+              announce('Choose a start time');
+              renderVenues();
+            });
+          root.querySelectorAll('[data-pick-end]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              state.editor.end = Number(btn.getAttribute('data-pick-end'));
+              renderVenues();
+            });
+          });
+          root
+            .querySelector('[data-cancel-editor]')
+            ?.addEventListener('click', closeEditor);
+          root
+            .querySelector('[data-add-venue]')
+            ?.addEventListener('click', () => {
+              if (
+                state.editor?.date &&
+                state.editor.start != null &&
+                state.editor.end != null
+              )
+                commitVenue();
+            });
+        }
+
+        function renderAddons() {
+          const f = fees();
+          const weddingOk =
+            hasVenueLine() && state.persona !== 'academic' && f.wedding != null;
+          const addons = [
+            {
+              key: 'grill',
+              title: 'Barbecue grill',
+              desc: 'Flat fee per grill. Staff can adjust quantity when reviewing your request.',
+              amount: f.grill,
+              enabled: true,
+            },
+            {
+              key: 'boat',
+              title: 'Party boat dock, 15 minutes each way',
+              desc: 'Boat dock access for event transportation. Flat fee. No time picker.',
+              amount: f.boat,
+              enabled: true,
+            },
+          ];
+          // Academic: omit wedding entirely (legacy + design). Others: show; disable until a venue line exists.
+          if (state.persona !== 'academic' && f.wedding != null) {
+            addons.push({
+              key: 'wedding',
+              title: 'Wedding / rehearsal / reception (in addition to hourly)',
+              desc: weddingOk
+                ? 'In addition to your hourly space booking.'
+                : 'Add a venue booking first.',
+              amount: f.wedding,
+              enabled: weddingOk,
+            });
+          }
+          $('addon-list').innerHTML = addons
+            .map(
+              (a) => `
+      <label class="addon-card ${a.enabled ? '' : 'disabled'}">
+        <input type="checkbox" data-addon="${a.key}" ${state.addons[a.key] ? 'checked' : ''} ${a.enabled ? '' : 'disabled'} aria-label="${a.title}" />
+        <div><strong>${a.title}</strong><p class="hint" style="margin:0.2rem 0 0">${a.desc}</p></div>
+        <div class="price">${money(a.amount)}</div>
+      </label>
+    `
+            )
+            .join('');
+
+          const programs = [
+            {
+              key: 'lab',
+              title: 'Lab access / dock experiment',
+              desc: 'Fees arranged with the Sailing Master.',
+              amount: f.lab,
+            },
+            {
+              key: 'lesson',
+              title: 'Group sailing lesson (20–40 people, summer only)',
+              desc: 'Summer program.',
+              amount: f.lesson,
+            },
+          ];
+          $('program-list').innerHTML = programs
+            .map(
+              (a) => `
+      <label class="addon-card">
+        <input type="checkbox" data-addon="${a.key}" ${state.addons[a.key] ? 'checked' : ''} aria-label="${a.title}" />
+        <div><strong>${a.title}</strong><p class="hint" style="margin:0.2rem 0 0">${a.desc}</p></div>
+        <div class="price">${a.amount === 0 ? 'Arranged' : money(a.amount)}</div>
+      </label>
+    `
+            )
+            .join('');
+
+          document.querySelectorAll('[data-addon]').forEach((input) => {
+            input.addEventListener('change', () =>
+              setAddon(input.getAttribute('data-addon'), input.checked)
+            );
+          });
+        }
+
+        // Step 1 wiring
+        $('email').addEventListener('input', (e) => {
+          state.email = e.target.value.trim();
+          syncStep1();
+        });
+        document.querySelectorAll('.persona').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.persona = btn.getAttribute('data-persona');
+            document
+              .querySelectorAll('.persona')
+              .forEach((b) =>
+                b.setAttribute('aria-pressed', String(b === btn))
+              );
+            // Drop academic-only-invalid lines
+            if (state.persona === 'academic') {
+              state.addons.wedding = false;
+              state.lines = state.lines.filter((l) => l.id !== 'addon-wedding');
+              state.lines = state.lines.map((l) => {
+                if (l.kind === 'venue') return { ...l, afterHours: null };
+                return l;
+              });
+            }
+            syncStep1();
+          });
+        });
+        $('to-step-2').addEventListener('click', () => setStep(2));
+        $('back-1').addEventListener('click', () => setStep(1));
+        $('back-2').addEventListener('click', () => setStep(2));
+        $('desktop-continue').addEventListener('click', () => setStep(3));
+        $('mobile-continue').addEventListener('click', () => setStep(3));
+        $('edit-request').addEventListener('click', () => setStep(2));
+        $('edit-email').addEventListener('click', () => setStep(1));
+        $('mobile-expand').addEventListener('click', () => {
+          const open = $('mobile-details').classList.toggle('hidden') === false;
+          $('mobile-expand').setAttribute('aria-expanded', String(open));
+          $('mobile-expand').textContent = open ? 'Hide' : 'Details';
+        });
+        $('submit').addEventListener('click', () => {
+          $('step-3').classList.add('hidden');
+          $('step-done').classList.remove('hidden');
+          for (let i = 1; i <= 3; i++) {
+            $(`step-indicator-${i}`).classList.add('done');
+            $(`step-indicator-${i}`).removeAttribute('aria-current');
+          }
+        });
+        $('start-over').addEventListener('click', () => location.reload());
+
+        syncStep1();
+        $('step-2').setAttribute('aria-hidden', 'true');
+        $('step-2').toggleAttribute('inert', true);
+        $('step-3').setAttribute('aria-hidden', 'true');
+        $('step-3').toggleAttribute('inert', true);
+        $('step-done').setAttribute('aria-hidden', 'true');
+        $('step-indicator-1').setAttribute('aria-current', 'step');
+      })();
+    </script>
+  </body>
+</html>

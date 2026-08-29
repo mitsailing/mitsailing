@@ -17,30 +17,30 @@ const emptyContact = {
 };
 
 describe('pavilionReservationDraftWizardStepFromContact', () => {
-  it('returns spaces when contact fields are empty', () => {
+  it('returns request when contact fields are empty', () => {
     expect(pavilionReservationDraftWizardStepFromContact(emptyContact)).toBe(
-      'spaces'
+      'request'
     );
   });
 
-  it('returns contact when any contact field has progress', () => {
+  it('returns review when any contact field has progress', () => {
     expect(
       pavilionReservationDraftWizardStepFromContact({
         ...emptyContact,
         firstName: 'Alex',
       })
-    ).toBe('contact');
+    ).toBe('review');
     expect(
       pavilionReservationDraftWizardStepFromContact({
         ...emptyContact,
         phone: '617-555-0100',
       })
-    ).toBe('contact');
+    ).toBe('review');
     expect(
       pavilionReservationDraftWizardStepFromContact({
         ...emptyContact,
         advisorEmail: 'advisor@mit.edu',
       })
-    ).toBe('contact');
+    ).toBe('review');
   });
 });

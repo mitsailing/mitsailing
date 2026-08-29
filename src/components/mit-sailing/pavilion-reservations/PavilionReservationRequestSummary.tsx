@@ -1,0 +1,499 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
+import type * as React from 'react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import {
+  pavilionAfterHoursBandForEnd,
+  pavilionReservationSunsetMinutes,
+} from '@/libs/mit-sailing/pavilionReservationAfterHours';
+import { isPavilionWeddingCatalogItem } from '@/libs/mit-sailing/pavilionReservationCatalogRoles';
+import {
+  formatPavilionReservationMoney,
+  isPersonaPriceAvailable,
+  personaPriceDisplay,
+  priceForPersona,
+} from '@/libs/mit-sailing/pavilionReservationPricing';
+import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionReservationTimeLabel';
+import type {
+  PavilionReservableItemDto,
+  PavilionReservationPersonaValue,
+  PavilionReservationSlotInput,
+} from '@/libs/mit-sailing/pavilionReservationTypes';
+
+type RequestLineSlot = PavilionReservationSlotInput & { id: string };
+
+function PavilionInlineFaq() {
+  const t = useTranslations('PavilionReservationPage');
+  const items = [
+    { q: t('faq_spaces_q'), a: t('faq_spaces_a') },
+    { q: t('faq_grill_q'), a: t('faq_grill_a') },
+    { q: t('faq_boats_q'), a: t('faq_boats_a') },
+    { q: t('faq_tents_q'), a: t('faq_tents_a') },
+    { q: t('faq_catering_q'), a: t('faq_catering_a') },
+  ] as const;
+
+  return (
+    <div className="mt-4 rounded-[10px] border border-mit-line bg-background p-3">
+      <h3 className="text-sm font-semibold text-mit-text">{t('faq_title')}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">
+        <span className="font-medium text-mit-text">
+          {t('cancellation_label')}
+        </span>{' '}
+        {t('cancellation_placeholder')}
+      </p>
+      <div className="mt-2 space-y-1">
+        {items.map((item) => (
+          <details
+            className="group rounded-md border border-mit-line/80"
+            key={item.q}
+          >
+            <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium text-mit-text marker:content-none [&::-webkit-details-marker]:hidden">
+              {item.q}
+            </summary>
+            <p className="border-t border-mit-line px-3 py-2 text-sm text-muted-foreground">
+              {item.a}
+            </p>
+          </details>
+        ))}
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">
+        <a
+          className="font-semibold text-mit-red underline-offset-2 hover:underline"
+          href="https://sailing.mit.edu/gallery/"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {t('help_photos_link')}
+        </a>
+      </p>
+    </div>
+  );
+}
+
+function RequestSummaryLines(props: {
+  afterHoursItems: PavilionReservableItemDto[];
+  editable: boolean;
+  hourlyVenues: PavilionReservableItemDto[];
+  itemById: (id: string) => PavilionReservableItemDto | null;
+  onEditSlot?: (slotId: string) => void;
+  onRemoveItem: (itemId: string) => void;
+  onRemoveSlot?: (slotId: string) => void;
+  persona: PavilionReservationPersonaValue;
+  slots: RequestLineSlot[];
+  toggleItemIds: ReadonlySet<string>;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+  const hourlyIds = new Set(props.hourlyVenues.map((item) => item.id));
+  const afterHoursIds = new Set(props.afterHoursItems.map((item) => item.id));
+
+  const lines: React.ReactNode[] = [];
+
+  for (const slot of props.slots) {
+    if (afterHoursIds.has(slot.itemId)) {
+      continue;
+    }
+    const item = props.itemById(slot.itemId);
+    if (!item) {
+      continue;
+    }
+    if (hourlyIds.has(slot.itemId)) {
+      if (!(slot.endMinutes > slot.startMinutes) || !slot.date) {
+        continue;
+      }
+      const hours = (slot.endMinutes - slot.startMinutes) / 60;
+      const unit = priceForPersona(item, props.persona);
+      const spaceCents = unit === null ? null : Math.round(unit * hours);
+      const band = pavilionAfterHoursBandForEnd({
+        afterHoursItems: props.afterHoursItems,
+        endMinutes: slot.endMinutes,
+        persona: props.persona,
+        sunsetMinutes: pavilionReservationSunsetMinutes(slot.date),
+      });
+      lines.push(
+        <li
+          className="border-t border-mit-line py-2 first:border-t-0"
+          key={slot.id}
+        >
+          <p className="text-sm font-semibold text-mit-text">{item.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {slot.date} ·{' '}
+            {formatPavilionReservationTimeLabel(slot.startMinutes)}–
+            {formatPavilionReservationTimeLabel(slot.endMinutes)}
+          </p>
+          {spaceCents === null ? null : (
+            <p className="text-xs text-muted-foreground">
+              {t('summary_hourly_line', {
+                hours,
+                amount: formatPavilionReservationMoney(spaceCents),
+              })}
+            </p>
+          )}
+          {band ? (
+            <p className="mt-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-950">
+              <span className="font-semibold">{t(band.labelKey)}</span>
+              {' · '}
+              {formatPavilionReservationMoney(band.amountCents)}
+            </p>
+          ) : null}
+          {props.editable ? (
+            <div className="mt-1 flex flex-wrap gap-2">
+              {props.onEditSlot ? (
+                <button
+                  className="text-sm font-semibold text-mit-red underline-offset-2 hover:underline"
+                  type="button"
+                  onClick={() => {
+                    props.onEditSlot?.(slot.id);
+                  }}
+                >
+                  {t('action_edit')}
+                </button>
+              ) : null}
+              {props.onRemoveSlot ? (
+                <button
+                  className="text-sm font-semibold text-mit-red underline-offset-2 hover:underline"
+                  type="button"
+                  onClick={() => {
+                    props.onRemoveSlot?.(slot.id);
+                  }}
+                >
+                  {t('action_remove')}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </li>
+      );
+      continue;
+    }
+
+    if (!props.toggleItemIds.has(slot.itemId)) {
+      continue;
+    }
+    // Flat toggle lines render once per item below.
+  }
+
+  for (const itemId of props.toggleItemIds) {
+    const item = props.itemById(itemId);
+    if (!item) {
+      continue;
+    }
+    const amount = priceForPersona(item, props.persona);
+    lines.push(
+      <li
+        className="border-t border-mit-line py-2 first:border-t-0"
+        key={`flat-${itemId}`}
+      >
+        <p className="text-sm font-semibold text-mit-text">
+          {item.name}
+          {amount === null
+            ? ` · ${t('price_on_request')}`
+            : ` · ${formatPavilionReservationMoney(amount)}`}
+        </p>
+        <p className="text-xs text-muted-foreground">{t('summary_flat_tag')}</p>
+        {props.editable ? (
+          <button
+            className="mt-1 text-sm font-semibold text-mit-red underline-offset-2 hover:underline"
+            type="button"
+            onClick={() => {
+              props.onRemoveItem(itemId);
+            }}
+          >
+            {t('action_remove')}
+          </button>
+        ) : null}
+      </li>
+    );
+  }
+
+  return <ul className="m-0 list-none p-0">{lines}</ul>;
+}
+
+export function PavilionReservationRequestSummary(props: {
+  afterHoursItems: PavilionReservableItemDto[];
+  canContinue: boolean;
+  estimate: { hasPriceOnRequest: boolean; totalCents: number };
+  hourlyVenues: PavilionReservableItemDto[];
+  itemById: (id: string) => PavilionReservableItemDto | null;
+  lineCount: number;
+  onContinue: () => void;
+  onEditSlot?: (slotId: string) => void;
+  onRemoveItem: (itemId: string) => void;
+  onRemoveSlot?: (slotId: string) => void;
+  persona: PavilionReservationPersonaValue;
+  slots: RequestLineSlot[];
+  toggleItemIds: ReadonlySet<string>;
+  variant: 'desktop' | 'mobile';
+}) {
+  const t = useTranslations('PavilionReservationPage');
+  const [expanded, setExpanded] = useState(false);
+  const empty = props.lineCount === 0;
+  const totalLabel = formatPavilionReservationMoney(props.estimate.totalCents);
+
+  if (props.variant === 'mobile') {
+    return (
+      <div className="sticky top-0 z-20 mb-3 rounded-[10px] border border-mit-line bg-card/95 p-3 backdrop-blur md:hidden">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-mit-text">
+              {t('request_summary_title')}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t('request_summary_count', {
+                count: props.lineCount,
+                total: totalLabel,
+              })}
+            </p>
+          </div>
+          <button
+            aria-expanded={expanded}
+            className="text-sm font-semibold text-mit-red underline-offset-2 hover:underline"
+            type="button"
+            onClick={() => {
+              setExpanded((current) => !current);
+            }}
+          >
+            {t('request_summary_details')}
+          </button>
+          <Button
+            disabled={!props.canContinue}
+            size="sm"
+            title={
+              props.canContinue ? undefined : t('request_continue_empty_hint')
+            }
+            type="button"
+            variant="mit"
+            onClick={props.onContinue}
+          >
+            {t('action_continue_short')}
+          </Button>
+        </div>
+        {expanded ? (
+          <div className="mt-3 border-t border-mit-line pt-3">
+            {empty ? (
+              <p className="text-sm text-muted-foreground">
+                {t('request_continue_empty_hint')}
+              </p>
+            ) : (
+              <RequestSummaryLines
+                afterHoursItems={props.afterHoursItems}
+                editable
+                hourlyVenues={props.hourlyVenues}
+                itemById={props.itemById}
+                onEditSlot={props.onEditSlot}
+                onRemoveItem={props.onRemoveItem}
+                onRemoveSlot={props.onRemoveSlot}
+                persona={props.persona}
+                slots={props.slots}
+                toggleItemIds={props.toggleItemIds}
+              />
+            )}
+            <p className="mt-2 text-sm font-semibold text-mit-text">
+              {t('estimated_total')} {totalLabel}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t('no_payment_due_today')}
+            </p>
+            <PavilionInlineFaq />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <aside
+      aria-label={t('request_summary_title')}
+      className={cn(
+        'sticky top-3 hidden rounded-[10px] border p-4 md:block',
+        empty
+          ? 'border-mit-line bg-card'
+          : 'border-mit-red/30 bg-mit-red-highlight/40'
+      )}
+    >
+      <h2 className="text-base font-semibold text-mit-text">
+        {t('request_summary_title')}
+      </h2>
+      {empty ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          {t('request_continue_empty_hint')}
+        </p>
+      ) : (
+        <div className="mt-2">
+          <RequestSummaryLines
+            afterHoursItems={props.afterHoursItems}
+            editable
+            hourlyVenues={props.hourlyVenues}
+            itemById={props.itemById}
+            onEditSlot={props.onEditSlot}
+            onRemoveItem={props.onRemoveItem}
+            onRemoveSlot={props.onRemoveSlot}
+            persona={props.persona}
+            slots={props.slots}
+            toggleItemIds={props.toggleItemIds}
+          />
+        </div>
+      )}
+      <p className="mt-2 text-xs text-muted-foreground">
+        {t('request_availability_note')}
+      </p>
+      <p className="mt-2 text-sm font-semibold text-mit-text">
+        {t('estimated_total')} {totalLabel}
+        {props.estimate.hasPriceOnRequest
+          ? ` ${t('plus_price_on_request')}`
+          : ''}
+      </p>
+      <Button
+        className="mt-3 w-full"
+        disabled={!props.canContinue}
+        title={props.canContinue ? undefined : t('request_continue_empty_hint')}
+        type="button"
+        variant="mit"
+        onClick={props.onContinue}
+      >
+        {t('action_continue_review')}
+      </Button>
+      <p className="mt-2 text-center text-xs text-muted-foreground">
+        {t('no_payment_due_today')}
+      </p>
+      <PavilionInlineFaq />
+    </aside>
+  );
+}
+
+export function PavilionReservationFlatToggle(props: {
+  item: PavilionReservableItemDto;
+  onToggle: (itemId: string, selected: boolean) => void;
+  persona: PavilionReservationPersonaValue;
+  selected: boolean;
+  tip?: string | null;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+  const priceDisplay = personaPriceDisplay({
+    item: props.item,
+    persona: props.persona,
+    onRequestLabel: t('price_on_request'),
+  });
+  const disabled = !isPersonaPriceAvailable(priceDisplay.priceCents);
+
+  return (
+    <label
+      className={cn(
+        'flex items-start gap-3 rounded-[10px] border p-4 transition-colors',
+        disabled
+          ? 'cursor-not-allowed border-mit-line bg-mit-surface opacity-75'
+          : 'cursor-pointer',
+        props.selected
+          ? 'border-mit-red bg-mit-red-highlight'
+          : 'border-mit-line'
+      )}
+    >
+      <input
+        checked={props.selected}
+        className="mt-1"
+        disabled={disabled}
+        type="checkbox"
+        onChange={(event) => {
+          props.onToggle(props.item.id, event.currentTarget.checked);
+        }}
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block font-medium text-mit-text">
+          {props.item.name}
+        </span>
+        <span className="mt-1 block text-xs text-muted-foreground">
+          {disabled ? t('service_unavailable') : props.item.description}
+        </span>
+        {props.tip ? (
+          <span className="mt-1 block text-xs text-muted-foreground">
+            {props.tip}
+          </span>
+        ) : null}
+        {isPavilionWeddingCatalogItem(props.item) ? (
+          <span className="mt-1 block text-xs text-muted-foreground">
+            {t('wedding_requires_venue_hint')}
+          </span>
+        ) : null}
+      </span>
+      <span className="font-semibold text-primary-ink">
+        {disabled ? t('service_unavailable_price') : priceDisplay.label}
+      </span>
+    </label>
+  );
+}
+
+export function PavilionReservationFeesPanel(props: {
+  afterHoursItems: PavilionReservableItemDto[];
+  hourlyVenues: PavilionReservableItemDto[];
+  persona: PavilionReservationPersonaValue;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+  const dock = props.hourlyVenues.find((item) => item.slug === 'casual_dock');
+  const roof = props.hourlyVenues.find((item) => item.slug === 'roof_deck');
+  const dockRate = dock ? priceForPersona(dock, props.persona) : null;
+  const roofRate = roof ? priceForPersona(roof, props.persona) : null;
+  const after10 = props.afterHoursItems.find(
+    (item) => item.slug === 'after_10'
+  );
+  const after2 = props.afterHoursItems.find(
+    (item) => item.slug === 'after_midnight'
+  );
+  const after10Cents = after10 ? priceForPersona(after10, props.persona) : null;
+  const after2Cents = after2 ? priceForPersona(after2, props.persona) : null;
+  const academic = props.persona === 'mit_academic';
+
+  return (
+    <div className="rounded-[10px] border border-mit-line bg-mit-surface/60 p-4 text-sm text-mit-text">
+      <p className="m-0">
+        <strong>{t('fees_panel_title')}</strong> {t('fees_panel_summary')}
+      </p>
+      <details className="mt-2">
+        <summary className="cursor-pointer font-semibold text-mit-red">
+          {t('fees_panel_details_summary')}
+        </summary>
+        <div className="mt-2 space-y-2 text-sm text-muted-foreground">
+          {academic || after10Cents === null ? (
+            <p>{t('fees_panel_academic_note')}</p>
+          ) : (
+            <ul className="list-disc space-y-1 pl-5">
+              <li>{t('fees_panel_before_sunset')}</li>
+              <li>
+                {t('fees_panel_through_10pm', {
+                  amount: formatPavilionReservationMoney(after10Cents),
+                })}
+              </li>
+              <li>
+                {t('fees_panel_through_2am', {
+                  amount: formatPavilionReservationMoney(
+                    after2Cents ?? after10Cents
+                  ),
+                })}
+              </li>
+            </ul>
+          )}
+          <ul className="list-disc space-y-1 pl-5">
+            <li>{t('fees_panel_window')}</li>
+            <li>{t('picker_notice')}</li>
+            {dockRate !== null || roofRate !== null ? (
+              <li>
+                {t('fees_panel_hourly_rates', {
+                  dock:
+                    dockRate === null
+                      ? t('price_on_request')
+                      : formatPavilionReservationMoney(dockRate),
+                  roof:
+                    roofRate === null
+                      ? t('price_on_request')
+                      : formatPavilionReservationMoney(roofRate),
+                })}
+              </li>
+            ) : null}
+            <li>{t('fees_panel_availability')}</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+  );
+}

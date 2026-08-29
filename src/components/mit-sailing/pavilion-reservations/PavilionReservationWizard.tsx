@@ -16,6 +16,15 @@ import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import type * as React from 'react';
 import { useActionState, useEffect, useRef, useState } from 'react';
+import {
+  PavilionReservationIdentityStep,
+  sampleHourlyFromItems,
+} from '@/components/mit-sailing/pavilion-reservations/PavilionReservationIdentityStep';
+import {
+  PavilionReservationFeesPanel,
+  PavilionReservationFlatToggle,
+  PavilionReservationRequestSummary,
+} from '@/components/mit-sailing/pavilion-reservations/PavilionReservationRequestSummary';
 import { PavilionSpaceGallery } from '@/components/mit-sailing/pavilion-reservations/PavilionSpaceGallery';
 import { SiteModalContent } from '@/components/mit-sailing/site/SiteModal';
 import { Button } from '@/components/ui/button';
@@ -31,16 +40,23 @@ import {
 } from '@/lib/mit-sailing/nyTime';
 import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
+import { syncPavilionAfterHoursSlots } from '@/libs/mit-sailing/pavilionReservationAfterHours';
 import {
   listPavilionReservationTimeOptions,
   PAVILION_RESERVATION_END_MINUTES,
 } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
 import type { PavilionReservationTimeOption } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
+import {
+  isPavilionWeddingCatalogItem,
+  partitionPavilionCatalogForRequestBuilder,
+} from '@/libs/mit-sailing/pavilionReservationCatalogRoles';
 import { loadPavilionReservationDraftByResumeTokenAction } from '@/libs/mit-sailing/pavilionReservationDraftActions';
 import type {
+  PavilionReservationWizardStep,
   UpsertPavilionReservationDraftInput,
   UpsertPavilionReservationDraftResult,
 } from '@/libs/mit-sailing/pavilionReservationDraftTypes';
+import { normalizePavilionReservationWizardStep } from '@/libs/mit-sailing/pavilionReservationDraftTypes';
 import {
   PAVILION_RESERVATION_PERSONAS,
   parsePavilionReservationPersona,
@@ -58,6 +74,12 @@ import {
   readPavilionReservationResumeTokenFromSession,
   writePavilionReservationResumeTokenToSession,
 } from '@/libs/mit-sailing/pavilionReservationResumeTokenSession';
+import {
+  pavilionAvailableStartBands,
+  pavilionStartOptionsForBand,
+  pavilionStartTimeBand,
+} from '@/libs/mit-sailing/pavilionReservationStartBands';
+import type { PavilionStartTimeBand } from '@/libs/mit-sailing/pavilionReservationStartBands';
 import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionReservationTimeLabel';
 import type {
   PavilionReservableItemDto,
@@ -97,53 +119,17 @@ type ContactFields = {
   mitAccount: string;
 };
 
-type WizardStep = 'spaces' | 'contact';
-
-type SpacesStepProblem = 'email' | 'overlap' | 'slot' | 'space';
-
-type SpacesStepProblemReasonKey =
-  | 'footer_fix_email'
-  | 'footer_fix_overlap'
-  | 'footer_fix_slot'
-  | 'footer_fix_space';
-
-type SpaceOptionGroup = {
-  id: 'event_options' | 'programs' | 'venue';
-  labelKey:
-    | 'space_group_event_options'
-    | 'space_group_programs'
-    | 'space_group_venue';
-  publicGroup: 'event_options' | 'programs' | 'venue';
-};
-
-const spaceOptionGroups = [
-  {
-    id: 'venue',
-    labelKey: 'space_group_venue',
-    publicGroup: 'venue',
-  },
-  {
-    id: 'event_options',
-    labelKey: 'space_group_event_options',
-    publicGroup: 'event_options',
-  },
-  {
-    id: 'programs',
-    labelKey: 'space_group_programs',
-    publicGroup: 'programs',
-  },
-] as const satisfies readonly SpaceOptionGroup[];
+type WizardStep = PavilionReservationWizardStep;
 
 function itemById(items: PavilionReservableItemDto[], id: string) {
   return items.find((item) => item.id === id) ?? null;
 }
 
-function groupedSpaceOptions(spaces: PavilionReservableItemDto[]) {
-  return spaceOptionGroups.map((group) => ({
-    id: group.id,
-    labelKey: group.labelKey,
-    options: spaces.filter((space) => space.publicGroup === group.publicGroup),
-  }));
+function createClientSlotId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `slot-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 const mitAffiliationPersonas = ['mit_student', 'mit_community'] as const;
@@ -174,7 +160,7 @@ type PavilionReservationWizardProps = {
       requesterEmail: string;
       selectedServiceIds: string[];
       slots: ClientSlot[];
-      step: WizardStep;
+      step: WizardStep | 'contact' | 'spaces';
     };
     requestId: string;
     resumeToken: string;
@@ -291,6 +277,16 @@ function calendarMonthFromIso(iso: string): CalendarMonth | null {
 
 function minimumSlotDateIso(): string {
   return addNyCalendarDays(nyYmd(new Date()), 2);
+}
+
+function flatToggleSlot(itemId: string): ClientSlot {
+  return {
+    date: minimumSlotDateIso(),
+    endMinutes: 8 * 60,
+    id: createClientSlotId(),
+    itemId,
+    startMinutes: 7 * 60,
+  };
 }
 
 function initialCalendarMonth(date: string): CalendarMonth {
@@ -476,43 +472,6 @@ function hasSameSpaceSlotOverlap(slots: ClientSlot[]) {
           rangesOverlap(slot, candidate)
       );
   });
-}
-
-function spacesStepProblem(props: {
-  requesterEmail: string;
-  slots: ClientSlot[];
-}): SpacesStepProblem | null {
-  if (!isValidEmailAddress(props.requesterEmail)) {
-    return 'email';
-  }
-  if (
-    props.slots.length > 0 &&
-    props.slots.some((slot) => !completeSlot(slot))
-  ) {
-    return 'slot';
-  }
-  if (props.slots.length > 0 && hasSameSpaceSlotOverlap(props.slots)) {
-    return 'overlap';
-  }
-  if (props.slots.length === 0) {
-    return 'space';
-  }
-  return null;
-}
-
-function spacesStepProblemReasonKey(
-  problem: SpacesStepProblem
-): SpacesStepProblemReasonKey {
-  if (problem === 'email') {
-    return 'footer_fix_email';
-  }
-  if (problem === 'slot') {
-    return 'footer_fix_slot';
-  }
-  if (problem === 'overlap') {
-    return 'footer_fix_overlap';
-  }
-  return 'footer_fix_space';
 }
 
 function scrollElementIntoView(element: HTMLElement | null) {
@@ -728,8 +687,9 @@ function sumEstimatedTotal(props: {
 function StepHeader(props: { step: WizardStep }) {
   const t = useTranslations('PavilionReservationPage');
   const steps: { id: WizardStep; label: string }[] = [
-    { id: 'spaces', label: t('step_spaces') },
-    { id: 'contact', label: t('step_contact') },
+    { id: 'identity', label: t('step_identity') },
+    { id: 'request', label: t('step_request') },
+    { id: 'review', label: t('step_review') },
   ];
   const activeIndex = steps.findIndex((step) => step.id === props.step);
   return (
@@ -738,14 +698,18 @@ function StepHeader(props: { step: WizardStep }) {
         {steps.map((step, index) => {
           const active = step.id === props.step;
           const past = activeIndex > index;
+          let stepClass = 'border-mit-line text-muted-foreground';
+          if (active) {
+            stepClass = 'border-mit-red bg-mit-red text-white';
+          } else if (past) {
+            stepClass = 'border-green-600 bg-green-600 text-white';
+          }
           return (
             <li className="flex items-center gap-2" key={step.id}>
               <span
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-full border-2 text-sm font-semibold',
-                  active || past
-                    ? 'border-mit-red bg-mit-red text-white'
-                    : 'border-mit-line text-muted-foreground'
+                  'flex size-8 items-center justify-center rounded-[10px] border-2 text-sm font-semibold',
+                  stepClass
                 )}
               >
                 {index + 1}
@@ -1039,13 +1003,51 @@ function SlotStartSelection(props: {
   timePanelRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const t = useTranslations('PavilionReservationPage');
+  const availableBands = pavilionAvailableStartBands(props.startChoices);
+  const defaultBand: PavilionStartTimeBand = availableBands.includes('evening')
+    ? 'evening'
+    : (availableBands[0] ?? 'evening');
+  const initialBand =
+    props.selectedStartMinutes > 0
+      ? pavilionStartTimeBand(props.selectedStartMinutes)
+      : defaultBand;
+  const [band, setBand] = useState<PavilionStartTimeBand>(initialBand);
+  const bandOptions = pavilionStartOptionsForBand({
+    band,
+    options: props.startChoices,
+  });
 
   return (
     <div className="flex-1 overflow-y-auto p-4" ref={props.timePanelRef}>
-      <h6 className="sr-only">{t('picker_start_title')}</h6>
+      <h6 className="mb-2 text-sm font-semibold text-mit-text">
+        {t('picker_start_title')}
+      </h6>
+      <p className="mb-3 text-xs text-muted-foreground">
+        {t('picker_start_band_prompt')}
+      </p>
+      <div className="mb-3 flex flex-wrap gap-2">
+        {availableBands.map((option) => (
+          <button
+            aria-pressed={band === option}
+            className={cn(
+              'rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors',
+              band === option
+                ? 'border-mit-red bg-mit-red-highlight text-mit-text'
+                : 'border-mit-line bg-background text-muted-foreground hover:border-mit-red/40'
+            )}
+            key={option}
+            type="button"
+            onClick={() => {
+              setBand(option);
+            }}
+          >
+            {t(`picker_${option}`)}
+          </button>
+        ))}
+      </div>
       <TimeOptionGrid
         emptyLabel={t('picker_no_start_times')}
-        options={props.startChoices}
+        options={bandOptions}
         selectedMinutes={props.selectedStartMinutes}
         onSelect={props.onSelectStart}
       />
@@ -1908,25 +1910,28 @@ function PavilionReservationSpaceCard(props: {
 }
 
 function PavilionReservationSpaceGroup(props: {
-  group: ReturnType<typeof groupedSpaceOptions>[number];
+  label: string;
+  intro?: string;
+  options: PavilionReservableItemDto[];
   persona: PavilionReservationPersonaValue;
   selectedSpaceIds: string[];
   setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
   slotsRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const t = useTranslations('PavilionReservationPage');
-
-  if (props.group.options.length === 0) {
+  if (props.options.length === 0) {
     return null;
   }
 
   return (
     <section>
-      <h3 className="mb-3 text-sm font-bold tracking-wide text-mit-text uppercase">
-        {t(props.group.labelKey)}
+      <h3 className="mb-1 text-sm font-bold tracking-wide text-mit-text uppercase">
+        {props.label}
       </h3>
-      <div className="grid gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
-        {props.group.options.map((space) => (
+      {props.intro ? (
+        <p className="mb-3 text-sm text-muted-foreground">{props.intro}</p>
+      ) : null}
+      <div className="grid gap-4 md:grid-cols-2 md:gap-6">
+        {props.options.map((space) => (
           <PavilionReservationSpaceCard
             key={space.id}
             persona={props.persona}
@@ -1941,147 +1946,187 @@ function PavilionReservationSpaceGroup(props: {
   );
 }
 
-function PavilionReservationSpacesStep(props: {
+function PavilionReservationRequestStep(props: {
+  addons: PavilionReservableItemDto[];
+  afterHoursItems: PavilionReservableItemDto[];
   blockedRanges: PavilionReservationBlockedRange[];
-  emailRef: React.RefObject<HTMLInputElement | null>;
+  canContinue: boolean;
+  estimate: { hasPriceOnRequest: boolean; totalCents: number };
+  hourlyVenues: PavilionReservableItemDto[];
+  onContinue: () => void;
   persona: PavilionReservationPersonaValue;
-  requesterEmail: string;
+  programs: PavilionReservableItemDto[];
   selectedSpaceIds: string[];
-  setPersona: (persona: PavilionReservationPersonaValue) => void;
-  setRequesterEmail: React.Dispatch<React.SetStateAction<string>>;
   setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
   showErrors: boolean;
   slots: ClientSlot[];
   slotsRef: React.RefObject<HTMLDivElement | null>;
   spacesRef: React.RefObject<HTMLDivElement | null>;
-  spaces: PavilionReservableItemDto[];
 }) {
   const t = useTranslations('PavilionReservationPage');
-  const groups = groupedSpaceOptions(props.spaces);
+  const hourlyIds = new Set(props.hourlyVenues.map((item) => item.id));
+  const afterHoursIds = new Set(props.afterHoursItems.map((item) => item.id));
+  const toggleItems = [...props.addons, ...props.programs];
+  const toggleItemIds = new Set(
+    props.slots
+      .filter(
+        (slot) => !hourlyIds.has(slot.itemId) && !afterHoursIds.has(slot.itemId)
+      )
+      .map((slot) => slot.itemId)
+  );
+  const hasVenueLine = props.slots.some(
+    (slot) => hourlyIds.has(slot.itemId) && completeSlot(slot)
+  );
+  const visibleAddons = props.addons.filter((item) => {
+    if (!isPavilionWeddingCatalogItem(item)) {
+      return true;
+    }
+    if (props.persona === 'mit_academic') {
+      return false;
+    }
+    return (
+      hasVenueLine &&
+      isPersonaPriceAvailable(priceForPersona(item, props.persona))
+    );
+  });
+  const uniqueLineCount =
+    props.slots.filter(
+      (slot) => hourlyIds.has(slot.itemId) && completeSlot(slot)
+    ).length + toggleItemIds.size;
+
+  const toggleFlat = (itemId: string, selected: boolean) => {
+    props.setSlots((current) => {
+      const without = current.filter((slot) => slot.itemId !== itemId);
+      if (!selected) {
+        return without;
+      }
+      return [...without, flatToggleSlot(itemId)];
+    });
+  };
+
+  const summaryProps = {
+    afterHoursItems: props.afterHoursItems,
+    canContinue: props.canContinue,
+    estimate: props.estimate,
+    hourlyVenues: props.hourlyVenues,
+    itemById: (id: string) =>
+      itemById(
+        [...props.hourlyVenues, ...toggleItems, ...props.afterHoursItems],
+        id
+      ),
+    lineCount: uniqueLineCount,
+    onContinue: props.onContinue,
+    onRemoveItem: (itemId: string) => {
+      toggleFlat(itemId, false);
+    },
+    onRemoveSlot: (slotId: string) => {
+      props.setSlots((current) => current.filter((slot) => slot.id !== slotId));
+    },
+    persona: props.persona,
+    slots: props.slots,
+    toggleItemIds,
+  };
 
   return (
     <>
-      <div className="rounded-lg border border-mit-line bg-card p-4 md:p-8">
-        <h2 className="text-lg font-semibold text-mit-text md:text-xl">
-          {t('basic_title')}
-        </h2>
-        <div className="mt-4 max-w-md md:mt-6">
-          <LabeledField
-            id="requester-email"
-            invalid={ariaInvalidWhenShown({
-              shown: props.showErrors,
-              invalid: !isValidEmailAddress(props.requesterEmail),
-            })}
-            label={t('field_email')}
-            required
-          >
-            <Input
-              aria-invalid={ariaInvalidWhenShown({
-                shown: props.showErrors,
-                invalid: !isValidEmailAddress(props.requesterEmail),
-              })}
-              aria-required
-              id="requester-email"
-              placeholder={t('field_email_placeholder')}
-              ref={props.emailRef}
-              required
-              type="email"
-              value={props.requesterEmail}
-              onChange={(event) => {
-                props.setRequesterEmail(event.currentTarget.value);
-              }}
-            />
-          </LabeledField>
-        </div>
-        <div className="mt-5 md:mt-6">
-          <h3 className="text-sm font-semibold text-mit-text">
-            {t('persona_title')}
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('persona_intro')}
-          </p>
-          <div className="mt-3 grid gap-2 md:mt-4 md:grid-cols-2 md:gap-4">
-            {PAVILION_RESERVATION_PERSONAS.map((personaOption) => (
-              <label
-                className={cn(
-                  'cursor-pointer rounded-lg border-2 p-3 transition-colors md:p-4',
-                  props.persona === personaOption
-                    ? 'border-mit-red bg-mit-red-highlight'
-                    : 'border-mit-line bg-background hover:border-mit-red/40'
-                )}
-                key={personaOption}
-              >
-                <input
-                  checked={props.persona === personaOption}
-                  className="sr-only"
-                  name="personaChoice"
-                  type="radio"
-                  value={personaOption}
-                  onChange={() => {
-                    props.setPersona(personaOption);
-                  }}
+      <PavilionReservationRequestSummary {...summaryProps} variant="mobile" />
+      <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_18.5rem] md:items-start">
+        <div className="space-y-6" ref={props.spacesRef}>
+          <PavilionReservationFeesPanel
+            afterHoursItems={props.afterHoursItems}
+            hourlyVenues={props.hourlyVenues}
+            persona={props.persona}
+          />
+
+          <SelectedSlotEditors
+            blockedRanges={props.blockedRanges}
+            selectedSpaceIds={props.selectedSpaceIds.filter((id) =>
+              hourlyIds.has(id)
+            )}
+            setSlots={props.setSlots}
+            showErrors={props.showErrors}
+            slots={props.slots.filter(
+              (slot) =>
+                hourlyIds.has(slot.itemId) || afterHoursIds.has(slot.itemId)
+            )}
+            slotsRef={props.slotsRef}
+            spaces={props.hourlyVenues}
+          />
+
+          <PavilionReservationSpaceGroup
+            intro={t('space_group_venues_intro')}
+            label={t('space_group_venue')}
+            options={props.hourlyVenues}
+            persona={props.persona}
+            selectedSpaceIds={props.selectedSpaceIds}
+            setSlots={props.setSlots}
+            slotsRef={props.slotsRef}
+          />
+
+          <section>
+            <h3 className="mb-1 text-sm font-bold tracking-wide text-mit-text uppercase">
+              {t('space_group_addons')}
+            </h3>
+            <p className="mb-3 text-sm text-muted-foreground">
+              {t('space_group_addons_intro')}
+            </p>
+            {hasVenueLine &&
+            props.persona !== 'mit_academic' &&
+            visibleAddons.some((item) => isPavilionWeddingCatalogItem(item)) ? (
+              <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                {t('wedding_tip')}
+              </p>
+            ) : null}
+            <div className="space-y-3">
+              {visibleAddons.map((item) => (
+                <PavilionReservationFlatToggle
+                  item={item}
+                  key={item.id}
+                  persona={props.persona}
+                  selected={toggleItemIds.has(item.id)}
+                  tip={item.slug === 'grill' ? t('grill_addon_tip') : null}
+                  onToggle={toggleFlat}
                 />
-                <span className="flex items-center gap-3">
-                  <span
-                    aria-hidden
-                    className={cn(
-                      'flex size-5 items-center justify-center rounded-full border',
-                      props.persona === personaOption
-                        ? 'border-mit-red'
-                        : 'border-mit-line'
-                    )}
-                  >
-                    {props.persona === personaOption ? (
-                      <span className="size-2.5 rounded-full bg-mit-red" />
-                    ) : null}
-                  </span>
-                  <span className="font-semibold text-mit-text">
-                    {t(`persona_${personaOption}_label`)}
-                  </span>
-                </span>
-                <span
-                  className={cn(
-                    'mt-2 hidden pl-8 text-sm text-muted-foreground sm:block',
-                    props.persona === personaOption
-                      ? 'dark:text-foreground'
-                      : 'dark:text-mit-text'
-                  )}
-                >
-                  {t(`persona_${personaOption}_desc`)}
-                </span>
-              </label>
-            ))}
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <h3 className="mb-3 text-sm font-bold tracking-wide text-mit-text uppercase">
+              {t('space_group_programs')}
+            </h3>
+            <div className="space-y-3">
+              {props.programs.map((item) => (
+                <PavilionReservationFlatToggle
+                  item={item}
+                  key={item.id}
+                  persona={props.persona}
+                  selected={toggleItemIds.has(item.id)}
+                  onToggle={toggleFlat}
+                />
+              ))}
+            </div>
+          </section>
+
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                // parent handles back via setStep identity — exposed below
+              }}
+              data-back-identity
+              className="hidden"
+            >
+              {t('action_back')}
+            </Button>
           </div>
         </div>
+        <PavilionReservationRequestSummary
+          {...summaryProps}
+          variant="desktop"
+        />
       </div>
-
-      <SelectedSlotEditors
-        blockedRanges={props.blockedRanges}
-        selectedSpaceIds={props.selectedSpaceIds}
-        setSlots={props.setSlots}
-        showErrors={props.showErrors}
-        slots={props.slots}
-        slotsRef={props.slotsRef}
-        spaces={props.spaces}
-      />
-
-      <section ref={props.spacesRef}>
-        <h2 className="mb-4 text-xl font-semibold text-mit-text">
-          {t('spaces_title')}
-        </h2>
-        <div className="space-y-5 md:space-y-8">
-          {groups.map((group) => (
-            <PavilionReservationSpaceGroup
-              group={group}
-              key={group.id}
-              persona={props.persona}
-              selectedSpaceIds={props.selectedSpaceIds}
-              setSlots={props.setSlots}
-              slotsRef={props.slotsRef}
-            />
-          ))}
-        </div>
-      </section>
     </>
   );
 }
@@ -2927,119 +2972,48 @@ function PavilionReservationReviewStep(props: {
 
 function PavilionReservationFooter(props: {
   contactStepValid: boolean;
-  estimate: { hasPriceOnRequest: boolean; totalCents: number };
+  onBack: () => void;
   onContactStepInvalid: () => void;
-  onSpacesStepInvalid: () => void;
   pending: boolean;
-  selectedSpaceIds: string[];
-  setShowErrors: React.Dispatch<React.SetStateAction<boolean>>;
-  setStep: React.Dispatch<React.SetStateAction<WizardStep>>;
-  spacesStepProblem: SpacesStepProblem | null;
-  slots: ClientSlot[];
-  spacesStepValid: boolean;
   step: WizardStep;
 }) {
   const t = useTranslations('PavilionReservationPage');
 
+  if (props.step === 'identity' || props.step === 'request') {
+    return null;
+  }
+
   return (
     <div className="border-t border-mit-line pt-6">
-      {props.step === 'spaces' && props.spacesStepProblem ? (
-        <div className="mb-3 flex items-center justify-between gap-2 rounded-md border border-mit-line bg-mit-surface px-2.5 py-1.5 text-xs sm:mb-4 sm:px-3 sm:py-2 sm:text-sm">
-          <p className="min-w-0 flex-1 font-medium text-mit-text">
-            {t(spacesStepProblemReasonKey(props.spacesStepProblem))}
-          </p>
-          <Button
-            size="sm"
-            className="shrink-0 text-foreground transition-none"
-            type="button"
-            variant="ghost"
-            onClick={props.onSpacesStepInvalid}
-          >
-            {t('action_fix_first_step')}
-          </Button>
-        </div>
-      ) : null}
-      <div
-        className={cn(
-          'flex flex-col gap-3',
-          props.step === 'spaces'
-            ? 'sm:flex-row sm:items-center sm:justify-between'
-            : 'sm:flex-row sm:items-center sm:justify-end'
-        )}
-      >
-        {props.step === 'spaces' ? (
-          <div className="min-w-0">
-            <p className="hidden text-sm font-medium text-muted-foreground sm:block">
-              {t('summary_label')}
-            </p>
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-mit-text">
-              <span>
-                {t('summary_spaces', {
-                  spaces: props.selectedSpaceIds.length,
-                  slots: props.slots.length,
-                })}
-              </span>
-              <span className="font-medium text-primary-ink">
-                {formatPavilionReservationMoney(props.estimate.totalCents)}
-                {props.estimate.hasPriceOnRequest
-                  ? ` ${t('plus_price_on_request')}`
-                  : ''}
-              </span>
-            </p>
-          </div>
-        ) : null}
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:gap-3">
-          {props.step === 'spaces' ? null : (
-            <Button
-              className="w-full sm:w-auto"
-              type="button"
-              variant="outline"
-              onClick={() => {
-                props.setShowErrors(false);
-                props.setStep('spaces');
-              }}
-            >
-              {t('action_back')}
-            </Button>
-          )}
-          {props.step === 'spaces' ? (
-            <Button
-              className="w-full sm:w-auto"
-              disabled={!props.spacesStepValid}
-              type="button"
-              variant="mit"
-              onClick={() => {
-                if (!props.spacesStepValid) {
-                  props.onSpacesStepInvalid();
-                  return;
-                }
-                props.setShowErrors(false);
-                props.setStep('contact');
-              }}
-            >
-              {t('action_next_contact')}
-            </Button>
-          ) : null}
-          {props.step === 'contact' ? (
-            <SubmitButton
-              className="w-full sm:w-auto"
-              disabled={props.pending}
-              pending={props.pending}
-              pendingLabel={t('pending_submitting')}
-              type="submit"
-              variant="mit"
-              onClick={(event) => {
-                if (!props.contactStepValid) {
-                  event.preventDefault();
-                  props.onContactStepInvalid();
-                }
-              }}
-            >
-              {props.pending ? t('pending_submitting') : t('action_submit')}
-            </SubmitButton>
-          ) : null}
-        </div>
+      <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+        <Button
+          className="w-full sm:w-auto"
+          type="button"
+          variant="outline"
+          onClick={props.onBack}
+        >
+          {t('action_back')}
+        </Button>
+        <SubmitButton
+          className="w-full sm:w-auto"
+          disabled={props.pending}
+          pending={props.pending}
+          pendingLabel={t('pending_submitting')}
+          type="submit"
+          variant="mit"
+          onClick={(event) => {
+            if (!props.contactStepValid) {
+              event.preventDefault();
+              props.onContactStepInvalid();
+            }
+          }}
+        >
+          {props.pending ? t('pending_submitting') : t('action_submit')}
+        </SubmitButton>
       </div>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {t('no_payment_due_today')}
+      </p>
     </div>
   );
 }
@@ -3061,7 +3035,7 @@ function pavilionReservationDraftSeedFromServerResume(
     ),
     slots: draft.slots.filter((slot) => allowedItemIds.has(slot.itemId)),
     source: 'server' as const,
-    step: draft.step,
+    step: normalizePavilionReservationWizardStep(draft.step),
   };
 }
 
@@ -3142,7 +3116,7 @@ function usePavilionReservationDraftPersistence(params: {
         return;
       }
       const allowedItemIds = new Set(items.map((item) => item.id));
-      setStep(seed.draft.step);
+      setStep(normalizePavilionReservationWizardStep(seed.draft.step));
       setPersona(seed.draft.persona);
       setRequesterEmail(seed.draft.requesterEmail);
       setSlots(
@@ -3276,7 +3250,7 @@ export function PavilionReservationWizard(
       props.items
     );
   });
-  const [step, setStep] = useState<WizardStep>(draftSeed?.step ?? 'spaces');
+  const [step, setStep] = useState<WizardStep>(draftSeed?.step ?? 'identity');
   const [persona, setPersona] = useState<PavilionReservationPersonaValue>(
     draftSeed?.persona ?? 'mit_academic'
   );
@@ -3335,9 +3309,17 @@ export function PavilionReservationWizard(
     upsertDraft: props.upsertDraft,
   });
 
-  const spaces = props.items.filter((item) => item.kind === 'space');
+  const catalog = partitionPavilionCatalogForRequestBuilder(props.items);
   const services = props.items.filter((item) => item.kind === 'service');
-  const selectedSpaceIds = [...new Set(slots.map((slot) => slot.itemId))];
+  const hourlyVenueIds = new Set(catalog.hourlyVenues.map((item) => item.id));
+  const afterHoursIds = new Set(catalog.afterHours.map((item) => item.id));
+  const selectedSpaceIds = [
+    ...new Set(
+      slots
+        .filter((slot) => !afterHoursIds.has(slot.itemId))
+        .map((slot) => slot.itemId)
+    ),
+  ];
   const updatePersona = (nextPersona: PavilionReservationPersonaValue) => {
     setPersona(nextPersona);
     setContact((current) =>
@@ -3353,14 +3335,57 @@ export function PavilionReservationWizard(
       })
     );
   };
+
+  useEffect(() => {
+    const venueIds = new Set(catalog.hourlyVenues.map((item) => item.id));
+    setSlots((current) => {
+      const next = syncPavilionAfterHoursSlots({
+        afterHoursItems: catalog.afterHours,
+        createSlotId: createClientSlotId,
+        hourlyVenueIds: venueIds,
+        persona,
+        slots: current,
+      });
+      const same =
+        next.length === current.length &&
+        next.every((slot, index) => {
+          const prior = current[index];
+          return (
+            prior !== undefined &&
+            prior.id === slot.id &&
+            prior.itemId === slot.itemId &&
+            prior.date === slot.date &&
+            prior.startMinutes === slot.startMinutes &&
+            prior.endMinutes === slot.endMinutes
+          );
+        });
+      return same ? current : next;
+    });
+  }, [catalog.afterHours, catalog.hourlyVenues, persona]);
+
   const estimate = sumEstimatedTotal({
     items: props.items,
     persona,
     selectedServiceIds,
     slots,
   });
-  const firstSpacesStepProblem = spacesStepProblem({ requesterEmail, slots });
-  const spacesStepValid = firstSpacesStepProblem === null;
+  const hourlySlots = slots.filter((slot) => hourlyVenueIds.has(slot.itemId));
+  const requestProblem = (() => {
+    if (hourlySlots.some((slot) => !completeSlot(slot))) {
+      return 'slot' as const;
+    }
+    if (hourlySlots.length > 0 && hasSameSpaceSlotOverlap(hourlySlots)) {
+      return 'overlap' as const;
+    }
+    const hasLine =
+      hourlySlots.some((slot) => completeSlot(slot)) ||
+      slots.some(
+        (slot) =>
+          !hourlyVenueIds.has(slot.itemId) && !afterHoursIds.has(slot.itemId)
+      );
+    return hasLine ? null : ('space' as const);
+  })();
+  const requestStepValid = requestProblem === null;
   const contactStepValid = Boolean(
     contact.firstName.trim() &&
     contact.lastName.trim() &&
@@ -3373,17 +3398,9 @@ export function PavilionReservationWizard(
         isValidEmailAddress(contact.advisorEmail) &&
         contact.costCenter.trim()))
   );
-  const scrollToSpacesStepProblem = () => {
+  const scrollToRequestProblem = () => {
     setShowErrors(true);
-    if (firstSpacesStepProblem === 'email') {
-      scrollElementIntoView(emailRef.current);
-      emailRef.current?.focus();
-      return;
-    }
-    if (
-      firstSpacesStepProblem === 'slot' ||
-      firstSpacesStepProblem === 'overlap'
-    ) {
+    if (requestProblem === 'slot' || requestProblem === 'overlap') {
       scrollElementIntoView(slotsRef.current);
       return;
     }
@@ -3431,24 +3448,70 @@ export function PavilionReservationWizard(
         </output>
       ) : null}
       <PavilionReservationActionError actionState={actionState} />
-      {step === 'spaces' ? (
-        <PavilionReservationSpacesStep
-          blockedRanges={props.blockedRanges}
+      {step === 'identity' ? (
+        <PavilionReservationIdentityStep
           emailRef={emailRef}
           persona={persona}
           requesterEmail={requesterEmail}
-          selectedSpaceIds={selectedSpaceIds}
+          sampleHourlyCents={sampleHourlyFromItems({
+            items: props.items,
+            persona,
+          })}
           setPersona={updatePersona}
           setRequesterEmail={setRequesterEmail}
-          setSlots={setSlots}
           showErrors={showErrors}
-          slots={slots}
-          slotsRef={slotsRef}
-          spacesRef={spacesRef}
-          spaces={spaces}
+          onContinue={() => {
+            if (!isValidEmailAddress(requesterEmail)) {
+              setShowErrors(true);
+              emailRef.current?.focus();
+              return;
+            }
+            setShowErrors(false);
+            setStep('request');
+          }}
         />
       ) : null}
-      {step === 'contact' ? (
+      {step === 'request' ? (
+        <>
+          <PavilionReservationRequestStep
+            addons={catalog.addons}
+            afterHoursItems={catalog.afterHours}
+            blockedRanges={props.blockedRanges}
+            canContinue={requestStepValid}
+            estimate={estimate}
+            hourlyVenues={catalog.hourlyVenues}
+            persona={persona}
+            programs={catalog.programs}
+            selectedSpaceIds={selectedSpaceIds}
+            setSlots={setSlots}
+            showErrors={showErrors}
+            slots={slots}
+            slotsRef={slotsRef}
+            spacesRef={spacesRef}
+            onContinue={() => {
+              if (!requestStepValid) {
+                scrollToRequestProblem();
+                return;
+              }
+              setShowErrors(false);
+              setStep('review');
+            }}
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowErrors(false);
+                setStep('identity');
+              }}
+            >
+              {t('action_back')}
+            </Button>
+          </div>
+        </>
+      ) : null}
+      {step === 'review' ? (
         <>
           <PavilionReservationContactStep
             contact={contact}
@@ -3471,24 +3534,20 @@ export function PavilionReservationWizard(
             selectedServiceIds={selectedServiceIds}
             services={services}
             slots={slots}
-            spaces={spaces}
+            spaces={catalog.hourlyVenues}
+          />
+          <PavilionReservationFooter
+            contactStepValid={contactStepValid}
+            pending={pending}
+            step={step}
+            onBack={() => {
+              setShowErrors(false);
+              setStep('request');
+            }}
+            onContactStepInvalid={scrollToContactStepProblem}
           />
         </>
       ) : null}
-      <PavilionReservationFooter
-        contactStepValid={contactStepValid}
-        estimate={estimate}
-        onContactStepInvalid={scrollToContactStepProblem}
-        onSpacesStepInvalid={scrollToSpacesStepProblem}
-        pending={pending}
-        selectedSpaceIds={selectedSpaceIds}
-        setShowErrors={setShowErrors}
-        setStep={setStep}
-        spacesStepProblem={firstSpacesStepProblem}
-        slots={slots}
-        spacesStepValid={spacesStepValid}
-        step={step}
-      />
     </form>
   );
 }
