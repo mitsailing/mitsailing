@@ -115,7 +115,7 @@
     "pdf-lib": "1.17.1",
     "pg": "^8.21.0",
     "radix-ui": "^1.4.3",
-    "rate-limiter-flexible": "^11.2.0",
+    "rate-limiter-flexible": "11.2.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-email": "^6.5.0",
