@@ -109,7 +109,7 @@ function HomeHeroSection(props: {
               {props.block.subtitle}
             </div>
           ) : null}
-          <h1 className="mb-6 font-mit-serif text-4xl leading-tight font-bold text-white">
+          <h1 className="mb-6 font-mit-serif text-[clamp(2.25rem,6vw,3.5rem)] leading-tight font-bold text-balance text-white">
             {props.block.title}
           </h1>
           {props.block.body ? (

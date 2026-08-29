@@ -39,7 +39,6 @@ type AdminSailingCardIssueFormProps = {
   readonly locale: string;
   readonly needsRecreationVerification?: boolean;
   readonly paymentAccess?: AdminSailingCardPaymentAccess;
-  readonly prefillSuggestedNumber?: boolean;
   readonly suggestedCardNumber: number;
   readonly userId: string;
 };
@@ -259,11 +258,7 @@ export function AdminSailingCardIssueForm(
       </p>
       <AdminSailingCardNumberField
         actionLabel={t('action_issue')}
-        defaultValue={
-          props.prefillSuggestedNumber === true
-            ? props.suggestedCardNumber
-            : undefined
-        }
+        defaultValue={props.suggestedCardNumber}
         error={model.cardNumberError}
         errorId={model.cardNumberErrorId}
         inputId={model.cardNumberInputId}

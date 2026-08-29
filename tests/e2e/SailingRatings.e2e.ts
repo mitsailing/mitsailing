@@ -93,7 +93,7 @@ async function waitForTechRatingRowPresent(present: boolean) {
     .toBe(present);
 }
 
-test.describe('Sail ratings', () => {
+test.describe('Ratings', () => {
   // Override root `fullyParallel`: shared `username` / `rating-tech` rows must not
   // race with concurrent hooks/tests from this file on other workers.
   test.describe.configure({ mode: 'serial' });
@@ -110,46 +110,33 @@ test.describe('Sail ratings', () => {
     await page.goto('/ratings');
 
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Sail ratings' })
+      page.getByRole('heading', { level: 1, name: 'Ratings' })
     ).toBeVisible();
+    const techRating = page.getByRole('article', { name: 'Tech Rating' });
+    await expect(techRating).toBeVisible();
     await expect(
-      page.getByRole('rowheader', { name: /Tech Rating/ })
-    ).toBeVisible();
-    const techRatingRow = page.getByRole('row').filter({
-      has: page.getByRole('rowheader', { name: /Tech Rating/ }),
-    });
-    await expect(
-      techRatingRow.getByRole('link', { name: 'Intro Sailing 101' })
+      techRating.getByRole('link', { name: 'Intro Sailing 101' })
     ).toHaveAttribute('href', '/classes/intro-sailing-101');
     await expect(
-      techRatingRow.getByRole('link', { name: 'Tech dinghy' })
+      techRating.getByRole('link', { name: 'Tech dinghy' })
     ).toHaveAttribute('href', '/fleet/tech-dinghy');
-    const guideLink = techRatingRow.getByRole('link', { name: 'Guide' });
+    const guideLink = techRating.getByRole('link', { name: 'Guide' });
     await expect(guideLink).toHaveAttribute(
       'href',
       'https://sailing.mit.edu/card/ratings.php'
     );
     await expect(guideLink).toHaveAttribute('target', '_blank');
+    await expect(techRating.getByText('Classes/checkoffs')).toBeVisible();
+    await expect(techRating.getByText('Boats', { exact: true })).toBeVisible();
+    await expect(techRating.getByText('Wind')).toBeVisible();
     await expect(
-      page.getByRole('columnheader', { name: 'Rating' })
+      page.getByRole('article', { name: 'Provisional Rating' })
     ).toBeVisible();
     await expect(
-      page.getByRole('columnheader', { name: 'Boats' })
+      page.getByRole('article', { name: 'Bluewater Crew' })
     ).toBeVisible();
     await expect(
-      page.getByRole('columnheader', { name: 'Wind' })
-    ).toBeVisible();
-    await expect(
-      page.getByRole('columnheader', { name: 'Guide' })
-    ).toBeVisible();
-    await expect(
-      page.getByRole('rowheader', { name: /Provisional Rating/ })
-    ).toBeVisible();
-    await expect(
-      page.getByRole('rowheader', { name: /Bluewater Crew/ })
-    ).toBeVisible();
-    await expect(
-      page.getByRole('rowheader', { name: /Bluewater Skipper/ })
+      page.getByRole('article', { name: 'Bluewater Skipper' })
     ).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'Deprecated ratings' })
@@ -257,7 +244,7 @@ test.describe('Sail ratings', () => {
 
       await page.goto('/profile/ratings');
       await expect(
-        page.getByRole('heading', { name: 'Sail ratings' })
+        page.getByRole('heading', { name: 'Ratings' })
       ).toBeVisible();
       const ratingsTable = page.getByRole('table');
       const techRatingRow = ratingsTable.getByRole('row').filter({

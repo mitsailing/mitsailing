@@ -158,15 +158,16 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
     slug: 'home',
     path: '/',
     title: 'MIT Sailing',
-    metaTitle: 'MIT Sailing',
-    metaDescription: 'Pavilion and programs on the Charles.',
+    metaTitle: 'Learn to sail and race on the Charles',
+    metaDescription:
+      'Beginner and intermediate classes, fleet racing, and team racing on the Charles River in Cambridge. Open to MIT and the public.',
     blocks: [
       {
         id: 'cms-block-home-hero',
         kind: 'hero',
-        title: 'Sail the Charles River',
+        title: 'Learn to sail and race on the Charles',
         subtitle: 'MIT Sailing Pavilion',
-        body: "Learn, race, volunteer, and explore the river with one of the nation's most active university sailing communities.",
+        body: '<p>Beginner and intermediate classes, fleet racing, and team racing — open to MIT students, faculty, staff, and the public.</p>',
         ctaLabel: 'View classes',
         ctaUrl: '/classes',
         imageSrc: '/assets/images/home-hero-charles-sailing.jpg',

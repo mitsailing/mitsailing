@@ -329,8 +329,12 @@ describe('MitSailingHomePageView', () => {
       screen.getByRole('img', { name: 'Sailors on the Charles River' })
     ).toBeVisible();
     expect(
-      screen.getByRole('heading', { name: 'Learn to sail on the Charles' })
+      screen.getByRole('heading', {
+        level: 1,
+        name: 'Learn to sail on the Charles',
+      })
     ).toBeVisible();
+    expect(screen.getByText(/Membership includes/u)).toBeVisible();
     expect(screen.getByRole('link', { name: 'See classes' })).toHaveAttribute(
       'href',
       '/classes'
