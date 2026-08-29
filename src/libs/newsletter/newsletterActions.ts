@@ -1,11 +1,8 @@
 'use server';
 
-import { fixedWindow, request } from '@arcjet/next';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
-import arcjet from '@/libs/Arcjet';
 import { requireCurrentUser } from '@/libs/auth/dal';
-import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 import { NEWSLETTER_FORM_SOURCE } from '@/libs/newsletter/newsletterConstants';
 import {
@@ -19,6 +16,7 @@ import type {
   NewsletterSignupField,
   NewsletterSignupFieldError,
 } from '@/libs/newsletter/newsletterValidation';
+import { checkRateLimit, newsletterSignupRateLimit } from '@/libs/rateLimit';
 import { getI18nPath } from '@/utils/Helpers';
 
 export type NewsletterSignupFormError = 'rate_limited' | 'unknown';
@@ -40,14 +38,6 @@ export type NewsletterSignupFormState =
 export type NewsletterPreferenceActionResult =
   | { ok: true }
   | { ok: false; error: 'invalid_token' | 'unauthorized' | 'unknown' };
-
-const newsletterSignupRateLimit = arcjet.withRule(
-  fixedWindow({
-    max: 5,
-    mode: 'LIVE',
-    window: '10m',
-  })
-);
 
 const REQUEST_METADATA_MAX_LENGTH = 500;
 
@@ -101,19 +91,18 @@ export async function submitNewsletterSignupAction(
     return { ok: false, fieldErrors: parsed.fieldErrors };
   }
 
-  if (Env.ARCJET_KEY) {
-    const req = await request();
-    const decision = await newsletterSignupRateLimit.protect(req);
-    if (decision.isDenied()) {
-      return { ok: false, formError: 'rate_limited' };
-    }
-  }
-
   const headerList = await headers();
   const ipAddress =
     firstForwardedIp(headerList.get('x-forwarded-for')) ??
     truncateMetadata(headerList.get('x-real-ip'));
   const userAgent = truncateMetadata(headerList.get('user-agent'));
+  const { rateLimited } = await checkRateLimit({
+    ...newsletterSignupRateLimit,
+    key: ipAddress ?? 'unknown',
+  });
+  if (rateLimited) {
+    return { ok: false, formError: 'rate_limited' };
+  }
 
   try {
     await subscribeEmailToNewsletterLists({

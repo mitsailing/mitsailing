@@ -169,7 +169,6 @@ export const Env = createEnv({
   skipValidation:
     process.env.SKIP_ENV_VALIDATION === 'true' || isStorybookNpmScript,
   server: {
-    ARCJET_KEY: z.string().startsWith('ajkey_').optional(),
     BETTER_AUTH_SECRET: z.string().min(32),
     DATABASE_URL: z.string().min(1),
     NEWSLETTER_REVALIDATE_SECRET: z.string().min(32).optional(),
@@ -302,7 +301,6 @@ export const Env = createEnv({
       validateFinalEnv(env, ctx);
     }),
   runtimeEnv: {
-    ARCJET_KEY: process.env.ARCJET_KEY,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
     NEWSLETTER_REVALIDATE_SECRET: process.env.NEWSLETTER_REVALIDATE_SECRET,

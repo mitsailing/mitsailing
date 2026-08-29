@@ -14,9 +14,8 @@
     "url": "git+https://github.com/mitsailing/mitsailing.git"
   },
   "scripts": {
-    "dev:spotlight": "npx @spotlightjs/spotlight",
     "dev:next": "next dev",
-    "dev:app": "run-p dev:next dev:spotlight",
+    "dev:app": "next dev",
     "db:up": "node scripts/prepare-local-media-storage.cjs && docker compose up -d postgres mailpit redis tusd media",
     "db:down": "docker compose down",
     "db:test:up": "npm run db:up",
@@ -69,7 +68,6 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@arcjet/next": "^1.4.0",
     "@better-auth/i18n": "~1.6.30",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
@@ -117,6 +115,7 @@
     "pdf-lib": "1.17.1",
     "pg": "^8.21.0",
     "radix-ui": "^1.4.3",
+    "rate-limiter-flexible": "^11.2.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-email": "^6.5.0",
@@ -142,7 +141,6 @@
     "@next/bundle-analyzer": "^16.3.3",
     "@playwright/test": "^1.60.0",
     "@react-email/ui": "6.5.0",
-    "@spotlightjs/spotlight": "^4.11.4",
     "@storybook/addon-a11y": "^10.4.2",
     "@storybook/addon-docs": "^10.4.2",
     "@storybook/addon-vitest": "^10.4.2",
