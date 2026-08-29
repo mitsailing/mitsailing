@@ -218,6 +218,7 @@ describe('ZenStack auth client helpers', () => {
     expect(zenstackMocks.ZenStackClient).toHaveBeenCalledOnce();
     expect(zenstackMocks.PostgresDialect).toHaveBeenCalledOnce();
     expect(zenstackMocks.Pool).toHaveBeenCalledWith({
+      application_name: 'mitsailing-web',
       connectionString: 'postgres://test',
     });
 

@@ -1,5 +1,4 @@
 import type { PrismaClient } from '@/generated/prisma/client';
-import { Env } from '@/libs/Env';
 import { importLegacyPaymentsFromSchema } from '@/libs/legacy-sync/legacyPaymentImport';
 
 const legacyPaymentFixtureMemberIds = [
@@ -38,7 +37,8 @@ const deprecatedLegacyPaymentFixtureOrderIds = [
 export async function seedLegacyProcessorPaymentFixtures(
   p: PrismaClient
 ): Promise<void> {
-  if (Env.APP_ENV === 'production' || Env.APP_ENV === 'staging') {
+  const appEnv = process.env.APP_ENV;
+  if (appEnv === 'production' || appEnv === 'staging') {
     return;
   }
 

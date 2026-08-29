@@ -47,6 +47,39 @@
   },
   "overrides": [
     {
+      "files": [
+        "prisma/seed.ts",
+        "prisma/seedClient.ts",
+        "prisma/seedMitSailing/index.ts",
+        "scripts/seed-donation-funds.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@/libs/DB",
+                "message": "CLI seed uses prisma/seedClient, not the Next.js DB singleton."
+              },
+              {
+                "name": "@/libs/Env",
+                "message": "CLI seed reads process.env, not Env.ts."
+              },
+              {
+                "name": "../src/libs/DB",
+                "message": "CLI seed uses prisma/seedClient, not the Next.js DB singleton."
+              },
+              {
+                "name": "../../src/libs/DB",
+                "message": "CLI seed uses prisma/seedClient, not the Next.js DB singleton."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["src/data/mit-sailing/**"],
       "rules": {
         "jsdoc/require-param": "off",

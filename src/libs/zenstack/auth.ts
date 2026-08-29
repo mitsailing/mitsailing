@@ -6,6 +6,7 @@ import { PostgresDialect } from '@zenstackhq/orm/dialects/postgres';
 import { PolicyPlugin } from '@zenstackhq/plugin-policy';
 import { Pool } from 'pg';
 import { Env } from '@/libs/Env';
+import { postgresApplicationName } from '@/libs/postgresApplicationName';
 import type { AppAuthContext } from '@/libs/zenstack/authContext';
 import type { SchemaType } from '../../../zenstack/schema';
 import { schema } from '../../../zenstack/schema';
@@ -23,7 +24,10 @@ function getPool(): Pool {
   if (cachedPool) {
     return cachedPool;
   }
-  const pool = new Pool({ connectionString: Env.DATABASE_URL });
+  const pool = new Pool({
+    application_name: postgresApplicationName(),
+    connectionString: Env.DATABASE_URL,
+  });
   globalThis.cachedPool = pool;
   return pool;
 }
