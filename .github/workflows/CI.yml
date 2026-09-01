@@ -151,7 +151,7 @@ jobs:
 
       - name: Upload coverage reports to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           use_oidc: true
           files: ./coverage/lcov.info
@@ -161,7 +161,7 @@ jobs:
       # replacement is codecov-action@v6 with report_type=test_results.
       - name: Upload test results to Codecov (Test Analytics)
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           use_oidc: true
           files: ./test-report.junit.xml
