@@ -171,7 +171,7 @@ function membershipPaymentStatusLabel(
   return labels.unpaid;
 }
 
-function adminUsersListFilterChips(props: {
+type AdminUsersListFilterChipInput = {
   readonly filters: AdminUsersListFilters;
   readonly chipLabels: Parameters<typeof adminUsersFilterChips>[1];
   readonly membershipPaymentLabel: string;
@@ -181,8 +181,14 @@ function adminUsersListFilterChips(props: {
     pastDue: string;
     unpaid: string;
   };
-  readonly chipRemoveAria: (_label: string) => string;
-}): AdminFilterChip[] {
+  readonly chipRemoveAria: Parameters<
+    typeof adminUsersFilterChips
+  >[1]['chipRemoveAria'];
+};
+
+function adminUsersListFilterChips(
+  props: AdminUsersListFilterChipInput
+): AdminFilterChip[] {
   const toolbarParams = adminUsersListToolbarParams(props.filters);
   const chips = adminUsersFilterChips(props.filters, props.chipLabels).map(
     (chip) => ({

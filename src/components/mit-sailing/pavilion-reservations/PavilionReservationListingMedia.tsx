@@ -3,7 +3,7 @@
 import { ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { PavilionReservableItemMediaDto } from '@/libs/mit-sailing/pavilionReservationTypes';
 
@@ -69,6 +69,7 @@ export function PavilionReservationListingMedia(props: {
   });
   const [index, setIndex] = useState(0);
   const [pointerStartX, setPointerStartX] = useState<number | null>(null);
+  const suppressSlideClickRef = useRef(false);
   const total = slides.length;
   const safeIndex = ((index % total) + total) % total;
   const slide = slides[safeIndex] ?? slides[0];
@@ -92,7 +93,10 @@ export function PavilionReservationListingMedia(props: {
           : 'bg-gradient-to-br from-mit-red/30 via-muted to-mit-line'
       )}
       onPointerDown={(event) => {
-        if (event.target instanceof Element && event.target.closest('button')) {
+        if (
+          event.target instanceof Element &&
+          event.target.closest('[data-media-control]')
+        ) {
           return;
         }
         setPointerStartX(event.clientX);
@@ -106,6 +110,7 @@ export function PavilionReservationListingMedia(props: {
         if (Math.abs(dx) < 48) {
           return;
         }
+        suppressSlideClickRef.current = true;
         step(dx < 0 ? 1 : -1);
       }}
     >
@@ -129,6 +134,10 @@ export function PavilionReservationListingMedia(props: {
         className="absolute inset-0 block size-full overflow-hidden p-0"
         type="button"
         onClick={() => {
+          if (suppressSlideClickRef.current) {
+            suppressSlideClickRef.current = false;
+            return;
+          }
           props.onOpen(slide.id === 'placeholder' ? null : slide.id);
         }}
       >
@@ -164,6 +173,7 @@ export function PavilionReservationListingMedia(props: {
         <button
           aria-label={props.shareLabel}
           className="pointer-events-auto absolute top-2 right-2 grid size-9 place-items-center rounded-full bg-card/95 text-mit-text shadow-sm hover:bg-card focus-visible:ring-2 focus-visible:ring-mit-red"
+          data-media-control=""
           type="button"
           onClick={(event) => {
             event.stopPropagation();
@@ -177,6 +187,7 @@ export function PavilionReservationListingMedia(props: {
             <button
               aria-label={t('venue_photo_prev')}
               className="pointer-events-auto absolute top-1/2 left-2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-card/95 text-mit-text shadow-sm hover:bg-card focus-visible:ring-2 focus-visible:ring-mit-red"
+              data-media-control=""
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
@@ -188,6 +199,7 @@ export function PavilionReservationListingMedia(props: {
             <button
               aria-label={t('venue_photo_next')}
               className="pointer-events-auto absolute top-1/2 right-2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-card/95 text-mit-text shadow-sm hover:bg-card focus-visible:ring-2 focus-visible:ring-mit-red"
+              data-media-control=""
               type="button"
               onClick={(event) => {
                 event.stopPropagation();

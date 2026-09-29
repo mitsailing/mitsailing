@@ -197,9 +197,9 @@ function RatingCatalogGuideFact(props: {
     <RatingFact
       label={props.label}
       value={
-        // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- guideUrl is an allowlisted external guide URL from the ratings catalog.
         <a
           className={ratingLinkClassName}
+          // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- guideUrl is an allowlisted external guide URL from the ratings catalog.
           href={props.rating.guideUrl}
           rel="noopener noreferrer"
           target="_blank"

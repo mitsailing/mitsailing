@@ -100,6 +100,20 @@ export type CatalogRow = Record<
   string | string[] | number | boolean | null | undefined
 >;
 
+/** Column and action copy shared by catalog and users tables. */
+export type AdminTableMessageKey =
+  | AdminCatalogResourceMessageKey
+  | AdminUsersMessageKey;
+
+/** Catalog table link built from a record id. */
+export type CatalogRecordHref = (id: string) => string;
+
+/** Header and action labels for a catalog or users table. */
+export type AdminTableTranslator = (key: AdminTableMessageKey) => string;
+
+/** Public page link for a catalog row, when the resource has one. */
+export type CatalogPublicViewHref = (row: CatalogRow) => string | null;
+
 /**
  * Admin user row for `/admin/users` lists and forms.
  *

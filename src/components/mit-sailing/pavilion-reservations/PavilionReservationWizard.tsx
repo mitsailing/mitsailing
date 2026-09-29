@@ -5,13 +5,13 @@ import { CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import type * as React from 'react';
 import { useActionState, useEffect, useRef, useState } from 'react';
+import { PavilionReservationFeesPanel } from '@/components/mit-sailing/pavilion-reservations/PavilionReservationFeesPanel';
 import {
   PavilionReservationIdentityStep,
   sampleHourlyFromItems,
 } from '@/components/mit-sailing/pavilion-reservations/PavilionReservationIdentityStep';
 import { PavilionReservationMitStatus } from '@/components/mit-sailing/pavilion-reservations/PavilionReservationMitStatus';
 import {
-  PavilionReservationFeesPanel,
   PavilionReservationFlatToggle,
   PavilionReservationRequestSummary,
 } from '@/components/mit-sailing/pavilion-reservations/PavilionReservationRequestSummary';
@@ -1377,7 +1377,9 @@ function PavilionReservationRequestStep(props: {
     if (!hash.startsWith('venue-')) {
       return;
     }
-    document.querySelector(`#${hash}`)?.scrollIntoView({ block: 'start' });
+    document
+      .querySelector(`#${CSS.escape(hash)}`)
+      ?.scrollIntoView({ block: 'start' });
   }, []);
 
   return (
@@ -2783,7 +2785,6 @@ export function PavilionReservationWizard(
           const prior = current[index];
           return (
             prior !== undefined &&
-            prior.id === slot.id &&
             prior.itemId === slot.itemId &&
             prior.date === slot.date &&
             prior.startMinutes === slot.startMinutes &&
@@ -2792,7 +2793,7 @@ export function PavilionReservationWizard(
         });
       return same ? current : next;
     });
-  }, [catalog.afterHours, catalog.hourlyVenues, persona]);
+  }, [catalog.afterHours, catalog.hourlyVenues, persona, slots]);
 
   const estimate = sumEstimatedTotal({
     items: props.items,
@@ -2978,7 +2979,12 @@ export function PavilionReservationWizard(
             selectedServiceIds={selectedServiceIds}
             services={services}
             slots={slots}
-            spaces={catalog.hourlyVenues}
+            spaces={[
+              ...catalog.hourlyVenues,
+              ...catalog.addons,
+              ...catalog.programs,
+              ...catalog.afterHours,
+            ]}
           />
           <PavilionReservationFooter
             contactStepValid={contactStepValid}

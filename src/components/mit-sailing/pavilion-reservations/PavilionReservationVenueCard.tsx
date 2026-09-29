@@ -173,9 +173,10 @@ export function PavilionReservationVenueCard(props: {
               ? t('venue_academic_close')
               : t('venue_after_sunset_fees', {
                   after10: formatPavilionReservationMoney(after10Cents),
-                  after2: formatPavilionReservationMoney(
-                    after2Cents ?? after10Cents
-                  ),
+                  after2:
+                    after2Cents === null
+                      ? t('price_on_request')
+                      : formatPavilionReservationMoney(after2Cents),
                 })}
           </p>
           {props.bookedCount > 0 ? (

@@ -45,17 +45,17 @@ import { reorderCatalogResourceAction } from '@/libs/admin/catalog/catalogAction
 import type {
   AdminCatalogResourceMessageKey,
   AdminListColumnDef,
+  AdminTableMessageKey,
+  AdminTableTranslator,
   AdminUsersMessageKey,
+  CatalogPublicViewHref,
+  CatalogRecordHref,
   CatalogReorderScope,
   CatalogResourceDefinition,
   CatalogRow,
 } from '@/libs/admin/catalog/types';
 import { Link } from '@/libs/I18nNavigation';
 import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
-
-type AdminTableMessageKey =
-  | AdminCatalogResourceMessageKey
-  | AdminUsersMessageKey;
 
 const ADMIN_CATALOG_TABLE_PAGE_SIZE = 50;
 
@@ -332,12 +332,12 @@ function buildCatalogTablePagination(options: {
 function AdminCatalogTableMobileRow(props: {
   readonly canDelete: boolean;
   readonly canUpdate: boolean;
-  readonly deleteHref: (_id: string) => string;
+  readonly deleteHref: CatalogRecordHref;
   readonly displayColumns: AdminListColumnDef[];
-  readonly editHref: (_id: string) => string;
-  readonly primaryHref: (_id: string) => string;
+  readonly editHref: CatalogRecordHref;
+  readonly primaryHref: CatalogRecordHref;
   readonly row: CatalogRow;
-  readonly t: (_key: AdminTableMessageKey) => string;
+  readonly t: AdminTableTranslator;
   readonly userImpersonation: AdminCatalogTableProps['userImpersonation'];
 }) {
   const ordered = listColumnsWithNameFirst(props.displayColumns);
@@ -421,12 +421,12 @@ function AdminCatalogTableRowCells(props: {
   readonly canDelete: boolean;
   readonly canUpdate: boolean;
   readonly displayColumns: AdminListColumnDef[];
-  readonly deleteHref: (_id: string) => string;
-  readonly editHref: (_id: string) => string;
-  readonly primaryHref: (_id: string) => string;
-  readonly publicViewHref: (_row: CatalogRow) => string | null;
+  readonly deleteHref: CatalogRecordHref;
+  readonly editHref: CatalogRecordHref;
+  readonly primaryHref: CatalogRecordHref;
+  readonly publicViewHref: CatalogPublicViewHref;
   readonly row: CatalogRow;
-  readonly t: (_key: AdminTableMessageKey) => string;
+  readonly t: AdminTableTranslator;
   readonly userImpersonation: AdminCatalogTableProps['userImpersonation'];
 }) {
   const cols = props.displayColumns.map((col) => {

@@ -2731,6 +2731,7 @@
     "fees_panel_before_sunset": "At or before sunset: no after-close fee (hourly only)",
     "fees_panel_through_10pm": "After sunset through 10:00 PM: {amount} flat (in addition to hourly)",
     "fees_panel_through_2am": "After 10:00 PM through 2:00 AM: {amount} flat (replaces the 10pm fee)",
+    "fees_panel_through_2am_on_request": "After 10:00 PM through 2:00 AM: price on request (replaces the 10pm fee)",
     "fees_panel_window": "Bookable window: 7:00 AM–2:00 AM next day",
     "fees_panel_hourly_rates": "Hourly space: dock {dock}/hr · roof {roof}/hr",
     "fees_panel_availability": "Availability is not guaranteed when you pick a slot. We confirm after you submit.",
