@@ -1,6 +1,8 @@
 import 'server-only';
-import { RateLimiterMemory } from 'rate-limiter-flexible';
+import IORedis from 'ioredis';
+import { RateLimiterMemory, RateLimiterRedis } from 'rate-limiter-flexible';
 import { Env } from '@/libs/Env';
+import { logger } from '@/libs/Logger';
 
 export type RateLimitDecision = {
   rateLimited: boolean;
@@ -20,29 +22,58 @@ export const newsletterSignupRateLimit = {
   prefix: 'newsletter-signup',
 } as const;
 
-const limiters = new Map<string, RateLimiterMemory>();
+type SharedLimiter = RateLimiterMemory | RateLimiterRedis;
 
-function memoryLimiter(options: {
+const limiters = new Map<string, SharedLimiter>();
+let redisClient: IORedis | null = null;
+
+function sharedRedis(): IORedis | null {
+  if (!Env.REDIS_URL) {
+    return null;
+  }
+  if (!redisClient) {
+    redisClient = new IORedis(Env.REDIS_URL, {
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 1,
+    });
+    redisClient.on('error', (error: Error) => {
+      logger.error('Rate limit Redis error: {error}', { error });
+    });
+  }
+  return redisClient;
+}
+
+function sharedLimiter(options: {
   durationSeconds: number;
   points: number;
   prefix: string;
-}): RateLimiterMemory {
-  const cacheKey = `${options.prefix}:${options.points}:${options.durationSeconds}`;
+}): SharedLimiter {
+  const redis = sharedRedis();
+  const store = redis ? 'redis' : 'memory';
+  const cacheKey = `${store}:${options.prefix}:${options.points}:${options.durationSeconds}`;
   const existing = limiters.get(cacheKey);
   if (existing) {
     return existing;
   }
-  const limiter = new RateLimiterMemory({
-    duration: options.durationSeconds,
-    keyPrefix: options.prefix,
-    points: options.points,
-  });
+  const limiter = redis
+    ? new RateLimiterRedis({
+        duration: options.durationSeconds,
+        keyPrefix: options.prefix,
+        points: options.points,
+        storeClient: redis,
+      })
+    : new RateLimiterMemory({
+        duration: options.durationSeconds,
+        keyPrefix: options.prefix,
+        points: options.points,
+      });
   limiters.set(cacheKey, limiter);
   return limiter;
 }
 
 /**
- * Consumes one point for an in-process fixed window (long-lived Node, not Edge).
+ * Consumes one point from the shared Redis window when Redis is configured.
+ * Uses this process's memory when REDIS_URL is unset.
  *
  * @param options - Limiter identity, window, and client key
  * @returns Whether the caller is over the limit
@@ -55,10 +86,11 @@ export async function checkRateLimit(
   }
 
   try {
-    await memoryLimiter(options).consume(options.key);
+    await sharedLimiter(options).consume(options.key);
     return { rateLimited: false };
   } catch (error) {
     if (error instanceof Error) {
+      logger.error('Rate limit check failed open: {error}', { error });
       return { rateLimited: false };
     }
     return { rateLimited: true };

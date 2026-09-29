@@ -41,7 +41,6 @@ function ratingRow(
     grantableClasses: [],
     guideUrl: null,
     id,
-    isDeprecated: false,
     issuedAt: null,
     issuedByName: null,
     level: null,
@@ -108,7 +107,7 @@ describe('AdminUserRatingsPanel', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('explains disabled grant buttons for missing prerequisites and deprecated ratings', async () => {
+  it('explains disabled grant buttons for missing prerequisites and already granted ratings', async () => {
     const { AdminUserRatingsPanel } = await import('./AdminUserRatingsPanel');
 
     render(
@@ -126,12 +125,6 @@ describe('AdminUserRatingsPanel', () => {
             name: 'Tech',
           }),
           ratingRow({
-            eligibility: { eligible: false, reason: 'deprecated' },
-            id: 'old',
-            isDeprecated: true,
-            name: 'Old rating',
-          }),
-          ratingRow({
             eligibility: { eligible: false, reason: 'already_granted' },
             id: 'crew',
             name: 'Crew',
@@ -144,20 +137,15 @@ describe('AdminUserRatingsPanel', () => {
     const buttons = screen.getAllByRole('button', {
       name: 'rating_action_grant',
     });
-    expect(buttons).toHaveLength(3);
+    expect(buttons).toHaveLength(2);
     expect(buttons[0]).toBeDisabled();
     expect(buttons[0]).toHaveAccessibleDescription(
       'rating_grant_disabled_missing_prerequisites'
     );
     expect(buttons[1]).toBeDisabled();
     expect(buttons[1]).toHaveAccessibleDescription(
-      'rating_grant_disabled_deprecated'
-    );
-    expect(buttons[2]).toBeDisabled();
-    expect(buttons[2]).toHaveAccessibleDescription(
       'rating_grant_disabled_already_granted'
     );
-    expect(screen.getByText('rating_status_deprecated')).toBeInTheDocument();
   });
 
   it('renders rating alert messages for action error codes', async () => {
@@ -190,17 +178,6 @@ describe('AdminUserRatingsPanel', () => {
     expect(
       screen.getByText('rating_error_already_granted')
     ).toBeInTheDocument();
-
-    render(
-      await AdminUserRatingsPanel({
-        canAssignRatings: true,
-        errorCode: 'deprecated',
-        locale: 'en',
-        rows: [],
-        userId: 'user-1',
-      })
-    );
-    expect(screen.getByText('rating_error_deprecated')).toBeInTheDocument();
   });
 
   it('renders fallback alert messages for unknown and load failures', async () => {

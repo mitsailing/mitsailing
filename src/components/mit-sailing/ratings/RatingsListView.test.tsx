@@ -38,7 +38,6 @@ const techRating = {
   ],
   guideUrl: 'https://sailing.mit.edu/card/ratings.php',
   id: 'rating-tech',
-  isDeprecated: false,
   level: '1',
   name: 'Tech Rating',
   requiredRatings: [],
@@ -60,7 +59,6 @@ const provisionalRating = {
   grantableClasses: [],
   guideUrl: null,
   id: 'rating-provisional',
-  isDeprecated: false,
   level: null,
   name: 'Provisional Rating',
   requiredRatings: [
@@ -72,22 +70,6 @@ const provisionalRating = {
   ],
   shortName: null,
   slug: 'provisional-rating',
-  unlockedBoats: [],
-  windCondition: null,
-} satisfies PublicSailingRating;
-
-const legacyRating = {
-  category: null,
-  description: 'Older rating kept for historical reference.',
-  grantableClasses: [],
-  guideUrl: null,
-  id: 'rating-legacy',
-  isDeprecated: true,
-  level: null,
-  name: 'Legacy Rating',
-  requiredRatings: [],
-  shortName: null,
-  slug: 'legacy-rating',
   unlockedBoats: [],
   windCondition: null,
 } satisfies PublicSailingRating;
@@ -148,41 +130,5 @@ describe('RatingsListView', () => {
       'No ratings are published yet.'
     );
     expect(screen.queryByRole('article')).toBeNull();
-    expect(
-      screen.queryByRole('heading', { name: 'No longer issued' })
-    ).toBeNull();
-  });
-
-  it('separates deprecated ratings from the active catalog', async () => {
-    render(
-      await RatingsListView({
-        locale: 'en',
-        ratings: [techRating, legacyRating],
-      })
-    );
-
-    expect(screen.getByRole('article', { name: 'Tech Rating' })).toBeVisible();
-    expect(screen.queryByRole('article', { name: 'Legacy Rating' })).toBeNull();
-    const deprecatedSection = screen
-      .getByRole('heading', { name: 'No longer issued' })
-      .closest('section');
-    if (!(deprecatedSection instanceof HTMLElement)) {
-      throw new TypeError('Expected deprecated ratings section to render.');
-    }
-    expect(within(deprecatedSection).getByRole('listitem')).toHaveTextContent(
-      /Legacy Rating\. Older rating kept for historical reference/u
-    );
-  });
-
-  it('renders deprecated-only catalogs without an empty active list', async () => {
-    render(await RatingsListView({ locale: 'en', ratings: [legacyRating] }));
-
-    expect(screen.queryByRole('article')).toBeNull();
-    expect(
-      screen.getByRole('heading', { name: 'No longer issued' })
-    ).toBeVisible();
-    expect(screen.getByRole('listitem')).toHaveTextContent(
-      /Legacy Rating\. Older rating kept for historical reference/u
-    );
   });
 });

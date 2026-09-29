@@ -669,6 +669,34 @@ describe('admin user pages', () => {
     expect(mocks.listUserRatingAssignmentRows).toHaveBeenCalledWith('user-1');
   });
 
+  it('translates affiliation and role on the read-only account tab', async () => {
+    mocks.requirePermission.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: {
+        appRole: Role.DOCK_STAFF,
+        banned: false,
+        emailVerified: true,
+        id: 'staff-1',
+        role: Role.USER,
+      },
+    });
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(screen.queryByTestId('member-details-form')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('affiliation_other_non_student')
+    ).toBeInTheDocument();
+    expect(screen.getByText('role_user')).toBeInTheDocument();
+    expect(screen.queryByText('OTHER_NON_STUDENT')).not.toBeInTheDocument();
+  });
+
   it('shows the sailing-card panel without replacing ratings', async () => {
     const { default: AdminUserShowPage } = await import('./[id]/page');
 

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { componentTestRouter } from '@/test/component';
@@ -217,6 +217,74 @@ describe('SignUpForm', () => {
       'aria-invalid',
       'true'
     );
+  });
+
+  it('clear confirmation mismatch when password is edited to match', async () => {
+    render(<SignUpForm callbackUrl="/fleet" />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText('Password'), 'different-password');
+    await user.type(
+      screen.getByLabelText('Confirm password'),
+      'correct-password'
+    );
+    await user.tab();
+
+    expect(screen.getByText('Passwords do not match.')).toBeInTheDocument();
+
+    const password = screen.getByLabelText('Password');
+    await user.clear(password);
+    await user.type(password, 'correct-password');
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText('Passwords do not match.')
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.getByLabelText('Confirm password')).not.toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+  });
+
+  it('show confirmation mismatch when password is edited away from a match', async () => {
+    render(<SignUpForm callbackUrl="/fleet" />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText('Password'), 'correct-password');
+    await user.type(
+      screen.getByLabelText('Confirm password'),
+      'correct-password'
+    );
+    await user.tab();
+
+    expect(
+      screen.queryByText('Passwords do not match.')
+    ).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Password'), 'x');
+
+    expect(
+      await screen.findByText('Passwords do not match.')
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirm password')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+  });
+
+  it('keep empty confirmation valid while the password is entered', async () => {
+    render(<SignUpForm callbackUrl="/fleet" />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText('Password'), 'correct-password');
+    await user.tab();
+
+    expect(screen.getByLabelText('Confirm password')).not.toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+    expect(screen.queryByText('Required.')).not.toBeInTheDocument();
   });
 
   it('show safe error before submitting invalid sign-up email', async () => {

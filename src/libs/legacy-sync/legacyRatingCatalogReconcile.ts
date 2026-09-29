@@ -115,7 +115,6 @@ export async function reconcileLegacyRatingCatalogGrants(props: {
     data: {
       legacyRatingType: null,
       isVisible: false,
-      isDeprecated: true,
     },
   });
 

@@ -14,7 +14,6 @@ export type SailingRatingBrief = {
   slug: string;
   name: string;
   shortName: string | null;
-  isDeprecated: boolean;
 };
 
 export type PublicSailingRating = SailingRatingBrief & {
@@ -50,7 +49,6 @@ export type SailingRatingReadClient = Pick<
 >;
 
 type ListUserRatingAssignmentRowsOptions = {
-  includeDeprecated?: boolean;
   client?: SailingRatingReadClient;
 };
 
@@ -70,7 +68,6 @@ const publicSailingRatingSelect = {
   level: true,
   windCondition: true,
   guideUrl: true,
-  isDeprecated: true,
 } as const;
 
 function isPresent<T>(value: T | null | undefined): value is T {
@@ -116,7 +113,6 @@ export async function listRequiredRatingsForTarget(props: {
           slug: true,
           name: true,
           shortName: true,
-          isDeprecated: true,
         },
       },
     },
@@ -130,8 +126,7 @@ export async function listRequiredRatingsForTarget(props: {
 }
 
 async function listPublicSailingRatingsForClient(
-  client: SailingRatingReadClient,
-  props: { includeDeprecated?: boolean } = {}
+  client: SailingRatingReadClient
 ): Promise<PublicSailingRating[]> {
   const [ratings, classRules, boatRules, ratingPrerequisiteRules] =
     await Promise.all([
@@ -139,7 +134,6 @@ async function listPublicSailingRatingsForClient(
         where: {
           id: { in: [...CATALOG_SAILING_RATING_IDS] },
           isVisible: true,
-          ...(props.includeDeprecated === false ? { isDeprecated: false } : {}),
         },
         orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
         select: publicSailingRatingSelect,
@@ -217,7 +211,6 @@ async function listGrantedLegacyOnlyPublicRatings(
   client: SailingRatingReadClient,
   props: {
     grantRatingIds: readonly string[];
-    includeDeprecated?: boolean;
   }
 ): Promise<PublicSailingRating[]> {
   const legacyOnlyIds = props.grantRatingIds.filter(
@@ -230,7 +223,6 @@ async function listGrantedLegacyOnlyPublicRatings(
   const ratings = await client.sailingRating.findMany({
     where: {
       id: { in: legacyOnlyIds },
-      ...(props.includeDeprecated === false ? { isDeprecated: false } : {}),
     },
     orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
     select: publicSailingRatingSelect,
@@ -267,13 +259,9 @@ export async function listUserRatingAssignmentRows(
   options: ListUserRatingAssignmentRowsOptions = {}
 ): Promise<UserRatingAssignmentRow[]> {
   const client = options.client ?? prisma;
-  const { includeDeprecated } = options;
-  const catalogRatingRows =
-    options.client || includeDeprecated === false
-      ? await listPublicSailingRatingsForClient(client, {
-          includeDeprecated,
-        })
-      : await listPublicSailingRatings();
+  const catalogRatingRows = options.client
+    ? await listPublicSailingRatingsForClient(client)
+    : await listPublicSailingRatings();
   const [grants, prerequisiteRules] = await Promise.all([
     client.userSailingRating.findMany({
       where: { userId },
@@ -295,7 +283,6 @@ export async function listUserRatingAssignmentRows(
   ]);
   const legacyGrantRows = await listGrantedLegacyOnlyPublicRatings(client, {
     grantRatingIds: grants.map((row) => row.sailingRatingId),
-    includeDeprecated,
   });
   const publicRatingRows = mergeCatalogAndLegacyGrantRatings({
     catalogRows: catalogRatingRows,
@@ -319,7 +306,6 @@ export async function listUserRatingAssignmentRows(
         rules,
         activeRatingIds: activeIds,
         alreadyGranted: Boolean(grant),
-        isDeprecated: rating.isDeprecated,
       }),
     };
   });

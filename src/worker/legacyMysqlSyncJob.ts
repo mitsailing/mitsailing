@@ -61,14 +61,11 @@ export async function processLegacyMysqlSyncJob(): Promise<void> {
   }
   const reader = createLegacyMysqlReader({ password: config.mysqlPassword });
   try {
-    const outcome = await importLegacyData({
+    await importLegacyData({
       reader,
       sourceHost: config.sourceHost,
       useAdvisoryLock: true,
     });
-    if (!outcome.skipped) {
-      // import completed
-    }
   } finally {
     await reader.close();
   }

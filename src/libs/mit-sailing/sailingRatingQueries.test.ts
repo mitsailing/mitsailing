@@ -40,7 +40,6 @@ function catalogRating(props: { readonly id: string; readonly name: string }) {
     level: null,
     windCondition: null,
     guideUrl: null,
-    isDeprecated: false,
   };
 }
 

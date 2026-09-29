@@ -85,23 +85,6 @@ async function importRatingTypes(props: {
   readonly ratingTypes: readonly LegacyRatingTypeRow[];
 }) {
   const sailingRatingIdByLegacyType = new Map<string, string>();
-  const catalogSeenActive = new Map<string, boolean>();
-  for (const row of props.ratingTypes) {
-    const legacyRatingType = stringValue(row.type);
-    if (!legacyRatingType) {
-      continue;
-    }
-    const catalogId = legacyRatingCatalogId(legacyRatingType);
-    if (!catalogId) {
-      continue;
-    }
-    const isActive = stringValue(row.status) === '1';
-    catalogSeenActive.set(
-      catalogId,
-      (catalogSeenActive.get(catalogId) ?? false) || isActive
-    );
-  }
-
   let imported = 0;
   for (const row of props.ratingTypes) {
     const legacyRatingType = stringValue(row.type);
@@ -110,12 +93,6 @@ async function importRatingTypes(props: {
     }
     const catalogId = legacyRatingCatalogId(legacyRatingType);
     if (catalogId) {
-      await props.db.sailingRating.update({
-        where: { id: catalogId },
-        data: {
-          isDeprecated: !(catalogSeenActive.get(catalogId) ?? false),
-        },
-      });
       sailingRatingIdByLegacyType.set(legacyRatingType, catalogId);
       imported += 1;
       continue;
@@ -137,14 +114,12 @@ async function importRatingTypes(props: {
         guideUrl: null,
         displayOrder: positiveInt(row.rank),
         isVisible: false,
-        isDeprecated: stringValue(row.status) !== '1',
       },
       update: {
         name,
         shortName: name,
         displayOrder: positiveInt(row.rank),
         isVisible: false,
-        isDeprecated: stringValue(row.status) !== '1',
       },
       select: { id: true },
     });

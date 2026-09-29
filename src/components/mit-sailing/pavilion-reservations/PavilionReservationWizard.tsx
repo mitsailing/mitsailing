@@ -2771,28 +2771,28 @@ export function PavilionReservationWizard(
 
   useEffect(() => {
     const venueIds = new Set(catalog.hourlyVenues.map((item) => item.id));
-    setSlots((current) => {
-      const next = syncPavilionAfterHoursSlots({
-        afterHoursItems: catalog.afterHours,
-        createSlotId: createClientSlotId,
-        hourlyVenueIds: venueIds,
-        persona,
-        slots: current,
-      });
-      const same =
-        next.length === current.length &&
-        next.every((slot, index) => {
-          const prior = current[index];
-          return (
-            prior !== undefined &&
-            prior.itemId === slot.itemId &&
-            prior.date === slot.date &&
-            prior.startMinutes === slot.startMinutes &&
-            prior.endMinutes === slot.endMinutes
-          );
-        });
-      return same ? current : next;
+    const next = syncPavilionAfterHoursSlots({
+      afterHoursItems: catalog.afterHours,
+      createSlotId: createClientSlotId,
+      hourlyVenueIds: venueIds,
+      persona,
+      slots,
     });
+    const same =
+      next.length === slots.length &&
+      next.every((slot, index) => {
+        const prior = slots[index];
+        return (
+          prior !== undefined &&
+          prior.itemId === slot.itemId &&
+          prior.date === slot.date &&
+          prior.startMinutes === slot.startMinutes &&
+          prior.endMinutes === slot.endMinutes
+        );
+      });
+    if (!same) {
+      setSlots(next);
+    }
   }, [catalog.afterHours, catalog.hourlyVenues, persona, slots]);
 
   const estimate = sumEstimatedTotal({

@@ -10,7 +10,6 @@ export type SailingRatingSeed = {
   guideUrl: string | null;
   displayOrder: number;
   isVisible: boolean;
-  isDeprecated: boolean;
   legacyRatingType?: string;
 };
 
@@ -41,7 +40,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: 'https://sailing.mit.edu/card/swim.php',
     displayOrder: 0,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-tech',
@@ -57,7 +55,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: ratingsGuideUrl,
     displayOrder: 1,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-provisional',
@@ -73,7 +70,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: 'https://sailing.mit.edu/card/provisional.php',
     displayOrder: 2,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-crew',
@@ -89,7 +85,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: 'https://sailing.mit.edu/card/crew.pdf',
     displayOrder: 3,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-helmsman',
@@ -105,7 +100,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: ratingsGuideUrl,
     displayOrder: 4,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-lynx-catboat',
@@ -121,7 +115,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: 'https://sailing.mit.edu/lynx/',
     displayOrder: 5,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-laser-basic',
@@ -137,7 +130,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: 'https://sailing.mit.edu/laser/',
     displayOrder: 6,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-laser-advanced',
@@ -152,7 +144,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: 'https://sailing.mit.edu/laser/',
     displayOrder: 7,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-firefly-basic',
@@ -168,7 +159,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: ratingsGuideUrl,
     displayOrder: 8,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-firefly-advanced',
@@ -183,7 +173,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: ratingsGuideUrl,
     displayOrder: 9,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-420-basic',
@@ -199,7 +188,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: ratingsGuideUrl,
     displayOrder: 10,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-420-advanced',
@@ -214,7 +202,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: ratingsGuideUrl,
     displayOrder: 11,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-moth-basic',
@@ -230,7 +217,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: ratingsGuideUrl,
     displayOrder: 12,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-moth-advanced',
@@ -245,7 +231,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: ratingsGuideUrl,
     displayOrder: 13,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-board-sailing-class',
@@ -261,7 +246,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: 'https://sailing.mit.edu/windsurfing/',
     displayOrder: 14,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-board-sailing-basic',
@@ -277,7 +261,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: 'https://sailing.mit.edu/windsurfing/',
     displayOrder: 15,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-board-sailing-advanced',
@@ -292,7 +275,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: 'https://sailing.mit.edu/windsurfing/',
     displayOrder: 16,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-bluewater-crew',
@@ -308,7 +290,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: 'https://sailing.mit.edu/bluewater/ratings.php',
     displayOrder: 17,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-bluewater-skipper',
@@ -324,7 +305,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: 'https://sailing.mit.edu/bluewater/ratings.php',
     displayOrder: 18,
     isVisible: true,
-    isDeprecated: false,
   },
   {
     id: 'rating-sailing-team',
@@ -340,7 +320,6 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     guideUrl: ratingsGuideUrl,
     displayOrder: 19,
     isVisible: true,
-    isDeprecated: false,
   },
 ];
 

@@ -6,6 +6,7 @@ import { ProfileMemberInformationSection } from '@/app/[locale]/(auth)/profile/P
 import { Badge } from '@/components/ui/badge';
 import type { SailingAffiliation } from '@/generated/prisma/enums';
 import { updateAdminMemberDetailsAction } from '@/libs/admin/users/adminMemberDetailsActions';
+import { roleLabelKey } from '@/libs/auth/roles';
 import { formatPhoneForDisplay } from '@/utils/phoneValidation';
 
 type AdminMemberDetailsClientProps = {
@@ -107,6 +108,8 @@ function useAdminMemberDetailsFormState(props: AdminMemberDetailsClientProps) {
 export function AdminMemberDetailsClient(props: AdminMemberDetailsClientProps) {
   const t = useTranslations('AdminUsers');
   const form = useAdminMemberDetailsFormState(props);
+  const roleKey = roleLabelKey(props.roleLabel);
+  const roleLabel = roleKey === null ? t('empty_value') : t(roleKey);
 
   return (
     <div className="flex flex-col gap-3">
@@ -149,7 +152,7 @@ export function AdminMemberDetailsClient(props: AdminMemberDetailsClientProps) {
         emailVerifiedLabel={props.emailVerifiedLabel}
         identitySourceLabel={props.identitySourceLabel}
         metadataAriaLabel={t('member_metadata_aria_label')}
-        roleLabel={props.roleLabel}
+        roleLabel={roleLabel}
       />
     </div>
   );

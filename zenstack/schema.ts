@@ -4716,12 +4716,6 @@ export class SchemaType implements SchemaDef {
                     attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(true) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("is_visible") }] }] as readonly AttributeApplication[],
                     default: true as FieldDefault
                 },
-                isDeprecated: {
-                    name: "isDeprecated",
-                    type: "Boolean",
-                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("is_deprecated") }] }] as readonly AttributeApplication[],
-                    default: false as FieldDefault
-                },
                 createdAt: {
                     name: "createdAt",
                     type: "DateTime",

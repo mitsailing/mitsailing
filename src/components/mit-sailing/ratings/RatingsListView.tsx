@@ -311,11 +311,7 @@ export async function RatingsListView(props: RatingsListViewProps) {
     namespace: 'MitSailingRatings',
   });
 
-  const activeRatings = props.ratings.filter((rating) => !rating.isDeprecated);
-  const deprecatedRatings = props.ratings.filter(
-    (rating) => rating.isDeprecated
-  );
-  const pathSections = groupPublicRatingsByPath(activeRatings);
+  const pathSections = groupPublicRatingsByPath(props.ratings);
   const intro = {
     heading: t('list_heading'),
     intro: t('list_intro'),
@@ -376,29 +372,6 @@ export async function RatingsListView(props: RatingsListViewProps) {
           </div>
         </section>
       ))}
-
-      {deprecatedRatings.length > 0 ? (
-        <section
-          className={activeRatings.length > 0 ? 'mt-10' : 'mt-0 max-w-3xl'}
-        >
-          <h2 className="mb-3 font-mit-serif text-xl font-semibold text-mit-text md:text-2xl">
-            {t('section_deprecated')}
-          </h2>
-          <ul className="m-0 list-disc space-y-2 pl-5">
-            {deprecatedRatings.map((rating) => (
-              <li
-                className="text-sm leading-relaxed text-mit-text"
-                id={rating.slug}
-                key={rating.id}
-              >
-                <span className="font-semibold">{rating.name}</span>
-                {'. '}
-                {rating.description}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
     </>
   );
 }

@@ -143,9 +143,6 @@ test.describe('Ratings', () => {
     await expect(
       page.getByRole('article', { name: 'Bluewater Skipper' })
     ).toBeVisible();
-    await expect(
-      page.getByRole('heading', { name: 'No longer issued' })
-    ).toHaveCount(0);
   });
 
   test('boat detail shows required rating', async ({ page }) => {

@@ -1345,7 +1345,6 @@ model SailingRating {
     guideUrl String? @map("guide_url")
     displayOrder Int @default(0) @map("display_order")
     isVisible Boolean @default(true) @map("is_visible")
-    isDeprecated Boolean @default(false) @map("is_deprecated")
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt() @map("updated_at")
     userRatings UserSailingRating[]

@@ -19,6 +19,7 @@ import type {
 import {
   getSailingAffiliationOptions,
   getSailingAffiliationRule,
+  sailingAffiliationLabelKey,
 } from '@/libs/mit-sailing/sailingAffiliations';
 
 type ProfileDetailsErrorMessageKey =
@@ -57,28 +58,6 @@ function profileDetailsErrorMessageKey(
   error: Exclude<UpdateProfileDetailsResult, { ok: true }>['error']
 ): ProfileDetailsErrorMessageKey {
   return profileDetailsErrorMessageKeys[error];
-}
-
-function affiliationLabelKey(affiliation: SailingAffiliation) {
-  const keys = {
-    MIT_STUDENT: 'affiliation_mit_student',
-    MIT_FACULTY: 'affiliation_mit_faculty',
-    MIT_STAFF: 'affiliation_mit_staff',
-    MIT_ALUM: 'affiliation_mit_alum',
-    MIT_FAMILY: 'affiliation_mit_family',
-    MIT_AFFILIATE: 'affiliation_mit_affiliate',
-    WELLESLEY: 'affiliation_wellesley',
-    BRANDEIS: 'affiliation_brandeis',
-    NORTHEASTERN: 'affiliation_northeastern',
-    WINSOR: 'affiliation_winsor',
-    BROOKS: 'affiliation_brooks',
-    NROTC: 'affiliation_nrotc',
-    OTHER_STUDENT: 'affiliation_other_student',
-    OTHER_NON_STUDENT: 'affiliation_other_non_student',
-    NON_MIT: 'affiliation_non_mit',
-  } as const satisfies Record<SailingAffiliation, string>;
-
-  return keys[affiliation];
 }
 
 function profileAffiliationFromValue(value: string): SailingAffiliation | '' {
@@ -324,7 +303,7 @@ export function ProfileMemberInformationSection(props: {
                 <option value="">{t('affiliation_placeholder')}</option>
                 {getSailingAffiliationOptions().map((option) => (
                   <option key={option.value} value={option.value}>
-                    {tOnboarding(affiliationLabelKey(option.value))}
+                    {tOnboarding(sailingAffiliationLabelKey(option.value))}
                   </option>
                 ))}
               </NativeSelect>

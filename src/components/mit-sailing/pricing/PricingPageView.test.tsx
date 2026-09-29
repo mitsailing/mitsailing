@@ -1,5 +1,4 @@
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { mitRecreationMembershipHref } from '@/data/mit-sailing/mitRecreationMembership';
 import { PricingPageView } from './PricingPageView';
@@ -42,18 +41,10 @@ function expectPricingColumn(name: RegExp) {
   ).toBeInTheDocument();
 }
 
-async function openRatesDialog() {
-  const user = userEvent.setup();
-
-  const [gymRateButton] = screen.getAllByRole('button', {
-    name: 'See MIT Recreation rates',
+function mitRecreationRateLinks() {
+  return screen.getAllByRole('link', {
+    name: /See MIT Recreation rates/u,
   });
-  if (!gymRateButton) {
-    throw new Error('Missing MIT Recreation rates button');
-  }
-  await user.click(gymRateButton);
-
-  return screen.getByRole('dialog', { name: 'Annual membership rates' });
 }
 
 describe('PricingPageView', () => {
@@ -110,12 +101,9 @@ describe('PricingPageView', () => {
     ).toBeInTheDocument();
   });
 
-  it('summarizes annual onboarding timing outside the rates dialog', () => {
+  it('summarizes annual onboarding timing on the page', () => {
     renderPricingPage();
 
-    expect(
-      screen.queryByRole('dialog', { name: 'Annual membership rates' })
-    ).not.toBeInTheDocument();
     expect(
       screen.getByText(
         'Sailing-card pricing resets each July 15. Complete onboarding and pay again before picking up a new card number.'
@@ -123,63 +111,38 @@ describe('PricingPageView', () => {
     ).toBeInTheDocument();
   });
 
-  it('opens MIT Recreation rates from the Normal card', async () => {
+  it('links MIT Recreation rates from the Normal plan only', () => {
     renderPricingPage();
 
-    const ratesDialog = await openRatesDialog();
+    const rateLinks = mitRecreationRateLinks();
+    expect(rateLinks).toHaveLength(2);
+    for (const link of rateLinks) {
+      expect(link).toHaveAttribute('href', mitRecreationMembershipHref);
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    }
 
+    const normalCard = screen.getByRole('region', { name: 'Normal' });
     expect(
-      within(ratesDialog).getAllByText('MIT student').length
-    ).toBeGreaterThan(0);
-    const ratesDialogText = ratesDialog.textContent ?? '';
-    expect(ratesDialogText.indexOf('MIT student family')).toBeGreaterThan(
-      ratesDialogText.indexOf('MIT student')
-    );
-    expect(within(ratesDialog).getAllByText('Included').length).toBeGreaterThan(
-      0
-    );
-    expect(
-      within(ratesDialog).getAllByText('$1,968/year').length
-    ).toBeGreaterThan(0);
-    expect(
-      within(ratesDialog).getAllByText('$264/year').length
-    ).toBeGreaterThan(0);
-    expect(
-      within(ratesDialog).getAllByText('Spouse/partner + eligible children.')
-        .length
-    ).toBeGreaterThan(0);
-    expect(within(ratesDialog).getAllByText(/Takeda/u).length).toBeGreaterThan(
-      0
-    );
-    expect(
-      within(ratesDialog).getAllByText('General public (Friends of MIT)').length
-    ).toBeGreaterThan(0);
-  });
-
-  it('keeps MIT Recreation rate fine print focused', async () => {
-    renderPricingPage();
-
-    const ratesDialog = await openRatesDialog();
-
-    expect(
-      within(ratesDialog).queryByText(/General public memberships use Friends/u)
-    ).not.toBeInTheDocument();
-    expect(
-      within(ratesDialog).queryByText(/Family covers a spouse or partner/u)
-    ).not.toBeInTheDocument();
-    expect(
-      within(ratesDialog).queryByText(
-        /Review MIT Recreation membership policies/u
-      )
-    ).not.toBeInTheDocument();
-    expect(
-      within(ratesDialog).queryByRole('link', { name: 'Membership policies' })
-    ).not.toBeInTheDocument();
-    expect(
-      within(ratesDialog).getByRole('link', {
-        name: 'MIT Recreation rates and access hours are subject to change.',
+      within(normalCard).getByRole('link', {
+        name: /See MIT Recreation rates/u,
       })
-    ).toHaveAttribute('href', mitRecreationMembershipHref);
+    ).toBeInTheDocument();
+    expect(normalCard).toHaveTextContent('opens in a new tab');
+    expect(
+      within(
+        screen.getByRole('region', { name: 'Full-year racing card' })
+      ).queryByRole('link', {
+        name: /See MIT Recreation rates/u,
+      })
+    ).not.toBeInTheDocument();
+    expect(
+      within(
+        screen.getByRole('region', { name: 'Thursday team racing' })
+      ).queryByRole('link', {
+        name: /See MIT Recreation rates/u,
+      })
+    ).not.toBeInTheDocument();
   });
 
   it('shows Mashnee in the Normal card', () => {

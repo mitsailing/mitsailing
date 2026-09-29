@@ -101,7 +101,6 @@ async function loadFleetBoatsForPublicUnchecked(): Promise<FleetBoatListRow[]> {
             slug: true,
             name: true,
             shortName: true,
-            isDeprecated: true,
           },
         },
       },
@@ -112,7 +111,6 @@ async function loadFleetBoatsForPublicUnchecked(): Promise<FleetBoatListRow[]> {
     description: plainTextFromCmsRichTextHtml(boat.description),
     requiredRatings: rules
       .filter((rule) => rule.boatId === boat.id)
-      .filter((rule) => !rule.sailingRating.isDeprecated)
       .filter((rule) => rule.groupKey !== 'advanced')
       .toSorted((a, b) => a.displayOrder - b.displayOrder)
       .map((rule) => rule.sailingRating),
@@ -170,15 +168,12 @@ export const getFleetBoatForPublicBySlug = cache(
     const sortedRatingRules = ratingRules.toSorted(
       (a, b) => a.displayOrder - b.displayOrder
     );
-    const activeRatingRules = sortedRatingRules.filter(
-      (rule) => !rule.sailingRating.isDeprecated
-    );
     return {
       ...boat,
-      requiredRatings: activeRatingRules
+      requiredRatings: sortedRatingRules
         .filter((rule) => rule.groupKey !== 'advanced')
         .map((rule) => rule.sailingRating),
-      advancedRatings: activeRatingRules
+      advancedRatings: sortedRatingRules
         .filter((rule) => rule.groupKey === 'advanced')
         .map((rule) => rule.sailingRating),
     };

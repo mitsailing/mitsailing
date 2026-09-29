@@ -168,11 +168,14 @@ describe('cms seed membership pricing', () => {
     expect(block?.subtitle).toBe(
       'Choose the card that matches what you want to sail.'
     );
-    expect(pricing).toMatchObject({
-      footnoteLinkLabel: 'See MIT Recreation rates',
-      footnoteLinkUrl: '/pricing',
+    expect(pricing?.footnoteLinkLabel).toBeUndefined();
+    expect(pricing?.footnoteLinkUrl).toBeUndefined();
+    expect(pricing?.plans[0]).toMatchObject({
+      detailLinkLabel: 'See MIT Recreation rates',
+      detailLinkUrl: 'https://www.mitrecsports.com/join/memberships/',
     });
-    expect(pricing?.footnote).toBeUndefined();
+    expect(pricing?.plans[1]?.detailLinkLabel).toBeUndefined();
+    expect(pricing?.plans[2]?.detailLinkLabel).toBeUndefined();
     expect(pricing?.plans.map((plan) => plan.title)).toEqual([
       'Normal',
       'Full-year racing card',

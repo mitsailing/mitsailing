@@ -12,9 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
-import { SailingAffiliation, SailingCardType } from '@/generated/prisma/enums';
+import { SailingCardType } from '@/generated/prisma/enums';
+import type { SailingAffiliation } from '@/generated/prisma/enums';
 import { Link } from '@/libs/I18nNavigation';
-import { getSailingAffiliationOptions } from '@/libs/mit-sailing/sailingAffiliations';
+import {
+  getSailingAffiliationOptions,
+  sailingAffiliationLabelKey,
+} from '@/libs/mit-sailing/sailingAffiliations';
 import { sailingCardAgreement } from '@/libs/mit-sailing/sailingCardAgreementContent';
 import { hasAutomaticFitnessMembership } from '@/libs/mit-sailing/sailingCardMembership';
 import type {
@@ -66,28 +70,6 @@ const legalNoticeRichText = {
 
 const describedBy = (ids: readonly (string | undefined)[]) =>
   ids.filter((id) => id !== undefined).join(' ');
-
-const affiliationLabelKey = (affiliation: SailingAffiliation) => {
-  const keys = {
-    [SailingAffiliation.MIT_STUDENT]: 'affiliation_mit_student',
-    [SailingAffiliation.MIT_FACULTY]: 'affiliation_mit_faculty',
-    [SailingAffiliation.MIT_STAFF]: 'affiliation_mit_staff',
-    [SailingAffiliation.MIT_ALUM]: 'affiliation_mit_alum',
-    [SailingAffiliation.MIT_FAMILY]: 'affiliation_mit_family',
-    [SailingAffiliation.MIT_AFFILIATE]: 'affiliation_mit_affiliate',
-    [SailingAffiliation.WELLESLEY]: 'affiliation_wellesley',
-    [SailingAffiliation.BRANDEIS]: 'affiliation_brandeis',
-    [SailingAffiliation.NORTHEASTERN]: 'affiliation_northeastern',
-    [SailingAffiliation.WINSOR]: 'affiliation_winsor',
-    [SailingAffiliation.BROOKS]: 'affiliation_brooks',
-    [SailingAffiliation.NROTC]: 'affiliation_nrotc',
-    [SailingAffiliation.OTHER_STUDENT]: 'affiliation_other_student',
-    [SailingAffiliation.OTHER_NON_STUDENT]: 'affiliation_other_non_student',
-    [SailingAffiliation.NON_MIT]: 'affiliation_non_mit',
-  } as const satisfies Record<SailingAffiliation, string>;
-
-  return keys[affiliation];
-};
 
 export function AffiliationSelect(props: {
   readonly affiliation: SailingAffiliation | '';
@@ -160,7 +142,7 @@ export function AffiliationSelect(props: {
             <option value="">{t('affiliation_placeholder')}</option>
             {getSailingAffiliationOptions().map((option) => (
               <option key={option.value} value={option.value}>
-                {t(affiliationLabelKey(option.value))}
+                {t(sailingAffiliationLabelKey(option.value))}
               </option>
             ))}
           </NativeSelect>

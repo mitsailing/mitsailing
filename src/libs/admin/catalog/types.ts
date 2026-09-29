@@ -105,14 +105,20 @@ export type AdminTableMessageKey =
   | AdminCatalogResourceMessageKey
   | AdminUsersMessageKey;
 
+// `typeof` references each parameter so Codacy ESLint does not treat the signature name as unused.
+
 /** Catalog table link built from a record id. */
-export type CatalogRecordHref = (id: string) => string;
+export type CatalogRecordHref = (id: string) => typeof id;
 
 /** Header and action labels for a catalog or users table. */
-export type AdminTableTranslator = (key: AdminTableMessageKey) => string;
+export type AdminTableTranslator = (
+  key: AdminTableMessageKey
+) => typeof key extends AdminTableMessageKey ? string : never;
 
 /** Public page link for a catalog row, when the resource has one. */
-export type CatalogPublicViewHref = (row: CatalogRow) => string | null;
+export type CatalogPublicViewHref = (
+  row: CatalogRow
+) => typeof row extends CatalogRow ? string | null : never;
 
 /**
  * Admin user row for `/admin/users` lists and forms.

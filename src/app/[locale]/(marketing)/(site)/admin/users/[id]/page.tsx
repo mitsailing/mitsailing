@@ -74,9 +74,11 @@ import {
   Permission,
 } from '@/libs/auth/appPermissions';
 import { appRoleFromSessionUser, requirePermission } from '@/libs/auth/dal';
+import { roleLabelKey } from '@/libs/auth/roles';
 import { getAdminUserEmailMessagesPage } from '@/libs/email/emailMessages';
 import type { AdminUserEmailMessageRow } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
+import { sailingAffiliationLabelKey } from '@/libs/mit-sailing/sailingAffiliations';
 import {
   getCurrentSailingCardYear,
   hasCurrentSailingCard,
@@ -1197,12 +1199,40 @@ async function suggestedSailingCardNumber(props: {
   return nextNumber;
 }
 
+function translatedMemberAffiliation(props: {
+  readonly affiliation: SailingAffiliation | null;
+  readonly emptyValue: string;
+  readonly tAffiliation: (
+    key: ReturnType<typeof sailingAffiliationLabelKey>
+  ) => string;
+}) {
+  if (props.affiliation === null) {
+    return props.emptyValue;
+  }
+  return props.tAffiliation(sailingAffiliationLabelKey(props.affiliation));
+}
+
+function translatedMemberRole(props: {
+  readonly emptyValue: string;
+  readonly role: string;
+  readonly t: (key: NonNullable<ReturnType<typeof roleLabelKey>>) => string;
+}) {
+  const key = roleLabelKey(props.role);
+  if (key === null) {
+    return props.emptyValue;
+  }
+  return props.t(key);
+}
+
 function AdminMemberDetailsReadOnly(props: {
   readonly emailVerifiedLabel: string;
   readonly heading: string;
   readonly identitySourceLabel: string;
   readonly memberDetails: ReturnType<typeof adminMemberDetailsInitialValues>;
   readonly t: Awaited<ReturnType<typeof getTranslations>>;
+  readonly tAffiliation: (
+    key: ReturnType<typeof sailingAffiliationLabelKey>
+  ) => string;
 }) {
   const emptyValue = props.t('empty_value');
   const fullName =
@@ -1226,7 +1256,11 @@ function AdminMemberDetailsReadOnly(props: {
         />
         <AdminUserDetailValue
           label={props.t('identity_affiliation')}
-          value={props.memberDetails.sailingAffiliation ?? emptyValue}
+          value={translatedMemberAffiliation({
+            affiliation: props.memberDetails.sailingAffiliation,
+            emptyValue,
+            tAffiliation: props.tAffiliation,
+          })}
         />
         <AdminUserDetailValue
           label={props.t('column_mit_id')}
@@ -1250,7 +1284,11 @@ function AdminMemberDetailsReadOnly(props: {
         />
         <AdminUserDetailValue
           label={props.t('column_role')}
-          value={props.memberDetails.roleLabel || emptyValue}
+          value={translatedMemberRole({
+            emptyValue,
+            role: props.memberDetails.roleLabel,
+            t: props.t,
+          })}
         />
         <AdminUserDetailValue
           label={props.t('identity_source')}
@@ -1286,6 +1324,9 @@ function AdminUserShowTabPanels(props: {
   readonly sailingCardDetails: AdminUserSailingCardDetails;
   readonly suggestedCardNumber: number;
   readonly t: Awaited<ReturnType<typeof getTranslations>>;
+  readonly tAffiliation: (
+    key: ReturnType<typeof sailingAffiliationLabelKey>
+  ) => string;
   readonly user: CatalogRow;
   readonly userId: string;
   readonly userShowPath: string;
@@ -1320,6 +1361,7 @@ function AdminUserShowTabPanels(props: {
         identitySourceLabel={props.identitySourceLabel}
         memberDetails={props.memberDetails}
         t={props.t}
+        tAffiliation={props.tAffiliation}
       />
     );
 
@@ -1488,7 +1530,10 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     cardYear,
     pendingCardRequest,
   });
-  const t = await getTranslations({ locale, namespace: 'AdminUsers' });
+  const [t, tAffiliation] = await Promise.all([
+    getTranslations({ locale, namespace: 'AdminUsers' }),
+    getTranslations({ locale, namespace: 'OnboardingPage' }),
+  ]);
   const emailStatus = emailDeliverabilityStatus(user.emailDeliverabilityStatus);
   const emailStatusReason =
     typeof user.emailSuppressionReason === 'string'
@@ -1585,6 +1630,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
         sailingCardDetails={sailingCardDetails}
         suggestedCardNumber={suggestedCardNumber}
         t={t}
+        tAffiliation={tAffiliation}
         user={user}
         userId={id}
         userShowPath={userShowPath}

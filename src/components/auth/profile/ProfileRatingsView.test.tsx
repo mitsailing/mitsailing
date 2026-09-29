@@ -31,7 +31,6 @@ function ratingRow(
     eligibility: { eligible: true },
     grantableClasses: [],
     guideUrl: null,
-    isDeprecated: false,
     requiredRatings: [],
     issuedAt: null,
     issuedByName: null,

@@ -93,6 +93,7 @@ export function PavilionReservationListingMedia(props: {
           : 'bg-gradient-to-br from-mit-red/30 via-muted to-mit-line'
       )}
       onPointerDown={(event) => {
+        suppressSlideClickRef.current = false;
         if (
           event.target instanceof Element &&
           event.target.closest('[data-media-control]')

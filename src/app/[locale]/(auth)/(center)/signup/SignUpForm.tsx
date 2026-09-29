@@ -61,10 +61,12 @@ export function SignUpForm(props: SignUpFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const {
     formState: { errors },
+    getFieldState,
     getValues,
     handleSubmit,
     register,
     setValue,
+    trigger,
   } = useForm<SignUpFormValues>({
     defaultValues: {
       email: normalizeEmailAddress(props.initialEmail ?? ''),
@@ -251,6 +253,17 @@ export function SignUpForm(props: SignUpFormProps) {
               minLength: {
                 value: 8,
                 message: 'error_password_too_short',
+              },
+              onChange: () => {
+                const confirmation = getFieldState('passwordConfirmation');
+                if (
+                  getValues('passwordConfirmation') === '' &&
+                  !confirmation.invalid
+                ) {
+                  return;
+                }
+                // eslint-disable-next-line no-void -- revalidate confirmation once it has a value or an error
+                void trigger('passwordConfirmation');
               },
             })}
           />

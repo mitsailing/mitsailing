@@ -43,7 +43,7 @@ import ProfileSecurityPage, {
 
 type ListUserRatingAssignmentRowsFn = (
   userId: string,
-  options?: { includeDeprecated?: boolean; client?: unknown }
+  options?: { client?: unknown }
 ) => Promise<UserRatingAssignmentRow[]>;
 
 /**
@@ -68,7 +68,6 @@ function userRatingAssignmentRowFixture(
     grantableClasses: row.grantableClasses ?? [],
     requiredRatings: row.requiredRatings ?? [],
     unlockedBoats: row.unlockedBoats ?? [],
-    isDeprecated: row.isDeprecated ?? false,
     issuedAt: row.issuedAt ?? null,
     issuedByName: row.issuedByName ?? null,
     eligibility: row.eligibility ?? { eligible: true },
@@ -1091,8 +1090,7 @@ describe('auth route shells', () => {
       routeMocks.listUserRatingAssignmentRows
     );
     expect(vi.mocked(listUserRatingAssignmentRows)).toHaveBeenCalledWith(
-      'user-1',
-      { includeDeprecated: false }
+      'user-1'
     );
     expect(
       screen.getByRole('heading', {

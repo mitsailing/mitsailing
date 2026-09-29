@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { logger } from '@/libs/Logger';
+import { trustedClientIp } from '@/libs/newsletter/newsletterClientIp';
 import { NEWSLETTER_FORM_SOURCE } from '@/libs/newsletter/newsletterConstants';
 import {
   getSubscriberPreferenceStateForUser,
@@ -40,17 +41,6 @@ export type NewsletterPreferenceActionResult =
   | { ok: false; error: 'invalid_token' | 'unauthorized' | 'unknown' };
 
 const REQUEST_METADATA_MAX_LENGTH = 500;
-
-function firstForwardedIp(value: string | null): string | null {
-  if (!value) {
-    return null;
-  }
-  const [first] = value.split(',');
-  const trimmed = first?.trim();
-  return trimmed && trimmed.length > 0
-    ? trimmed.slice(0, REQUEST_METADATA_MAX_LENGTH)
-    : null;
-}
 
 function truncateMetadata(value: string | null): string | null {
   if (!value) {
@@ -92,9 +82,7 @@ export async function submitNewsletterSignupAction(
   }
 
   const headerList = await headers();
-  const ipAddress =
-    firstForwardedIp(headerList.get('x-forwarded-for')) ??
-    truncateMetadata(headerList.get('x-real-ip'));
+  const ipAddress = trustedClientIp(headerList);
   const userAgent = truncateMetadata(headerList.get('user-agent'));
   const { rateLimited } = await checkRateLimit({
     ...newsletterSignupRateLimit,

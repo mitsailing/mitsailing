@@ -34,9 +34,7 @@ export default async function ProfileRatingsPage(
     getI18nPath('/profile/ratings', locale)
   );
   const [rows, t, format] = await Promise.all([
-    listUserRatingAssignmentRows(user.id, {
-      includeDeprecated: false,
-    }),
+    listUserRatingAssignmentRows(user.id),
     getTranslations({ locale, namespace: 'UserProfilePage' }),
     getFormatter({ locale }),
   ]);

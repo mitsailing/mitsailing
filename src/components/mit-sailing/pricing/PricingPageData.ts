@@ -2,13 +2,6 @@
 
 import { useTranslations } from 'next-intl';
 
-export type GymRateRow = {
-  readonly category: string;
-  readonly individual: string;
-  readonly family: string;
-  readonly note?: string;
-};
-
 export type IncludedClassRow = {
   readonly name: string;
   readonly normal: boolean;
@@ -27,60 +20,6 @@ export type PricingPlan = {
   readonly over30?: string;
 };
 
-const gymRateRowKeyParts = [
-  [
-    'pricing_chart_gym_rate_mit_student',
-    'pricing_chart_gym_individual_mit_student',
-    'pricing_chart_dash',
-  ],
-  [
-    'pricing_chart_gym_rate_student_family',
-    'pricing_chart_dash',
-    'pricing_chart_gym_family_student',
-    'pricing_chart_gym_student_family_note',
-  ],
-  [
-    'pricing_chart_gym_rate_alumni',
-    'pricing_chart_gym_individual_alumni',
-    'pricing_chart_gym_family_alumni',
-  ],
-  [
-    'pricing_chart_gym_rate_public',
-    'pricing_chart_gym_individual_public',
-    'pricing_chart_gym_family_public',
-  ],
-  [
-    'pricing_chart_gym_rate_employee',
-    'pricing_chart_gym_individual_employee',
-    'pricing_chart_gym_family_employee',
-  ],
-  [
-    'pricing_chart_gym_rate_cross_registered',
-    'pricing_chart_gym_individual_cross_registered',
-    'pricing_chart_gym_family_cross_registered',
-  ],
-  [
-    'pricing_chart_gym_rate_pfizer',
-    'pricing_chart_gym_individual_pfizer',
-    'pricing_chart_gym_family_pfizer',
-  ],
-  [
-    'pricing_chart_gym_rate_novartis',
-    'pricing_chart_gym_individual_novartis',
-    'pricing_chart_gym_family_novartis',
-  ],
-  [
-    'pricing_chart_gym_rate_capital_one',
-    'pricing_chart_gym_individual_capital_one',
-    'pricing_chart_gym_family_capital_one',
-  ],
-  [
-    'pricing_chart_gym_rate_affiliate',
-    'pricing_chart_gym_individual_affiliate',
-    'pricing_chart_gym_family_affiliate',
-  ],
-] as const;
-
 const normalOnlyClassNames = [
   'pricing_chart_intro_sailing_101',
   'pricing_chart_intro_experienced',
@@ -98,17 +37,6 @@ const racingClassNames = [
   'pricing_chart_intro_to_racing',
   'pricing_chart_intermediate_racing',
 ] as const;
-
-export function useGymRateRows() {
-  const t = useTranslations('PricingPage');
-
-  return gymRateRowKeyParts.map(([category, individual, family, note]) => ({
-    category: t(category),
-    individual: t(individual),
-    family: t(family),
-    note: note ? t(note) : undefined,
-  })) satisfies readonly GymRateRow[];
-}
 
 export function useIncludedClassRows() {
   const t = useTranslations('PricingPage');

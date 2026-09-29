@@ -230,8 +230,6 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
         subtitle: 'Choose the card that matches what you want to sail.',
         body: JSON.stringify(
           {
-            footnoteLinkLabel: 'See MIT Recreation rates',
-            footnoteLinkUrl: '/pricing',
             plans: [
               {
                 title: 'Normal',
@@ -241,6 +239,8 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
                   { label: 'MIT student', value: 'Free' },
                   { label: 'MIT Recreation member', value: 'Free' },
                 ],
+                detailLinkLabel: 'See MIT Recreation rates',
+                detailLinkUrl: 'https://www.mitrecsports.com/join/memberships/',
                 linkLabel: 'Sign up',
                 linkUrl: '/signup?callbackUrl=%2Fonboarding',
                 features: [

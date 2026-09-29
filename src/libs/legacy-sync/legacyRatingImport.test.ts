@@ -109,10 +109,7 @@ describe('importLegacyRatingRows', () => {
       userRatingsSkipped: 1,
     });
 
-    expect(mocks.sailingRatingUpdate).toHaveBeenCalledWith({
-      where: { id: 'rating-tech' },
-      data: { isDeprecated: false },
-    });
+    expect(mocks.sailingRatingUpdate).not.toHaveBeenCalled();
     expect(mocks.sailingRatingUpsert).not.toHaveBeenCalled();
     expect(mocks.createMany).not.toHaveBeenCalled();
     expect(mocks.transaction).toHaveBeenCalledWith(
@@ -239,7 +236,7 @@ describe('importLegacyRatingRows', () => {
       userRatingsSkipped: 1,
     });
 
-    expect(mocks.sailingRatingUpdate).toHaveBeenCalledOnce();
+    expect(mocks.sailingRatingUpdate).not.toHaveBeenCalled();
     expect(mocks.queryRaw).toHaveBeenCalledOnce();
     expect(mocks.createMany).toHaveBeenCalledWith({
       data: [
@@ -327,7 +324,7 @@ describe('importLegacyRatingRows', () => {
       userRatingsSkipped: 1,
     });
 
-    expect(mocks.sailingRatingUpdate).toHaveBeenCalledOnce();
+    expect(mocks.sailingRatingUpdate).not.toHaveBeenCalled();
     expect(mocks.createMany).not.toHaveBeenCalled();
   });
 });
