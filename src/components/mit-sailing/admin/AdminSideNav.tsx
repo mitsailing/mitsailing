@@ -158,6 +158,7 @@ function AdminNavLink(props: {
           ? 'bg-mit-surface text-mit-red dark:text-mit-red-ink'
           : 'hover:bg-mit-surface'
       )}
+      // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
       href={props.href}
       prefetch={false}
       title={props.collapsed ? props.label : undefined}
@@ -246,6 +247,7 @@ export function AdminSideNav(props: {
               props.homeItem.match
             )}
             collapsed={collapsed}
+            // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
             href={props.homeItem.href}
             item={props.homeItem}
             label={t(props.homeItem.labelKey)}
@@ -272,6 +274,7 @@ export function AdminSideNav(props: {
                       item.match
                     )}
                     collapsed={collapsed}
+                    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
                     href={item.href}
                     item={item}
                     label={t(item.labelKey)}

@@ -117,6 +117,25 @@ type ProfileMemberFormMessageKey =
   | 'profile_details_save'
   | 'profile_details_updated';
 
+function profileMemberShowManualName(props: {
+  readonly affiliationRule: ReturnType<typeof getSailingAffiliationRule> | null;
+  readonly mitId: string;
+  readonly mitIdentityLocked: boolean;
+}) {
+  if (props.mitIdentityLocked) {
+    return false;
+  }
+  if (props.affiliationRule === null) {
+    return true;
+  }
+  if (props.affiliationRule.mitIdMode === 'hidden') {
+    return true;
+  }
+  return (
+    props.affiliationRule.mitIdMode === 'optional' && props.mitId.trim() === ''
+  );
+}
+
 function profileMemberMitFieldState(props: {
   readonly mitId: string;
   readonly mitIdentityLocked: boolean;
@@ -130,11 +149,11 @@ function profileMemberMitFieldState(props: {
     affiliationRule !== null && affiliationRule.mitIdMode !== 'hidden';
   const mitIdRequired = affiliationRule?.mitIdMode === 'required';
   const mitIdOptional = affiliationRule?.mitIdMode === 'optional';
-  const showManualName =
-    !props.mitIdentityLocked &&
-    (affiliationRule === null ||
-      affiliationRule.mitIdMode === 'hidden' ||
-      (affiliationRule.mitIdMode === 'optional' && props.mitId.trim() === ''));
+  const showManualName = profileMemberShowManualName({
+    affiliationRule,
+    mitId: props.mitId,
+    mitIdentityLocked: props.mitIdentityLocked,
+  });
   const helpKey = mitIdHelpKey({
     locked: props.mitIdentityLocked,
     optional: mitIdOptional,

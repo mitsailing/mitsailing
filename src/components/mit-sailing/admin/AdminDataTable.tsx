@@ -97,6 +97,140 @@ function AdminDataTableMobileRow<TData>(props: {
  * @param props - Column definitions and row data
  * @returns Responsive admin table markup
  */
+
+function adminDataTableHeaderClassName(props: {
+  readonly columnId: string;
+  readonly desktopOnly: boolean | undefined;
+}) {
+  if (props.desktopOnly && props.columnId !== 'actions') {
+    return 'hidden px-3 py-2 font-medium md:table-cell';
+  }
+  return cn(
+    'px-3 py-2 font-medium',
+    props.columnId === 'actions' ? 'hidden md:table-cell' : undefined
+  );
+}
+
+function adminDataTableCellClassName(props: {
+  readonly columnId: string;
+  readonly desktopOnly: boolean | undefined;
+}) {
+  return cn(
+    'px-3 py-2',
+    props.desktopOnly ? 'hidden md:table-cell' : undefined,
+    props.columnId === 'actions' ? 'hidden md:table-cell' : undefined
+  );
+}
+
+function AdminDataTableHeaders<TData>(props: {
+  readonly table: ReturnType<typeof useReactTable<TData>>;
+}) {
+  return (
+    <TableHeader className="hidden md:table-header-group">
+      {props.table.getHeaderGroups().map((headerGroup) => (
+        <TableRow
+          className="border-b bg-muted/50 hover:bg-muted/50"
+          key={headerGroup.id}
+        >
+          {headerGroup.headers.map((header) => {
+            const meta = header.column.columnDef.meta as
+              | AdminDataTableColumnMeta
+              | undefined;
+            return (
+              <TableHead
+                className={adminDataTableHeaderClassName({
+                  columnId: header.column.id,
+                  desktopOnly: meta?.desktopOnly,
+                })}
+                key={header.id}
+              >
+                {header.isPlaceholder
+                  ? null
+                  : flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )}
+              </TableHead>
+            );
+          })}
+        </TableRow>
+      ))}
+    </TableHeader>
+  );
+}
+
+function AdminDataTableDesktopRow<TData>(props: { readonly row: Row<TData> }) {
+  return (
+    <TableRow className="hidden border-b hover:bg-muted/50 md:table-row">
+      {props.row.getVisibleCells().map((cell) => {
+        const meta = cell.column.columnDef.meta as
+          | AdminDataTableColumnMeta
+          | undefined;
+        return (
+          <TableCell
+            className={adminDataTableCellClassName({
+              columnId: cell.column.id,
+              desktopOnly: meta?.desktopOnly,
+            })}
+            key={cell.id}
+          >
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </TableCell>
+        );
+      })}
+    </TableRow>
+  );
+}
+
+function AdminDataTableRows<TData>(props: {
+  readonly columnCount: number;
+  readonly emptyMessage: string;
+  readonly hasActions: boolean;
+  readonly primaryColumnId: string;
+  readonly rows: Row<TData>[];
+  readonly summaryColumnIds: string[];
+}) {
+  if (props.rows.length === 0) {
+    return (
+      <TableRow>
+        <TableCell
+          className="px-3 py-4 text-sm text-muted-foreground"
+          colSpan={props.columnCount}
+        >
+          {props.emptyMessage}
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  return props.rows.flatMap((row) => [
+    props.hasActions ? (
+      <AdminDataTableMobileRow
+        actionsColumnId="actions"
+        key={`${row.id}-mobile`}
+        primaryColumnId={props.primaryColumnId}
+        row={row}
+        summaryColumnIds={props.summaryColumnIds}
+      />
+    ) : null,
+    <AdminDataTableDesktopRow key={`${row.id}-desktop`} row={row} />,
+  ]);
+}
+
+function adminDataTablePrimaryColumnId<TData>(props: {
+  readonly columns: ColumnDef<TData>[];
+  readonly mobilePrimaryColumnId?: string;
+}) {
+  if (props.mobilePrimaryColumnId) {
+    return props.mobilePrimaryColumnId;
+  }
+  const named = props.columns.find((column) => column.id === 'name')?.id;
+  if (named) {
+    return named;
+  }
+  return props.columns[0]?.id ?? 'name';
+}
+
 export function AdminDataTable<TData>(props: AdminDataTableProps<TData>) {
   const table = useReactTable({
     columns: props.columns,
@@ -104,116 +238,27 @@ export function AdminDataTable<TData>(props: AdminDataTableProps<TData>) {
     getCoreRowModel: getCoreRowModel(),
     getRowId: (row, index) => props.getRowId(row) || String(index),
   });
-
   const summaryColumnIds = adminDataTableSummaryColumnIds(props.columns);
-  const primaryColumnId =
-    props.mobilePrimaryColumnId ??
-    props.columns.find((column) => column.id === 'name')?.id ??
-    props.columns[0]?.id ??
-    'name';
+  const primaryColumnId = adminDataTablePrimaryColumnId({
+    columns: props.columns,
+    mobilePrimaryColumnId: props.mobilePrimaryColumnId,
+  });
   const { rows } = table.getRowModel();
   const hasActions = props.columns.some((column) => column.id === 'actions');
 
   return (
     <AdminTableContainer className="border-0">
       <Table className="text-left md:min-w-[720px]">
-        <TableHeader className="hidden md:table-header-group">
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow
-              className="border-b bg-muted/50 hover:bg-muted/50"
-              key={headerGroup.id}
-            >
-              {headerGroup.headers.map((header) => {
-                const meta = header.column.columnDef.meta as
-                  | AdminDataTableColumnMeta
-                  | undefined;
-                if (meta?.desktopOnly && header.column.id !== 'actions') {
-                  return (
-                    <TableHead
-                      className="hidden px-3 py-2 font-medium md:table-cell"
-                      key={header.id}
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  );
-                }
-                return (
-                  <TableHead
-                    className={cn(
-                      'px-3 py-2 font-medium',
-                      header.column.id === 'actions'
-                        ? 'hidden md:table-cell'
-                        : undefined
-                    )}
-                    key={header.id}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                );
-              })}
-            </TableRow>
-          ))}
-        </TableHeader>
+        <AdminDataTableHeaders table={table} />
         <TableBody>
-          {rows.length === 0 ? (
-            <TableRow>
-              <TableCell
-                className="px-3 py-4 text-sm text-muted-foreground"
-                colSpan={props.columns.length}
-              >
-                {props.emptyMessage ?? ''}
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.flatMap((row) => [
-              hasActions ? (
-                <AdminDataTableMobileRow
-                  actionsColumnId="actions"
-                  key={`${row.id}-mobile`}
-                  primaryColumnId={primaryColumnId}
-                  row={row}
-                  summaryColumnIds={summaryColumnIds}
-                />
-              ) : null,
-              <TableRow
-                className="hidden border-b hover:bg-muted/50 md:table-row"
-                key={`${row.id}-desktop`}
-              >
-                {row.getVisibleCells().map((cell) => {
-                  const meta = cell.column.columnDef.meta as
-                    | AdminDataTableColumnMeta
-                    | undefined;
-                  return (
-                    <TableCell
-                      className={cn(
-                        'px-3 py-2',
-                        meta?.desktopOnly ? 'hidden md:table-cell' : undefined,
-                        cell.column.id === 'actions'
-                          ? 'hidden md:table-cell'
-                          : undefined
-                      )}
-                      key={cell.id}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  );
-                })}
-              </TableRow>,
-            ])
-          )}
+          <AdminDataTableRows
+            columnCount={props.columns.length}
+            emptyMessage={props.emptyMessage ?? ''}
+            hasActions={hasActions}
+            primaryColumnId={primaryColumnId}
+            rows={rows}
+            summaryColumnIds={summaryColumnIds}
+          />
         </TableBody>
       </Table>
     </AdminTableContainer>

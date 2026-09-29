@@ -87,6 +87,176 @@ function RatingFact(props: {
   );
 }
 
+function RatingCatalogHeader(props: {
+  readonly headingId: string;
+  readonly levelLabel: string | null;
+  readonly rating: PublicSailingRating;
+  readonly showPathCategory: boolean;
+}) {
+  return (
+    <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <h2
+        className="m-0 font-mit-serif text-xl font-semibold tracking-tight text-mit-text md:text-2xl"
+        id={props.headingId}
+      >
+        {props.rating.name}
+      </h2>
+      {props.levelLabel ? (
+        <span className="text-sm text-muted-foreground">
+          {props.levelLabel}
+        </span>
+      ) : null}
+      {props.showPathCategory && props.rating.category ? (
+        <span className="text-sm text-muted-foreground">
+          {props.rating.category}
+        </span>
+      ) : null}
+    </header>
+  );
+}
+
+function RatingCatalogClassFact(props: {
+  readonly emptyLabel: string;
+  readonly label: string;
+  readonly rating: PublicSailingRating;
+}) {
+  return (
+    <RatingFact
+      label={props.label}
+      value={
+        <RatingFactLinks
+          emptyLabel={props.emptyLabel}
+          items={props.rating.grantableClasses.map((sailingClass) => ({
+            href: `/classes/${sailingClass.slug}`,
+            id: sailingClass.id,
+            name: sailingClass.name,
+          }))}
+        />
+      }
+    />
+  );
+}
+
+function RatingCatalogPrerequisiteFact(props: {
+  readonly emptyLabel: string;
+  readonly label: string;
+  readonly rating: PublicSailingRating;
+}) {
+  if (props.rating.requiredRatings.length === 0) {
+    return null;
+  }
+  return (
+    <RatingFact
+      label={props.label}
+      value={
+        <RatingFactLinks
+          emptyLabel={props.emptyLabel}
+          items={props.rating.requiredRatings.map((required) => ({
+            href: `/ratings#${required.slug}`,
+            id: required.id,
+            name: required.name,
+          }))}
+        />
+      }
+    />
+  );
+}
+
+function RatingCatalogBoatFact(props: {
+  readonly emptyLabel: string;
+  readonly label: string;
+  readonly rating: PublicSailingRating;
+}) {
+  return (
+    <RatingFact
+      label={props.label}
+      value={
+        <RatingFactLinks
+          emptyLabel={props.emptyLabel}
+          items={props.rating.unlockedBoats.map((boat) => ({
+            href: `/fleet/${boat.slug}`,
+            id: boat.id,
+            name: boat.name,
+          }))}
+        />
+      }
+    />
+  );
+}
+
+function RatingCatalogGuideFact(props: {
+  readonly emptyLabel: string;
+  readonly guideLabel: string;
+  readonly label: string;
+  readonly rating: PublicSailingRating;
+}) {
+  if (!props.rating.guideUrl) {
+    return <RatingFact label={props.label} value={props.emptyLabel} />;
+  }
+  return (
+    <RatingFact
+      label={props.label}
+      value={
+        // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- guideUrl is an allowlisted external guide URL from the ratings catalog.
+        <a
+          className={ratingLinkClassName}
+          href={props.rating.guideUrl}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {props.guideLabel}
+        </a>
+      }
+    />
+  );
+}
+
+function RatingCatalogFacts(props: {
+  readonly emptyLabel: string;
+  readonly guideLabel: string;
+  readonly labels: {
+    readonly boats: string;
+    readonly classes: string;
+    readonly guide: string;
+    readonly prerequisites: string;
+    readonly wind: string;
+  };
+  readonly rating: PublicSailingRating;
+}) {
+  const factCount = props.rating.requiredRatings.length > 0 ? 5 : 4;
+  return (
+    <dl
+      className={`mt-5 grid gap-4 sm:grid-cols-2 ${factCount > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}
+    >
+      <RatingCatalogClassFact
+        emptyLabel={props.emptyLabel}
+        label={props.labels.classes}
+        rating={props.rating}
+      />
+      <RatingCatalogPrerequisiteFact
+        emptyLabel={props.emptyLabel}
+        label={props.labels.prerequisites}
+        rating={props.rating}
+      />
+      <RatingCatalogBoatFact
+        emptyLabel={props.emptyLabel}
+        label={props.labels.boats}
+        rating={props.rating}
+      />
+      <RatingFact
+        label={props.labels.wind}
+        value={props.rating.windCondition ?? props.emptyLabel}
+      />
+      <RatingCatalogGuideFact
+        emptyLabel={props.emptyLabel}
+        guideLabel={props.guideLabel}
+        label={props.labels.guide}
+        rating={props.rating}
+      />
+    </dl>
+  );
+}
+
 function RatingCatalogItem(props: {
   readonly emptyLabel: string;
   readonly guideLabel: string;
@@ -101,103 +271,29 @@ function RatingCatalogItem(props: {
   readonly rating: PublicSailingRating;
   readonly showPathCategory: boolean;
 }) {
-  const { rating } = props;
-  const headingId = `${rating.slug}-heading`;
-  const factCount = rating.requiredRatings.length > 0 ? 5 : 4;
+  const headingId = `${props.rating.slug}-heading`;
 
   return (
     <article
       aria-labelledby={headingId}
       className="scroll-mt-28 border-t border-mit-line py-6 first:border-t-0 first:pt-0"
-      id={rating.slug}
+      id={props.rating.slug}
     >
-      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2
-          className="m-0 font-mit-serif text-xl font-semibold tracking-tight text-mit-text md:text-2xl"
-          id={headingId}
-        >
-          {rating.name}
-        </h2>
-        {props.levelLabel ? (
-          <span className="text-sm text-muted-foreground">
-            {props.levelLabel}
-          </span>
-        ) : null}
-        {props.showPathCategory && rating.category ? (
-          <span className="text-sm text-muted-foreground">
-            {rating.category}
-          </span>
-        ) : null}
-      </header>
+      <RatingCatalogHeader
+        headingId={headingId}
+        levelLabel={props.levelLabel}
+        rating={props.rating}
+        showPathCategory={props.showPathCategory}
+      />
       <p className="mt-3 mb-0 max-w-3xl text-base leading-relaxed text-pretty text-mit-text">
-        {rating.description}
+        {props.rating.description}
       </p>
-      <dl
-        className={`mt-5 grid gap-4 sm:grid-cols-2 ${factCount > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}
-      >
-        <RatingFact
-          label={props.labels.classes}
-          value={
-            <RatingFactLinks
-              emptyLabel={props.emptyLabel}
-              items={rating.grantableClasses.map((sailingClass) => ({
-                href: `/classes/${sailingClass.slug}`,
-                id: sailingClass.id,
-                name: sailingClass.name,
-              }))}
-            />
-          }
-        />
-        {rating.requiredRatings.length > 0 ? (
-          <RatingFact
-            label={props.labels.prerequisites}
-            value={
-              <RatingFactLinks
-                emptyLabel={props.emptyLabel}
-                items={rating.requiredRatings.map((required) => ({
-                  href: `/ratings#${required.slug}`,
-                  id: required.id,
-                  name: required.name,
-                }))}
-              />
-            }
-          />
-        ) : null}
-        <RatingFact
-          label={props.labels.boats}
-          value={
-            <RatingFactLinks
-              emptyLabel={props.emptyLabel}
-              items={rating.unlockedBoats.map((boat) => ({
-                href: `/fleet/${boat.slug}`,
-                id: boat.id,
-                name: boat.name,
-              }))}
-            />
-          }
-        />
-        <RatingFact
-          label={props.labels.wind}
-          value={rating.windCondition ?? props.emptyLabel}
-        />
-        <RatingFact
-          label={props.labels.guide}
-          value={
-            rating.guideUrl ? (
-              <a
-                className={ratingLinkClassName}
-                href={rating.guideUrl}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                {props.guideLabel}
-              </a>
-            ) : (
-              props.emptyLabel
-            )
-          }
-        />
-      </dl>
+      <RatingCatalogFacts
+        emptyLabel={props.emptyLabel}
+        guideLabel={props.guideLabel}
+        labels={props.labels}
+        rating={props.rating}
+      />
     </article>
   );
 }

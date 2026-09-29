@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { SubmitButton } from '@/components/ui/submit-button';
@@ -270,9 +271,9 @@ function SailPathSwitch(props: {
   onChange: (knowsHow: boolean) => void;
 }) {
   const t = useTranslations('MitSailingHome');
-  const trackRef = useRef<HTMLDivElement>(null);
-  const newRef = useRef<HTMLButtonElement>(null);
-  const experiencedRef = useRef<HTMLButtonElement>(null);
+  const trackRef = useRef<HTMLFieldSetElement>(null);
+  const newRef = useRef<HTMLLabelElement>(null);
+  const experiencedRef = useRef<HTMLLabelElement>(null);
   const thumbRef = useRef<ThumbBox | null>(null);
   const [thumb, setThumb] = useState<ThumbBox | null>(null);
 
@@ -310,38 +311,20 @@ function SailPathSwitch(props: {
     };
   }, [props.knowsHow]);
 
-  function selectPath(knowsHow: boolean) {
-    props.onChange(knowsHow);
-    const target = knowsHow ? experiencedRef.current : newRef.current;
-    target?.focus();
-  }
-
-  function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-      event.preventDefault();
-      selectPath(true);
-    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      selectPath(false);
-    }
-  }
-
   const optionClassName = (selected: boolean) =>
     cn(
-      'relative z-10 min-h-11 whitespace-nowrap px-3.5 text-sm font-semibold motion-reduce:transition-none motion-safe:transition-colors motion-safe:duration-200 sm:px-4',
+      'relative z-10 inline-flex min-h-11 cursor-pointer items-center justify-center whitespace-nowrap rounded-full px-3.5 text-sm font-semibold motion-reduce:transition-none motion-safe:transition-colors motion-safe:duration-200 sm:px-4',
       textFocusRingClassName,
-      'rounded-full',
       sailPathOptionTone(selected, thumb !== null)
     );
 
   return (
-    <div
+    <fieldset
       aria-label={t('sail_path_switch_label')}
-      className="relative inline-flex max-w-full rounded-full bg-muted p-1"
+      className="relative m-0 inline-flex max-w-full rounded-full border-0 bg-muted p-1"
       ref={trackRef}
-      role="radiogroup"
-      onKeyDown={onKeyDown}
     >
+      <legend className="sr-only">{t('sail_path_switch_label')}</legend>
       {thumb ? (
         <span
           aria-hidden
@@ -353,33 +336,33 @@ function SailPathSwitch(props: {
           }}
         />
       ) : null}
-      <button
-        aria-checked={!props.knowsHow}
-        className={optionClassName(!props.knowsHow)}
-        ref={newRef}
-        role="radio"
-        tabIndex={props.knowsHow ? -1 : 0}
-        type="button"
-        onClick={() => {
-          selectPath(false);
-        }}
-      >
+      <label className={optionClassName(!props.knowsHow)} ref={newRef}>
+        <input
+          checked={!props.knowsHow}
+          className="sr-only"
+          name="home-sail-path"
+          type="radio"
+          value="new"
+          onChange={() => {
+            props.onChange(false);
+          }}
+        />
         {t('sail_path_new_label')}
-      </button>
-      <button
-        aria-checked={props.knowsHow}
-        className={optionClassName(props.knowsHow)}
-        ref={experiencedRef}
-        role="radio"
-        tabIndex={props.knowsHow ? 0 : -1}
-        type="button"
-        onClick={() => {
-          selectPath(true);
-        }}
-      >
+      </label>
+      <label className={optionClassName(props.knowsHow)} ref={experiencedRef}>
+        <input
+          checked={props.knowsHow}
+          className="sr-only"
+          name="home-sail-path"
+          type="radio"
+          value="experienced"
+          onChange={() => {
+            props.onChange(true);
+          }}
+        />
         {t('sail_path_experienced_label')}
-      </button>
-    </div>
+      </label>
+    </fieldset>
   );
 }
 
@@ -388,30 +371,33 @@ function HomeSailPathCollage() {
 
   return (
     <div className="hidden aspect-[168/100] w-full grid-cols-[1.15fr_1fr] grid-rows-2 gap-2.5 lg:grid">
-      {/* eslint-disable-next-line @next/next/no-img-element -- fixed object-cover collage cells */}
-      <img
-        alt={t('sail_path_photo_rainbow_alt')}
-        className="col-start-1 row-span-2 h-full w-full rounded-2xl object-cover"
-        height={1203}
-        src="/assets/images/home-collage/tech-dinghy-rainbow.jpg"
-        width={1080}
-      />
-      {/* eslint-disable-next-line @next/next/no-img-element -- fixed object-cover collage cells */}
-      <img
-        alt={t('sail_path_photo_black_sails_alt')}
-        className="h-full w-full rounded-2xl object-cover"
-        height={167}
-        src="/assets/images/home-collage/black-sails-dusk.jpg"
-        width={302}
-      />
-      {/* eslint-disable-next-line @next/next/no-img-element -- fixed object-cover collage cells */}
-      <img
-        alt={t('sail_path_photo_keelboat_alt')}
-        className="h-full w-full rounded-2xl object-cover object-[center_42%]"
-        height={587}
-        src="/assets/images/home-collage/keelboat-on-water.jpg"
-        width={1024}
-      />
+      <div className="relative col-start-1 row-span-2 h-full w-full overflow-hidden rounded-2xl">
+        <Image
+          alt={t('sail_path_photo_rainbow_alt')}
+          className="object-cover"
+          fill
+          sizes="(max-width: 1024px) 0px, 40vw"
+          src="/assets/images/home-collage/tech-dinghy-rainbow.jpg"
+        />
+      </div>
+      <div className="relative h-full w-full overflow-hidden rounded-2xl">
+        <Image
+          alt={t('sail_path_photo_black_sails_alt')}
+          className="object-cover"
+          fill
+          sizes="(max-width: 1024px) 0px, 30vw"
+          src="/assets/images/home-collage/black-sails-dusk.jpg"
+        />
+      </div>
+      <div className="relative h-full w-full overflow-hidden rounded-2xl">
+        <Image
+          alt={t('sail_path_photo_keelboat_alt')}
+          className="object-cover object-[center_42%]"
+          fill
+          sizes="(max-width: 1024px) 0px, 30vw"
+          src="/assets/images/home-collage/keelboat-on-water.jpg"
+        />
+      </div>
     </div>
   );
 }

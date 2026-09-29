@@ -84,11 +84,11 @@ export function PavilionReservationIdentityStep(props: {
         <p className="mt-1 text-sm text-muted-foreground">
           {t('persona_intro')}
         </p>
-        <div
+        <fieldset
           aria-label={t('persona_title')}
-          className="mt-3 grid gap-2 sm:grid-cols-2"
-          role="group"
+          className="mt-3 grid gap-2 border-0 p-0 sm:grid-cols-2"
         >
+          <legend className="sr-only">{t('persona_title')}</legend>
           {PAVILION_RESERVATION_PERSONAS.map((personaOption) => {
             const selected = props.persona === personaOption;
             return (
@@ -115,7 +115,7 @@ export function PavilionReservationIdentityStep(props: {
               </button>
             );
           })}
-        </div>
+        </fieldset>
         {props.persona && props.sampleHourlyCents !== null ? (
           <p className="mt-3 text-sm text-muted-foreground">
             {t('persona_rate_sample', {

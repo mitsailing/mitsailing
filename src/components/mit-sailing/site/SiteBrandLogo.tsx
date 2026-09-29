@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 type SiteBrandLogoProps = {
   label: string;
 };
@@ -11,11 +13,13 @@ type SiteBrandLogoProps = {
  */
 export function SiteBrandLogo(props: SiteBrandLogoProps) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- SVG lockup needs intrinsic width from the file
-    <img
+    <Image
       alt={props.label}
       className="h-8 w-auto"
+      height={32}
       src="/assets/images/logo.svg"
+      unoptimized
+      width={160}
     />
   );
 }

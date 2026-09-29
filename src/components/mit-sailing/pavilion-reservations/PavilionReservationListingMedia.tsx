@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { PavilionReservableItemMediaDto } from '@/libs/mit-sailing/pavilionReservationTypes';
@@ -82,26 +83,14 @@ export function PavilionReservationListingMedia(props: {
     slide.title.trim() !== '' && slide.title !== props.alt ? slide.title : '';
 
   return (
-    <div
+    <fieldset
       aria-label={t('venue_photos_aria', { name: props.alt })}
       className={cn(
-        'relative isolate h-[11.5rem] overflow-hidden sm:h-[13.5rem] lg:h-[14.5rem]',
+        'relative isolate h-[11.5rem] overflow-hidden border-0 p-0 sm:h-[13.5rem] lg:h-[14.5rem]',
         props.spaceSlug === 'roof_deck'
           ? 'bg-gradient-to-br from-mit-red/50 via-muted-foreground/40 to-mit-line'
           : 'bg-gradient-to-br from-mit-red/30 via-muted to-mit-line'
       )}
-      role="group"
-      tabIndex={0}
-      onKeyDown={(event) => {
-        if (event.key === 'ArrowRight') {
-          event.preventDefault();
-          step(1);
-        }
-        if (event.key === 'ArrowLeft') {
-          event.preventDefault();
-          step(-1);
-        }
-      }}
       onPointerDown={(event) => {
         if (event.target instanceof Element && event.target.closest('button')) {
           return;
@@ -120,6 +109,9 @@ export function PavilionReservationListingMedia(props: {
         step(dx < 0 ? 1 : -1);
       }}
     >
+      <legend className="sr-only">
+        {t('venue_photos_aria', { name: props.alt })}
+      </legend>
       <button
         aria-label={
           slide.kind === 'video'
@@ -141,9 +133,16 @@ export function PavilionReservationListingMedia(props: {
         }}
       >
         {slide.kind === 'image' && slide.src ? (
-          // Listing strip must stay height-locked; next/image fill can grow the card.
-          // eslint-disable-next-line @next/next/no-img-element -- fixed-height object-cover strip
-          <img alt="" className="size-full object-cover" src={slide.src} />
+          <Image
+            alt=""
+            className="object-cover"
+            fill
+            sizes="(max-width: 640px) 100vw, 28rem"
+            src={slide.src}
+            unoptimized={
+              slide.src.startsWith('/') && !slide.src.startsWith('//')
+            }
+          />
         ) : null}
         {slide.kind === 'video' && slide.src ? (
           <video
@@ -216,6 +215,6 @@ export function PavilionReservationListingMedia(props: {
           </div>
         ) : null}
       </div>
-    </div>
+    </fieldset>
   );
 }

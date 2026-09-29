@@ -39,164 +39,170 @@ function adminUsersDeleteHref(adminBasePath: string, id: string) {
   return `${adminBasePath}/${encodeURIComponent(id)}/delete`;
 }
 
-function buildAdminUsersColumns(
+function adminUsersActionsCell(options: AdminUsersColumnOptions) {
+  return ({ row }: { row: { original: CatalogRow } }) => {
+    const rowId = String(row.original.id);
+    const impersonation = options.userImpersonation;
+    return (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        {options.canUpdate ? (
+          <Link
+            className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
+            // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- edit path built from adminUsersEditPath and a row id.
+            href={adminUsersEditPath(rowId)}
+          >
+            {options.t('action_edit')}
+          </Link>
+        ) : null}
+        {options.canDelete ? (
+          <Link
+            className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
+            // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- delete path built from admin base path and a row id.
+            href={adminUsersDeleteHref(options.adminBasePath, rowId)}
+          >
+            {options.t('action_delete')}
+          </Link>
+        ) : null}
+        {impersonation?.currentUserId === rowId ? (
+          <span className="text-xs text-mit-text">
+            {impersonation.selfLabel}
+          </span>
+        ) : null}
+        {impersonation && impersonation.currentUserId !== rowId ? (
+          <ImpersonateButton
+            redirectHref={impersonation.accountRedirectHref}
+            userId={rowId}
+          />
+        ) : null}
+      </div>
+    );
+  };
+}
+
+function adminUsersListNameHref(
+  options: AdminUsersColumnOptions,
+  row: CatalogRow
+) {
+  const nameRaw = row.name;
+  if (
+    !(
+      options.canUpdate &&
+      typeof nameRaw === 'string' &&
+      nameRaw.trim().length > 0
+    )
+  ) {
+    return;
+  }
+  return adminUsersPrimaryHref(options.adminBasePath, String(row.id));
+}
+
+function adminUsersFieldColumn(props: {
+  readonly booleanPolarity?: 'goodWhenTrue';
+  readonly field: string;
+  readonly header: () => string;
+  readonly kind: 'boolean' | 'number' | 'string';
+  readonly meta?: AdminDataTableColumnMeta;
+}): ColumnDef<CatalogRow> {
+  return {
+    accessorKey: props.field,
+    cell: ({ row }) => (
+      <AdminCatalogListCell
+        booleanPolarity={props.booleanPolarity}
+        field={props.field}
+        kind={props.kind}
+        row={row.original}
+      />
+    ),
+    header: props.header,
+    id: props.field,
+    meta: props.meta,
+  };
+}
+
+function buildAdminUsersContactColumns(
   options: AdminUsersColumnOptions
 ): ColumnDef<CatalogRow>[] {
   return [
     {
       accessorKey: 'name',
-      cell: ({ row }) => {
-        const nameRaw = row.original.name;
-        const listNameEditHref =
-          options.canUpdate &&
-          typeof nameRaw === 'string' &&
-          nameRaw.trim().length > 0
-            ? adminUsersPrimaryHref(
-                options.adminBasePath,
-                String(row.original.id)
-              )
-            : undefined;
-        return (
-          <AdminCatalogListCell
-            field="name"
-            kind="string"
-            listNameEditHref={listNameEditHref}
-            row={row.original}
-          />
-        );
-      },
+      cell: ({ row }) => (
+        <AdminCatalogListCell
+          field="name"
+          kind="string"
+          listNameEditHref={adminUsersListNameHref(options, row.original)}
+          row={row.original}
+        />
+      ),
       header: () => options.t('column_name_label'),
       id: 'name',
     },
-    {
-      accessorKey: 'email',
-      cell: ({ row }) => (
-        <AdminCatalogListCell field="email" kind="string" row={row.original} />
-      ),
+    adminUsersFieldColumn({
+      field: 'email',
       header: () => options.t('column_email'),
-      id: 'email',
-      meta: { mobileSummary: true } satisfies AdminDataTableColumnMeta,
-    },
-    {
-      accessorKey: 'mitId',
-      cell: ({ row }) => (
-        <AdminCatalogListCell field="mitId" kind="string" row={row.original} />
-      ),
+      kind: 'string',
+      meta: { mobileSummary: true },
+    }),
+    adminUsersFieldColumn({
+      field: 'mitId',
       header: () => options.t('column_mit_id'),
-      id: 'mitId',
-      meta: { desktopOnly: true } satisfies AdminDataTableColumnMeta,
-    },
-    {
-      accessorKey: 'phone',
-      cell: ({ row }) => (
-        <AdminCatalogListCell field="phone" kind="string" row={row.original} />
-      ),
+      kind: 'string',
+      meta: { desktopOnly: true },
+    }),
+    adminUsersFieldColumn({
+      field: 'phone',
       header: () => options.t('column_phone'),
-      id: 'phone',
-      meta: { desktopOnly: true } satisfies AdminDataTableColumnMeta,
-    },
-    {
-      accessorKey: 'sailingCardNumber',
-      cell: ({ row }) => (
-        <AdminCatalogListCell
-          field="sailingCardNumber"
-          kind="number"
-          row={row.original}
-        />
-      ),
+      kind: 'string',
+      meta: { desktopOnly: true },
+    }),
+  ];
+}
+
+function buildAdminUsersCardColumns(
+  options: AdminUsersColumnOptions
+): ColumnDef<CatalogRow>[] {
+  return [
+    adminUsersFieldColumn({
+      field: 'sailingCardNumber',
       header: () => options.t('column_sailing_card_number'),
-      id: 'sailingCardNumber',
-      meta: { desktopOnly: true } satisfies AdminDataTableColumnMeta,
-    },
-    {
-      accessorKey: 'sailingCardStatus',
-      cell: ({ row }) => (
-        <AdminCatalogListCell
-          field="sailingCardStatus"
-          kind="string"
-          row={row.original}
-        />
-      ),
+      kind: 'number',
+      meta: { desktopOnly: true },
+    }),
+    adminUsersFieldColumn({
+      field: 'sailingCardStatus',
       header: () => options.t('column_sailing_card_status'),
-      id: 'sailingCardStatus',
-      meta: { mobileSummary: true } satisfies AdminDataTableColumnMeta,
-    },
-    {
-      accessorKey: 'pendingCardType',
-      cell: ({ row }) => (
-        <AdminCatalogListCell
-          field="pendingCardType"
-          kind="string"
-          row={row.original}
-        />
-      ),
+      kind: 'string',
+      meta: { mobileSummary: true },
+    }),
+    adminUsersFieldColumn({
+      field: 'pendingCardType',
       header: () => options.t('column_pending_card_type'),
-      id: 'pendingCardType',
-      meta: { desktopOnly: true } satisfies AdminDataTableColumnMeta,
-    },
-    {
-      accessorKey: 'appRole',
-      cell: ({ row }) => (
-        <AdminCatalogListCell
-          field="appRole"
-          kind="string"
-          row={row.original}
-        />
-      ),
+      kind: 'string',
+      meta: { desktopOnly: true },
+    }),
+    adminUsersFieldColumn({
+      field: 'appRole',
       header: () => options.t('column_role'),
-      id: 'appRole',
-      meta: { desktopOnly: true } satisfies AdminDataTableColumnMeta,
-    },
-    {
-      accessorKey: 'emailVerified',
-      cell: ({ row }) => (
-        <AdminCatalogListCell
-          booleanPolarity="goodWhenTrue"
-          field="emailVerified"
-          kind="boolean"
-          row={row.original}
-        />
-      ),
+      kind: 'string',
+      meta: { desktopOnly: true },
+    }),
+    adminUsersFieldColumn({
+      booleanPolarity: 'goodWhenTrue',
+      field: 'emailVerified',
       header: () => options.t('column_email_verified'),
-      id: 'emailVerified',
-      meta: { desktopOnly: true } satisfies AdminDataTableColumnMeta,
-    },
+      kind: 'boolean',
+      meta: { desktopOnly: true },
+    }),
+  ];
+}
+
+function buildAdminUsersColumns(
+  options: AdminUsersColumnOptions
+): ColumnDef<CatalogRow>[] {
+  return [
+    ...buildAdminUsersContactColumns(options),
+    ...buildAdminUsersCardColumns(options),
     {
-      cell: ({ row }) => {
-        const rowId = String(row.original.id);
-        const impersonation = options.userImpersonation;
-        return (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            {options.canUpdate ? (
-              <Link
-                className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-                href={adminUsersEditPath(rowId)}
-              >
-                {options.t('action_edit')}
-              </Link>
-            ) : null}
-            {options.canDelete ? (
-              <Link
-                className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-                href={adminUsersDeleteHref(options.adminBasePath, rowId)}
-              >
-                {options.t('action_delete')}
-              </Link>
-            ) : null}
-            {impersonation?.currentUserId === rowId ? (
-              <span className="text-xs text-mit-text">
-                {impersonation.selfLabel}
-              </span>
-            ) : null}
-            {impersonation && impersonation.currentUserId !== rowId ? (
-              <ImpersonateButton
-                redirectHref={impersonation.accountRedirectHref}
-                userId={rowId}
-              />
-            ) : null}
-          </div>
-        );
-      },
+      cell: adminUsersActionsCell(options),
       header: () => options.t('column_actions'),
       id: 'actions',
     },

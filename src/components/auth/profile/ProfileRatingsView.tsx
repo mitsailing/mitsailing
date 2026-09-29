@@ -133,6 +133,42 @@ function ProfileRatingRow(props: {
   );
 }
 
+function ProfileRatingsTable(props: {
+  readonly format: ProfileRatingsViewProps['format'];
+  readonly rows: ProfileRatingsViewProps['rows'];
+  readonly t: ProfileRatingsViewProps['t'];
+}) {
+  return (
+    <div className="overflow-x-auto border-y border-mit-line text-sm leading-snug text-mit-text">
+      <table className="w-full min-w-[640px] table-fixed border-collapse text-left">
+        <thead>
+          <tr className="border-b border-mit-line text-xs font-medium text-mit-readable-ink">
+            <th className="w-[38%] py-2 pr-4" scope="col">
+              {props.t('ratings_column_rating')}
+            </th>
+            <th className="w-[22%] py-2 pr-4" scope="col">
+              {props.t('ratings_column_status')}
+            </th>
+            <th className="w-[40%] py-2" scope="col">
+              {props.t('ratings_column_issued')}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {props.rows.map((row) => (
+            <ProfileRatingRow
+              format={props.format}
+              key={row.id}
+              row={row}
+              t={props.t}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function ProfileRatingsView(props: ProfileRatingsViewProps) {
   const earnedCount = grantedCount(props.rows);
 
@@ -157,33 +193,11 @@ export function ProfileRatingsView(props: ProfileRatingsViewProps) {
         </p>
       )}
       {props.rows.length > 0 ? (
-        <div className="overflow-x-auto border-y border-mit-line text-sm leading-snug text-mit-text">
-          <table className="w-full min-w-[640px] table-fixed border-collapse text-left">
-            <thead>
-              <tr className="border-b border-mit-line text-xs font-medium text-mit-readable-ink">
-                <th className="w-[38%] py-2 pr-4" scope="col">
-                  {props.t('ratings_column_rating')}
-                </th>
-                <th className="w-[22%] py-2 pr-4" scope="col">
-                  {props.t('ratings_column_status')}
-                </th>
-                <th className="w-[40%] py-2" scope="col">
-                  {props.t('ratings_column_issued')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {props.rows.map((row) => (
-                <ProfileRatingRow
-                  format={props.format}
-                  key={row.id}
-                  row={row}
-                  t={props.t}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ProfileRatingsTable
+          format={props.format}
+          rows={props.rows}
+          t={props.t}
+        />
       ) : null}
       <p className="mt-6 text-sm text-mit-readable-ink">
         <Link

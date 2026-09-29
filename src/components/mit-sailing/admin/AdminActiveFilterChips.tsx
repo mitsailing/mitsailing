@@ -35,6 +35,7 @@ export function AdminActiveFilterChips(props: AdminActiveFilterChipsProps) {
           <Link
             aria-label={chip.removeAriaLabel}
             className="rounded-sm p-0.5 text-muted-foreground no-underline hover:bg-muted hover:text-foreground"
+            // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin list clear URL built from allowlisted filter params.
             href={chip.removeHref}
           >
             <X aria-hidden className="size-3.5" />
@@ -43,6 +44,7 @@ export function AdminActiveFilterChips(props: AdminActiveFilterChipsProps) {
       ))}
       {props.clearHref && props.clearLabel ? (
         <Button asChild className="h-7 px-2" size="sm" variant="ghost">
+          {/* nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin list clear URL built from allowlisted filter params. */}
           <Link href={props.clearHref}>{props.clearLabel}</Link>
         </Button>
       ) : null}

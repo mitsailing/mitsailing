@@ -433,6 +433,77 @@ export function PavilionReservationFlatToggle(props: {
   );
 }
 
+function PavilionReservationFeesAfterHours(props: {
+  academic: boolean;
+  after10Cents: number | null;
+  after2Cents: number | null;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+  if (props.academic || props.after10Cents === null) {
+    return <p>{t('fees_panel_academic_note')}</p>;
+  }
+  return (
+    <ul className="list-disc space-y-1 pl-5">
+      <li>{t('fees_panel_before_sunset')}</li>
+      <li>
+        {t('fees_panel_through_10pm', {
+          amount: formatPavilionReservationMoney(props.after10Cents),
+        })}
+      </li>
+      <li>
+        {t('fees_panel_through_2am', {
+          amount: formatPavilionReservationMoney(
+            props.after2Cents ?? props.after10Cents
+          ),
+        })}
+      </li>
+    </ul>
+  );
+}
+
+function PavilionReservationFeesDetails(props: {
+  academic: boolean;
+  after10Cents: number | null;
+  after2Cents: number | null;
+  dockRate: number | null;
+  roofRate: number | null;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+  return (
+    <details className="mt-2">
+      <summary className="cursor-pointer font-semibold text-mit-red dark:text-mit-red-ink">
+        {t('fees_panel_details_summary')}
+      </summary>
+      <div className="mt-2 space-y-2 text-sm text-muted-foreground">
+        <PavilionReservationFeesAfterHours
+          academic={props.academic}
+          after10Cents={props.after10Cents}
+          after2Cents={props.after2Cents}
+        />
+        <ul className="list-disc space-y-1 pl-5">
+          <li>{t('fees_panel_window')}</li>
+          <li>{t('picker_notice')}</li>
+          {props.dockRate !== null || props.roofRate !== null ? (
+            <li>
+              {t('fees_panel_hourly_rates', {
+                dock:
+                  props.dockRate === null
+                    ? t('price_on_request')
+                    : formatPavilionReservationMoney(props.dockRate),
+                roof:
+                  props.roofRate === null
+                    ? t('price_on_request')
+                    : formatPavilionReservationMoney(props.roofRate),
+              })}
+            </li>
+          ) : null}
+          <li>{t('fees_panel_availability')}</li>
+        </ul>
+      </div>
+    </details>
+  );
+}
+
 export function PavilionReservationFeesPanel(props: {
   afterHoursItems: PavilionReservableItemDto[];
   hourlyVenues: PavilionReservableItemDto[];
@@ -441,17 +512,12 @@ export function PavilionReservationFeesPanel(props: {
   const t = useTranslations('PavilionReservationPage');
   const dock = props.hourlyVenues.find((item) => item.slug === 'casual_dock');
   const roof = props.hourlyVenues.find((item) => item.slug === 'roof_deck');
-  const dockRate = dock ? priceForPersona(dock, props.persona) : null;
-  const roofRate = roof ? priceForPersona(roof, props.persona) : null;
   const after10 = props.afterHoursItems.find(
     (item) => item.slug === 'after_10'
   );
   const after2 = props.afterHoursItems.find(
     (item) => item.slug === 'after_midnight'
   );
-  const after10Cents = after10 ? priceForPersona(after10, props.persona) : null;
-  const after2Cents = after2 ? priceForPersona(after2, props.persona) : null;
-  const academic = props.persona === 'mit_academic';
 
   return (
     <div className="text-sm text-mit-text">
@@ -466,51 +532,13 @@ export function PavilionReservationFeesPanel(props: {
           {t('help_faq_link')}
         </a>
       </p>
-      <details className="mt-2">
-        <summary className="cursor-pointer font-semibold text-mit-red dark:text-mit-red-ink">
-          {t('fees_panel_details_summary')}
-        </summary>
-        <div className="mt-2 space-y-2 text-sm text-muted-foreground">
-          {academic || after10Cents === null ? (
-            <p>{t('fees_panel_academic_note')}</p>
-          ) : (
-            <ul className="list-disc space-y-1 pl-5">
-              <li>{t('fees_panel_before_sunset')}</li>
-              <li>
-                {t('fees_panel_through_10pm', {
-                  amount: formatPavilionReservationMoney(after10Cents),
-                })}
-              </li>
-              <li>
-                {t('fees_panel_through_2am', {
-                  amount: formatPavilionReservationMoney(
-                    after2Cents ?? after10Cents
-                  ),
-                })}
-              </li>
-            </ul>
-          )}
-          <ul className="list-disc space-y-1 pl-5">
-            <li>{t('fees_panel_window')}</li>
-            <li>{t('picker_notice')}</li>
-            {dockRate !== null || roofRate !== null ? (
-              <li>
-                {t('fees_panel_hourly_rates', {
-                  dock:
-                    dockRate === null
-                      ? t('price_on_request')
-                      : formatPavilionReservationMoney(dockRate),
-                  roof:
-                    roofRate === null
-                      ? t('price_on_request')
-                      : formatPavilionReservationMoney(roofRate),
-                })}
-              </li>
-            ) : null}
-            <li>{t('fees_panel_availability')}</li>
-          </ul>
-        </div>
-      </details>
+      <PavilionReservationFeesDetails
+        academic={props.persona === 'mit_academic'}
+        after10Cents={after10 ? priceForPersona(after10, props.persona) : null}
+        after2Cents={after2 ? priceForPersona(after2, props.persona) : null}
+        dockRate={dock ? priceForPersona(dock, props.persona) : null}
+        roofRate={roof ? priceForPersona(roof, props.persona) : null}
+      />
     </div>
   );
 }

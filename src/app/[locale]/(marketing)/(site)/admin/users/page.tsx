@@ -181,7 +181,7 @@ function adminUsersListFilterChips(props: {
     pastDue: string;
     unpaid: string;
   };
-  readonly chipRemoveAria: (label: string) => string;
+  readonly chipRemoveAria: (_label: string) => string;
 }): AdminFilterChip[] {
   const toolbarParams = adminUsersListToolbarParams(props.filters);
   const chips = adminUsersFilterChips(props.filters, props.chipLabels).map(

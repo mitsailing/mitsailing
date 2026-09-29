@@ -46,6 +46,7 @@ function AdminUserProfileActions(props: {
     <div className="flex flex-wrap items-center gap-2">
       {props.canPrintCards && props.hasCurrentCard ? (
         <Button asChild className="gap-2" size="sm" variant="mit">
+          {/* nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- PDF href is a same-origin admin card print route for this user id. */}
           <a href={props.pdfHref} rel="noopener noreferrer" target="_blank">
             <Printer aria-hidden className="size-4" />
             {props.printLabel}
@@ -63,6 +64,80 @@ function AdminUserProfileActions(props: {
           userId={props.userId}
         />
       ) : null}
+    </div>
+  );
+}
+
+function AdminUserProfileContactLine(props: {
+  readonly email?: string;
+  readonly phone?: string;
+}) {
+  if (props.email && props.phone) {
+    return (
+      <p className="mt-2 text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">{props.email}</span>
+        <span aria-hidden="true"> · </span>
+        <span>{props.phone}</span>
+      </p>
+    );
+  }
+  if (props.email) {
+    return (
+      <p className="mt-2 text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">{props.email}</span>
+      </p>
+    );
+  }
+  if (!props.phone) {
+    return null;
+  }
+  return (
+    <p className="mt-2 text-sm text-muted-foreground">
+      <span>{props.phone}</span>
+    </p>
+  );
+}
+
+function AdminUserProfileCardNumber(props: {
+  readonly cardNumber: number | null;
+  readonly hasCurrentCard: boolean;
+}) {
+  if (!props.hasCurrentCard || props.cardNumber === null) {
+    return null;
+  }
+  return (
+    <span className="text-2xl font-semibold text-mit-red tabular-nums">
+      #{props.cardNumber}
+    </span>
+  );
+}
+
+function AdminUserProfileIdentity(props: {
+  readonly cardNumber: number | null;
+  readonly cardStatusLabel: string;
+  readonly displayName: string;
+  readonly email?: string;
+  readonly hasCurrentCard: boolean;
+  readonly phone?: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="m-0 text-2xl font-semibold text-foreground">
+          {props.displayName}
+        </h1>
+        <AdminUserProfileCardNumber
+          cardNumber={props.cardNumber}
+          hasCurrentCard={props.hasCurrentCard}
+        />
+        <Badge
+          className="border-amber-200 bg-amber-50 text-amber-950"
+          variant="outline"
+        >
+          {props.cardStatusLabel}
+        </Badge>
+      </div>
+      <AdminUserProfileContactLine email={props.email} phone={props.phone} />
     </div>
   );
 }
@@ -88,42 +163,20 @@ export async function AdminUserProfileHeader(
     <header className="border-b border-border pb-5">
       <Link
         className="text-sm font-medium text-muted-foreground hover:text-mit-red"
+        // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- backHref is an allowlisted admin path from the parent page.
         href={backHref}
       >
         {t(backLabelKey)}
       </Link>
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="m-0 text-2xl font-semibold text-foreground">
-              {props.displayName}
-            </h1>
-            {props.hasCurrentCard && props.cardNumber !== null ? (
-              <span className="text-2xl font-semibold text-mit-red tabular-nums">
-                #{props.cardNumber}
-              </span>
-            ) : null}
-            <Badge
-              className="border-amber-200 bg-amber-50 text-amber-950"
-              variant="outline"
-            >
-              {props.cardStatusLabel}
-            </Badge>
-          </div>
-          {props.email || props.phone ? (
-            <p className="mt-2 text-sm text-muted-foreground">
-              {props.email ? (
-                <span className="font-medium text-foreground">
-                  {props.email}
-                </span>
-              ) : null}
-              {props.email && props.phone ? (
-                <span aria-hidden="true"> · </span>
-              ) : null}
-              {props.phone ? <span>{props.phone}</span> : null}
-            </p>
-          ) : null}
-        </div>
+        <AdminUserProfileIdentity
+          cardNumber={props.cardNumber}
+          cardStatusLabel={props.cardStatusLabel}
+          displayName={props.displayName}
+          email={props.email}
+          hasCurrentCard={props.hasCurrentCard}
+          phone={props.phone}
+        />
         <AdminUserProfileActions
           accountRedirectHref={props.accountRedirectHref}
           canEditUsers={props.canEditUsers}

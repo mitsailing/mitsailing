@@ -118,10 +118,7 @@ function itemById(items: PavilionReservableItemDto[], id: string) {
 }
 
 function createClientSlotId() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return `slot-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return crypto.randomUUID();
 }
 
 const mitAffiliationPersonas = ['mit_student', 'mit_community'] as const;
@@ -811,11 +808,11 @@ function SlotStartSelection(props: {
       <p className="mb-3 text-sm text-muted-foreground">
         {t('picker_start_band_prompt')}
       </p>
-      <div
+      <fieldset
         aria-label={t('picker_time_of_day')}
-        className="mb-3 flex flex-wrap gap-2"
-        role="group"
+        className="mb-3 flex flex-wrap gap-2 border-0 p-0"
       >
+        <legend className="sr-only">{t('picker_time_of_day')}</legend>
         {availableBands.map((option) => (
           <button
             aria-label={t(`picker_${option}`)}
@@ -838,7 +835,7 @@ function SlotStartSelection(props: {
             </span>
           </button>
         ))}
-      </div>
+      </fieldset>
       <p className="mb-1.5 text-sm text-muted-foreground">
         {t('picker_band_start_times', { band: t(`picker_${band}`) })}
       </p>
@@ -1088,7 +1085,7 @@ function VenueInlineEditor(props: {
   };
 
   return (
-    <div
+    <section
       aria-label={props.venueName}
       className="flex flex-col gap-3 border-t border-mit-line bg-mit-surface/50 p-4"
     >
@@ -1244,7 +1241,7 @@ function VenueInlineEditor(props: {
             : t('action_add_to_request')}
         </Button>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -1505,6 +1502,59 @@ function PavilionReservationRequestStep(props: {
   );
 }
 
+function pavilionServiceOptionClassName(props: {
+  available: boolean;
+  selected: boolean;
+}) {
+  return cn(
+    'flex items-start gap-4 rounded-lg border p-4 transition-colors md:items-center',
+    props.available
+      ? 'cursor-pointer'
+      : 'cursor-not-allowed border-mit-line bg-mit-surface opacity-75',
+    props.selected ? 'border-mit-red bg-mit-red-highlight' : null,
+    props.available && !props.selected ? 'border-mit-line' : null
+  );
+}
+
+function togglePavilionServiceSelection(
+  current: string[],
+  serviceId: string
+): string[] {
+  return current.includes(serviceId)
+    ? current.filter((id) => id !== serviceId)
+    : [...current, serviceId];
+}
+
+function PavilionReservationServiceOptionCopy(props: {
+  available: boolean;
+  description: string;
+  name: string;
+  priceLabel: string;
+  unavailableDescription: string;
+  unavailablePrice: string;
+}) {
+  return (
+    <>
+      <span className="min-w-0 flex-1">
+        <span
+          className={cn(
+            'block font-medium text-mit-text',
+            props.available ? null : 'text-muted-foreground line-through'
+          )}
+        >
+          {props.name}
+        </span>
+        <span className="mt-1 block text-xs text-muted-foreground">
+          {props.available ? props.description : props.unavailableDescription}
+        </span>
+      </span>
+      <span className="font-semibold text-primary-ink">
+        {props.available ? props.priceLabel : props.unavailablePrice}
+      </span>
+    </>
+  );
+}
+
 function PavilionReservationServiceOption(props: {
   persona: PavilionReservationPersonaValue;
   selected: boolean;
@@ -1520,14 +1570,10 @@ function PavilionReservationServiceOption(props: {
 
   return (
     <label
-      className={cn(
-        'flex items-start gap-4 rounded-lg border p-4 transition-colors md:items-center',
-        priceDisplay.available
-          ? 'cursor-pointer'
-          : 'cursor-not-allowed border-mit-line bg-mit-surface opacity-75',
-        props.selected ? 'border-mit-red bg-mit-red-highlight' : null,
-        priceDisplay.available && !props.selected ? 'border-mit-line' : null
-      )}
+      className={pavilionServiceOptionClassName({
+        available: priceDisplay.available,
+        selected: props.selected,
+      })}
     >
       <input
         checked={props.selected}
@@ -1536,32 +1582,18 @@ function PavilionReservationServiceOption(props: {
         type="checkbox"
         onChange={() => {
           props.setSelectedServiceIds((current) =>
-            current.includes(props.service.id)
-              ? current.filter((id) => id !== props.service.id)
-              : [...current, props.service.id]
+            togglePavilionServiceSelection(current, props.service.id)
           );
         }}
       />
-      <span className="min-w-0 flex-1">
-        <span
-          className={cn(
-            'block font-medium text-mit-text',
-            priceDisplay.available ? null : 'text-muted-foreground line-through'
-          )}
-        >
-          {props.service.name}
-        </span>
-        <span className="mt-1 block text-xs text-muted-foreground">
-          {priceDisplay.available
-            ? props.service.description
-            : t('service_unavailable')}
-        </span>
-      </span>
-      <span className="font-semibold text-primary-ink">
-        {priceDisplay.available
-          ? priceDisplay.label
-          : t('service_unavailable_price')}
-      </span>
+      <PavilionReservationServiceOptionCopy
+        available={priceDisplay.available}
+        description={props.service.description}
+        name={props.service.name}
+        priceLabel={priceDisplay.label}
+        unavailableDescription={t('service_unavailable')}
+        unavailablePrice={t('service_unavailable_price')}
+      />
     </label>
   );
 }
@@ -2413,6 +2445,42 @@ function pavilionReservationDraftSeedFromServerResume(
   };
 }
 
+function applyPavilionReservationSessionDraft(props: {
+  items: PavilionReservableItemDto[];
+  seed: NonNullable<
+    Awaited<ReturnType<typeof loadPavilionReservationDraftByResumeTokenAction>>
+  >;
+  setContact: React.Dispatch<React.SetStateAction<ContactFields>>;
+  setDraftRequestId: React.Dispatch<React.SetStateAction<string | null>>;
+  setPersona: React.Dispatch<
+    React.SetStateAction<PavilionReservationPersonaValue>
+  >;
+  setRequesterEmail: React.Dispatch<React.SetStateAction<string>>;
+  setResumeToken: React.Dispatch<React.SetStateAction<string | null>>;
+  setSelectedServiceIds: React.Dispatch<React.SetStateAction<string[]>>;
+  setSessionHydrated: React.Dispatch<React.SetStateAction<boolean>>;
+  setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
+  setStep: React.Dispatch<React.SetStateAction<WizardStep>>;
+}) {
+  const allowedItemIds = new Set(props.items.map((item) => item.id));
+  props.setStep(normalizePavilionReservationWizardStep(props.seed.draft.step));
+  props.setPersona(props.seed.draft.persona);
+  props.setRequesterEmail(props.seed.draft.requesterEmail);
+  props.setSlots(
+    props.seed.draft.slots.filter((slot) => allowedItemIds.has(slot.itemId))
+  );
+  props.setContact(props.seed.draft.contact);
+  props.setSelectedServiceIds(
+    props.seed.draft.selectedServiceIds.filter((serviceId) =>
+      allowedItemIds.has(serviceId)
+    )
+  );
+  props.setDraftRequestId(props.seed.requestId);
+  props.setResumeToken(props.seed.resumeToken);
+  writePavilionReservationResumeTokenToSession(props.seed.resumeToken);
+  props.setSessionHydrated(true);
+}
+
 /**
  * Keeps pavilion draft resume, autosave, and session token lifecycle in sync.
  *
@@ -2489,23 +2557,19 @@ function usePavilionReservationDraftPersistence(params: {
         setSessionHydrated(true);
         return;
       }
-      const allowedItemIds = new Set(items.map((item) => item.id));
-      setStep(normalizePavilionReservationWizardStep(seed.draft.step));
-      setPersona(seed.draft.persona);
-      setRequesterEmail(seed.draft.requesterEmail);
-      setSlots(
-        seed.draft.slots.filter((slot) => allowedItemIds.has(slot.itemId))
-      );
-      setContact(seed.draft.contact);
-      setSelectedServiceIds(
-        seed.draft.selectedServiceIds.filter((serviceId) =>
-          allowedItemIds.has(serviceId)
-        )
-      );
-      setDraftRequestId(seed.requestId);
-      setResumeToken(seed.resumeToken);
-      writePavilionReservationResumeTokenToSession(seed.resumeToken);
-      setSessionHydrated(true);
+      applyPavilionReservationSessionDraft({
+        items,
+        seed,
+        setContact,
+        setDraftRequestId,
+        setPersona,
+        setRequesterEmail,
+        setResumeToken,
+        setSelectedServiceIds,
+        setSessionHydrated,
+        setSlots,
+        setStep,
+      });
     };
     // eslint-disable-next-line promise/prefer-await-to-then -- effect cleanup handles cancellation; rejections must not surface
     loadSessionDraft().catch(() => {

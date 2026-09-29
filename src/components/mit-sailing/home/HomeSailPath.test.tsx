@@ -159,7 +159,7 @@ describe('HomeSailPath', () => {
     expect(screen.queryByText(/before publishing/)).not.toBeInTheDocument();
     expect(
       screen.getByRole('radio', { name: 'Experienced Sailors' })
-    ).toHaveAttribute('aria-checked', 'true');
+    ).toBeChecked();
   });
 
   it('links to the events list when no upcoming orientations exist', async () => {
