@@ -70,7 +70,7 @@ describe('Env legacy MySQL sync validation', () => {
     vi.resetModules();
   });
 
-  it('defaults legacy MySQL sync to disabled with an hourly cron', async () => {
+  it('defaults legacy MySQL sync to disabled with a six-am eastern cron', async () => {
     stubRequiredBaseEnv();
     stubNewsletterRevalidateSecret();
     const { Env } = await import('@/libs/Env');

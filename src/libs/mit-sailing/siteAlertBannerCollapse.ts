@@ -4,9 +4,12 @@
 export const SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY =
   'mit-sailing:site-alert-banner:v1';
 
-type StoredSiteAlertBannerCollapse = {
+/**
+ * Persisted banner disclosure: alert identities plus whether the strip is collapsed.
+ */
+export type SiteAlertBannerCollapseStored = {
   alerts: SiteAlertBannerCollapseAlert[];
-  collapsed: true;
+  collapsed: boolean;
 };
 
 /**
@@ -44,12 +47,12 @@ function isSiteAlertBannerCollapseAlert(
 
 function isStoredSiteAlertBannerCollapse(
   value: unknown
-): value is StoredSiteAlertBannerCollapse {
+): value is SiteAlertBannerCollapseStored {
   if (!isRecord(value)) {
     return false;
   }
   return (
-    value.collapsed === true &&
+    typeof value.collapsed === 'boolean' &&
     Array.isArray(value.alerts) &&
     value.alerts.every(isSiteAlertBannerCollapseAlert)
   );
@@ -59,11 +62,11 @@ function isStoredSiteAlertBannerCollapse(
  * Parses localStorage JSON into collapsed alert entries, or null when missing or invalid.
  *
  * @param raw Serialized storage string, or null when unset.
- * @returns Parsed alert list, or null when input is empty or JSON is invalid or shape does not match.
+ * @returns Parsed disclosure state, or null when input is empty or invalid
  */
 export function parseStoredSiteAlertBannerCollapse(
   raw: string | null
-): SiteAlertBannerCollapseAlert[] | null {
+): SiteAlertBannerCollapseStored | null {
   if (!raw) {
     return null;
   }
@@ -72,22 +75,24 @@ export function parseStoredSiteAlertBannerCollapse(
     if (!isStoredSiteAlertBannerCollapse(value)) {
       return null;
     }
-    return value.alerts;
+    return { alerts: value.alerts, collapsed: value.collapsed };
   } catch {
     return null;
   }
 }
 
 /**
- * Serializes collapsed alerts for localStorage using the stored wrapper shape.
+ * Serializes banner disclosure for localStorage.
  *
- * @param alerts Alert identities to persist.
- * @returns JSON string with `collapsed: true` and the alerts array.
+ * @param alerts - Alert identities to persist
+ * @param collapsed - Whether the banner should start collapsed
+ * @returns JSON string with collapsed flag and alerts
  */
 export function serializeSiteAlertBannerCollapse(
-  alerts: SiteAlertBannerCollapseAlert[]
+  alerts: SiteAlertBannerCollapseAlert[],
+  collapsed = true
 ): string {
-  return JSON.stringify({ collapsed: true, alerts });
+  return JSON.stringify({ alerts, collapsed });
 }
 
 /**
@@ -113,14 +118,18 @@ export function buildSiteAlertBannerCollapseAlerts(
  *
  * @param props Current page alerts and last persisted collapse snapshot.
  * @param props.currentAlerts Alerts currently rendered for the banner.
- * @param props.storedAlerts Alerts from storage when the user collapsed the banner, or null when none.
- * @returns True when storage exists, there is at least one current alert, and each id's fingerprint matches storage.
+ * @param props.stored Last persisted disclosure, or null when none
+ * @returns True when the banner should render collapsed
  */
 export function siteAlertBannerStartsCollapsed(props: {
   currentAlerts: readonly SiteAlertBannerCollapseAlert[];
-  storedAlerts: SiteAlertBannerCollapseAlert[] | null;
+  stored: SiteAlertBannerCollapseStored | null;
 }): boolean {
-  if (!props.storedAlerts) {
+  if (!props.stored) {
+    return true;
+  }
+
+  if (!props.stored.collapsed) {
     return false;
   }
 
@@ -129,7 +138,7 @@ export function siteAlertBannerStartsCollapsed(props: {
   }
 
   const storedFingerprintsById = new Map(
-    props.storedAlerts.map((alert) => [alert.id, alert.contentFingerprint])
+    props.stored.alerts.map((alert) => [alert.id, alert.contentFingerprint])
   );
 
   return props.currentAlerts.every(

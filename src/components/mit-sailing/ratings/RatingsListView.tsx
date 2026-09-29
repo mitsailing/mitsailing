@@ -2,6 +2,11 @@ import { getTranslations } from 'next-intl/server';
 import type * as React from 'react';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
+import {
+  groupPublicRatingsByPath,
+  sailingRatingPathSectionId,
+} from '@/libs/mit-sailing/sailingRatingCatalogPaths';
+import type { SailingRatingPathId } from '@/libs/mit-sailing/sailingRatingCatalogPaths';
 import type { PublicSailingRating } from '@/libs/mit-sailing/sailingRatingQueries';
 
 type RatingsListViewProps = {
@@ -16,6 +21,16 @@ type RatingFactLink = {
 };
 
 const ratingLinkClassName = `font-semibold text-mit-red hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`;
+
+const PATH_LABEL_KEYS = {
+  'charles-river': 'path_charles-river',
+  lynx: 'path_lynx',
+  mashnee: 'path_mashnee',
+  other: 'path_other',
+  racing: 'path_racing',
+  team: 'path_team',
+  windsurfing: 'path_windsurfing',
+} as const satisfies Record<SailingRatingPathId, string>;
 
 function RatingPageIntro(props: {
   readonly heading: string;
@@ -79,13 +94,16 @@ function RatingCatalogItem(props: {
     readonly boats: string;
     readonly classes: string;
     readonly guide: string;
+    readonly prerequisites: string;
     readonly wind: string;
   };
   readonly levelLabel: string | null;
   readonly rating: PublicSailingRating;
+  readonly showPathCategory: boolean;
 }) {
   const { rating } = props;
   const headingId = `${rating.slug}-heading`;
+  const factCount = rating.requiredRatings.length > 0 ? 5 : 4;
 
   return (
     <article
@@ -105,7 +123,7 @@ function RatingCatalogItem(props: {
             {props.levelLabel}
           </span>
         ) : null}
-        {rating.category ? (
+        {props.showPathCategory && rating.category ? (
           <span className="text-sm text-muted-foreground">
             {rating.category}
           </span>
@@ -114,7 +132,9 @@ function RatingCatalogItem(props: {
       <p className="mt-3 mb-0 max-w-3xl text-base leading-relaxed text-pretty text-mit-text">
         {rating.description}
       </p>
-      <dl className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <dl
+        className={`mt-5 grid gap-4 sm:grid-cols-2 ${factCount > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}
+      >
         <RatingFact
           label={props.labels.classes}
           value={
@@ -128,6 +148,21 @@ function RatingCatalogItem(props: {
             />
           }
         />
+        {rating.requiredRatings.length > 0 ? (
+          <RatingFact
+            label={props.labels.prerequisites}
+            value={
+              <RatingFactLinks
+                emptyLabel={props.emptyLabel}
+                items={rating.requiredRatings.map((required) => ({
+                  href: `/ratings#${required.slug}`,
+                  id: required.id,
+                  name: required.name,
+                }))}
+              />
+            }
+          />
+        ) : null}
         <RatingFact
           label={props.labels.boats}
           value={
@@ -184,10 +219,18 @@ export async function RatingsListView(props: RatingsListViewProps) {
   const deprecatedRatings = props.ratings.filter(
     (rating) => rating.isDeprecated
   );
+  const pathSections = groupPublicRatingsByPath(activeRatings);
   const intro = {
     heading: t('list_heading'),
     intro: t('list_intro'),
     staffNote: t('list_staff_note'),
+  };
+  const labels = {
+    boats: t('column_boats'),
+    classes: t('column_classes'),
+    guide: t('column_guide'),
+    prerequisites: t('column_prerequisites'),
+    wind: t('column_wind'),
   };
 
   if (props.ratings.length === 0) {
@@ -205,27 +248,38 @@ export async function RatingsListView(props: RatingsListViewProps) {
     <>
       <RatingPageIntro {...intro} />
 
-      {activeRatings.length > 0 ? (
-        <div className="min-w-0">
-          {activeRatings.map((rating) => (
-            <RatingCatalogItem
-              emptyLabel={t('not_applicable')}
-              guideLabel={t('guide_link')}
-              key={rating.id}
-              labels={{
-                boats: t('column_boats'),
-                classes: t('column_classes'),
-                guide: t('column_guide'),
-                wind: t('column_wind'),
-              }}
-              levelLabel={
-                rating.level ? t('rating_level', { level: rating.level }) : null
-              }
-              rating={rating}
-            />
-          ))}
-        </div>
-      ) : null}
+      {pathSections.map((section) => (
+        <section
+          aria-labelledby={`${sailingRatingPathSectionId(section.pathId)}-heading`}
+          className="mb-10 min-w-0 last:mb-0"
+          id={sailingRatingPathSectionId(section.pathId)}
+          key={section.pathId}
+        >
+          <h2
+            className="mb-4 font-mit-serif text-2xl font-semibold tracking-tight text-mit-text md:text-3xl"
+            id={`${sailingRatingPathSectionId(section.pathId)}-heading`}
+          >
+            {t(PATH_LABEL_KEYS[section.pathId])}
+          </h2>
+          <div className="min-w-0">
+            {section.ratings.map((rating) => (
+              <RatingCatalogItem
+                emptyLabel={t('not_applicable')}
+                guideLabel={t('guide_link', { name: rating.name })}
+                key={rating.id}
+                labels={labels}
+                levelLabel={
+                  rating.level
+                    ? t('rating_level', { level: rating.level })
+                    : null
+                }
+                rating={rating}
+                showPathCategory={false}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
 
       {deprecatedRatings.length > 0 ? (
         <section

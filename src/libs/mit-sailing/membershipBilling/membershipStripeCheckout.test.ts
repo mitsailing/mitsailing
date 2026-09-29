@@ -11,21 +11,21 @@ vi.mock('server-only', () => ({}));
 
 const checkoutPrice = {
   active: true,
-  amountCents: 7000,
+  amountCents: 12_500,
   billingInterval: SailingCardMembershipBillingInterval.one_time,
   cardType: SailingCardType.racing,
   currency: 'usd',
   effectiveAt: new Date('2026-01-01T00:00:00.000Z'),
-  id: 'price_local_spring',
+  id: 'price_local_full',
   priceCategory: SailingCardMembershipPriceCategory.under_30,
-  priceKind: SailingCardMembershipPriceKind.spring,
-  stripePriceId: 'price_spring',
+  priceKind: SailingCardMembershipPriceKind.full,
+  stripePriceId: 'price_full',
   stripeSyncError: null,
   stripeSyncedAt: new Date('2026-01-01T00:00:00.000Z'),
 };
 
 const checkoutPayment = {
-  activeCheckoutKey: 'membership:user_1:2026:racing:price_local_spring',
+  activeCheckoutKey: 'membership:user_1:2026:racing:price_local_full',
   cardType: SailingCardType.racing,
   cardYear: 2026,
   id: 'payment_1',
@@ -64,7 +64,7 @@ describe('membershipStripeCheckout', () => {
         cancel_url: 'https://sailing.mit.edu/onboarding?checkout=cancelled',
         client_reference_id: 'payment_1',
         customer: 'cus_test',
-        line_items: [{ price: 'price_spring', quantity: 1 }],
+        line_items: [{ price: 'price_full', quantity: 1 }],
         mode: 'payment',
         payment_intent_data: expect.objectContaining({
           setup_future_usage: 'off_session',
@@ -79,7 +79,7 @@ describe('membershipStripeCheckout', () => {
     expect(params).not.toHaveProperty('subscription_data');
     expect(params.metadata).toMatchObject({
       domain: 'sailing_card_membership',
-      initialMembershipPriceId: 'price_local_spring',
+      initialMembershipPriceId: 'price_local_full',
       localPaymentId: 'payment_1',
       userId: 'user_1',
     });

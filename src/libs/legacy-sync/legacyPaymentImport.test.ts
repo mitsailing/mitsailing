@@ -88,6 +88,7 @@ function mockLegacyUserSqlSequence(props?: {
   }[];
   merged?: readonly { id: string }[];
   namesUpdated?: readonly { id: string }[];
+  profilesUpdated?: readonly { id: string }[];
   staged?: readonly { id: string; user_key: string }[];
 }) {
   mocks.queryRaw.mockReset();
@@ -95,6 +96,7 @@ function mockLegacyUserSqlSequence(props?: {
     .mockResolvedValueOnce(props?.existing ?? [])
     .mockResolvedValueOnce(props?.merged ?? [])
     .mockResolvedValueOnce(props?.namesUpdated ?? [])
+    .mockResolvedValueOnce(props?.profilesUpdated ?? [])
     .mockResolvedValueOnce(
       props?.inserted ?? [
         {
@@ -377,6 +379,45 @@ describe('legacyPaymentImport', () => {
       'SET "name" = prepared.name',
       'target."name" = upper(target."name")',
     ]);
+  });
+
+  it('refreshes matched user roles and contact fields without touching credentials', async () => {
+    mockLegacyUserSqlSequence({
+      existing: [{ id: 'existing-user', user_key: 'id:123456789' }],
+      inserted: [],
+      profilesUpdated: [{ id: 'existing-user' }],
+      staged: [{ id: 'existing-user', user_key: 'id:123456789' }],
+    });
+
+    await expect(
+      importLegacyPaymentRows({
+        members: [
+          member({
+            emer_name: 'Contact Person',
+            emer_phone: '6175550100',
+            memb_type: '9',
+            phone: '6175550199',
+          }),
+        ],
+        payments: [],
+      })
+    ).resolves.toMatchObject({
+      usersCreated: 0,
+      usersMatched: 1,
+    });
+
+    expectAnyRawSqlContaining([
+      'SET "app_role" = prepared.app_role::"AppRole"',
+      '"role" = prepared.role',
+      '"phone" = prepared.phone',
+      '"emergency_contact_name" = prepared.emergency_contact_name',
+      '"emergency_contact_phone" = prepared.emergency_contact_phone',
+      'mit_owner."mit_id" = prepared.mit_id',
+    ]);
+    expect(allRawSqlCalls().join('\n')).not.toContain(
+      'legacy_import_credential_accounts'
+    );
+    expect(allRawSqlCalls().join('\n')).not.toContain('INSERT INTO "account"');
   });
 
   it('imports legacy users and payments without storing legacy usernames', async () => {

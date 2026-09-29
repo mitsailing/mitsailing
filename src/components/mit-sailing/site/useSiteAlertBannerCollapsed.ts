@@ -19,7 +19,7 @@ function collapsedSnapshot(alerts: readonly SiteAlertBannerCollapseAlert[]) {
   try {
     return siteAlertBannerStartsCollapsed({
       currentAlerts: alerts,
-      storedAlerts: parseStoredSiteAlertBannerCollapse(
+      stored: parseStoredSiteAlertBannerCollapse(
         window.localStorage.getItem(SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY)
       ),
     });
@@ -69,14 +69,10 @@ export function useSiteAlertBannerCollapsed(
     const next = !collapsedSnapshot(alerts);
     storageFault = null;
     try {
-      if (next) {
-        window.localStorage.setItem(
-          SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY,
-          serializeSiteAlertBannerCollapse([...alerts])
-        );
-      } else {
-        window.localStorage.removeItem(SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY);
-      }
+      window.localStorage.setItem(
+        SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY,
+        serializeSiteAlertBannerCollapse([...alerts], next)
+      );
     } catch {
       storageFault = next;
     }

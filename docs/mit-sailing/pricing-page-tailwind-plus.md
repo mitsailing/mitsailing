@@ -22,7 +22,7 @@ The docs URL may require Tailwind Plus access. If command-line fetches return 40
 
 1. Pull or replace the local `marketing-v4` folder with the current Tailwind Plus export.
 2. Compare the source block against `PricingPageView.tsx`.
-3. Preserve the four MIT Sailing choices, paid categories, CTAs, and desktop class/checkoff comparison.
+3. Preserve the three MIT Sailing choices, paid categories, CTAs, and desktop class/checkoff comparison.
 4. Keep MIT Sailing tokens, shared `Button`, `Link`, i18n keys, and accessibility labels.
 5. Do not copy demo business copy, raw Tailwind colors, or Heroicons imports unless the repo adds that package.
 6. Verify `/pricing` on desktop, mobile, and dark mode after changing the block.

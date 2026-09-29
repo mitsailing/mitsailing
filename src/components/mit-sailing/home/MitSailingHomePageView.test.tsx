@@ -10,11 +10,11 @@ import { MitSailingHomePageView } from './MitSailingHomePageView';
 
 const homeMocks = vi.hoisted(() => ({
   getHomeUpcomingDayGroups: vi.fn(),
-  getSession: vi.fn(),
   getTranslations: vi.fn(),
   loadHomeLearnToSailIntroductionClasses: vi.fn(),
   loadHomeLearnToSailNextClassesBySlugs: vi.fn(),
   loadHomeLearnToSailPrerequisiteNamesByIds: vi.fn(),
+  loadHomeSailPathData: vi.fn(),
   loadPublishedCmsPageByPath: vi.fn(),
   setRequestLocale: vi.fn(),
 }));
@@ -43,10 +43,6 @@ vi.mock('next/image', () => ({
   ),
 }));
 
-vi.mock('@/libs/auth/dal', () => ({
-  getSession: homeMocks.getSession,
-}));
-
 vi.mock('@/libs/mit-sailing/cmsQueries', () => ({
   loadPublishedCmsPageByPath: homeMocks.loadPublishedCmsPageByPath,
 }));
@@ -62,6 +58,16 @@ vi.mock('@/libs/mit-sailing/homeLearnToSailFromPrisma', () => ({
 
 vi.mock('@/libs/mit-sailing/homeUpcomingFromPrisma', () => ({
   getHomeUpcomingDayGroups: homeMocks.getHomeUpcomingDayGroups,
+}));
+
+vi.mock('@/libs/mit-sailing/homeSailPathFromPrisma', () => ({
+  loadHomeSailPathData: homeMocks.loadHomeSailPathData,
+}));
+
+vi.mock('@/libs/mit-sailing/learnToSailWaitlistActions', () => ({
+  joinLearnToSailWaitlistAction: vi.fn(async () => {
+    await Promise.resolve();
+  }),
 }));
 
 const homeMessages = enMessages.MitSailingHome;
@@ -294,7 +300,6 @@ function homePageWithBlocks(nextBlocks: PublicCmsBlock[]) {
 describe('MitSailingHomePageView', () => {
   beforeEach(() => {
     homeMocks.getTranslations.mockResolvedValue(translate);
-    homeMocks.getSession.mockResolvedValue(null);
     homeMocks.getHomeUpcomingDayGroups.mockResolvedValue(upcomingGroups);
     homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(homePage);
     homeMocks.loadHomeLearnToSailIntroductionClasses.mockResolvedValue(
@@ -306,6 +311,11 @@ describe('MitSailingHomePageView', () => {
     homeMocks.loadHomeLearnToSailPrerequisiteNamesByIds.mockResolvedValue(
       new Map([['intro-id', 'Intro Sailing']])
     );
+    homeMocks.loadHomeSailPathData.mockResolvedValue({
+      experiencedSessions: [],
+      scheduleSummary: null,
+      waitlist: { kind: 'anonymous' },
+    });
     homeMocks.setRequestLocale.mockReset();
   });
 
@@ -318,6 +328,7 @@ describe('MitSailingHomePageView', () => {
     expect(
       homeMocks.loadHomeLearnToSailNextClassesBySlugs
     ).not.toHaveBeenCalled();
+    expect(homeMocks.loadHomeSailPathData).not.toHaveBeenCalled();
   });
 
   it('renders cms home sections with events and class paths', async () => {
@@ -326,22 +337,11 @@ describe('MitSailingHomePageView', () => {
     expect(homeMocks.setRequestLocale).toHaveBeenCalledWith('en');
     expect(homeMocks.loadPublishedCmsPageByPath).toHaveBeenCalledWith('/');
     expect(
-      screen.getByRole('img', { name: 'Sailors on the Charles River' })
-    ).toBeVisible();
-    expect(
-      screen.getByRole('heading', {
+      screen.queryByRole('heading', {
         level: 1,
         name: 'Learn to sail on the Charles',
       })
-    ).toBeVisible();
-    expect(screen.getByText(/Membership includes/u)).toBeVisible();
-    expect(screen.getByRole('link', { name: 'See classes' })).toHaveAttribute(
-      'href',
-      '/classes'
-    );
-    expect(
-      screen.getByRole('link', { name: 'Create account' })
-    ).toHaveAttribute('href', '/signup');
+    ).not.toBeInTheDocument();
 
     expect(
       screen.getByRole('heading', { name: 'Daily Sailing' })
@@ -408,15 +408,12 @@ describe('MitSailingHomePageView', () => {
     ).toHaveAttribute('href', '/contact');
   });
 
-  it('limits public event links and omits account creation for signed-in sailors', async () => {
+  it('limits public event links', async () => {
     const [heroBlock] = blocks;
     if (!heroBlock) {
       throw new Error('Expected hero block fixture');
     }
 
-    homeMocks.getSession.mockResolvedValue({
-      user: { id: 'sailor-id' },
-    });
     homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
       homePageWithBlocks([
         heroBlock,
@@ -426,9 +423,6 @@ describe('MitSailingHomePageView', () => {
 
     render(await MitSailingHomePageView({ locale: 'en' }));
 
-    expect(
-      screen.queryByRole('link', { name: 'Create account' })
-    ).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Intro sail' })).toHaveAttribute(
       'href',
       '/events/intro-sail'
@@ -529,13 +523,8 @@ describe('MitSailingHomePageView', () => {
     homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
       homePageWithBlocks([
         {
-          ...heroBlock,
-          body: '<p><strong>Fast</strong> sailing <a href="/classes">classes</a></p>',
-          title: 'CMS home hero',
-        },
-        {
           ...rentalBlock,
-          body: '<p>Reserve the <em>pavilion</em>.</p>',
+          body: '<p>Reserve the <em>pavilion</em>. <strong>Fast</strong></p>',
           ctaLabel: 'Contact us',
           ctaUrl: '/contact',
           title: 'CMS rental',
@@ -609,8 +598,8 @@ describe('MitSailingHomePageView', () => {
       screen.queryByRole('link', { name: 'Inquire about availability' })
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: 'Create account' })
-    ).toHaveAttribute('href', '/signup');
+      screen.queryByRole('link', { name: 'Create account' })
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('Membership Options')).not.toBeInTheDocument();
   });
 

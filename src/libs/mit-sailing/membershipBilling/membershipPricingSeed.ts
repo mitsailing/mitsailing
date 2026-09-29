@@ -30,50 +30,21 @@ type InitialSailingCardMembershipPrice = {
   readonly stripeSyncedAt: null;
 };
 
-type LegacyAmountSet = {
-  readonly full: number;
-  readonly spring: number;
+const racingAmounts: Record<SailingCardMembershipPriceCategory, number> = {
+  [SailingCardMembershipPriceCategory.student]: 4000,
+  [SailingCardMembershipPriceCategory.under_30]: 12_500,
+  [SailingCardMembershipPriceCategory.thirty_or_over]: 17_500,
 };
 
-const racingAmounts: Record<
-  SailingCardMembershipPriceCategory,
-  LegacyAmountSet
-> = {
-  [SailingCardMembershipPriceCategory.student]: {
-    spring: 2500,
-    full: 4000,
-  },
-  [SailingCardMembershipPriceCategory.under_30]: {
-    spring: 7000,
-    full: 12_500,
-  },
-  [SailingCardMembershipPriceCategory.thirty_or_over]: {
-    spring: 10_000,
-    full: 17_500,
-  },
-};
-
-const teamRacingAmounts: Record<
-  SailingCardMembershipPriceCategory,
-  LegacyAmountSet
-> = {
-  [SailingCardMembershipPriceCategory.student]: {
-    spring: 2500,
-    full: 2500,
-  },
-  [SailingCardMembershipPriceCategory.under_30]: {
-    spring: 7000,
-    full: 7000,
-  },
-  [SailingCardMembershipPriceCategory.thirty_or_over]: {
-    spring: 10_000,
-    full: 10_000,
-  },
+const teamRacingAmounts: Record<SailingCardMembershipPriceCategory, number> = {
+  [SailingCardMembershipPriceCategory.student]: 2500,
+  [SailingCardMembershipPriceCategory.under_30]: 7000,
+  [SailingCardMembershipPriceCategory.thirty_or_over]: 10_000,
 };
 
 const amountSets: Record<
   SailingCardType,
-  Record<SailingCardMembershipPriceCategory, LegacyAmountSet> | null
+  Record<SailingCardMembershipPriceCategory, number> | null
 > = {
   [SailingCardType.normal]: null,
   [SailingCardType.racing]: racingAmounts,
@@ -118,27 +89,15 @@ const membershipPriceRowsForCardType = (
     return [];
   }
 
-  return Object.values(SailingCardMembershipPriceCategory).flatMap(
-    (priceCategory) => {
-      const categoryAmounts = amounts[priceCategory];
-
-      return [
-        membershipPriceRow({
-          amountCents: categoryAmounts.spring,
-          billingInterval: SailingCardMembershipBillingInterval.one_time,
-          cardType,
-          priceCategory,
-          priceKind: SailingCardMembershipPriceKind.spring,
-        }),
-        membershipPriceRow({
-          amountCents: categoryAmounts.full,
-          billingInterval: SailingCardMembershipBillingInterval.one_time,
-          cardType,
-          priceCategory,
-          priceKind: SailingCardMembershipPriceKind.full,
-        }),
-      ];
-    }
+  return Object.values(SailingCardMembershipPriceCategory).map(
+    (priceCategory) =>
+      membershipPriceRow({
+        amountCents: amounts[priceCategory],
+        billingInterval: SailingCardMembershipBillingInterval.one_time,
+        cardType,
+        priceCategory,
+        priceKind: SailingCardMembershipPriceKind.full,
+      })
   );
 };
 

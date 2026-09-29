@@ -46,6 +46,7 @@ function ratingRow(
     issuedByName: null,
     level: null,
     name: props.id,
+    requiredRatings: [],
     shortName: null,
     slug: id,
     unlockedBoats: [],

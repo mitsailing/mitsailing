@@ -111,4 +111,37 @@ describe('listUserRatingAssignmentRows', () => {
     expect(rows.some((row) => row.name === 'Bosun')).toBe(false);
     expect(mocks.sailingRatingFindMany).toHaveBeenCalledTimes(1);
   });
+
+  it('attaches required ratings from rating-to-rating rules', async () => {
+    mocks.sailingRatingFindMany.mockResolvedValueOnce([
+      catalogRating({ id: 'rating-tech', name: 'Tech Rating' }),
+      catalogRating({ id: 'rating-provisional', name: 'Provisional Rating' }),
+    ]);
+    mocks.sailingRatingRuleFindMany.mockImplementation(
+      async (query?: { where?: { ratingId?: unknown } }) => {
+        await Promise.resolve();
+        if (query?.where && 'ratingId' in query.where) {
+          return [
+            {
+              displayOrder: 0,
+              ratingId: 'rating-provisional',
+              sailingRatingId: 'rating-tech',
+            },
+          ];
+        }
+        return [];
+      }
+    );
+
+    const rows = await listUserRatingAssignmentRows('user-1', { client });
+    const provisional = rows.find((row) => row.id === 'rating-provisional');
+
+    expect(provisional?.requiredRatings).toEqual([
+      {
+        id: 'rating-tech',
+        name: 'Tech Rating',
+        slug: 'rating-tech-slug',
+      },
+    ]);
+  });
 });

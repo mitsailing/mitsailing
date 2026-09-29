@@ -3,11 +3,10 @@
 import { useTranslations } from 'next-intl';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
-import { SiteBrandWordmarkTypography } from './SiteBrandWordmarkTypography';
+import { SiteBrandLogo } from './SiteBrandLogo';
 
 /**
- * MIT Sailing wordmark for centered auth routes — placed above the page title,
- * visually aligned with the column (same typography as SiteHeader).
+ * Official logo for centered auth routes — placed above the page title.
  *
  * @returns Centered link to the home page
  */
@@ -20,10 +19,8 @@ export function AuthCenterBrandMark() {
         className={`inline-flex cursor-pointer items-center gap-2 no-underline ${textFocusRingClassName}`}
         href="/"
       >
-        <SiteBrandWordmarkTypography
-          mitLabel={t('site_brand_mit')}
-          sailingLabel={t('site_brand_sailing')}
-          variant="auth"
+        <SiteBrandLogo
+          label={`${t('site_brand_mit')} ${t('site_brand_sailing')}`}
         />
       </Link>
     </div>

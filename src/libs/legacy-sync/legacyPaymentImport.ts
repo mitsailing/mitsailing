@@ -350,6 +350,46 @@ async function mergeExistingLegacyUserNames(props: {
   return rows.length;
 }
 
+/**
+ * Refreshes matched users from legacy member rows without touching credentials.
+ *
+ * Role, phone, and emergency contact always come from the old site. MIT ID is
+ * assigned only when unique in the import batch and not claimed by another user.
+ *
+ * @param props - Transaction client with the staged legacy_import_users table
+ * @returns Number of matched user rows updated
+ */
+async function mergeExistingLegacyUserProfiles(props: {
+  readonly db: LegacyPaymentImportDb;
+}) {
+  const rows = await props.db.$queryRaw<LegacyUpdatedUserRow[]>`
+    WITH prepared AS (${preparedLegacyUsersSql()})
+    UPDATE "user" AS target
+    SET "app_role" = prepared.app_role::"AppRole",
+        "role" = prepared.role,
+        "phone" = prepared.phone,
+        "emergency_contact_name" = prepared.emergency_contact_name,
+        "emergency_contact_phone" = prepared.emergency_contact_phone,
+        "mit_id" = CASE
+          WHEN prepared.mit_id IS NOT NULL
+            AND prepared.mit_id_stage_count = 1
+            AND NOT EXISTS (
+              SELECT 1
+              FROM "user" AS mit_owner
+              WHERE mit_owner."mit_id" = prepared.mit_id
+                AND mit_owner."id" <> target."id"
+            )
+          THEN prepared.mit_id
+          ELSE target."mit_id"
+        END,
+        "updated_at" = NOW()
+    FROM prepared
+    WHERE lower(target."email") = prepared.email
+    RETURNING target."id"
+  `;
+  return rows.length;
+}
+
 async function mergeExistingLegacySailingCards(props: {
   readonly db: LegacyPaymentImportDb;
 }) {
@@ -536,6 +576,7 @@ async function ensureLegacyUsers(props: {
   const existingNameUpdates = await mergeExistingLegacyUserNames({
     db: props.db,
   });
+  await mergeExistingLegacyUserProfiles({ db: props.db });
   const insertedRows = await insertStagedLegacyUsers({ db: props.db });
   const appUserRows = await legacyUserIdRowsForStage({ db: props.db });
   const appUserIdByKey = new Map(

@@ -250,24 +250,6 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
                 ],
               },
               {
-                title: 'Spring racing card',
-                description:
-                  'For regular Pavilion racing from April 1 through July 14.',
-                price: '$25',
-                priceRows: [
-                  { label: 'Non-MIT student', value: '$25' },
-                  { label: 'Under 30', value: '$70' },
-                  { label: '30+', value: '$100' },
-                ],
-                linkLabel: 'Sign up',
-                linkUrl: '/signup?callbackUrl=%2Fonboarding',
-                features: [
-                  'Regular Pavilion racing from April 1 through July 14.',
-                  'Race-related classes included.',
-                  'Valid through July 14.',
-                ],
-              },
-              {
                 title: 'Full-year racing card',
                 description: 'Regular Pavilion racing for the full card year.',
                 price: '$40',
@@ -281,7 +263,6 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
                 features: [
                   'Regular Pavilion racing for the full card year.',
                   'Race-related classes included.',
-                  'Does not include Thursday team racing.',
                 ],
               },
               {

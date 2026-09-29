@@ -81,6 +81,30 @@ before running the command.
 
 The media sync copies only production `/srv/mitsailing-data/cms-media/ready` into `local/cms-media/ready`; it does not copy raw in-progress uploads.
 
+## Legacy MySQL Import
+
+There is no HTTP URL or admin button for this job. Locally, after tunneling to Pavilion MySQL, run `npm run legacy:import` (see [docs/local-development.md](docs/local-development.md)). That script is not in the production image and only writes to local `dev_db` outside production.
+
+In production, the BullMQ worker runs the import on a cron. On the production host, edit `apps/mitsailing/.env.production.worker` (start from `.env.production.worker.example`):
+
+```dotenv
+LEGACY_MYSQL_SYNC_ENABLED=true
+LEGACY_MYSQL_PASSWORD=<dock_readonly password>
+LEGACY_MYSQL_SYNC_CRON="0 0 6 * * *"
+```
+
+Leave `LEGACY_MYSQL_HOST` / `LEGACY_MYSQL_PORT` unset so the worker connects as `dock_readonly` to `sailing.pavilion.lan:3306`, database `sailing`. Recreate the worker so it reloads that file, for example:
+
+```shell
+cd apps/mitsailing
+PRODUCTION_DATA_ROOT=/srv/mitsailing-data docker compose \
+  -f compose.yaml -f compose.prod.yaml --profile release \
+  --env-file .env.production --env-file .env.image \
+  up -d --force-recreate worker
+```
+
+The default schedule is 6:00am US Eastern (`America/New_York`). The job does not run at container start. Passwords and Better Auth credential accounts are never overwritten. For a sooner one-off, temporarily set `LEGACY_MYSQL_SYNC_CRON` to a near six-field BullMQ time, recreate the worker, then put `0 0 6 * * *` back.
+
 ## Checks
 
 Core local checks:

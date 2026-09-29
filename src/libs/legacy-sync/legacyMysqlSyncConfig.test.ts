@@ -11,7 +11,7 @@ describe('legacyMysqlSyncConfigFromEnv', () => {
     ).toEqual({ enabled: false });
   });
 
-  it('uses hourly cron by default when enabled', () => {
+  it('uses six-am eastern cron by default when enabled', () => {
     const config = legacyMysqlSyncConfigFromEnv({
       LEGACY_MYSQL_PASSWORD: 'secret',
       LEGACY_MYSQL_SYNC_ENABLED: 'true',

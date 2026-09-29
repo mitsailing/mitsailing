@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import type * as React from 'react';
 import { useState } from 'react';
+import { PavilionReservationMitStatus } from '@/components/mit-sailing/pavilion-reservations/PavilionReservationMitStatus';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -25,50 +26,40 @@ import type {
 
 type RequestLineSlot = PavilionReservationSlotInput & { id: string };
 
-function PavilionInlineFaq() {
+function PavilionReservationHelpBlock() {
   const t = useTranslations('PavilionReservationPage');
-  const items = [
-    { q: t('faq_spaces_q'), a: t('faq_spaces_a') },
-    { q: t('faq_grill_q'), a: t('faq_grill_a') },
-    { q: t('faq_boats_q'), a: t('faq_boats_a') },
-    { q: t('faq_tents_q'), a: t('faq_tents_a') },
-    { q: t('faq_catering_q'), a: t('faq_catering_a') },
-  ] as const;
 
   return (
-    <div className="mt-4 rounded-[10px] border border-mit-line bg-background p-3">
+    <div className="mt-3 border-t border-mit-line pt-3 text-sm">
       <h3 className="text-sm font-semibold text-mit-text">{t('faq_title')}</h3>
-      <p className="mt-1 text-xs text-muted-foreground">
-        <span className="font-medium text-mit-text">
+      <p className="mt-2 text-sm text-muted-foreground">
+        <span className="font-semibold text-mit-text">
           {t('cancellation_label')}
         </span>{' '}
         {t('cancellation_placeholder')}
       </p>
-      <div className="mt-2 space-y-1">
-        {items.map((item) => (
-          <details
-            className="group rounded-md border border-mit-line/80"
-            key={item.q}
+      <ul className="mt-2 flex list-none flex-wrap gap-x-3 gap-y-1 p-0">
+        <li>
+          <a
+            className="font-semibold text-mit-red underline-offset-2 hover:underline dark:text-mit-red-ink"
+            href="https://sailing.mit.edu/info/faq.php"
+            rel="noopener noreferrer"
+            target="_blank"
           >
-            <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium text-mit-text marker:content-none [&::-webkit-details-marker]:hidden">
-              {item.q}
-            </summary>
-            <p className="border-t border-mit-line px-3 py-2 text-sm text-muted-foreground">
-              {item.a}
-            </p>
-          </details>
-        ))}
-      </div>
-      <p className="mt-3 text-xs text-muted-foreground">
-        <a
-          className="font-semibold text-mit-red underline-offset-2 hover:underline"
-          href="https://sailing.mit.edu/gallery/"
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          {t('help_photos_link')}
-        </a>
-      </p>
+            {t('help_faq_link')}
+          </a>
+        </li>
+        <li>
+          <a
+            className="font-semibold text-mit-red underline-offset-2 hover:underline dark:text-mit-red-ink"
+            href="https://sailing.mit.edu/gallery/"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {t('help_photos_link')}
+          </a>
+        </li>
+      </ul>
     </div>
   );
 }
@@ -142,7 +133,7 @@ function RequestSummaryLines(props: {
             <div className="mt-1 flex flex-wrap gap-2">
               {props.onEditSlot ? (
                 <button
-                  className="text-sm font-semibold text-mit-red underline-offset-2 hover:underline"
+                  className="text-sm font-semibold text-mit-red underline-offset-2 hover:underline dark:text-mit-red-ink"
                   type="button"
                   onClick={() => {
                     props.onEditSlot?.(slot.id);
@@ -153,7 +144,7 @@ function RequestSummaryLines(props: {
               ) : null}
               {props.onRemoveSlot ? (
                 <button
-                  className="text-sm font-semibold text-mit-red underline-offset-2 hover:underline"
+                  className="text-sm font-semibold text-mit-red underline-offset-2 hover:underline dark:text-mit-red-ink"
                   type="button"
                   onClick={() => {
                     props.onRemoveSlot?.(slot.id);
@@ -195,7 +186,7 @@ function RequestSummaryLines(props: {
         <p className="text-xs text-muted-foreground">{t('summary_flat_tag')}</p>
         {props.editable ? (
           <button
-            className="mt-1 text-sm font-semibold text-mit-red underline-offset-2 hover:underline"
+            className="mt-1 text-sm font-semibold text-mit-red underline-offset-2 hover:underline dark:text-mit-red-ink"
             type="button"
             onClick={() => {
               props.onRemoveItem(itemId);
@@ -218,6 +209,7 @@ export function PavilionReservationRequestSummary(props: {
   hourlyVenues: PavilionReservableItemDto[];
   itemById: (id: string) => PavilionReservableItemDto | null;
   lineCount: number;
+  onChangeStatus: () => void;
   onContinue: () => void;
   onEditSlot?: (slotId: string) => void;
   onRemoveItem: (itemId: string) => void;
@@ -231,6 +223,13 @@ export function PavilionReservationRequestSummary(props: {
   const [expanded, setExpanded] = useState(false);
   const empty = props.lineCount === 0;
   const totalLabel = formatPavilionReservationMoney(props.estimate.totalCents);
+  const ratesPhrase = t('persona_rates_phrase', {
+    persona: t(`persona_${props.persona}_label`),
+  });
+  const totalWithRates = t('estimated_total_with_rates', {
+    amount: totalLabel,
+    rates: ratesPhrase,
+  });
 
   if (props.variant === 'mobile') {
     return (
@@ -246,10 +245,15 @@ export function PavilionReservationRequestSummary(props: {
                 total: totalLabel,
               })}
             </p>
+            <PavilionReservationMitStatus
+              persona={props.persona}
+              variant="mobile"
+              onChange={props.onChangeStatus}
+            />
           </div>
           <button
             aria-expanded={expanded}
-            className="text-sm font-semibold text-mit-red underline-offset-2 hover:underline"
+            className="text-sm font-semibold text-mit-red underline-offset-2 hover:underline dark:text-mit-red-ink"
             type="button"
             onClick={() => {
               setExpanded((current) => !current);
@@ -291,12 +295,12 @@ export function PavilionReservationRequestSummary(props: {
               />
             )}
             <p className="mt-2 text-sm font-semibold text-mit-text">
-              {t('estimated_total')} {totalLabel}
+              {totalWithRates}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {t('no_payment_due_today')}
             </p>
-            <PavilionInlineFaq />
+            <PavilionReservationHelpBlock />
           </div>
         ) : null}
       </div>
@@ -307,58 +311,63 @@ export function PavilionReservationRequestSummary(props: {
     <aside
       aria-label={t('request_summary_title')}
       className={cn(
-        'sticky top-3 hidden rounded-[10px] border p-4 md:block',
-        empty
-          ? 'border-mit-line bg-card'
-          : 'border-mit-red/30 bg-mit-red-highlight/40'
+        'sticky top-3 hidden flex-col gap-3 rounded-[10px] border p-4 md:flex',
+        empty ? 'border-mit-line bg-card' : 'border-mit-red/30 bg-mit-red/10'
       )}
     >
-      <h2 className="text-base font-semibold text-mit-text">
+      <PavilionReservationMitStatus
+        persona={props.persona}
+        variant="rail"
+        onChange={props.onChangeStatus}
+      />
+      <h2 className="m-0 text-base font-semibold text-mit-text">
         {t('request_summary_title')}
       </h2>
       {empty ? (
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="m-0 text-sm text-muted-foreground">
           {t('request_continue_empty_hint')}
         </p>
       ) : (
-        <div className="mt-2">
-          <RequestSummaryLines
-            afterHoursItems={props.afterHoursItems}
-            editable
-            hourlyVenues={props.hourlyVenues}
-            itemById={props.itemById}
-            onEditSlot={props.onEditSlot}
-            onRemoveItem={props.onRemoveItem}
-            onRemoveSlot={props.onRemoveSlot}
-            persona={props.persona}
-            slots={props.slots}
-            toggleItemIds={props.toggleItemIds}
-          />
-        </div>
+        <RequestSummaryLines
+          afterHoursItems={props.afterHoursItems}
+          editable
+          hourlyVenues={props.hourlyVenues}
+          itemById={props.itemById}
+          onEditSlot={props.onEditSlot}
+          onRemoveItem={props.onRemoveItem}
+          onRemoveSlot={props.onRemoveSlot}
+          persona={props.persona}
+          slots={props.slots}
+          toggleItemIds={props.toggleItemIds}
+        />
       )}
-      <p className="mt-2 text-xs text-muted-foreground">
-        {t('request_availability_note')}
+      <p className="m-0 text-xs text-muted-foreground">
+        {t('review_availability_suggest')}
       </p>
-      <p className="mt-2 text-sm font-semibold text-mit-text">
-        {t('estimated_total')} {totalLabel}
+      <p className="m-0 text-sm font-semibold text-mit-text">
+        {totalWithRates}
         {props.estimate.hasPriceOnRequest
           ? ` ${t('plus_price_on_request')}`
           : ''}
       </p>
-      <Button
-        className="mt-3 w-full"
-        disabled={!props.canContinue}
-        title={props.canContinue ? undefined : t('request_continue_empty_hint')}
-        type="button"
-        variant="mit"
-        onClick={props.onContinue}
-      >
-        {t('action_continue_review')}
-      </Button>
-      <p className="mt-2 text-center text-xs text-muted-foreground">
-        {t('no_payment_due_today')}
-      </p>
-      <PavilionInlineFaq />
+      <div className="flex flex-col gap-2">
+        <Button
+          className="w-full"
+          disabled={!props.canContinue}
+          title={
+            props.canContinue ? undefined : t('request_continue_empty_hint')
+          }
+          type="button"
+          variant="mit"
+          onClick={props.onContinue}
+        >
+          {t('action_continue_review')}
+        </Button>
+        <p className="m-0 text-center text-xs text-muted-foreground">
+          {t('no_payment_due_today')}
+        </p>
+      </div>
+      <PavilionReservationHelpBlock />
     </aside>
   );
 }
@@ -445,12 +454,20 @@ export function PavilionReservationFeesPanel(props: {
   const academic = props.persona === 'mit_academic';
 
   return (
-    <div className="rounded-[10px] border border-mit-line bg-mit-surface/60 p-4 text-sm text-mit-text">
+    <div className="text-sm text-mit-text">
       <p className="m-0">
-        <strong>{t('fees_panel_title')}</strong> {t('fees_panel_summary')}
+        <strong>{t('fees_panel_title')}</strong> {t('fees_panel_summary')}{' '}
+        <a
+          className="font-semibold text-mit-red underline-offset-2 hover:underline dark:text-mit-red-ink"
+          href="https://sailing.mit.edu/info/faq.php"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {t('help_faq_link')}
+        </a>
       </p>
       <details className="mt-2">
-        <summary className="cursor-pointer font-semibold text-mit-red">
+        <summary className="cursor-pointer font-semibold text-mit-red dark:text-mit-red-ink">
           {t('fees_panel_details_summary')}
         </summary>
         <div className="mt-2 space-y-2 text-sm text-muted-foreground">

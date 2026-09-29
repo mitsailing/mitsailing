@@ -23,7 +23,7 @@ import {
 } from '@/libs/mit-sailing/cmsHref';
 import type { NavigationDropdownItem } from './NavigationDropdown';
 import { NavigationDropdown } from './NavigationDropdown';
-import { SiteBrandWordmarkTypography } from './SiteBrandWordmarkTypography';
+import { SiteBrandLogo } from './SiteBrandLogo';
 
 const navLinkClass =
   'text-sm font-medium text-mit-text no-underline transition-colors duration-200 hover:text-primary-ink dark:!text-white dark:hover:!text-white aria-[current=page]:font-semibold aria-[current=page]:text-primary-ink dark:aria-[current=page]:!text-white';
@@ -578,10 +578,8 @@ export function SiteHeader(props: SiteHeaderProps) {
                 href="/"
                 onClick={closeMobile}
               >
-                <SiteBrandWordmarkTypography
-                  mitLabel={t('site_brand_mit')}
-                  sailingLabel={t('site_brand_sailing')}
-                  variant="shell"
+                <SiteBrandLogo
+                  label={`${t('site_brand_mit')} ${t('site_brand_sailing')}`}
                 />
               </Link>
               <Button
@@ -615,10 +613,8 @@ export function SiteHeader(props: SiteHeaderProps) {
           className="flex cursor-pointer items-center gap-2 no-underline"
           href="/"
         >
-          <SiteBrandWordmarkTypography
-            mitLabel={t('site_brand_mit')}
-            sailingLabel={t('site_brand_sailing')}
-            variant="shell"
+          <SiteBrandLogo
+            label={`${t('site_brand_mit')} ${t('site_brand_sailing')}`}
           />
         </Link>
 

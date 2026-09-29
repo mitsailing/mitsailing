@@ -85,7 +85,6 @@ describe('PricingPageView', () => {
       )
     ).toBeInTheDocument();
     expectPricingColumn(/Normal/u);
-    expectPricingColumn(/Spring racing card/u);
     expectPricingColumn(/Full-year racing card/u);
     expectPricingColumn(/Thursday team racing/u);
     expect(within(pricingChart()).getAllByText('Free').length).toBeGreaterThan(
@@ -101,12 +100,12 @@ describe('PricingPageView', () => {
     ).not.toBeInTheDocument();
     expect(
       within(pricingChart()).getByRole('row', {
-        name: /Intro Sailing 101 Included - - -/u,
+        name: /Intro Sailing 101 Included - -/u,
       })
     ).toBeInTheDocument();
     expect(
       within(pricingChart()).getByRole('row', {
-        name: /Intro to Racing Included Included Included -/u,
+        name: /Intro to Racing Included Included -/u,
       })
     ).toBeInTheDocument();
   });

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import type * as React from 'react';
+import { SiteBrandLogo } from '@/components/mit-sailing/site/SiteBrandLogo';
 import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
 import {
   getAppRolePermissions,
@@ -66,11 +67,8 @@ function SuccessSurface(props: {
   return (
     <main className="min-h-screen bg-muted/30 px-4 py-5 text-mit-text sm:px-6">
       <div className="mx-auto flex min-h-[calc(100vh-2.5rem)] w-full max-w-5xl flex-col">
-        <Link
-          className="w-fit font-mit-serif text-xl font-semibold tracking-normal text-mit-text no-underline sm:text-2xl"
-          href="/"
-        >
-          {props.brandLabel}
+        <Link className="inline-flex w-fit no-underline" href="/">
+          <SiteBrandLogo label={props.brandLabel} />
         </Link>
         <section className="flex flex-1 items-center justify-center py-12">
           <div className="w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-card shadow-sm">

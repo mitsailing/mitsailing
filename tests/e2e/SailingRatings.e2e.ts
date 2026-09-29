@@ -120,15 +120,20 @@ test.describe('Ratings', () => {
     await expect(
       techRating.getByRole('link', { name: 'Tech dinghy' })
     ).toHaveAttribute('href', '/fleet/tech-dinghy');
-    const guideLink = techRating.getByRole('link', { name: 'Guide' });
+    const guideLink = techRating.getByRole('link', {
+      name: 'Open Tech Rating guide',
+    });
     await expect(guideLink).toHaveAttribute(
       'href',
       'https://sailing.mit.edu/card/ratings.php'
     );
     await expect(guideLink).toHaveAttribute('target', '_blank');
-    await expect(techRating.getByText('Classes/checkoffs')).toBeVisible();
-    await expect(techRating.getByText('Boats', { exact: true })).toBeVisible();
+    await expect(techRating.getByText('How you get it')).toBeVisible();
+    await expect(techRating.getByText('Unlocks')).toBeVisible();
     await expect(techRating.getByText('Wind')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Charles River' })
+    ).toBeVisible();
     await expect(
       page.getByRole('article', { name: 'Provisional Rating' })
     ).toBeVisible();
@@ -139,7 +144,7 @@ test.describe('Ratings', () => {
       page.getByRole('article', { name: 'Bluewater Skipper' })
     ).toBeVisible();
     await expect(
-      page.getByRole('heading', { name: 'Deprecated ratings' })
+      page.getByRole('heading', { name: 'No longer issued' })
     ).toHaveCount(0);
   });
 

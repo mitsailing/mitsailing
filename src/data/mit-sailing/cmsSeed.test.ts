@@ -175,7 +175,6 @@ describe('cms seed membership pricing', () => {
     expect(pricing?.footnote).toBeUndefined();
     expect(pricing?.plans.map((plan) => plan.title)).toEqual([
       'Normal',
-      'Spring racing card',
       'Full-year racing card',
       'Thursday team racing',
     ]);
@@ -210,16 +209,6 @@ describe('cms seed membership pricing', () => {
     expect(pricing?.plans[1]).toMatchObject({
       linkLabel: 'Sign up',
       linkUrl: '/signup?callbackUrl=%2Fonboarding',
-      price: '$25',
-      priceRows: [
-        { label: 'Non-MIT student', value: '$25' },
-        { label: 'Under 30', value: '$70' },
-        { label: '30+', value: '$100' },
-      ],
-    });
-    expect(pricing?.plans[2]).toMatchObject({
-      linkLabel: 'Sign up',
-      linkUrl: '/signup?callbackUrl=%2Fonboarding',
       price: '$40',
       priceRows: [
         { label: 'Non-MIT student', value: '$40' },
@@ -232,7 +221,7 @@ describe('cms seed membership pricing', () => {
   it('describes Thursday team racing on the home page', () => {
     const { block, pricing } = homePricing();
 
-    expect(pricing?.plans[3]).toMatchObject({
+    expect(pricing?.plans[2]).toMatchObject({
       description: 'For Thursday team racing on the Charles River.',
       linkLabel: 'Sign up',
       linkUrl: '/signup?callbackUrl=%2Fonboarding',
@@ -243,7 +232,7 @@ describe('cms seed membership pricing', () => {
         { label: '30+', value: '$100' },
       ],
     });
-    expect(pricing?.plans[3]?.features).toContain(
+    expect(pricing?.plans[2]?.features).toContain(
       'Thursday team racing on the Charles River.'
     );
     expect(block?.body).not.toContain('Not MIT Sailing Team');

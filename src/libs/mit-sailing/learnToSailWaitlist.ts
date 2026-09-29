@@ -13,11 +13,19 @@ function easternYear(now: Date): number {
 /**
  * Learn-to-Sail waitlist season for an instant in MIT Sailing venue time.
  *
+ * Season Y runs from April 1 Y through March 31 Y+1 (US Eastern). A prior
+ * season's entry stops counting on April 1 of the next year.
+ *
  * @param now - Instant to evaluate.
  * @returns Four-digit waitlist season year.
  */
 export function getLearnToSailSeasonYear(now: Date): number {
-  return easternYear(now);
+  const dateKey = nyYmd(now);
+  const year = easternYear(now);
+  if (dateKey < `${year}-${WAITLIST_OPEN_MONTH_DAY}`) {
+    return year - 1;
+  }
+  return year;
 }
 
 /**
@@ -34,13 +42,14 @@ export function activeLearnToSailWaitlistEntryKey(props: {
 }
 
 /**
- * Whether users can join and receive a waitlist number.
+ * Whether users can join and receive a waitlist number for the season that
+ * opens on April 1 of the Eastern calendar year.
  *
  * @param now - Instant to evaluate.
- * @returns True on or after April 1 midnight Eastern in the season year.
+ * @returns True on or after April 1 midnight Eastern in the calendar year.
  */
 export function isLearnToSailWaitlistOpen(now: Date): boolean {
   const dateKey = nyYmd(now);
-  const seasonYear = getLearnToSailSeasonYear(now);
-  return dateKey >= `${seasonYear}-${WAITLIST_OPEN_MONTH_DAY}`;
+  const year = easternYear(now);
+  return dateKey >= `${year}-${WAITLIST_OPEN_MONTH_DAY}`;
 }

@@ -32,6 +32,7 @@ function ratingRow(
     grantableClasses: [],
     guideUrl: null,
     isDeprecated: false,
+    requiredRatings: [],
     issuedAt: null,
     issuedByName: null,
     level: null,

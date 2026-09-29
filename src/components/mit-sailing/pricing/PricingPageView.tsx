@@ -441,7 +441,7 @@ function PricingComparisonTable(props: {
           <tr>
             <th
               className="bg-muted/35 px-5 py-3 text-sm font-semibold text-mit-red dark:text-mit-red-ink"
-              colSpan={5}
+              colSpan={4}
               scope="rowgroup"
             >
               {t('included_classes_heading')}
@@ -454,9 +454,6 @@ function PricingComparisonTable(props: {
               </th>
               <td className="px-5 py-3.5 text-center">
                 {row.normal ? <IncludedMark /> : t('pricing_chart_dash')}
-              </td>
-              <td className="px-5 py-3.5 text-center">
-                {row.springRacing ? <IncludedMark /> : t('pricing_chart_dash')}
               </td>
               <td className="px-5 py-3.5 text-center">
                 {row.fullYearRacing ? (

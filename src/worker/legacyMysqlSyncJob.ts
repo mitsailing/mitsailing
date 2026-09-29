@@ -1,4 +1,5 @@
 import type { JobsOptions, Queue } from 'bullmq';
+import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { importLegacyData } from '@/libs/legacy-sync/legacyDataImport';
 import { createLegacyMysqlReader } from '@/libs/legacy-sync/legacyMysqlReader';
 import type { LegacyMysqlSyncConfig } from '@/libs/legacy-sync/legacyMysqlSyncConfig';
@@ -38,7 +39,7 @@ export async function applyLegacyMysqlSyncScheduler(
   }
   await queue.upsertJobScheduler(
     LEGACY_MYSQL_SYNC_SCHEDULER_ID,
-    { pattern: config.cron },
+    { pattern: config.cron, tz: EVENTS_TIME_ZONE },
     {
       name: LEGACY_MYSQL_SYNC_JOB_NAME,
       data: {},

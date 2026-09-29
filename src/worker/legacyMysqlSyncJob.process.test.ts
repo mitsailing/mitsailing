@@ -28,7 +28,7 @@ describe('processLegacyMysqlSyncJob', () => {
     vi.clearAllMocks();
     mocks.calls.length = 0;
     mocks.legacyMysqlSyncConfigFromEnv.mockReturnValue({
-      cron: '0 0 * * * *',
+      cron: '0 0 6 * * *',
       database: 'sailing',
       enabled: true,
       mysqlPassword: 'secret',

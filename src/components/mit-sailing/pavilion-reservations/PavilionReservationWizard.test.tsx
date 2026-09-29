@@ -156,11 +156,12 @@ function goToRequestStep() {
 }
 
 function selectCompletedSlot() {
-  fireEvent.click(screen.getByRole('button', { name: 'Select this option' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Select Casual dock' }));
   fireEvent.click(screen.getByRole('button', { name: '20' }));
   fireEvent.click(screen.getByRole('button', { name: 'Morning' }));
   fireEvent.click(screen.getByRole('button', { name: '9:00 AM' }));
   fireEvent.click(screen.getByRole('button', { name: '10:00 AM' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Add to request' }));
 }
 
 function parsedSlots(container: HTMLElement): unknown {
@@ -174,6 +175,16 @@ function selectedTimeButton(name: string) {
     .find((element) => element.getAttribute('aria-pressed') === 'true');
   if (!button) {
     throw new Error(`Expected selected time button ${name}.`);
+  }
+  return button;
+}
+
+function continueToReviewButton() {
+  const [button] = screen.getAllByRole('button', {
+    name: 'Continue to review and submit',
+  });
+  if (!button) {
+    throw new Error('Expected continue to review button.');
   }
   return button;
 }
@@ -225,7 +236,7 @@ describe('PavilionReservationWizard reserve redesign', () => {
   it('exposes three public stages', () => {
     renderWizard({});
 
-    expect(screen.getAllByText('Email and group type').length).toBeGreaterThan(
+    expect(screen.getAllByText('Email and MIT status').length).toBeGreaterThan(
       0
     );
     expect(screen.getAllByText('Your request').length).toBeGreaterThan(0);
@@ -270,7 +281,7 @@ describe('PavilionReservationWizard reserve redesign', () => {
   it('groups start times behind morning afternoon evening', () => {
     renderWizard({});
     goToRequestStep();
-    fireEvent.click(screen.getByRole('button', { name: 'Select this option' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select Casual dock' }));
     fireEvent.click(screen.getByRole('button', { name: '20' }));
 
     expect(screen.getByRole('button', { name: 'Morning' })).toBeInTheDocument();
@@ -302,18 +313,20 @@ describe('PavilionReservationWizard reserve redesign', () => {
     ).toBeNull();
     expect(screen.getByText('Cancellation and FAQ')).toBeInTheDocument();
     expect(
-      screen.getByText('What if I just want to grill?')
-    ).toBeInTheDocument();
+      screen.getAllByRole('link', { name: 'Pavilion FAQ' }).length
+    ).toBeGreaterThan(0);
   });
 
-  it('updates end time after reconfirming start like cal.com booker advance', () => {
+  it('updates end time after saving an edited venue line', () => {
     const { container } = renderWizard({});
     goToRequestStep();
     selectCompletedSlot();
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change start' }));
     fireEvent.click(screen.getByRole('button', { name: 'Morning' }));
     fireEvent.click(screen.getByRole('button', { name: '9:00 AM' }));
     fireEvent.click(screen.getByRole('button', { name: '11:00 AM' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
     expect(parsedSlots(container)).toEqual(
       expect.arrayContaining([
@@ -327,11 +340,12 @@ describe('PavilionReservationWizard reserve redesign', () => {
     );
   });
 
-  it('clears end time when the start time changes', () => {
+  it('keeps the committed line until save after the start time changes', () => {
     const { container } = renderWizard({});
     goToRequestStep();
     selectCompletedSlot();
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change start' }));
     fireEvent.click(screen.getByRole('button', { name: 'Morning' }));
     fireEvent.click(screen.getByRole('button', { name: '9:30 AM' }));
 
@@ -340,12 +354,12 @@ describe('PavilionReservationWizard reserve redesign', () => {
         {
           itemId: 'space-1',
           date: '2026-05-20',
-          startMinutes: 570,
-          endMinutes: 0,
+          startMinutes: 540,
+          endMinutes: 600,
         },
       ])
     );
-    expect(screen.getAllByText('Select end time').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
   });
 
   it('restores an in-progress draft from server resume seed', () => {
@@ -402,11 +416,7 @@ describe('PavilionReservationWizard reserve redesign', () => {
     goToRequestStep();
     selectCompletedSlot();
     vi.useRealTimers();
-    fireEvent.click(
-      screen.getAllByRole('button', {
-        name: 'Continue to review and submit',
-      })[0]!
-    );
+    fireEvent.click(continueToReviewButton());
     fireEvent.change(screen.getByLabelText('First name*'), {
       target: { value: 'Avery' },
     });
@@ -436,11 +446,7 @@ describe('PavilionReservationWizard reserve redesign', () => {
     renderWizard({});
     goToRequestStep();
     selectCompletedSlot();
-    fireEvent.click(
-      screen.getAllByRole('button', {
-        name: 'Continue to review and submit',
-      })[0]!
-    );
+    fireEvent.click(continueToReviewButton());
 
     const firstName = screen.getByLabelText('First name*');
     const lastName = screen.getByLabelText('Last name*');
@@ -463,8 +469,52 @@ describe('PavilionReservationWizard reserve redesign', () => {
     goToRequestStep();
     selectCompletedSlot();
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change start' }));
     fireEvent.click(screen.getByRole('button', { name: 'Morning' }));
 
     expect(selectedTimeButton('9:00 AM')).toBeInTheDocument();
+  });
+
+  it('shows mit status on the request step with student rates on the total', () => {
+    renderWizard({});
+    goToRequestStep();
+
+    expect(screen.getAllByText('MIT status').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('MIT Student').length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole('button', {
+        name: 'Share Casual dock with someone you are planning with',
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText(/Estimated total \$0 · MIT Student rates/u).length
+    ).toBeGreaterThan(0);
+  });
+
+  it('collapses end chips to add to request after an end time is chosen', () => {
+    renderWizard({});
+    goToRequestStep();
+    fireEvent.click(screen.getByRole('button', { name: 'Select Casual dock' }));
+    fireEvent.click(screen.getByRole('button', { name: '20' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Morning' }));
+    fireEvent.click(screen.getByRole('button', { name: '9:00 AM' }));
+    fireEvent.click(screen.getByRole('button', { name: '10:00 AM' }));
+
+    expect(
+      screen.queryByRole('button', { name: '10:30 AM' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Add to request' })
+    ).toBeEnabled();
+  });
+
+  it('shows mit status at the top of review with change status', () => {
+    renderWizard({});
+    goToRequestStep();
+    selectCompletedSlot();
+    fireEvent.click(continueToReviewButton());
+
+    expect(screen.getByText('Change status')).toBeInTheDocument();
+    expect(screen.getByText(/we will suggest another/iu)).toBeInTheDocument();
   });
 });

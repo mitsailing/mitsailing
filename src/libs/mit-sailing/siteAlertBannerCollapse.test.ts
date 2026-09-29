@@ -23,7 +23,7 @@ describe('siteAlertBannerStartsCollapsed', () => {
     expect(
       siteAlertBannerStartsCollapsed({
         currentAlerts: activeAlerts,
-        storedAlerts: activeAlerts,
+        stored: { alerts: activeAlerts, collapsed: true },
       })
     ).toBe(true);
   });
@@ -32,7 +32,7 @@ describe('siteAlertBannerStartsCollapsed', () => {
     expect(
       siteAlertBannerStartsCollapsed({
         currentAlerts: activeAlerts.slice(0, 1),
-        storedAlerts: activeAlerts,
+        stored: { alerts: activeAlerts, collapsed: true },
       })
     ).toBe(true);
   });
@@ -47,7 +47,7 @@ describe('siteAlertBannerStartsCollapsed', () => {
             contentFingerprint: 'alert-3-content',
           },
         ],
-        storedAlerts: activeAlerts,
+        stored: { alerts: activeAlerts, collapsed: true },
       })
     ).toBe(false);
   });
@@ -61,7 +61,7 @@ describe('siteAlertBannerStartsCollapsed', () => {
             contentFingerprint: 'alert-1-updated-text',
           },
         ],
-        storedAlerts: activeAlerts,
+        stored: { alerts: activeAlerts, collapsed: true },
       })
     ).toBe(false);
   });
@@ -75,16 +75,25 @@ describe('siteAlertBannerStartsCollapsed', () => {
             contentFingerprint: 'alert-1-updated-date',
           },
         ],
-        storedAlerts: activeAlerts,
+        stored: { alerts: activeAlerts, collapsed: true },
       })
     ).toBe(false);
   });
 
-  it('expands for invalid storage', () => {
+  it('starts collapsed when storage is empty', () => {
     expect(
       siteAlertBannerStartsCollapsed({
         currentAlerts: activeAlerts,
-        storedAlerts: null,
+        stored: null,
+      })
+    ).toBe(true);
+  });
+
+  it('stays expanded when storage records an expanded banner', () => {
+    expect(
+      siteAlertBannerStartsCollapsed({
+        currentAlerts: activeAlerts,
+        stored: { alerts: activeAlerts, collapsed: false },
       })
     ).toBe(false);
   });
@@ -93,7 +102,7 @@ describe('siteAlertBannerStartsCollapsed', () => {
     expect(
       siteAlertBannerStartsCollapsed({
         currentAlerts: [],
-        storedAlerts: activeAlerts,
+        stored: { alerts: activeAlerts, collapsed: true },
       })
     ).toBe(false);
   });
@@ -105,7 +114,7 @@ describe('parseStoredSiteAlertBannerCollapse', () => {
       parseStoredSiteAlertBannerCollapse(
         serializeSiteAlertBannerCollapse(activeAlerts)
       )
-    ).toEqual(activeAlerts);
+    ).toEqual({ alerts: activeAlerts, collapsed: true });
   });
 
   it('ignores invalid storage values', () => {

@@ -12,7 +12,6 @@ export type GymRateRow = {
 export type IncludedClassRow = {
   readonly name: string;
   readonly normal: boolean;
-  readonly springRacing: boolean;
   readonly fullYearRacing: boolean;
   readonly thursdayTeamRacing: boolean;
 };
@@ -91,13 +90,13 @@ const normalOnlyClassNames = [
   'pricing_chart_intermediate_crew',
   'pricing_chart_intro_lynx',
   'pricing_chart_board_sailing_checkoffs',
+  'pricing_chart_laser_checkoff',
+  'pricing_chart_420_checkoff',
 ] as const;
 
 const racingClassNames = [
   'pricing_chart_intro_to_racing',
   'pricing_chart_intermediate_racing',
-  'pricing_chart_laser_checkoff',
-  'pricing_chart_420_checkoff',
 ] as const;
 
 export function useGymRateRows() {
@@ -117,21 +116,18 @@ export function useIncludedClassRows() {
     fullYearRacing: false,
     name,
     normal: true,
-    springRacing: false,
     thursdayTeamRacing: false,
   }));
   const racingRows = racingClassNames.map((name) => ({
     fullYearRacing: true,
     name,
     normal: true,
-    springRacing: true,
     thursdayTeamRacing: false,
   }));
 
   return [...normalOnlyRows, ...racingRows].map((row) => ({
     name: t(row.name),
     normal: row.normal,
-    springRacing: row.springRacing,
     fullYearRacing: row.fullYearRacing,
     thursdayTeamRacing: row.thursdayTeamRacing,
   })) satisfies readonly IncludedClassRow[];
@@ -140,7 +136,7 @@ export function useIncludedClassRows() {
 export function usePricingPlans(rows: readonly IncludedClassRow[]) {
   const t = useTranslations('PricingPage');
   const racingFeatures = rows
-    .filter((row) => row.springRacing)
+    .filter((row) => row.fullYearRacing)
     .map((row) => row.name);
 
   return [
@@ -151,16 +147,6 @@ export function usePricingPlans(rows: readonly IncludedClassRow[]) {
       price: t('included_price'),
       frequency: t('full_sailing_frequency'),
       features: rows.map((row) => row.name),
-    },
-    {
-      id: 'spring-racing-card',
-      name: t('plan_pavilion_racing_spring'),
-      description: t('pavilion_racing_spring_body'),
-      price: t('paid_table_pavilion_before_july_15_student'),
-      frequency: t('paid_table_non_mit_student'),
-      features: racingFeatures,
-      under30: t('paid_table_pavilion_before_july_15_under_30'),
-      over30: t('paid_table_pavilion_before_july_15_30_plus'),
     },
     {
       id: 'full-year-racing-card',

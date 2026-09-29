@@ -66,6 +66,7 @@ function userRatingAssignmentRowFixture(
     windCondition: row.windCondition ?? null,
     guideUrl: row.guideUrl ?? null,
     grantableClasses: row.grantableClasses ?? [],
+    requiredRatings: row.requiredRatings ?? [],
     unlockedBoats: row.unlockedBoats ?? [],
     isDeprecated: row.isDeprecated ?? false,
     issuedAt: row.issuedAt ?? null,

@@ -183,7 +183,7 @@ export const Env = createEnv({
       .default(LEGACY_MYSQL_SYNC_DEFAULT_CRON)
       .refine(isLegacyMysqlSyncCronPattern, {
         message:
-          'LEGACY_MYSQL_SYNC_CRON must be a six-field BullMQ cron (seconds first), e.g. 0 0 * * * *.',
+          'LEGACY_MYSQL_SYNC_CRON must be a six-field BullMQ cron (seconds first), e.g. 0 0 6 * * *.',
       }),
     LEGACY_MYSQL_PASSWORD: z.string().min(1).optional(),
     LEGACY_MYSQL_HOST: z.string().min(1).optional(),

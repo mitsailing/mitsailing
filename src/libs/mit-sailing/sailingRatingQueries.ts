@@ -2,6 +2,7 @@ import 'server-only';
 import { cache } from 'react';
 import { CATALOG_SAILING_RATING_IDS } from '@/data/mit-sailing/sailingRatingsSeed';
 import { prisma } from '@/libs/DB';
+import { requiredCatalogRatings } from '@/libs/mit-sailing/sailingRatingCatalogPaths';
 import { evaluateSailingRatingGrantEligibility } from '@/libs/mit-sailing/sailingRatingRules';
 import type {
   SailingRatingGrantEligibility,
@@ -23,6 +24,7 @@ export type PublicSailingRating = SailingRatingBrief & {
   windCondition: string | null;
   guideUrl: string | null;
   grantableClasses: { id: string; name: string; slug: string }[];
+  requiredRatings: { id: string; name: string; slug: string }[];
   unlockedBoats: { id: string; name: string; slug: string }[];
 };
 
@@ -131,27 +133,37 @@ async function listPublicSailingRatingsForClient(
   client: SailingRatingReadClient,
   props: { includeDeprecated?: boolean } = {}
 ): Promise<PublicSailingRating[]> {
-  const [ratings, classRules, boatRules] = await Promise.all([
-    client.sailingRating.findMany({
-      where: {
-        id: { in: [...CATALOG_SAILING_RATING_IDS] },
-        isVisible: true,
-        ...(props.includeDeprecated === false ? { isDeprecated: false } : {}),
-      },
-      orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
-      select: publicSailingRatingSelect,
-    }),
-    client.sailingRatingRule.findMany({
-      where: { classId: { not: null }, ruleType: 'grants' },
-      orderBy: [{ displayOrder: 'asc' }],
-      select: { classId: true, sailingRatingId: true },
-    }),
-    client.sailingRatingRule.findMany({
-      where: { boatId: { not: null }, ruleType: 'requires' },
-      orderBy: [{ displayOrder: 'asc' }],
-      select: { boatId: true, sailingRatingId: true },
-    }),
-  ]);
+  const [ratings, classRules, boatRules, ratingPrerequisiteRules] =
+    await Promise.all([
+      client.sailingRating.findMany({
+        where: {
+          id: { in: [...CATALOG_SAILING_RATING_IDS] },
+          isVisible: true,
+          ...(props.includeDeprecated === false ? { isDeprecated: false } : {}),
+        },
+        orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
+        select: publicSailingRatingSelect,
+      }),
+      client.sailingRatingRule.findMany({
+        where: { classId: { not: null }, ruleType: 'grants' },
+        orderBy: [{ displayOrder: 'asc' }],
+        select: { classId: true, sailingRatingId: true },
+      }),
+      client.sailingRatingRule.findMany({
+        where: { boatId: { not: null }, ruleType: 'requires' },
+        orderBy: [{ displayOrder: 'asc' }],
+        select: { boatId: true, sailingRatingId: true },
+      }),
+      client.sailingRatingRule.findMany({
+        where: { ratingId: { not: null }, ruleType: 'requires' },
+        orderBy: [{ displayOrder: 'asc' }],
+        select: {
+          displayOrder: true,
+          ratingId: true,
+          sailingRatingId: true,
+        },
+      }),
+    ]);
 
   const classIds = [
     ...new Set(classRules.map((rule) => rule.classId).filter(isPresent)),
@@ -173,6 +185,12 @@ async function listPublicSailingRatingsForClient(
   const classById = new Map(classes.map((row) => [row.id, row]));
   const boatById = new Map(boats.map((row) => [row.id, row]));
 
+  const catalogLinks = ratings.map((rating) => ({
+    id: rating.id,
+    name: rating.name,
+    slug: rating.slug,
+  }));
+
   return ratings.map((rating) => ({
     ...rating,
     grantableClasses: dedupeById(
@@ -181,6 +199,11 @@ async function listPublicSailingRatingsForClient(
         .map((rule) => (rule.classId ? classById.get(rule.classId) : undefined))
         .filter(isPresent)
     ),
+    requiredRatings: requiredCatalogRatings({
+      catalog: catalogLinks,
+      ratingId: rating.id,
+      rules: ratingPrerequisiteRules,
+    }),
     unlockedBoats: dedupeById(
       boatRules
         .filter((rule) => rule.sailingRatingId === rating.id)
@@ -216,6 +239,7 @@ async function listGrantedLegacyOnlyPublicRatings(
   return ratings.map((rating) => ({
     ...rating,
     grantableClasses: [],
+    requiredRatings: [],
     unlockedBoats: [],
   }));
 }

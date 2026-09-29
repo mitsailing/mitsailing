@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { createRequire } from 'node:module';
 import { mkdtempSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,7 +40,14 @@ if (esbuild.status !== 0) {
 
 const run = spawnSync(
   process.execPath,
-  [dotenvCli, '-c', '--', process.execPath, bundlePath, ...process.argv.slice(2)],
+  [
+    dotenvCli,
+    '-c',
+    '--',
+    process.execPath,
+    bundlePath,
+    ...process.argv.slice(2),
+  ],
   {
     cwd: repoRoot,
     encoding: 'utf8',

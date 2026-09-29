@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import type * as React from 'react';
 import { SailingCardOnboardingForm } from '@/components/mit-sailing/onboarding/SailingCardOnboardingForm';
+import { SiteBrandLogo } from '@/components/mit-sailing/site/SiteBrandLogo';
 import type { SailingCardType } from '@/generated/prisma/enums';
 import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
 import { safeAuthCallbackUrl } from '@/libs/auth/callbackUrl';
@@ -45,11 +46,8 @@ function OnboardingTaskShell(props: OnboardingTaskShellProps) {
     <main className="min-h-screen bg-muted/30 text-mit-text">
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-5 sm:px-6">
         <div className="flex items-center justify-between gap-4">
-          <Link
-            className="font-mit-serif text-xl font-semibold tracking-normal text-mit-text no-underline sm:text-2xl"
-            href="/"
-          >
-            {props.brandLabel}
+          <Link className="inline-flex no-underline" href="/">
+            <SiteBrandLogo label={props.brandLabel} />
           </Link>
           <Link
             className="rounded-lg px-3 py-2 text-sm font-medium text-mit-red no-underline hover:bg-mit-red-highlight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red"
