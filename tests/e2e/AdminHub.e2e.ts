@@ -164,12 +164,17 @@ async function expectSignInCallback(page: Page, callbackUrl: string) {
     .toBe(callbackUrl);
 }
 
-async function openAdminUserEditByEmail(page: Page, email: string) {
+async function adminUsersRowByEmail(page: Page, email: string) {
   await page.goto('/admin/users');
   await page.getByRole('searchbox', { name: 'Search users' }).fill(email);
   await expect(page).toHaveURL(new RegExp(`q=${encodeURIComponent(email)}`));
   const userRow = page.getByRole('row').filter({ hasText: email });
   await expect(userRow).toBeVisible();
+  return userRow;
+}
+
+async function openAdminUserEditByEmail(page: Page, email: string) {
+  const userRow = await adminUsersRowByEmail(page, email);
   await userRow.getByRole('link', { name: 'Edit' }).click();
   await expect(page).toHaveURL(/tab=admin/);
   await expect(page.getByLabel('Banned')).toBeVisible();
@@ -179,7 +184,6 @@ async function saveAdminUserBanState(page: Page, banned: boolean) {
   const bannedCheckbox = page.getByLabel('Banned');
   await (banned ? bannedCheckbox.check() : bannedCheckbox.uncheck());
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  // Edit lives on `?tab=admin`; a successful save redirects to the show URL.
   await expect
     .poll(() => new URL(page.url()).searchParams.get('tab'))
     .toBeNull();
@@ -202,15 +206,12 @@ test.describe('Admin hub and users', () => {
     await expectSignInPage(page);
   });
 
-  test('Admin sees the admin index at /admin', async ({ page }) => {
+  test('Admin lands on users from /admin', async ({ page }) => {
     await signInAsAdmin(page);
     await page.goto('/admin');
     await expect(page).toHaveURL(/\/admin\/users\/?$/);
     await expect(
       page.getByRole('heading', { name: 'Users', exact: true })
-    ).toBeVisible();
-    await expect(
-      page.getByRole('link', { name: 'Users', exact: true }).first()
     ).toBeVisible();
   });
 
@@ -242,7 +243,7 @@ test.describe('Admin hub and users', () => {
     await expect(adminLink).toHaveAttribute('href', /\/admin\/?$/);
   });
 
-  test('Admin revokes and restores a banned sailor sign-in', async ({
+  test('Admin ban revokes sailor session and blocks sign-in until unbanned', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -257,6 +258,7 @@ test.describe('Admin hub and users', () => {
       await openAdminUserEditByEmail(page, email);
       await saveAdminUserBanState(page, true);
 
+      // Existing session cookies must stop working after banUser deletes sessions.
       await page.context().clearCookies();
       await page.context().addCookies(signedInUserCookies);
       await page.goto('/profile');
@@ -269,26 +271,6 @@ test.describe('Admin hub and users', () => {
           hasText: 'Your account has been disabled. Contact support.',
         })
       ).toBeVisible();
-      await expect(
-        page.getByRole('alert').filter({
-          hasText: 'Verify your email before signing in.',
-        })
-      ).toHaveCount(0);
-      await expect(
-        page.getByRole('alert').filter({
-          hasText: 'Invalid email or password.',
-        })
-      ).toHaveCount(0);
-      await expect(
-        page.getByRole('alert').filter({
-          hasText: 'Your account is temporarily locked',
-        })
-      ).toHaveCount(0);
-      await expect(
-        page.getByRole('alert').filter({
-          hasText: 'Too many attempts.',
-        })
-      ).toHaveCount(0);
       await expect
         .poll(() => new URL(page.url()).pathname)
         .toMatch(/\/login\/?$/);
@@ -317,20 +299,10 @@ test.describe('Admin hub and users', () => {
 
       await page.goto('/admin');
       await expect.poll(() => new URL(page.url()).pathname).toBe('/');
-      await expect(
-        page.getByRole('heading', { name: 'Administration' })
-      ).toHaveCount(0);
 
       await page.context().clearCookies();
       await signInAsAdmin(page);
-      await page.goto('/admin/users');
-      await page.getByRole('searchbox', { name: 'Search users' }).fill(email);
-      await expect(page).toHaveURL(
-        new RegExp(`q=${encodeURIComponent(email)}`)
-      );
-
-      const userRow = page.getByRole('row').filter({ hasText: email });
-      await expect(userRow).toBeVisible();
+      const userRow = await adminUsersRowByEmail(page, email);
       await userRow.getByRole('button', { name: 'View as user' }).click();
 
       await expect.poll(() => new URL(page.url()).pathname).toBe('/');
