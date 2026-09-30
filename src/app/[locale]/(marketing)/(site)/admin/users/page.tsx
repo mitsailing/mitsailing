@@ -181,9 +181,8 @@ type AdminUsersListFilterChipInput = {
     pastDue: string;
     unpaid: string;
   };
-  readonly chipRemoveAria: Parameters<
-    typeof adminUsersFilterChips
-  >[1]['chipRemoveAria'];
+  // `typeof` references the parameter so Codacy ESLint does not treat it as unused.
+  readonly chipRemoveAria: (label: string) => typeof label;
 };
 
 function adminUsersListFilterChips(

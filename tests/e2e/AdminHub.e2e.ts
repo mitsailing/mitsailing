@@ -167,7 +167,9 @@ async function expectSignInCallback(page: Page, callbackUrl: string) {
 async function adminUsersRowByEmail(page: Page, email: string) {
   await page.goto('/admin/users');
   await page.getByRole('searchbox', { name: 'Search users' }).fill(email);
-  await expect(page).toHaveURL(new RegExp(`q=${encodeURIComponent(email)}`));
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('q'))
+    .toBe(email);
   const userRow = page.getByRole('row').filter({ hasText: email });
   await expect(userRow).toBeVisible();
   return userRow;

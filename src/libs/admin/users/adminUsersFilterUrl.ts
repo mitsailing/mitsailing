@@ -58,7 +58,8 @@ type AdminUsersFilterChipLabels = {
   cardTypeNormal: string;
   cardTypeRacing: string;
   cardTypeTeamRacing: string;
-  chipRemoveAria: (chipLabel: string) => string;
+  // `typeof` references the parameter so Codacy ESLint does not treat it as unused.
+  chipRemoveAria: (chipLabel: string) => typeof chipLabel;
   emailStatusBounced: string;
   emailStatusLabel: string;
   emailStatusOk: string;

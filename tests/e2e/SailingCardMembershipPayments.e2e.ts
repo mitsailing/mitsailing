@@ -265,9 +265,9 @@ async function openAdminUserProfile(props: {
   await props.page
     .getByRole('searchbox', { name: 'Search users' })
     .fill(props.query);
-  await expect(props.page).toHaveURL(
-    new RegExp(`q=${encodeURIComponent(props.query)}`)
-  );
+  await expect
+    .poll(() => new URL(props.page.url()).searchParams.get('q'))
+    .toBe(props.query);
   const userLink = props.page.getByRole('link', {
     name: props.userName,
     exact: true,
@@ -281,6 +281,10 @@ const sailingCardPdfUrlPattern = /\/api\/admin\/users\/.+\/sailing-card\/pdf$/u;
 
 async function expectPrintCardPopup(page: Page) {
   const context = page.context();
+  // Header and card controls both expose "Print card"; target the PDF API link.
+  const pdfPrintLink = page
+    .getByRole('link', { name: 'Print card' })
+    .filter({ has: page.locator('[href*="/sailing-card/pdf"]') });
   const [popup, response] = await Promise.all([
     page.waitForEvent('popup'),
     context.waitForEvent('response', {
@@ -288,7 +292,7 @@ async function expectPrintCardPopup(page: Page) {
         res.request().method() === 'GET' &&
         sailingCardPdfUrlPattern.test(res.url()),
     }),
-    page.getByRole('link', { name: 'Print card' }).click(),
+    pdfPrintLink.click(),
   ]);
 
   expect(response.url()).toMatch(sailingCardPdfUrlPattern);
@@ -363,7 +367,9 @@ test('admin searches users from the users page', async ({ page }) => {
   await page.goto('/admin/users');
 
   await page.getByRole('searchbox', { name: 'Search users' }).fill(email);
-  await expect(page).toHaveURL(new RegExp(`q=${encodeURIComponent(email)}`));
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('q'))
+    .toBe(email);
   await expect(page.getByRole('row').filter({ hasText: email })).toBeVisible();
 
   await page
