@@ -46,10 +46,7 @@ import type {
   AdminCatalogResourceMessageKey,
   AdminListColumnDef,
   AdminTableMessageKey,
-  AdminTableTranslator,
   AdminUsersMessageKey,
-  CatalogPublicViewHref,
-  CatalogRecordHref,
   CatalogReorderScope,
   CatalogResourceDefinition,
   CatalogRow,
@@ -332,12 +329,12 @@ function buildCatalogTablePagination(options: {
 function AdminCatalogTableMobileRow(props: {
   readonly canDelete: boolean;
   readonly canUpdate: boolean;
-  readonly deleteHref: CatalogRecordHref;
+  readonly deleteHref: (...args: [string]) => string;
   readonly displayColumns: AdminListColumnDef[];
-  readonly editHref: CatalogRecordHref;
-  readonly primaryHref: CatalogRecordHref;
+  readonly editHref: (...args: [string]) => string;
+  readonly primaryHref: (...args: [string]) => string;
   readonly row: CatalogRow;
-  readonly t: AdminTableTranslator;
+  readonly t: (...args: [AdminTableMessageKey]) => string;
   readonly userImpersonation: AdminCatalogTableProps['userImpersonation'];
 }) {
   const ordered = listColumnsWithNameFirst(props.displayColumns);
@@ -421,12 +418,12 @@ function AdminCatalogTableRowCells(props: {
   readonly canDelete: boolean;
   readonly canUpdate: boolean;
   readonly displayColumns: AdminListColumnDef[];
-  readonly deleteHref: CatalogRecordHref;
-  readonly editHref: CatalogRecordHref;
-  readonly primaryHref: CatalogRecordHref;
-  readonly publicViewHref: CatalogPublicViewHref;
+  readonly deleteHref: (...args: [string]) => string;
+  readonly editHref: (...args: [string]) => string;
+  readonly primaryHref: (...args: [string]) => string;
+  readonly publicViewHref: (...args: [CatalogRow]) => string | null;
   readonly row: CatalogRow;
-  readonly t: AdminTableTranslator;
+  readonly t: (...args: [AdminTableMessageKey]) => string;
   readonly userImpersonation: AdminCatalogTableProps['userImpersonation'];
 }) {
   const cols = props.displayColumns.map((col) => {

@@ -181,8 +181,7 @@ type AdminUsersListFilterChipInput = {
     pastDue: string;
     unpaid: string;
   };
-  // `typeof` references the parameter so Codacy ESLint does not treat it as unused.
-  readonly chipRemoveAria: (label: string) => typeof label;
+  readonly chipRemoveAria: (...args: [string]) => string;
 };
 
 function adminUsersListFilterChips(
