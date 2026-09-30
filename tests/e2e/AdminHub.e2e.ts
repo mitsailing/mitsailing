@@ -164,6 +164,31 @@ async function expectSignInCallback(page: Page, callbackUrl: string) {
     .toBe(callbackUrl);
 }
 
+async function openAdminUserEditByEmail(page: Page, email: string) {
+  await page.goto('/admin/users');
+  await page.getByRole('searchbox', { name: 'Search users' }).fill(email);
+  await expect(page).toHaveURL(new RegExp(`q=${encodeURIComponent(email)}`));
+  const userRow = page.getByRole('row').filter({ hasText: email });
+  await expect(userRow).toBeVisible();
+  await userRow.getByRole('link', { name: 'Edit' }).click();
+  await expect(page).toHaveURL(/tab=admin/);
+  await expect(page.getByLabel('Banned')).toBeVisible();
+}
+
+async function saveAdminUserBanState(page: Page, banned: boolean) {
+  const bannedCheckbox = page.getByLabel('Banned');
+  await (banned ? bannedCheckbox.check() : bannedCheckbox.uncheck());
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  // Edit lives on `?tab=admin`; a successful save redirects to the show URL.
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('tab'))
+    .toBeNull();
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('error'))
+    .toBeNull();
+  await expect(page).toHaveURL(/\/admin\/users\/[^/?]+\/?$/u);
+}
+
 test.describe('Admin hub and users', () => {
   test('Visitor redirects from catalog admin resources to sign-in', async ({
     page,
@@ -229,18 +254,8 @@ test.describe('Admin hub and users', () => {
 
       await page.context().clearCookies();
       await signInAsAdmin(page);
-      await page.goto('/admin/users');
-
-      await page
-        .getByRole('row')
-        .filter({ hasText: email })
-        .getByRole('link', { name: 'Edit' })
-        .click();
-      await expect(page.getByLabel('Banned')).toBeVisible();
-      const userShowPath = new URL(page.url()).pathname.replace(/\/edit$/u, '');
-      await page.getByLabel('Banned').check();
-      await page.getByRole('button', { name: 'Save', exact: true }).click();
-      await expect.poll(() => new URL(page.url()).pathname).toBe(userShowPath);
+      await openAdminUserEditByEmail(page, email);
+      await saveAdminUserBanState(page, true);
 
       await page.context().clearCookies();
       await page.context().addCookies(signedInUserCookies);
@@ -280,24 +295,8 @@ test.describe('Admin hub and users', () => {
 
       await page.context().clearCookies();
       await signInAsAdmin(page);
-      await page.goto('/admin/users');
-      await page
-        .getByRole('row')
-        .filter({ hasText: email })
-        .getByRole('link', { name: 'Edit' })
-        .click();
-      await expect(
-        page.getByRole('heading', { name: 'Edit user' })
-      ).toBeVisible();
-      const restoredUserShowPath = new URL(page.url()).pathname.replace(
-        /\/edit$/u,
-        ''
-      );
-      await page.getByLabel('Banned').uncheck();
-      await page.getByRole('button', { name: 'Save', exact: true }).click();
-      await expect
-        .poll(() => new URL(page.url()).pathname)
-        .toBe(restoredUserShowPath);
+      await openAdminUserEditByEmail(page, email);
+      await saveAdminUserBanState(page, false);
 
       await page.context().clearCookies();
       await submitEmailPasswordSignIn({ email, page, password });
@@ -325,6 +324,10 @@ test.describe('Admin hub and users', () => {
       await page.context().clearCookies();
       await signInAsAdmin(page);
       await page.goto('/admin/users');
+      await page.getByRole('searchbox', { name: 'Search users' }).fill(email);
+      await expect(page).toHaveURL(
+        new RegExp(`q=${encodeURIComponent(email)}`)
+      );
 
       const userRow = page.getByRole('row').filter({ hasText: email });
       await expect(userRow).toBeVisible();
