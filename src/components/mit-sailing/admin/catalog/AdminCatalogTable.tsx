@@ -23,8 +23,10 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AdminTableContainer } from '@/components/mit-sailing/admin/AdminDataRows';
 import { AdminTableSurface } from '@/components/mit-sailing/admin/AdminTableSurface';
-import { AdminCatalogListCell } from '@/components/mit-sailing/admin/catalog/AdminCatalogListCell';
-import { ImpersonateButton } from '@/components/mit-sailing/admin/ImpersonateButton';
+import {
+  AdminCatalogTableMobileRow,
+  AdminCatalogTableRowCells,
+} from '@/components/mit-sailing/admin/catalog/AdminCatalogTableRows';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,7 +53,6 @@ import type {
   CatalogResourceDefinition,
   CatalogRow,
 } from '@/libs/admin/catalog/types';
-import { Link } from '@/libs/I18nNavigation';
 import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 
 const ADMIN_CATALOG_TABLE_PAGE_SIZE = 50;
@@ -326,181 +327,6 @@ function buildCatalogTablePagination(options: {
   };
 }
 
-function AdminCatalogTableMobileRow(props: {
-  readonly canDelete: boolean;
-  readonly canUpdate: boolean;
-  readonly deleteHref: (...args: [string]) => string;
-  readonly displayColumns: AdminListColumnDef[];
-  readonly editHref: (...args: [string]) => string;
-  readonly primaryHref: (...args: [string]) => string;
-  readonly row: CatalogRow;
-  readonly t: (...args: [AdminTableMessageKey]) => string;
-  readonly userImpersonation: AdminCatalogTableProps['userImpersonation'];
-}) {
-  const ordered = listColumnsWithNameFirst(props.displayColumns);
-  const primaryColumn =
-    ordered.find((col) => col.field === 'name') ?? ordered[0];
-  const summaryColumns = ordered
-    .filter((col) => col.field !== primaryColumn?.field)
-    .slice(0, 2);
-  if (!primaryColumn) {
-    return null;
-  }
-  const nameRaw = props.row.name;
-  const listNameEditHref =
-    primaryColumn.field === 'name' &&
-    props.canUpdate &&
-    typeof nameRaw === 'string' &&
-    nameRaw.trim().length > 0
-      ? props.primaryHref(String(props.row.id))
-      : undefined;
-
-  return (
-    <TableRow className="border-b hover:bg-muted/50 md:hidden">
-      <TableCell className="px-3 py-2 align-top" colSpan={1}>
-        <AdminCatalogListCell
-          booleanPolarity={primaryColumn.booleanPolarity}
-          field={primaryColumn.field}
-          kind={primaryColumn.kind}
-          listNameEditHref={listNameEditHref}
-          row={props.row}
-        />
-        <div className="mt-1 flex flex-col gap-0.5 text-sm text-muted-foreground">
-          {summaryColumns.map((col) => (
-            <div key={col.field}>
-              <AdminCatalogListCell
-                booleanPolarity={col.booleanPolarity}
-                field={col.field}
-                kind={col.kind}
-                row={props.row}
-              />
-            </div>
-          ))}
-        </div>
-      </TableCell>
-      <TableCell className="px-3 py-2 align-top">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {props.canUpdate ? (
-            <Link
-              className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-              href={props.editHref(String(props.row.id))}
-            >
-              {props.t('action_edit')}
-            </Link>
-          ) : null}
-          {props.canDelete ? (
-            <Link
-              className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-              href={props.deleteHref(String(props.row.id))}
-            >
-              {props.t('action_delete')}
-            </Link>
-          ) : null}
-          {props.userImpersonation?.currentUserId === String(props.row.id) ? (
-            <span className="text-xs text-mit-text">
-              {props.userImpersonation.selfLabel}
-            </span>
-          ) : null}
-          {props.userImpersonation &&
-          String(props.row.id) !== props.userImpersonation.currentUserId ? (
-            <ImpersonateButton
-              redirectHref={props.userImpersonation.accountRedirectHref}
-              userId={String(props.row.id)}
-            />
-          ) : null}
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-}
-
-function AdminCatalogTableRowCells(props: {
-  readonly canDelete: boolean;
-  readonly canUpdate: boolean;
-  readonly displayColumns: AdminListColumnDef[];
-  readonly deleteHref: (...args: [string]) => string;
-  readonly editHref: (...args: [string]) => string;
-  readonly primaryHref: (...args: [string]) => string;
-  readonly publicViewHref: (...args: [CatalogRow]) => string | null;
-  readonly row: CatalogRow;
-  readonly t: (...args: [AdminTableMessageKey]) => string;
-  readonly userImpersonation: AdminCatalogTableProps['userImpersonation'];
-}) {
-  const cols = props.displayColumns.map((col) => {
-    const nameRaw = props.row.name;
-    const listNameEditHref =
-      col.field === 'name' &&
-      props.canUpdate &&
-      typeof nameRaw === 'string' &&
-      nameRaw.trim().length > 0
-        ? props.primaryHref(String(props.row.id))
-        : undefined;
-    return (
-      <TableCell
-        key={col.field}
-        className="hidden min-w-0 px-3 py-2 text-sm leading-5 text-foreground md:table-cell"
-      >
-        <AdminCatalogListCell
-          booleanPolarity={col.booleanPolarity}
-          field={col.field}
-          kind={col.kind}
-          listNameEditHref={listNameEditHref}
-          row={props.row}
-        />
-      </TableCell>
-    );
-  });
-  const viewHref = props.publicViewHref(props.row);
-  const actions = (
-    <TableCell className="hidden min-w-0 px-3 py-2 text-sm leading-5 md:table-cell">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        {viewHref ? (
-          <Link
-            className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-            href={viewHref}
-          >
-            {props.t('action_view_page')}
-          </Link>
-        ) : null}
-        {props.canUpdate ? (
-          <Link
-            className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-            href={props.editHref(String(props.row.id))}
-          >
-            {props.t('action_edit')}
-          </Link>
-        ) : null}
-        {props.canDelete ? (
-          <Link
-            className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-            href={props.deleteHref(String(props.row.id))}
-          >
-            {props.t('action_delete')}
-          </Link>
-        ) : null}
-        {props.userImpersonation?.currentUserId === String(props.row.id) ? (
-          <span className="text-xs text-mit-text">
-            {props.userImpersonation.selfLabel}
-          </span>
-        ) : null}
-        {props.userImpersonation &&
-        String(props.row.id) !== props.userImpersonation.currentUserId ? (
-          <ImpersonateButton
-            redirectHref={props.userImpersonation.accountRedirectHref}
-            userId={String(props.row.id)}
-          />
-        ) : null}
-      </div>
-    </TableCell>
-  );
-  return (
-    <>
-      {cols}
-      {actions}
-    </>
-  );
-}
-
 function catalogTableMessage(options: {
   readonly key: AdminTableMessageKey;
   readonly messageNamespace: AdminCatalogTableProps['messageNamespace'];
@@ -526,21 +352,21 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
   const tUsers = useTranslations('AdminUsers');
   const router = useRouter();
   const canReorder = props.definition.capabilities.reorder;
-  const t = (key: AdminTableMessageKey) =>
+  const t = (messageKey: AdminTableMessageKey) =>
     catalogTableMessage({
-      key,
+      key: messageKey,
       messageNamespace: props.messageNamespace,
       tCatalog,
       tUsers,
     });
-  const editHref = (id: string) =>
-    catalogEditHref(props.adminBasePath, props.resourceId, id);
-  const deleteHref = (id: string) =>
-    catalogDeleteHref(props.adminBasePath, props.resourceId, id);
-  const publicViewHref = (row: CatalogRow) =>
-    catalogPublicViewHref(props.definition, row);
-  const primaryHref = (id: string) =>
-    catalogPrimaryHref(props.adminBasePath, props.resourceId, id);
+  const editHref = (recordId: string) =>
+    catalogEditHref(props.adminBasePath, props.resourceId, recordId);
+  const deleteHref = (recordId: string) =>
+    catalogDeleteHref(props.adminBasePath, props.resourceId, recordId);
+  const publicViewHref = (catalogRow: CatalogRow) =>
+    catalogPublicViewHref(props.definition, catalogRow);
+  const primaryHref = (recordId: string) =>
+    catalogPrimaryHref(props.adminBasePath, props.resourceId, recordId);
 
   const [orderedIds, setOrderedIds] = useState<string[]>(() =>
     props.rows.map((r) => String(r.id))

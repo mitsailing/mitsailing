@@ -181,7 +181,6 @@ type AdminUsersListFilterChipInput = {
     pastDue: string;
     unpaid: string;
   };
-  readonly chipRemoveAria: (...args: [string]) => string;
 };
 
 function adminUsersListFilterChips(
@@ -204,7 +203,9 @@ function adminUsersListFilterChips(
     chips.push({
       key: 'membershipPaymentStatus',
       label: props.membershipPaymentLabel,
-      removeAriaLabel: props.chipRemoveAria(props.membershipPaymentLabel),
+      removeAriaLabel: props.chipLabels.chipRemoveAria(
+        props.membershipPaymentLabel
+      ),
       removeHref: buildAdminListHrefWithoutParam({
         omitWhenDefault: adminUsersOmitWhenDefault,
         param: 'membershipPaymentStatus',
@@ -288,7 +289,8 @@ export default async function AdminUsersIndexPage(
     cardTypeNormal: tr('list_card_type_normal'),
     cardTypeRacing: tr('list_card_type_racing'),
     cardTypeTeamRacing: tr('list_card_type_team_racing'),
-    chipRemoveAria: (label: string) => tr('filter_chip_remove_aria', { label }),
+    chipRemoveAria: (chipLabel: string) =>
+      tr('filter_chip_remove_aria', { label: chipLabel }),
     emailStatusBounced: tr('email_status_bounced'),
     emailStatusLabel: tr('filter_email_status_label'),
     emailStatusOk: tr('email_status_ok'),
@@ -302,7 +304,6 @@ export default async function AdminUsersIndexPage(
   };
   const filterChips = adminUsersListFilterChips({
     chipLabels,
-    chipRemoveAria: chipLabels.chipRemoveAria,
     filters,
     membershipPaymentLabel: tr('filter_membership_payment_status_label'),
     membershipPaymentValueLabels: {
