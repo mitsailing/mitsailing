@@ -67,8 +67,12 @@ function SuccessSurface(props: {
   return (
     <main className="min-h-screen bg-muted/30 px-4 py-5 text-mit-text sm:px-6">
       <div className="mx-auto flex min-h-[calc(100vh-2.5rem)] w-full max-w-5xl flex-col">
-        <Link className="inline-flex w-fit no-underline" href="/">
-          <SiteBrandLogo label={props.brandLabel} />
+        <Link
+          aria-label={props.brandLabel}
+          className="inline-flex w-fit no-underline"
+          href="/"
+        >
+          <SiteBrandLogo />
         </Link>
         <section className="flex flex-1 items-center justify-center py-12">
           <div className="w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-card shadow-sm">

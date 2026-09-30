@@ -180,8 +180,9 @@ test.describe('Admin hub and users', () => {
   test('Admin sees the admin index at /admin', async ({ page }) => {
     await signInAsAdmin(page);
     await page.goto('/admin');
+    await expect(page).toHaveURL(/\/admin\/users\/?$/);
     await expect(
-      page.getByRole('heading', { name: 'Administration' })
+      page.getByRole('heading', { name: 'Users', exact: true })
     ).toBeVisible();
     await expect(
       page.getByRole('link', { name: 'Users', exact: true }).first()
@@ -235,9 +236,7 @@ test.describe('Admin hub and users', () => {
         .filter({ hasText: email })
         .getByRole('link', { name: 'Edit' })
         .click();
-      await expect(
-        page.getByRole('heading', { name: 'Edit user' })
-      ).toBeVisible();
+      await expect(page.getByLabel('Banned')).toBeVisible();
       const userShowPath = new URL(page.url()).pathname.replace(/\/edit$/u, '');
       await page.getByLabel('Banned').check();
       await page.getByRole('button', { name: 'Save', exact: true }).click();

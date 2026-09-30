@@ -108,12 +108,18 @@ function CatalogResourceIndexView(props: {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {props.scopedCmsPageViewHref ? (
-              <AdminSecondaryActionLink href={props.scopedCmsPageViewHref}>
+              <AdminSecondaryActionLink
+                // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- scopedCmsPageViewHref is an allowlisted same-origin CMS path from the catalog page.
+                href={props.scopedCmsPageViewHref}
+              >
                 {props.viewPageLabel}
               </AdminSecondaryActionLink>
             ) : null}
             {props.definition.capabilities.create ? (
-              <AdminPrimaryActionLink href={props.createHref}>
+              <AdminPrimaryActionLink
+                // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- createHref is the static catalog create path for this resource.
+                href={props.createHref}
+              >
                 {props.createLabel}
               </AdminPrimaryActionLink>
             ) : null}
@@ -136,6 +142,7 @@ function CatalogResourceIndexView(props: {
                   ? 'border-mit-red text-mit-red'
                   : 'border-transparent text-muted-foreground'
               )}
+              // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- catalogScopeFilterAction is the static pavilion spaces admin index path.
               href={props.catalogScopeFilterAction}
             >
               {props.ratesTabLabel}
@@ -148,6 +155,7 @@ function CatalogResourceIndexView(props: {
                   ? 'border-transparent text-muted-foreground'
                   : 'border-mit-red text-mit-red'
               )}
+              // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- list tab href is the static pavilion spaces admin path plus a fixed view query.
               href={`${props.catalogScopeFilterAction}?view=list`}
             >
               {props.spacesTabLabel}

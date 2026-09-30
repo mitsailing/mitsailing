@@ -7,6 +7,12 @@ test.describe('Site alerts', () => {
     await page.goto('/');
 
     const banner = page.locator('[data-alert-banner]');
+    await expect(banner.getByText('1 alert.')).toBeVisible();
+    await expect(banner.getByText('Demo site alert')).toHaveCount(0);
+
+    await banner
+      .getByRole('button', { name: 'Expand site alerts to show messages' })
+      .click();
     await expect(banner.getByText('Demo site alert')).toBeVisible();
     await expect(banner.getByText('Wed, Jan 1, 2025')).toBeVisible();
     await expect(banner.getByText('Tue, Dec 31, 2030')).toHaveCount(0);
@@ -26,6 +32,10 @@ test.describe('Site alerts', () => {
     await page.goto('/');
 
     const banner = page.locator('[data-alert-banner]');
+    await expect(banner.getByText('1 alert.')).toBeVisible();
+    await banner
+      .getByRole('button', { name: 'Expand site alerts to show messages' })
+      .click();
     await expect(banner.getByText('Demo site alert')).toBeVisible();
 
     await banner

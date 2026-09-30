@@ -95,23 +95,23 @@ function IncludedPriceLines() {
   const t = useTranslations('PricingPage');
 
   return (
-    <dl className="grid gap-2 text-sm leading-5">
-      <div className="flex items-baseline justify-between gap-3">
-        <dt className="text-muted-foreground">
-          {t('full_sailing_mit_student_label')}
-        </dt>
-        <dd className="font-semibold text-mit-text">{t('included_price')}</dd>
-      </div>
-      <div>
+    <div>
+      <dl className="grid gap-2 text-sm leading-5">
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-muted-foreground">
+            {t('full_sailing_mit_student_label')}
+          </dt>
+          <dd className="font-semibold text-mit-text">{t('included_price')}</dd>
+        </div>
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-muted-foreground">
             {t('full_sailing_mit_gym_member_label')}
           </dt>
           <dd className="font-semibold text-mit-text">{t('included_price')}</dd>
         </div>
-        <MitRecreationRatesLink />
-      </div>
-    </dl>
+      </dl>
+      <MitRecreationRatesLink />
+    </div>
   );
 }
 

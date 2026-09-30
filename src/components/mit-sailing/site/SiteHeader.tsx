@@ -574,13 +574,12 @@ export function SiteHeader(props: SiteHeaderProps) {
             </h2>
             <div className="flex min-h-[4rem] shrink-0 items-center justify-between border-b border-mit-line px-6">
               <Link
+                aria-label={`${t('site_brand_mit')} ${t('site_brand_sailing')}`}
                 className="flex cursor-pointer items-center gap-2 no-underline focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
                 href="/"
                 onClick={closeMobile}
               >
-                <SiteBrandLogo
-                  label={`${t('site_brand_mit')} ${t('site_brand_sailing')}`}
-                />
+                <SiteBrandLogo />
               </Link>
               <Button
                 aria-controls="site-header-mobile-menu"
@@ -610,12 +609,11 @@ export function SiteHeader(props: SiteHeaderProps) {
     >
       <div className="mx-auto flex h-[4.25rem] max-w-7xl items-center justify-between gap-4 px-6 sm:px-8">
         <Link
+          aria-label={`${t('site_brand_mit')} ${t('site_brand_sailing')}`}
           className="flex cursor-pointer items-center gap-2 no-underline"
           href="/"
         >
-          <SiteBrandLogo
-            label={`${t('site_brand_mit')} ${t('site_brand_sailing')}`}
-          />
+          <SiteBrandLogo />
         </Link>
 
         <nav

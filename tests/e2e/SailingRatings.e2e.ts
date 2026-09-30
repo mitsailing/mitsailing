@@ -215,9 +215,7 @@ test.describe('Ratings', () => {
     await signInAsAdmin(page);
     await page.goto('/admin/users/username?tab=admin');
 
-    await expect(
-      page.getByRole('heading', { name: 'Edit user' })
-    ).toBeVisible();
+    await expect(page.getByLabel('Banned')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Give Rating' })).toHaveCount(
       0
     );

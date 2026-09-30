@@ -16,12 +16,11 @@ export function AuthCenterBrandMark() {
   return (
     <div className="flex justify-center">
       <Link
+        aria-label={`${t('site_brand_mit')} ${t('site_brand_sailing')}`}
         className={`inline-flex cursor-pointer items-center gap-2 no-underline ${textFocusRingClassName}`}
         href="/"
       >
-        <SiteBrandLogo
-          label={`${t('site_brand_mit')} ${t('site_brand_sailing')}`}
-        />
+        <SiteBrandLogo />
       </Link>
     </div>
   );

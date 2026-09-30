@@ -58,8 +58,7 @@ type AdminUsersFilterChipLabels = {
   cardTypeNormal: string;
   cardTypeRacing: string;
   cardTypeTeamRacing: string;
-  // `typeof label` keeps the signature name referenced for Codacy ESLint.
-  chipRemoveAria: (label: string) => typeof label;
+  chipRemoveAria: (chipLabel: string) => string;
   emailStatusBounced: string;
   emailStatusLabel: string;
   emailStatusOk: string;

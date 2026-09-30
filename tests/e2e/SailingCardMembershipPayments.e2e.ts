@@ -256,7 +256,6 @@ async function openAdminUserProfile(props: {
   await props.page
     .getByRole('searchbox', { name: 'Search users' })
     .fill(props.query);
-  await props.page.getByRole('button', { name: 'Filter' }).click();
   await expect(props.page).toHaveURL(/q=/);
   await props.page.getByRole('link', { name: props.userName }).click();
   await expect(props.page).toHaveURL(/\/admin\/users\/[^/]+$/);
@@ -348,15 +347,13 @@ test('admin searches users from the users page', async ({ page }) => {
   await page.goto('/admin/users');
 
   await page.getByRole('searchbox', { name: 'Search users' }).fill(email);
-  await page.getByRole('button', { name: 'Filter' }).click();
-
   await expect(page).toHaveURL(/q=/);
   await expect(page.getByRole('row').filter({ hasText: email })).toBeVisible();
 
   await page
     .getByRole('searchbox', { name: 'Search users' })
     .fill('not-a-real-sailor');
-  await page.getByRole('button', { name: 'Filter' }).click();
+  await expect(page).toHaveURL(/q=not-a-real-sailor/);
   await expect(page.getByText('No users match that search.')).toBeVisible();
 });
 

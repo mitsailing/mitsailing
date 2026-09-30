@@ -46,8 +46,12 @@ function OnboardingTaskShell(props: OnboardingTaskShellProps) {
     <main className="min-h-screen bg-muted/30 text-mit-text">
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-5 sm:px-6">
         <div className="flex items-center justify-between gap-4">
-          <Link className="inline-flex no-underline" href="/">
-            <SiteBrandLogo label={props.brandLabel} />
+          <Link
+            aria-label={props.brandLabel}
+            className="inline-flex no-underline"
+            href="/"
+          >
+            <SiteBrandLogo />
           </Link>
           <Link
             className="rounded-lg px-3 py-2 text-sm font-medium text-mit-red no-underline hover:bg-mit-red-highlight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red"

@@ -181,8 +181,9 @@ type AdminUsersListFilterChipInput = {
     pastDue: string;
     unpaid: string;
   };
-  // `typeof label` keeps the signature name referenced for Codacy ESLint.
-  readonly chipRemoveAria: (label: string) => typeof label;
+  readonly chipRemoveAria: Parameters<
+    typeof adminUsersFilterChips
+  >[1]['chipRemoveAria'];
 };
 
 function adminUsersListFilterChips(

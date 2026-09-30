@@ -1,22 +1,18 @@
 import Image from 'next/image';
 
-type SiteBrandLogoProps = {
-  label: string;
-};
-
 /**
  * Official MIT Sailing lockup. One compact height everywhere so the header,
  * auth column, and onboarding task bar match. Swaps to the on-dark asset when
- * the document is in dark mode.
+ * the document is in dark mode. Decorative; the parent link supplies the
+ * accessible name.
  *
- * @param props - Accessible name
- * @returns Logo image
+ * @returns Logo images for light and dark themes
  */
-export function SiteBrandLogo(props: SiteBrandLogoProps) {
+export function SiteBrandLogo() {
   return (
     <>
       <Image
-        alt={props.label}
+        alt=""
         className="h-8 w-auto dark:hidden"
         height={32}
         src="/assets/images/logo.svg"
@@ -24,7 +20,7 @@ export function SiteBrandLogo(props: SiteBrandLogoProps) {
         width={160}
       />
       <Image
-        alt={props.label}
+        alt=""
         className="hidden h-8 w-auto dark:block dark:[filter:drop-shadow(0_0_0.5px_rgb(255_255_255/0.85))]"
         height={32}
         src="/assets/images/logo-on-dark.svg"
