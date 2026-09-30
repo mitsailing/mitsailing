@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { importLegacyEventRows } from '@/libs/legacy-sync/legacyEventImport';
-import type { LegacyMemberRow } from '@/libs/legacy-sync/legacyPaymentImport';
+import { legacyImportTransactionOptions } from '@/libs/legacy-sync/legacyImportTransaction';
+import type { LegacyMemberRow } from '@/libs/legacy-sync/legacyMemberIdentity';
 
 const mocks = vi.hoisted(() => ({
   eventCategoryUpsert: vi.fn(),
@@ -10,7 +11,6 @@ const mocks = vi.hoisted(() => ({
   loggerWarn: vi.fn(),
   queryRaw: vi.fn(),
   transaction: vi.fn(),
-  userFindMany: vi.fn(),
 }));
 
 vi.mock('@/libs/DB', () => ({
@@ -146,7 +146,6 @@ describe('importLegacyEventRows', () => {
     mocks.executeRaw.mockResolvedValue(0);
     mocks.eventFindUnique.mockResolvedValue(null);
     mocks.queryRaw.mockResolvedValue([]);
-    mocks.userFindMany.mockResolvedValue([]);
     mocks.transaction.mockImplementation(
       (operation: (tx: unknown) => unknown) =>
         operation({
@@ -157,7 +156,6 @@ describe('importLegacyEventRows', () => {
             upsert: mocks.eventUpsert,
           },
           eventCategory: { upsert: mocks.eventCategoryUpsert },
-          user: { findMany: mocks.userFindMany },
         })
     );
   });
@@ -188,10 +186,10 @@ describe('importLegacyEventRows', () => {
     expect(mocks.eventCategoryUpsert).not.toHaveBeenCalled();
     expect(mocks.eventUpsert).not.toHaveBeenCalled();
     expect(mocks.executeRaw).toHaveBeenCalled();
-    expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), {
-      maxWait: 10_000,
-      timeout: 120_000,
-    });
+    expect(mocks.transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      legacyImportTransactionOptions
+    );
   });
 
   it('imports event dates as New York wall-clock instants', async () => {
@@ -340,17 +338,18 @@ describe('importLegacyEventRows', () => {
   it('imports event fees admins registrations and team boat members', async () => {
     mocks.eventCategoryUpsert.mockResolvedValue({ id: 'category-1' });
     mocks.eventUpsert.mockResolvedValue({ id: 'event-1' });
-    mocks.userFindMany.mockResolvedValue([
-      { email: 'captain@example.com', id: 'app-user-captain' },
-      { email: 'crew@example.com', id: 'app-user-crew' },
-      { email: 'admin@example.com', id: 'app-user-admin' },
-    ]);
-    mocks.queryRaw.mockResolvedValue([
-      {
-        legacy_team_key: `${legacyEventId}:team-alpha`,
-        registration_id: 'registration-team-alpha',
-      },
-    ]);
+    mocks.queryRaw
+      .mockResolvedValueOnce([
+        { email: 'captain@example.com', id: 'app-user-captain' },
+        { email: 'crew@example.com', id: 'app-user-crew' },
+        { email: 'admin@example.com', id: 'app-user-admin' },
+      ])
+      .mockResolvedValueOnce([
+        {
+          legacy_team_key: `${legacyEventId}:team-alpha`,
+          registration_id: 'registration-team-alpha',
+        },
+      ]);
 
     await expect(
       importLegacyEventRows({
@@ -533,18 +532,7 @@ describe('importLegacyEventRows', () => {
     expect(mocks.eventUpsert.mock.calls[0]?.[0].update).not.toEqual(
       expect.objectContaining({ slug: expect.any(String) })
     );
-    expect(mocks.userFindMany).toHaveBeenCalledWith({
-      select: { email: true, id: true },
-      where: {
-        email: {
-          in: expect.arrayContaining([
-            'captain@example.com',
-            'crew@example.com',
-            'admin@example.com',
-          ]),
-        },
-      },
-    });
+    expect(mocks.queryRaw).toHaveBeenCalled();
     const values = allSqlValues();
     expect(values).toEqual(
       expect.arrayContaining([

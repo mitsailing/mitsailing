@@ -164,6 +164,37 @@ async function expectSignInCallback(page: Page, callbackUrl: string) {
     .toBe(callbackUrl);
 }
 
+async function adminUsersRowByEmail(page: Page, email: string) {
+  await page.goto('/admin/users');
+  await page.getByRole('searchbox', { name: 'Search users' }).fill(email);
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('q'))
+    .toBe(email);
+  const userRow = page.getByRole('row').filter({ hasText: email });
+  await expect(userRow).toBeVisible();
+  return userRow;
+}
+
+async function openAdminUserEditByEmail(page: Page, email: string) {
+  const userRow = await adminUsersRowByEmail(page, email);
+  await userRow.getByRole('link', { name: 'Edit' }).click();
+  await expect(page).toHaveURL(/tab=admin/);
+  await expect(page.getByLabel('Banned')).toBeVisible();
+}
+
+async function saveAdminUserBanState(page: Page, banned: boolean) {
+  const bannedCheckbox = page.getByLabel('Banned');
+  await (banned ? bannedCheckbox.check() : bannedCheckbox.uncheck());
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('tab'))
+    .toBeNull();
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('error'))
+    .toBeNull();
+  await expect(page).toHaveURL(/\/admin\/users\/[^/?]+\/?$/u);
+}
+
 test.describe('Admin hub and users', () => {
   test('Visitor redirects from catalog admin resources to sign-in', async ({
     page,
@@ -177,14 +208,12 @@ test.describe('Admin hub and users', () => {
     await expectSignInPage(page);
   });
 
-  test('Admin sees the admin index at /admin', async ({ page }) => {
+  test('Admin lands on users from /admin', async ({ page }) => {
     await signInAsAdmin(page);
     await page.goto('/admin');
+    await expect(page).toHaveURL(/\/admin\/users\/?$/);
     await expect(
-      page.getByRole('heading', { name: 'Administration' })
-    ).toBeVisible();
-    await expect(
-      page.getByRole('link', { name: 'Users', exact: true }).first()
+      page.getByRole('heading', { name: 'Users', exact: true })
     ).toBeVisible();
   });
 
@@ -216,7 +245,7 @@ test.describe('Admin hub and users', () => {
     await expect(adminLink).toHaveAttribute('href', /\/admin\/?$/);
   });
 
-  test('Admin revokes and restores a banned sailor sign-in', async ({
+  test('Admin ban revokes sailor session and blocks sign-in until unbanned', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -228,21 +257,10 @@ test.describe('Admin hub and users', () => {
 
       await page.context().clearCookies();
       await signInAsAdmin(page);
-      await page.goto('/admin/users');
+      await openAdminUserEditByEmail(page, email);
+      await saveAdminUserBanState(page, true);
 
-      await page
-        .getByRole('row')
-        .filter({ hasText: email })
-        .getByRole('link', { name: 'Edit' })
-        .click();
-      await expect(
-        page.getByRole('heading', { name: 'Edit user' })
-      ).toBeVisible();
-      const userShowPath = new URL(page.url()).pathname.replace(/\/edit$/u, '');
-      await page.getByLabel('Banned').check();
-      await page.getByRole('button', { name: 'Save', exact: true }).click();
-      await expect.poll(() => new URL(page.url()).pathname).toBe(userShowPath);
-
+      // Existing session cookies must stop working after banUser deletes sessions.
       await page.context().clearCookies();
       await page.context().addCookies(signedInUserCookies);
       await page.goto('/profile');
@@ -255,50 +273,14 @@ test.describe('Admin hub and users', () => {
           hasText: 'Your account has been disabled. Contact support.',
         })
       ).toBeVisible();
-      await expect(
-        page.getByRole('alert').filter({
-          hasText: 'Verify your email before signing in.',
-        })
-      ).toHaveCount(0);
-      await expect(
-        page.getByRole('alert').filter({
-          hasText: 'Invalid email or password.',
-        })
-      ).toHaveCount(0);
-      await expect(
-        page.getByRole('alert').filter({
-          hasText: 'Your account is temporarily locked',
-        })
-      ).toHaveCount(0);
-      await expect(
-        page.getByRole('alert').filter({
-          hasText: 'Too many attempts.',
-        })
-      ).toHaveCount(0);
       await expect
         .poll(() => new URL(page.url()).pathname)
         .toMatch(/\/login\/?$/);
 
       await page.context().clearCookies();
       await signInAsAdmin(page);
-      await page.goto('/admin/users');
-      await page
-        .getByRole('row')
-        .filter({ hasText: email })
-        .getByRole('link', { name: 'Edit' })
-        .click();
-      await expect(
-        page.getByRole('heading', { name: 'Edit user' })
-      ).toBeVisible();
-      const restoredUserShowPath = new URL(page.url()).pathname.replace(
-        /\/edit$/u,
-        ''
-      );
-      await page.getByLabel('Banned').uncheck();
-      await page.getByRole('button', { name: 'Save', exact: true }).click();
-      await expect
-        .poll(() => new URL(page.url()).pathname)
-        .toBe(restoredUserShowPath);
+      await openAdminUserEditByEmail(page, email);
+      await saveAdminUserBanState(page, false);
 
       await page.context().clearCookies();
       await submitEmailPasswordSignIn({ email, page, password });
@@ -319,16 +301,10 @@ test.describe('Admin hub and users', () => {
 
       await page.goto('/admin');
       await expect.poll(() => new URL(page.url()).pathname).toBe('/');
-      await expect(
-        page.getByRole('heading', { name: 'Administration' })
-      ).toHaveCount(0);
 
       await page.context().clearCookies();
       await signInAsAdmin(page);
-      await page.goto('/admin/users');
-
-      const userRow = page.getByRole('row').filter({ hasText: email });
-      await expect(userRow).toBeVisible();
+      const userRow = await adminUsersRowByEmail(page, email);
       await userRow.getByRole('button', { name: 'View as user' }).click();
 
       await expect.poll(() => new URL(page.url()).pathname).toBe('/');

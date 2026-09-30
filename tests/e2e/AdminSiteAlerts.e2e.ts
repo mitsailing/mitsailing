@@ -20,7 +20,7 @@ test.describe('Admin site alerts', () => {
     ).toBeVisible();
     await expect(page.getByRole('link', { name: 'Add row' })).toBeVisible();
     await expect(
-      page.getByRole('table').getByText('Demo site alert')
+      page.getByRole('row').filter({ hasText: 'Demo site alert' })
     ).toBeVisible();
   });
 
@@ -51,7 +51,8 @@ test.describe('Admin site alerts', () => {
     await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
 
     await page.goto('/admin/site_alerts');
-    await expect(page.getByRole('table').getByText(marker)).toBeVisible();
+    const createdRow = page.getByRole('row').filter({ hasText: marker });
+    await expect(createdRow).toBeVisible();
 
     await page.goto('/');
     await expect(
@@ -59,17 +60,15 @@ test.describe('Admin site alerts', () => {
     ).toHaveCount(0);
 
     await page.goto('/admin/site_alerts');
-    await page
-      .getByRole('row')
-      .filter({ hasText: marker })
-      .getByRole('link', { name: 'Delete', exact: true })
-      .click();
+    await createdRow.getByRole('link', { name: 'Delete', exact: true }).click();
     await expect(
       page.getByRole('heading', { name: 'Delete catalog item' })
     ).toBeVisible();
     await page.getByRole('button', { name: 'Delete' }).click();
     await expect(page).toHaveURL(/\/admin\/site_alerts\/?$/);
-    await expect(page.getByRole('table').getByText(marker)).toHaveCount(0);
+    await expect(page.getByRole('row').filter({ hasText: marker })).toHaveCount(
+      0
+    );
   });
 
   test('admin site alert mutation refreshes public banner cache', async ({
@@ -89,10 +88,15 @@ test.describe('Admin site alerts', () => {
     await expect(page).toHaveURL(/\/admin\/site_alerts\/[^/]+\/edit\/?$/);
 
     await page.goto('/admin/site_alerts');
-    await expect(page.getByRole('table').getByText(marker)).toBeVisible();
+    await expect(
+      page.getByRole('row').filter({ hasText: marker })
+    ).toBeVisible();
 
     await page.goto('/');
     const banner = page.locator('[data-alert-banner]');
+    await banner
+      .getByRole('button', { name: 'Expand site alerts to show messages' })
+      .click();
     await expect(banner.getByText(marker)).toBeVisible();
 
     await page.goto('/admin/site_alerts');

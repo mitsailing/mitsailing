@@ -59,12 +59,6 @@ export const footerSocialIconButtonClassName = [
 export const mitAccentLinkClassName = 'text-sm font-semibold text-primary-ink';
 
 /**
- * “MIT” on auth center chrome: crimson in light; rose ink in dark on page background.
- */
-export const siteBrandMitWordmarkDefaultClassName =
-  'text-mit-red dark:text-mit-red-ink';
-
-/**
  * @deprecated Prefer [`Button`](src/components/ui/button.tsx) with `variant="default"`.
  */
 export const authPrimaryButtonClassName = [

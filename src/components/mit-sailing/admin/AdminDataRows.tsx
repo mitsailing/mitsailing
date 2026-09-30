@@ -65,34 +65,6 @@ export function AdminDetailRows(
   );
 }
 
-export function AdminSummaryRows(
-  props: Readonly<{
-    rows: readonly (readonly AdminDataRowItem[])[];
-  }>
-) {
-  return (
-    <dl className="m-0 divide-y divide-border border-y border-border text-sm">
-      {props.rows.map((row) => (
-        <div
-          className="grid gap-3 py-3 md:grid-cols-3"
-          key={row.map((item) => item.label).join(':')}
-        >
-          {row.map((item) => (
-            <div className="min-w-0" key={item.label}>
-              <dt className="text-xs font-medium text-muted-foreground">
-                {item.label}
-              </dt>
-              <dd className="m-0 mt-1 min-w-0 break-words text-foreground">
-                {item.value}
-              </dd>
-            </div>
-          ))}
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 export function AdminMetricStrip(
   props: Readonly<{
     columnsClassName?: string;

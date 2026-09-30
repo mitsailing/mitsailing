@@ -1,6 +1,4 @@
-/**
- * URL helpers for Better Auth admin user management under `/admin/users`.
- */
+import { adminUsersAccountTabPath } from '@/libs/admin/users/adminUserAccountTab';
 
 export const ADMIN_USERS_PATH = '/admin/users';
 
@@ -28,10 +26,10 @@ export function adminUsersShowPath(id: string): string {
 
 /**
  * @param id - User id
- * @returns Path to edit user
+ * @returns Path to member account admin tab
  */
 export function adminUsersEditPath(id: string): string {
-  return `${ADMIN_USERS_PATH}/${encodeURIComponent(id)}/edit`;
+  return adminUsersAccountTabPath(id, 'admin');
 }
 
 /**

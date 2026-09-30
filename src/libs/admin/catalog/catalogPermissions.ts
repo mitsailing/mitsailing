@@ -59,10 +59,3 @@ export function catalogPermissionForOperation(props: {
     `Missing catalog permission mapping for resource "${props.resourceId}" and operation "${props.operation}"`
   );
 }
-
-export function catalogPermissionsForOperation(props: {
-  operation: CatalogPermissionOperation;
-  resourceId: CatalogResourceId;
-}): readonly Permission[] {
-  return [catalogPermissionForOperation(props)];
-}

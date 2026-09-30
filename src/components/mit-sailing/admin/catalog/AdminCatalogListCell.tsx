@@ -17,7 +17,7 @@ import {
 } from '@/libs/mit-sailing/cmsHref';
 
 const nameEditLinkClassName =
-  'text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink';
+  'text-sm font-medium text-foreground underline-offset-2 hover:underline';
 const urlLinkClassName =
   'text-mit-red underline decoration-mit-red/30 underline-offset-2 hover:decoration-mit-red dark:text-mit-red-ink';
 

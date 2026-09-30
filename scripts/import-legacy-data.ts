@@ -1,47 +1,18 @@
 import 'dotenv/config';
 import { prisma } from '@/libs/DB';
-import { Env } from '@/libs/Env';
-import { importLegacyDataFromSchema } from '@/libs/legacy-sync/legacyDataImport';
-import { runLegacyMysqlSync } from '@/libs/legacy-sync/legacyMysqlSync';
-import { LEGACY_MYSQL_SOURCE } from '@/libs/legacy-sync/mysqlConnection';
-
-function shouldSyncLegacyMirror(): boolean {
-  return process.argv.includes('--sync-legacy');
-}
-
-async function maybeSyncLegacyMirror(): Promise<void> {
-  if (!shouldSyncLegacyMirror()) {
-    return;
-  }
-  const mysqlPassword = Env.LEGACY_MYSQL_PASSWORD;
-  if (!mysqlPassword) {
-    throw new Error(
-      'LEGACY_MYSQL_PASSWORD is required when running with --sync-legacy.'
-    );
-  }
-  const result = await runLegacyMysqlSync({
-    cron: '0 0 * * * *',
-    database: LEGACY_MYSQL_SOURCE.database,
-    enabled: true,
-    mysqlPassword,
-    sourceHost: LEGACY_MYSQL_SOURCE.host,
-  });
-  if (result.skipped) {
-    throw new Error(
-      'Legacy MySQL sync skipped because another sync is running.'
-    );
-  }
-  console.log(
-    `Synced ${result.rowCount.toString()} legacy rows across ${result.tableCount} tables.`
-  );
-}
+import { importLegacyData } from '@/libs/legacy-sync/legacyDataImport';
+import { assertLocalDevDatabaseForLegacyImport } from '@/libs/legacy-sync/legacyImportGuards';
 
 async function main(): Promise<void> {
-  await maybeSyncLegacyMirror();
-  const result = await importLegacyDataFromSchema();
+  assertLocalDevDatabaseForLegacyImport();
+  const outcome = await importLegacyData({ useAdvisoryLock: false });
+  if (outcome.skipped) {
+    throw new Error('Legacy import skipped because another import is running.');
+  }
+  const { result } = outcome;
   const { users } = result;
   console.log(
-    `Imported legacy users: created ${users.usersCreated}, matched ${users.usersMatched}, merged ${users.cardRecordsMerged} sailing-card records.`
+    `Imported legacy users: created ${users.usersCreated}, matched ${users.usersMatched}, normalized ${users.namesUpdated} names, merged ${users.cardRecordsMerged} sailing-card records.`
   );
 
   const { events } = result;
@@ -51,7 +22,7 @@ async function main(): Promise<void> {
 
   const { ratings } = result;
   console.log(
-    `Imported legacy ratings: rating types ${ratings.ratingTypesImported}, user ratings ${ratings.userRatingsImported}, skipped user ratings ${ratings.userRatingsSkipped}.`
+    `Imported legacy ratings: catalog grants moved ${ratings.catalogGrantsMoved}, duplicates removed ${ratings.catalogDuplicatesRemoved}, legacy rows hidden ${ratings.legacyCatalogRowsHidden}, rating types ${ratings.ratingTypesImported}, tech ratings implied ${ratings.techRatingsImplied}, user ratings ${ratings.userRatingsImported}, skipped user ratings ${ratings.userRatingsSkipped}.`
   );
 
   const { news } = result;
@@ -76,9 +47,14 @@ async function run(): Promise<void> {
   }
 }
 
-try {
-  await run();
-} catch (error: unknown) {
-  console.error(error);
-  process.exitCode = 1;
+async function runCli(): Promise<void> {
+  try {
+    await run();
+  } catch (error: unknown) {
+    console.error(error);
+    process.exitCode = 1;
+  }
 }
+
+// eslint-disable-next-line no-void -- script entry
+void runCli();

@@ -39,6 +39,19 @@ describe('sailingCardDateOfBirth', () => {
     expect(formatSailingCardDateOfBirthInput('0324')).toBe('03/24');
   });
 
+  it('allows backspacing through the month without reinserting a slash', () => {
+    expect(formatSailingCardDateOfBirthInput('03/')).toBe('03');
+    expect(formatSailingCardDateOfBirthInput('03')).toBe('03');
+    expect(formatSailingCardDateOfBirthInput('0')).toBe('0');
+    expect(formatSailingCardDateOfBirthInput('')).toBe('');
+
+    let value = '03/24/1988';
+    while (value.length > 0) {
+      value = formatSailingCardDateOfBirthInput(value.slice(0, -1));
+    }
+    expect(value).toBe('');
+  });
+
   it('keeps invalid structured birthdays unchanged', () => {
     expect(formatSailingCardDateOfBirthInput('2026-99-99')).toBe('2026-99-99');
     expect(normalizeSailingCardDateOfBirthInput({ value: '2026-99-99' })).toBe(

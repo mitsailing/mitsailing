@@ -38,9 +38,9 @@ const techRating = {
   ],
   guideUrl: 'https://sailing.mit.edu/card/ratings.php',
   id: 'rating-tech',
-  isDeprecated: false,
   level: '1',
   name: 'Tech Rating',
+  requiredRatings: [],
   shortName: 'Tech',
   slug: 'tech-rating',
   unlockedBoats: [
@@ -59,55 +59,49 @@ const provisionalRating = {
   grantableClasses: [],
   guideUrl: null,
   id: 'rating-provisional',
-  isDeprecated: false,
   level: null,
   name: 'Provisional Rating',
+  requiredRatings: [
+    {
+      id: 'rating-tech',
+      name: 'Tech Rating',
+      slug: 'tech-rating',
+    },
+  ],
   shortName: null,
   slug: 'provisional-rating',
   unlockedBoats: [],
   windCondition: null,
 } satisfies PublicSailingRating;
 
-const legacyRating = {
-  category: null,
-  description: 'Older rating kept for historical reference.',
-  grantableClasses: [],
-  guideUrl: null,
-  id: 'rating-legacy',
-  isDeprecated: true,
-  level: null,
-  name: 'Legacy Rating',
-  shortName: null,
-  slug: 'legacy-rating',
-  unlockedBoats: [],
-  windCondition: null,
-} satisfies PublicSailingRating;
-
 describe('RatingsListView', () => {
-  it('renders linked active ratings with table semantics', async () => {
+  it('renders linked active ratings grouped by sailor path', async () => {
     render(await RatingsListView({ locale: 'en', ratings: [techRating] }));
 
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Sail ratings' })
-    ).toBeVisible();
-    const table = screen.getByRole('table');
-    expect(
-      within(table).getByRole('columnheader', { name: 'Rating' })
+      screen.getByRole('heading', { level: 1, name: 'Ratings' })
     ).toBeVisible();
     expect(
-      within(table).getByRole('columnheader', { name: 'Classes/checkoffs' })
+      screen.getByRole('heading', { name: 'Charles River' })
     ).toBeVisible();
+    expect(screen.queryByRole('table')).toBeNull();
+    const article = screen.getByRole('article', { name: 'Tech Rating' });
     expect(
-      within(table).getByRole('rowheader', { name: /Tech Rating/u })
+      within(article).getByRole('heading', { level: 2, name: 'Tech Rating' })
     ).toBeVisible();
+    expect(within(article).getByText('Level 1')).toBeVisible();
+    expect(within(article).getByText('How you get it')).toBeVisible();
+    expect(within(article).getByText('Unlocks')).toBeVisible();
 
     expect(
-      within(table).getByRole('link', { name: 'Intro Sailing 101' })
+      within(article).getByRole('link', { name: 'Intro Sailing 101' })
     ).toHaveAttribute('href', '/classes/intro-sailing-101');
     expect(
-      within(table).getByRole('link', { name: 'Tech dinghy' })
+      within(article).getByRole('link', { name: 'Tech dinghy' })
     ).toHaveAttribute('href', '/fleet/tech-dinghy');
-    const guideLink = within(table).getByRole('link', { name: 'Guide' });
+    const guideLink = within(article).getByRole('link', {
+      name: 'Open Tech Rating guide',
+    });
     expect(guideLink).toHaveAttribute(
       'href',
       'https://sailing.mit.edu/card/ratings.php'
@@ -116,67 +110,25 @@ describe('RatingsListView', () => {
     expect(guideLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('shows n/a cells when an active rating has no linked classes or boats', async () => {
+  it('shows n/a facts and required ratings when linked data is sparse', async () => {
     render(
       await RatingsListView({ locale: 'en', ratings: [provisionalRating] })
     );
 
-    const provisionalRow = within(screen.getByRole('table')).getByRole('row', {
-      name: /Provisional Rating/u,
-    });
-    expect(within(provisionalRow).getAllByText('n/a')).toHaveLength(5);
+    const article = screen.getByRole('article', { name: 'Provisional Rating' });
+    expect(within(article).getAllByText('n/a')).toHaveLength(4);
     expect(
-      within(provisionalRow).queryByRole('link', { name: 'Guide' })
-    ).toBeNull();
+      within(article).getByRole('link', { name: 'Tech Rating' })
+    ).toHaveAttribute('href', '/ratings#tech-rating');
+    expect(within(article).queryByRole('link', { name: /guide/u })).toBeNull();
   });
 
-  it('renders the empty catalog state without a table', async () => {
+  it('renders the empty catalog state without ratings', async () => {
     render(await RatingsListView({ locale: 'en', ratings: [] }));
 
     expect(screen.getByRole('status')).toHaveTextContent(
       'No ratings are published yet.'
     );
-    expect(screen.queryByRole('table')).toBeNull();
-    expect(
-      screen.queryByRole('heading', { name: 'Deprecated ratings' })
-    ).toBeNull();
-  });
-
-  it('separates deprecated ratings from the active table', async () => {
-    render(
-      await RatingsListView({
-        locale: 'en',
-        ratings: [techRating, legacyRating],
-      })
-    );
-
-    const table = screen.getByRole('table');
-    expect(
-      within(table).getByRole('rowheader', { name: /Tech Rating/u })
-    ).toBeVisible();
-    expect(
-      within(table).queryByRole('rowheader', { name: /Legacy Rating/u })
-    ).toBeNull();
-    const deprecatedSection = screen
-      .getByRole('heading', { name: 'Deprecated ratings' })
-      .closest('section');
-    if (!(deprecatedSection instanceof HTMLElement)) {
-      throw new TypeError('Expected deprecated ratings section to render.');
-    }
-    expect(within(deprecatedSection).getByRole('listitem')).toHaveTextContent(
-      /Legacy Rating.*Older rating kept for historical reference/u
-    );
-  });
-
-  it('renders deprecated-only catalogs without an empty active table', async () => {
-    render(await RatingsListView({ locale: 'en', ratings: [legacyRating] }));
-
-    expect(screen.queryByRole('table')).toBeNull();
-    expect(
-      screen.getByRole('heading', { name: 'Deprecated ratings' })
-    ).toBeVisible();
-    expect(screen.getByRole('listitem')).toHaveTextContent(
-      /Legacy Rating.*Older rating kept for historical reference/u
-    );
+    expect(screen.queryByRole('article')).toBeNull();
   });
 });

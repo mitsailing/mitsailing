@@ -23,7 +23,8 @@ describe('email templates', () => {
     );
 
     expect(html).toContain('Inbox preview');
-    expect(html).toContain('MIT Sailing');
+    expect(html).toContain('alt="MIT Sailing"');
+    expect(html).toContain('/assets/images/logo-on-dark.png');
     expect(html).toContain('Inner account notice');
     expect(html).toContain(
       'You received this email because of an action on your MIT Sailing'
@@ -48,6 +49,8 @@ describe('email templates', () => {
 
     expect(html).toContain('Marketing preview');
     expect(html).toContain('Marketing body');
+    expect(html).toContain('alt="MIT Sailing"');
+    expect(html).toContain('/assets/images/logo-on-dark.png');
     expect(html).toContain('Unsubscribe from Regatta updates');
     expect(html).toContain('Manage every newsletter');
     expect(html).toContain('MIT Sailing Pavilion, Cambridge, MA');

@@ -76,6 +76,7 @@ async function createBaseUser(props: {
   readonly firstName: string;
   readonly lastName: string;
   readonly mitId?: string;
+  readonly sailingAffiliation?: string;
 }) {
   const userId = `e2e-user-${randomUUID()}`;
   await pool.query(
@@ -83,13 +84,14 @@ async function createBaseUser(props: {
       ("id", "email", "name", "email_verified", "first_name", "last_name", "sailing_affiliation", "mit_id",
        "phone", "emergency_contact_name", "emergency_contact_phone", "sailing_card_requested_at", "created_at", "updated_at")
      VALUES
-      ($1, $2, $3, true, $4, $5, 'WELLESLEY', $6, '+16175550100', 'Ada Lovelace', '+16175550101', NOW(), NOW(), NOW())`,
+      ($1, $2, $3, true, $4, $5, $6, $7, '+16175550100', 'Ada Lovelace', '+16175550101', NOW(), NOW(), NOW())`,
     [
       userId,
       props.email,
       `${props.firstName} ${props.lastName}`,
       props.firstName,
       props.lastName,
+      props.sailingAffiliation ?? 'WELLESLEY',
       props.mitId ?? null,
     ]
   );
@@ -114,16 +116,18 @@ async function updatePendingCardRequest(props: {
   readonly firstName: string;
   readonly lastName: string;
   readonly mitId: string | null;
+  readonly sailingAffiliation?: string;
   readonly userId: string;
 }) {
   const requestHasFitnessMembership = props.cardType === 'normal';
+  const sailingAffiliation = props.sailingAffiliation ?? 'WELLESLEY';
   await pool.query(
     `UPDATE "sailing_card_requests"
      SET "card_type" = $2,
          "has_fitness_membership" = $7,
          "first_name" = $3,
          "last_name" = $4,
-         "sailing_affiliation" = 'WELLESLEY',
+         "sailing_affiliation" = $8,
          "mit_id" = $5,
          "requested_at" = NOW(),
          "updated_at" = NOW()
@@ -136,6 +140,7 @@ async function updatePendingCardRequest(props: {
       props.mitId,
       getCurrentSailingCardYear(),
       requestHasFitnessMembership,
+      sailingAffiliation,
     ]
   );
   if (props.cardType === 'normal') {
@@ -154,6 +159,7 @@ async function completePendingCardOnboarding(props: {
   readonly firstName: string;
   readonly lastName: string;
   readonly mitId: string | null;
+  readonly sailingAffiliation?: string;
   readonly userId: string;
 }) {
   await insertCurrentSailingCardOnboardingAcceptance({
@@ -171,12 +177,14 @@ async function createPendingCardUser(props: {
   readonly firstName: string;
   readonly lastName: string;
   readonly mitId: string | null;
+  readonly sailingAffiliation?: string;
 }) {
   const userId = await createBaseUser({
     email: props.email,
     firstName: props.firstName,
     lastName: props.lastName,
     mitId: props.mitId ?? undefined,
+    sailingAffiliation: props.sailingAffiliation,
   });
 
   await completePendingCardOnboarding({
@@ -184,6 +192,7 @@ async function createPendingCardUser(props: {
     firstName: props.firstName,
     lastName: props.lastName,
     mitId: props.mitId,
+    sailingAffiliation: props.sailingAffiliation,
     userId,
   });
   return userId;
@@ -256,9 +265,15 @@ async function openAdminUserProfile(props: {
   await props.page
     .getByRole('searchbox', { name: 'Search users' })
     .fill(props.query);
-  await props.page.getByRole('button', { name: 'Filter' }).click();
-  await expect(props.page).toHaveURL(/q=/);
-  await props.page.getByRole('link', { name: props.userName }).click();
+  await expect
+    .poll(() => new URL(props.page.url()).searchParams.get('q'))
+    .toBe(props.query);
+  const userLink = props.page.getByRole('link', {
+    name: props.userName,
+    exact: true,
+  });
+  await expect(userLink).toBeVisible();
+  await userLink.click();
   await expect(props.page).toHaveURL(/\/admin\/users\/[^/]+$/);
 }
 
@@ -266,6 +281,10 @@ const sailingCardPdfUrlPattern = /\/api\/admin\/users\/.+\/sailing-card\/pdf$/u;
 
 async function expectPrintCardPopup(page: Page) {
   const context = page.context();
+  // Header and card controls both expose "Print card"; target the PDF API link.
+  const pdfPrintLink = page
+    .getByRole('link', { name: 'Print card' })
+    .and(page.locator('[href*="/sailing-card/pdf"]'));
   const [popup, response] = await Promise.all([
     page.waitForEvent('popup'),
     context.waitForEvent('response', {
@@ -273,7 +292,7 @@ async function expectPrintCardPopup(page: Page) {
         res.request().method() === 'GET' &&
         sailingCardPdfUrlPattern.test(res.url()),
     }),
-    page.getByRole('link', { name: 'Print card' }).click(),
+    pdfPrintLink.click(),
   ]);
 
   expect(response.url()).toMatch(sailingCardPdfUrlPattern);
@@ -348,15 +367,15 @@ test('admin searches users from the users page', async ({ page }) => {
   await page.goto('/admin/users');
 
   await page.getByRole('searchbox', { name: 'Search users' }).fill(email);
-  await page.getByRole('button', { name: 'Filter' }).click();
-
-  await expect(page).toHaveURL(/q=/);
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('q'))
+    .toBe(email);
   await expect(page.getByRole('row').filter({ hasText: email })).toBeVisible();
 
   await page
     .getByRole('searchbox', { name: 'Search users' })
     .fill('not-a-real-sailor');
-  await page.getByRole('button', { name: 'Filter' }).click();
+  await expect(page).toHaveURL(/q=not-a-real-sailor/);
   await expect(page.getByText('No users match that search.')).toBeVisible();
 });
 
@@ -371,12 +390,13 @@ test('admin opens pending card user profile by MIT ID search', async ({
     firstName: 'Grace',
     lastName: 'Hopper',
     mitId,
+    sailingAffiliation: 'MIT_STUDENT',
   });
   await signInAsAdmin(page);
 
   await openAdminUserProfile({ page, query: mitId, userName: 'Grace Hopper' });
 
-  await expect(page.getByText(mitId)).toBeVisible();
+  await expect(page.getByLabel('MIT ID')).toHaveValue(mitId);
   await expect(
     page.getByRole('form', { name: 'Issue sailing card' })
   ).toBeVisible();

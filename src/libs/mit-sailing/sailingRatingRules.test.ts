@@ -69,7 +69,6 @@ describe('sailingRatingRules', () => {
         rules,
         activeRatingIds: new Set(['rating-tech', 'rating-keelboat']),
         alreadyGranted: false,
-        isDeprecated: false,
       })
     ).toEqual({ eligible: true });
   });
@@ -80,20 +79,8 @@ describe('sailingRatingRules', () => {
         rules: [],
         activeRatingIds: new Set(['rating-tech']),
         alreadyGranted: true,
-        isDeprecated: false,
       })
     ).toEqual({ eligible: false, reason: 'already_granted' });
-  });
-
-  it('blocks grants for deprecated ratings', () => {
-    expect(
-      evaluateSailingRatingGrantEligibility({
-        rules: [],
-        activeRatingIds: new Set(),
-        alreadyGranted: false,
-        isDeprecated: true,
-      })
-    ).toEqual({ eligible: false, reason: 'deprecated' });
   });
 
   it('blocks grants for missing prerequisites', () => {
@@ -102,7 +89,6 @@ describe('sailingRatingRules', () => {
         rules,
         activeRatingIds: new Set(['rating-tech']),
         alreadyGranted: false,
-        isDeprecated: false,
       })
     ).toEqual({
       eligible: false,

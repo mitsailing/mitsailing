@@ -1,21 +1,53 @@
 import mysql from 'mysql2/promise';
-import type { Pool, PoolConnection, PoolOptions } from 'mysql2/promise';
-import { quoteMysqlIdentifier } from '@/libs/legacy-sync/mysqlIdentifiers';
-import { MIRROR_ROW_BATCH_SIZE } from '@/libs/legacy-sync/postgresMirrorLoader';
+import type { PoolOptions } from 'mysql2/promise';
+import { Env } from '@/libs/Env';
+
+const LEGACY_MYSQL_DEFAULT_HOST = 'sailing.pavilion.lan';
+const LEGACY_MYSQL_DEFAULT_PORT = 3306;
 
 export const LEGACY_MYSQL_SOURCE = {
   database: 'sailing',
-  host: 'sailing.pavilion.lan',
-  port: 3306,
+  host: LEGACY_MYSQL_DEFAULT_HOST,
+  port: LEGACY_MYSQL_DEFAULT_PORT,
   user: 'dock_readonly',
 } as const;
+
+export type LegacyMysqlConnectionEnv = {
+  LEGACY_MYSQL_HOST?: string;
+  LEGACY_MYSQL_PORT?: number;
+};
+
+/**
+ * Resolves the legacy MySQL host from env (tunnel override or pavilion default).
+ *
+ * @param env - Validated env or test override; defaults to `Env`.
+ * @returns Hostname for the legacy MySQL mirror.
+ */
+export function legacyMysqlHostFromEnv(
+  env: LegacyMysqlConnectionEnv = Env
+): string {
+  return env.LEGACY_MYSQL_HOST ?? LEGACY_MYSQL_DEFAULT_HOST;
+}
+
+/**
+ * Resolves the legacy MySQL port from env (tunnel override or pavilion default).
+ *
+ * @param env - Validated env or test override; defaults to `Env`.
+ * @returns TCP port for the legacy MySQL mirror.
+ */
+function legacyMysqlPortFromEnv(env: LegacyMysqlConnectionEnv = Env): number {
+  return env.LEGACY_MYSQL_PORT ?? LEGACY_MYSQL_DEFAULT_PORT;
+}
 
 export type LegacyMysqlConnection = {
   close: () => Promise<void>;
   mysql: mysql.Pool;
 };
 
-export function legacyMysqlPoolOptions(password: string): PoolOptions {
+export function legacyMysqlPoolOptions(
+  password: string,
+  env: LegacyMysqlConnectionEnv = Env
+): PoolOptions {
   return {
     bigNumberStrings: true,
     charset: 'utf8mb4',
@@ -23,10 +55,10 @@ export function legacyMysqlPoolOptions(password: string): PoolOptions {
     database: LEGACY_MYSQL_SOURCE.database,
     dateStrings: true,
     enableKeepAlive: true,
-    host: LEGACY_MYSQL_SOURCE.host,
+    host: legacyMysqlHostFromEnv(env),
     keepAliveInitialDelay: 0,
     password,
-    port: LEGACY_MYSQL_SOURCE.port,
+    port: legacyMysqlPortFromEnv(env),
     supportBigNumbers: true,
     timezone: 'Z',
     user: LEGACY_MYSQL_SOURCE.user,
@@ -37,8 +69,11 @@ export function legacyMysqlPoolOptions(password: string): PoolOptions {
 
 export function openLegacyMysqlConnection(props: {
   password: string;
+  env?: LegacyMysqlConnectionEnv;
 }): LegacyMysqlConnection {
-  const pool = mysql.createPool(legacyMysqlPoolOptions(props.password));
+  const pool = mysql.createPool(
+    legacyMysqlPoolOptions(props.password, props.env)
+  );
 
   return {
     mysql: pool,
@@ -46,70 +81,4 @@ export function openLegacyMysqlConnection(props: {
       await pool.end();
     },
   };
-}
-
-type StreamableMysqlQuery = {
-  stream: (options?: { highWaterMark?: number }) => NodeJS.ReadableStream;
-};
-
-type StreamableMysqlConnection = {
-  query: (sql: string) => StreamableMysqlQuery;
-};
-
-/** Pool surface used to stream legacy MySQL table rows in tests and production. */
-export type LegacyMysqlRowStreamPool = Pick<Pool, 'getConnection'>;
-
-/**
- * mysql2/promise pools stream via the underlying non-promise `connection`.
- *
- * @param poolConnection - Dedicated connection from `pool.getConnection()`.
- * @returns Underlying connection that supports `.query().stream()`.
- */
-function streamableMysqlConnection(
-  poolConnection: PoolConnection
-): StreamableMysqlConnection {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- mysql2 promise PoolConnection hides the streaming `.connection` field
-  const record = poolConnection as unknown as Record<string, unknown>;
-  const underlying = record.connection;
-  if (
-    typeof underlying !== 'object' ||
-    underlying === null ||
-    !('query' in underlying)
-  ) {
-    throw new Error('mysql2 streaming connection unavailable');
-  }
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- mysql2 promise layer does not type the streaming connection
-  return underlying as StreamableMysqlConnection;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-/**
- * Streams table rows from a dedicated pool connection so large mirrors stay bounded in memory.
- *
- * @param pool - MySQL pool used to borrow a streaming connection.
- * @param tableName - Legacy source table name from introspection.
- * @yields Row objects from the legacy table.
- */
-export async function* streamLegacyMysqlTableRows(
-  pool: LegacyMysqlRowStreamPool,
-  tableName: string
-): AsyncGenerator<Record<string, unknown>> {
-  const poolConnection = await pool.getConnection();
-  try {
-    const sql = `SELECT * FROM ${quoteMysqlIdentifier(tableName)}`;
-    const rowStream = streamableMysqlConnection(poolConnection)
-      .query(sql)
-      .stream({ highWaterMark: MIRROR_ROW_BATCH_SIZE });
-
-    for await (const row of rowStream) {
-      if (isRecord(row)) {
-        yield row;
-      }
-    }
-  } finally {
-    poolConnection.release();
-  }
 }

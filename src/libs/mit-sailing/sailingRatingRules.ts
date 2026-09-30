@@ -12,7 +12,6 @@ export type SailingRatingRuleGroup = {
 export type SailingRatingGrantEligibility =
   | { eligible: true }
   | { eligible: false; reason: 'already_granted' }
-  | { eligible: false; reason: 'deprecated' }
   | {
       eligible: false;
       reason: 'missing_prerequisites';
@@ -77,13 +76,9 @@ export function evaluateSailingRatingGrantEligibility(props: {
   rules: readonly SailingRatingRuleInput[];
   activeRatingIds: ReadonlySet<string>;
   alreadyGranted: boolean;
-  isDeprecated: boolean;
 }): SailingRatingGrantEligibility {
   if (props.alreadyGranted) {
     return { eligible: false, reason: 'already_granted' };
-  }
-  if (props.isDeprecated) {
-    return { eligible: false, reason: 'deprecated' };
   }
 
   const missingRatingIds = listMissingRequiredRatingIds(

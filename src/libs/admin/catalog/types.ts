@@ -100,6 +100,11 @@ export type CatalogRow = Record<
   string | string[] | number | boolean | null | undefined
 >;
 
+/** Column and action copy shared by catalog and users tables. */
+export type AdminTableMessageKey =
+  | AdminCatalogResourceMessageKey
+  | AdminUsersMessageKey;
+
 /**
  * Admin user row for `/admin/users` lists and forms.
  *

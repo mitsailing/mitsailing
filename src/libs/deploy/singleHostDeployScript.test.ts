@@ -156,6 +156,19 @@ describe('single host deploy script', () => {
     );
   });
 
+  it('replaces forwarded client ip headers with one normalized address', () => {
+    expect(script).toContain(
+      String.raw`map \$http_cf_connecting_ip \$normalized_client_ip`
+    );
+    expect(script).toContain(
+      String.raw`proxy_set_header X-Real-IP \$normalized_client_ip;`
+    );
+    expect(script).toContain(
+      String.raw`proxy_set_header X-Forwarded-For \$normalized_client_ip;`
+    );
+    expect(script).not.toContain('proxy_add_x_forwarded_for');
+  });
+
   it('proxies authenticated Mailpit UI at /mail', () => {
     expect(script).toContain('readonly MAILPIT_ROUTE="/mail"');
     expect(script).toContain(`location = ${mailpitRoute}`);

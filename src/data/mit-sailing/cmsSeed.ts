@@ -158,15 +158,16 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
     slug: 'home',
     path: '/',
     title: 'MIT Sailing',
-    metaTitle: 'MIT Sailing',
-    metaDescription: 'Pavilion and programs on the Charles.',
+    metaTitle: 'Learn to sail and race on the Charles',
+    metaDescription:
+      'Beginner and intermediate classes, fleet racing, and team racing on the Charles River in Cambridge. Open to MIT and the public.',
     blocks: [
       {
         id: 'cms-block-home-hero',
         kind: 'hero',
-        title: 'Sail the Charles River',
+        title: 'Learn to sail and race on the Charles',
         subtitle: 'MIT Sailing Pavilion',
-        body: "Learn, race, volunteer, and explore the river with one of the nation's most active university sailing communities.",
+        body: '<p>Beginner and intermediate classes, fleet racing, and team racing — open to MIT students, faculty, staff, and the public.</p>',
         ctaLabel: 'View classes',
         ctaUrl: '/classes',
         imageSrc: '/assets/images/home-hero-charles-sailing.jpg',
@@ -229,8 +230,6 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
         subtitle: 'Choose the card that matches what you want to sail.',
         body: JSON.stringify(
           {
-            footnoteLinkLabel: 'See MIT Recreation rates',
-            footnoteLinkUrl: '/pricing',
             plans: [
               {
                 title: 'Normal',
@@ -240,30 +239,14 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
                   { label: 'MIT student', value: 'Free' },
                   { label: 'MIT Recreation member', value: 'Free' },
                 ],
+                detailLinkLabel: 'See MIT Recreation rates',
+                detailLinkUrl: 'https://www.mitrecsports.com/join/memberships/',
                 linkLabel: 'Sign up',
                 linkUrl: '/signup?callbackUrl=%2Fonboarding',
                 features: [
                   'Normal access to Pavilion sailing, classes, ratings, racing, and Mashnee.',
                   'MIT students qualify automatically.',
                   'MIT Recreation members qualify with an active membership.',
-                ],
-              },
-              {
-                title: 'Spring racing card',
-                description:
-                  'For regular Pavilion racing from April 1 through July 14.',
-                price: '$25',
-                priceRows: [
-                  { label: 'Non-MIT student', value: '$25' },
-                  { label: 'Under 30', value: '$70' },
-                  { label: '30+', value: '$100' },
-                ],
-                linkLabel: 'Sign up',
-                linkUrl: '/signup?callbackUrl=%2Fonboarding',
-                features: [
-                  'Regular Pavilion racing from April 1 through July 14.',
-                  'Race-related classes included.',
-                  'Valid through July 14.',
                 ],
               },
               {
@@ -280,7 +263,6 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
                 features: [
                   'Regular Pavilion racing for the full card year.',
                   'Race-related classes included.',
-                  'Does not include Thursday team racing.',
                 ],
               },
               {

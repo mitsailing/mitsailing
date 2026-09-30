@@ -1,6 +1,7 @@
 import type { JobsOptions, Queue } from 'bullmq';
-import { importLegacyDataFromSchema } from '@/libs/legacy-sync/legacyDataImport';
-import { runLegacyMysqlSync } from '@/libs/legacy-sync/legacyMysqlSync';
+import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
+import { importLegacyData } from '@/libs/legacy-sync/legacyDataImport';
+import { createLegacyMysqlReader } from '@/libs/legacy-sync/legacyMysqlReader';
 import type { LegacyMysqlSyncConfig } from '@/libs/legacy-sync/legacyMysqlSyncConfig';
 import {
   LEGACY_MYSQL_SYNC_JOB_NAME,
@@ -38,7 +39,7 @@ export async function applyLegacyMysqlSyncScheduler(
   }
   await queue.upsertJobScheduler(
     LEGACY_MYSQL_SYNC_SCHEDULER_ID,
-    { pattern: config.cron },
+    { pattern: config.cron, tz: EVENTS_TIME_ZONE },
     {
       name: LEGACY_MYSQL_SYNC_JOB_NAME,
       data: {},
@@ -58,9 +59,14 @@ export async function processLegacyMysqlSyncJob(): Promise<void> {
   if (!config.enabled) {
     return;
   }
-  const result = await runLegacyMysqlSync(config);
-  if (result.skipped) {
-    return;
+  const reader = createLegacyMysqlReader({ password: config.mysqlPassword });
+  try {
+    await importLegacyData({
+      reader,
+      sourceHost: config.sourceHost,
+      useAdvisoryLock: true,
+    });
+  } finally {
+    await reader.close();
   }
-  await importLegacyDataFromSchema();
 }

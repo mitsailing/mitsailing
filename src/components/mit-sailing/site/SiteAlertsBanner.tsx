@@ -2,24 +2,17 @@
 
 import { ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useId, useState } from 'react';
+import { useId } from 'react';
+import { useSiteAlertBannerCollapsed } from '@/components/mit-sailing/site/useSiteAlertBannerCollapsed';
 import { Link } from '@/libs/I18nNavigation';
-import {
-  parseStoredSiteAlertBannerCollapse,
-  serializeSiteAlertBannerCollapse,
-  SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY,
-  siteAlertBannerStartsCollapsed,
-} from '@/libs/mit-sailing/siteAlertBannerCollapse';
 import type { SiteAlertBannerCollapseAlert } from '@/libs/mit-sailing/siteAlertBannerCollapse';
 import type { SiteAlertBannerRow } from '@/libs/mit-sailing/siteAlertTypes';
 
-const SITE_ALERT_BANNER_PRIMARY_LINK_CLASS =
+const linkClass =
   'block min-h-11 text-inherit no-underline outline-offset-[3px] focus-visible:relative focus-visible:z-[1] focus-visible:ring-2 focus-visible:ring-ring';
 
 /**
  * Site strip listing active banner alerts (collapsible).
- * Minimize state persists until a new or edited active alert appears.
- * Uses {@link https://www.w3.org/WAI/ARIA/apg/patterns/disclosure-pattern/ | disclosure semantics} (`aria-expanded`, `aria-controls`).
  *
  * @param props - Banner rows already filtered for the visibility window
  * @returns Banner markup or `null` when there are no rows
@@ -31,63 +24,19 @@ export function SiteAlertsBanner(props: {
   const t = useTranslations('MitSailingSite');
   const disclosureId = useId();
   const headingId = `${disclosureId}-heading`;
-
-  const [collapsed, setCollapsed] = useState(false);
-
-  const total = props.rows.length;
-  const alertsFingerprint = serializeSiteAlertBannerCollapse(
+  const { collapsed, toggleCollapsed } = useSiteAlertBannerCollapsed(
     props.collapseAlerts
   );
 
-  function toggleCollapsed() {
-    setCollapsed((current) => {
-      const next = !current;
-      try {
-        if (next) {
-          window.localStorage.setItem(
-            SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY,
-            alertsFingerprint
-          );
-        } else {
-          window.localStorage.removeItem(
-            SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY
-          );
-        }
-      } catch {
-        return next;
-      }
-      return next;
-    });
-  }
-
-  useEffect(() => {
-    try {
-      const storedAlerts = parseStoredSiteAlertBannerCollapse(
-        window.localStorage.getItem(SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY)
-      );
-      setCollapsed(
-        siteAlertBannerStartsCollapsed({
-          currentAlerts: props.collapseAlerts,
-          storedAlerts,
-        })
-      );
-    } catch {
-      setCollapsed(false);
-    }
-  }, [alertsFingerprint, props.collapseAlerts]);
-
-  if (total === 0) {
+  if (props.rows.length === 0) {
     return null;
   }
 
-  const expandedLinkAriaLabel = t('alerts_banner_link_expanded_aria');
-
+  const total = props.rows.length;
   const collapsedCountLabel =
     total === 1
       ? t('alerts_collapsed_count_one')
       : t('alerts_collapsed_count_many', { count: total });
-
-  const collapsedAriaLabel = `${t('alerts_banner_aria_prefix')}: ${collapsedCountLabel} ${t('alerts_see_all')}.`;
 
   return (
     <section
@@ -100,12 +49,16 @@ export function SiteAlertsBanner(props: {
       </h2>
       <div className="mx-auto flex max-w-7xl items-stretch">
         <div className="min-w-0 flex-1" id={disclosureId}>
-          {collapsed ? (
-            <Link
-              aria-label={collapsedAriaLabel}
-              className={SITE_ALERT_BANNER_PRIMARY_LINK_CLASS}
-              href="/alerts"
-            >
+          <Link
+            aria-label={
+              collapsed
+                ? `${t('alerts_banner_aria_prefix')}: ${collapsedCountLabel} ${t('alerts_see_all')}.`
+                : t('alerts_banner_link_expanded_aria')
+            }
+            className={linkClass}
+            href="/alerts"
+          >
+            {collapsed ? (
               <div className="flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 px-5 py-2.5 sm:px-6">
                 <span className="text-[clamp(0.8125rem,2.8vw,0.9375rem)] text-foreground">
                   {collapsedCountLabel}
@@ -117,13 +70,7 @@ export function SiteAlertsBanner(props: {
                   ›
                 </span>
               </div>
-            </Link>
-          ) : (
-            <Link
-              aria-label={expandedLinkAriaLabel}
-              className={SITE_ALERT_BANNER_PRIMARY_LINK_CLASS}
-              href="/alerts"
-            >
+            ) : (
               <div className="flex min-h-11 flex-col justify-center gap-0 px-5 py-3 sm:px-6">
                 <ul
                   aria-labelledby={headingId}
@@ -152,8 +99,8 @@ export function SiteAlertsBanner(props: {
                   </span>
                 </div>
               </div>
-            </Link>
-          )}
+            )}
+          </Link>
         </div>
         <button
           aria-controls={disclosureId}

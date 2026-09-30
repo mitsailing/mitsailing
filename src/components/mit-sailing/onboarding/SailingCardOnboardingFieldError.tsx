@@ -1,5 +1,8 @@
+'use client';
+
 import { useTranslations } from 'next-intl';
 import type { FieldErrors } from 'react-hook-form';
+import { useFormState } from 'react-hook-form';
 import type {
   SailingCardOnboardingFormState,
   SailingCardOnboardingFormValues,
@@ -35,7 +38,13 @@ const isOnboardingErrorMessageKey = (
 ): value is OnboardingErrorMessageKey =>
   typeof value === 'string' && onboardingErrorMessageKeys.has(value);
 
-const fieldErrorMessageKey = (props: {
+/**
+ * Maps a server field-error code to an OnboardingPage message key.
+ *
+ * @param props - Field name and optional server error code
+ * @returns Translation key for the visible field error
+ */
+const onboardingFieldErrorMessageKey = (props: {
   readonly field: SailingCardOnboardingField;
   readonly value:
     | NonNullable<
@@ -79,6 +88,7 @@ const clientErrorMessage = (props: {
 const visibleMessageKey = (props: {
   readonly clientMessage: unknown;
   readonly field: SailingCardOnboardingField;
+  readonly fieldIsDirty: boolean;
   readonly state: SailingCardOnboardingFormState;
   readonly value:
     | NonNullable<
@@ -90,10 +100,30 @@ const visibleMessageKey = (props: {
     return props.clientMessage;
   }
   if (props.state.status === 'error' && props.value !== undefined) {
-    return fieldErrorMessageKey({ field: props.field, value: props.value });
+    // After a server round-trip, editing the field hands display back to live
+    // client validation so sticky server errors clear when the value is fixed.
+    if (props.fieldIsDirty) {
+      return null;
+    }
+    return onboardingFieldErrorMessageKey({
+      field: props.field,
+      value: props.value,
+    });
   }
   return null;
 };
+
+/**
+ * Whether a field should be marked aria-invalid for client and/or server errors.
+ *
+ * @param props - Client/server invalid flags and whether the field is dirty
+ * @returns True when assistive tech should treat the control as invalid
+ */
+export const isOnboardingFieldInvalid = (props: {
+  readonly clientInvalid: boolean;
+  readonly fieldIsDirty: boolean;
+  readonly serverInvalid: boolean;
+}) => props.clientInvalid || (props.serverInvalid && !props.fieldIsDirty);
 
 export function FieldError(props: {
   readonly clientErrors?: FieldErrors<SailingCardOnboardingFormValues>;
@@ -101,14 +131,19 @@ export function FieldError(props: {
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
+  const { dirtyFields } = useFormState({
+    name: props.field,
+  });
   const value = props.state.fieldErrors[props.field];
   const clientMessage = clientErrorMessage({
     clientErrors: props.clientErrors,
     field: props.field,
   });
+  const fieldIsDirty = dirtyFields[props.field] === true;
   const messageKey = visibleMessageKey({
     clientMessage,
     field: props.field,
+    fieldIsDirty,
     state: props.state,
     value,
   });

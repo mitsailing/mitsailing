@@ -233,11 +233,22 @@ async function fillInvalidTeamFields(
   user: ReturnType<typeof userEvent.setup>,
   fields: ReturnType<typeof teamFields>
 ) {
+  await user.selectOptions(
+    screen.getByRole('combobox', { name: 'T-shirt sizeRequired' }),
+    'L'
+  );
   await user.type(fields.teamName, '  Tech Dinghies  ');
   await user.type(fields.helmName, 'Ada Lovelace');
   await user.type(fields.helmEmail, 'ada@example.test');
   await user.type(fields.crewName, 'Grace Hopper');
   await user.type(fields.crewEmail, 'not-an-email');
+  await user.type(
+    screen.getByRole('textbox', { name: /phone/i }),
+    '6175550100'
+  );
+  await user.click(
+    screen.getByText('I agree to the Swim Agreement and Liability Release.')
+  );
   await user.click(
     screen.getByRole('button', { name: 'Confirm registration' })
   );
@@ -298,17 +309,7 @@ describe('EventRegistrationForm', () => {
   it('renders required phone input with preserved validation state', async () => {
     const user = userEvent.setup();
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
-    const action = vi.fn(
-      (
-        _prevState: PublicEventRegistrationFormState,
-        formData: FormData
-      ): PublicEventRegistrationFormState => ({
-        code: 'questions_required',
-        fieldErrors: { phone: 'questions_required' },
-        status: 'error',
-        values: formValues(formData),
-      })
-    );
+    const action = vi.fn();
 
     render(
       <EventRegistrationForm
@@ -334,10 +335,11 @@ describe('EventRegistrationForm', () => {
     );
 
     expect(
-      await screen.findByText('Answer the required registration questions.')
-    ).toBeVisible();
+      await screen.findAllByText('Answer the required registration questions.')
+    ).not.toHaveLength(0);
     expect(phoneInput).toHaveValue('   ');
     expect(phoneInput).toHaveAttribute('aria-invalid', 'true');
+    expect(action).not.toHaveBeenCalled();
   });
 
   it('renders phone input for every registration', () => {
@@ -431,16 +433,17 @@ describe('EventRegistrationForm', () => {
       value: vi.fn().mockReturnValue({ matches: true }),
     });
     window.HTMLElement.prototype.scrollIntoView = scrollIntoView;
-    const action = invalidFormAction({
-      code: 'swim_agreement_required',
-      fieldErrors: { swimAgreementAccepted: 'swim_agreement_required' },
-    });
+    const action = vi.fn();
 
     renderRegistrationForm({ action });
 
     await user.selectOptions(
       screen.getByRole('combobox', { name: 'T-shirt sizeRequired' }),
       'L'
+    );
+    await user.type(
+      screen.getByRole('textbox', { name: /phone/i }),
+      '6175550100'
     );
     await user.click(
       screen.getByRole('button', { name: 'Confirm registration' })
@@ -462,6 +465,7 @@ describe('EventRegistrationForm', () => {
         name: 'I agree to the Swim Agreement and Liability Release.',
       })
     ).toHaveAttribute('aria-invalid', 'true');
+    expect(action).not.toHaveBeenCalled();
     await waitFor(() => {
       expect(scrollIntoView).toHaveBeenCalledWith({
         behavior: 'auto',
@@ -523,6 +527,30 @@ describe('EventRegistrationForm', () => {
     expect(adultFee).toHaveAttribute('name', 'eventEntryFeeId');
     expect(juniorFee).toHaveAttribute('name', 'eventEntryFeeId');
 
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'T-shirt sizeRequired' }),
+      'L'
+    );
+    await user.type(
+      screen.getByRole('textbox', { name: /phone/i }),
+      '6175550100'
+    );
+    await user.click(
+      screen.getByText('I agree to the Swim Agreement and Liability Release.')
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Confirm registration' })
+    );
+
+    expect(
+      await screen.findByText('Answer the required registration questions.')
+    ).toBeVisible();
+    expect(screen.getByRole('group', { name: /entry fees/i })).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+    expect(action).not.toHaveBeenCalled();
+
     await user.click(juniorFee);
     await user.click(
       screen.getByRole('button', { name: 'Confirm registration' })
@@ -536,6 +564,7 @@ describe('EventRegistrationForm', () => {
       'aria-invalid',
       'true'
     );
+    expect(action).toHaveBeenCalled();
   });
 
   it('puts decision facts before contact fields and commit copy before submit', () => {
@@ -594,13 +623,7 @@ describe('EventRegistrationForm', () => {
   it('renders team boat fields and preserves validation state', async () => {
     const user = userEvent.setup();
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
-    const action = invalidFormAction({
-      code: 'questions_required',
-      fieldErrors: {
-        teamName: 'questions_required',
-        teamBoatMember_1_email: 'answers_invalid',
-      },
-    });
+    const action = vi.fn();
 
     renderRegistrationForm({
       action,
@@ -622,12 +645,12 @@ describe('EventRegistrationForm', () => {
     await fillInvalidTeamFields(user, fields);
 
     expect(
-      await screen.findByText('Answer the required registration questions.')
+      await screen.findByText('One or more registration answers are invalid.')
     ).toBeVisible();
     expect(fields.teamName).toHaveValue('  Tech Dinghies  ');
     expect(fields.crewEmail).toHaveValue('not-an-email');
-    expect(fields.teamName).toHaveAttribute('aria-invalid', 'true');
     expect(fields.crewEmail).toHaveAttribute('aria-invalid', 'true');
+    expect(action).not.toHaveBeenCalled();
   });
 
   it('renders distinct member fields for every team boat', () => {

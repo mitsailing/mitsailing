@@ -17,7 +17,6 @@ export type AuditLog = $ModelResult<$Schema, "AuditLog">;
 export type LegalAgreementAcceptance = $ModelResult<$Schema, "LegalAgreementAcceptance">;
 export type SailingCardRequest = $ModelResult<$Schema, "SailingCardRequest">;
 export type UserAudit = $ModelResult<$Schema, "UserAudit">;
-export type SiteTextOverride = $ModelResult<$Schema, "SiteTextOverride">;
 export type NewsletterSubscriber = $ModelResult<$Schema, "NewsletterSubscriber">;
 export type NewsletterList = $ModelResult<$Schema, "NewsletterList">;
 export type NewsletterSubscription = $ModelResult<$Schema, "NewsletterSubscription">;

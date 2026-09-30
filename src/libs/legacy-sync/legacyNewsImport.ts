@@ -1,5 +1,7 @@
 import { prisma } from '@/libs/DB';
 import { decodeBasicLegacyEntities } from '@/libs/legacy-sync/legacyHtmlEntities';
+import type { LegacyMysqlReader } from '@/libs/legacy-sync/legacyMysqlReader';
+import { legacyMysqlReaderFromEnv } from '@/libs/legacy-sync/legacyMysqlReader';
 import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
 
 export type LegacyNewsRow = {
@@ -68,11 +70,9 @@ export async function importLegacyNewsRows(
   return { imported, skipped };
 }
 
-export async function importLegacyNewsFromSchema(): Promise<LegacyNewsImportResult> {
-  const rows = await prisma.$queryRaw<LegacyNewsRow[]>`
-    SELECT *
-    FROM legacy.news
-    ORDER BY id
-  `;
+export async function importLegacyNews(
+  reader: LegacyMysqlReader = legacyMysqlReaderFromEnv()
+): Promise<LegacyNewsImportResult> {
+  const rows = await reader.fetchNews();
   return importLegacyNewsRows(rows);
 }

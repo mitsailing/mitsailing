@@ -7,7 +7,7 @@ import type {
 import { PaymentPurpose, SailingCardType } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
 
-export const ADMIN_USER_PAYMENT_HISTORY_PAGE_SIZE = 25;
+const ADMIN_USER_PAYMENT_HISTORY_PAGE_SIZE = 25;
 
 type AdminUserPaymentHistoryDbRow = {
   amountCents: number;

@@ -275,6 +275,8 @@ type AdminCatalogFormProps = {
   dynamicSelectOptions?: Readonly<
     Record<string, readonly { value: string; label: string }[]>
   >;
+  /** Hides the page title when a parent shell already shows context. */
+  suppressPageHeading?: boolean;
 };
 
 type CmsBlockKind =
@@ -2439,18 +2441,20 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-semibold text-foreground">
-          {ns === 'AdminUsers'
-            ? tUsers(props.headingKey)
-            : tCatalog(props.headingKey)}
-        </h2>
-        {props.row && visibilityField ? (
-          <AdminCatalogEditStatusBadge
-            isVisible={bools[visibilityField.field] ?? true}
-          />
-        ) : null}
-      </div>
+      {props.suppressPageHeading ? null : (
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-xl font-semibold text-foreground">
+            {ns === 'AdminUsers'
+              ? tUsers(props.headingKey)
+              : tCatalog(props.headingKey)}
+          </h2>
+          {props.row && visibilityField ? (
+            <AdminCatalogEditStatusBadge
+              isVisible={bools[visibilityField.field] ?? true}
+            />
+          ) : null}
+        </div>
+      )}
 
       {errorMessage ? (
         <p

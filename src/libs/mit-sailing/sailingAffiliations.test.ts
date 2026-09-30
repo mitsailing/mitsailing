@@ -6,6 +6,7 @@ import {
   isManualNameAllowed,
   isMitIdAsked,
   isMitIdRequired,
+  sailingAffiliationLabelKey,
 } from '@/libs/mit-sailing/sailingAffiliations';
 
 describe('sailingAffiliations', () => {
@@ -116,5 +117,11 @@ describe('sailingAffiliations', () => {
     expect(
       getSailingAffiliationRule(SailingAffiliation.MIT_STUDENT).mitIdMode
     ).toBe('required');
+    expect(sailingAffiliationLabelKey(SailingAffiliation.MIT_STUDENT)).toBe(
+      'affiliation_mit_student'
+    );
+    expect(
+      sailingAffiliationLabelKey(SailingAffiliation.OTHER_NON_STUDENT)
+    ).toBe('affiliation_other_non_student');
   });
 });

@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockProtect = vi.fn();
-
-vi.mock('@/libs/Arcjet', () => ({
-  default: {
-    withRule: vi.fn(() => ({ protect: mockProtect })),
-  },
-}));
-
-vi.mock('@arcjet/next', () => ({
-  detectBot: vi.fn(() => ({})),
-}));
-
 const intlFn = vi.fn(() => NextResponse.next());
 
 vi.mock('next-intl/middleware', () => ({
@@ -35,9 +23,6 @@ vi.mock('@/libs/auth', () => ({
 
 describe('proxy', () => {
   beforeEach(() => {
-    vi.unstubAllEnvs();
-    mockProtect.mockReset();
-    mockProtect.mockResolvedValue({ isDenied: () => false });
     getSession.mockReset();
     getSession.mockResolvedValue(null);
     intlFn.mockReset();
@@ -48,50 +33,16 @@ describe('proxy', () => {
     vi.resetModules();
   });
 
-  describe('Arcjet', () => {
-    it('runs intl middleware when Arcjet is not configured', async () => {
-      vi.stubEnv('ARCJET_KEY', '');
-      const { default: proxy } = await import('@/proxy');
-      const request = new NextRequest(
-        new URL('http://localhost:3008/en/about')
-      );
-      const response = await proxy(request);
-      expect(response.status).toBe(200);
-      expect(intlFn).toHaveBeenCalledWith(request);
-      expect(mockProtect).not.toHaveBeenCalled();
-    });
-
-    it('continues to session and intl when Arcjet is configured and allows the request', async () => {
-      vi.stubEnv('ARCJET_KEY', 'test-key');
-      mockProtect.mockResolvedValue({ isDenied: () => false });
-      const { default: proxy } = await import('@/proxy');
-      const request = new NextRequest(
-        new URL('http://localhost:3008/en/fleet')
-      );
-      const response = await proxy(request);
-      expect(response.status).toBe(200);
-      expect(mockProtect).toHaveBeenCalled();
-      expect(intlFn).toHaveBeenCalledWith(request);
-    });
-
-    it('returns 403 when Arcjet denies the request', async () => {
-      vi.stubEnv('ARCJET_KEY', 'test-key');
-      mockProtect.mockResolvedValue({ isDenied: () => true });
-      const { default: proxy } = await import('@/proxy');
-      const request = new NextRequest(
-        new URL('http://localhost:3008/en/about')
-      );
-      const response = await proxy(request);
-      expect(response.status).toBe(403);
-      const body = await response.json();
-      expect(body).toEqual({ error: 'Forbidden' });
-      expect(intlFn).not.toHaveBeenCalled();
-    });
+  it('runs intl middleware for public routes', async () => {
+    const { default: proxy } = await import('@/proxy');
+    const request = new NextRequest(new URL('http://localhost:3008/en/about'));
+    const response = await proxy(request);
+    expect(response.status).toBe(200);
+    expect(intlFn).toHaveBeenCalledWith(request);
   });
 
   describe('authentication / account routes', () => {
-    it('allows authenticated account routes after Arcjet approval', async () => {
-      vi.stubEnv('ARCJET_KEY', 'some-non-empty-key');
+    it('allows authenticated account routes', async () => {
       getSession.mockResolvedValue({ user: { id: 'u1' } });
       const { default: proxy } = await import('@/proxy');
       const request = new NextRequest(
@@ -100,12 +51,10 @@ describe('proxy', () => {
       const response = await proxy(request);
 
       expect(response.status).toBe(200);
-      expect(mockProtect).toHaveBeenCalledWith(request);
       expect(intlFn).toHaveBeenCalledWith(request);
     });
 
-    it('redirects unauthenticated account routes after Arcjet approval', async () => {
-      vi.stubEnv('ARCJET_KEY', 'some-non-empty-key');
+    it('redirects unauthenticated account routes', async () => {
       getSession.mockResolvedValue(null);
       const { default: proxy } = await import('@/proxy');
       const target = new URL('http://localhost:3008/en/account?tab=security');
@@ -122,12 +71,10 @@ describe('proxy', () => {
       expect(redirectUrl.searchParams.get('callbackUrl')).toBe(
         `${target.pathname}${target.search}`
       );
-      expect(mockProtect).toHaveBeenCalledWith(request);
       expect(intlFn).not.toHaveBeenCalled();
     });
 
     it('redirects unauthenticated visitors away from account routes', async () => {
-      vi.stubEnv('ARCJET_KEY', '');
       getSession.mockResolvedValue(null);
       const { default: proxy } = await import('@/proxy');
       const target = new URL('http://localhost:3008/en/account?tab=security');
@@ -148,7 +95,6 @@ describe('proxy', () => {
     });
 
     it('allows authenticated visitors through account routes', async () => {
-      vi.stubEnv('ARCJET_KEY', '');
       getSession.mockResolvedValue({ user: { id: 'u1' } });
       const { default: proxy } = await import('@/proxy');
       const request = new NextRequest(

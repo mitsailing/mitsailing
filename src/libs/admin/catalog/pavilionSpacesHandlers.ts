@@ -14,6 +14,7 @@ import type {
   CatalogRow,
   CatalogServerHandlers,
 } from '@/libs/admin/catalog/types';
+import type { PavilionRateSheetSaveRow } from '@/libs/admin/pavilion-reservations/pavilionRateSheet';
 import { prisma } from '@/libs/DB';
 import { PAVILION_RESERVATION_PERSONAS } from '@/libs/mit-sailing/pavilionReservationPersonas';
 import { formatPavilionReservationMoney } from '@/libs/mit-sailing/pavilionReservationPricing';
@@ -194,6 +195,53 @@ async function upsertPersonaPrices(props: {
       update: { amountCents: props.prices[persona] },
     });
   }
+}
+
+/**
+ * Updates billing type and audience prices for the rate sheet.
+ *
+ * @param rows - Validated rate rows
+ * @returns Updated public slugs, or a failure code
+ */
+export async function savePavilionReservableItemRates(
+  rows: readonly PavilionRateSheetSaveRow[]
+): Promise<
+  { ok: true; slugs: string[] } | { ok: false; code: 'not_found' | 'unknown' }
+> {
+  const ids = rows.map((row) => row.id);
+  const existing = await prisma.pavilionReservableItem.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, slug: true },
+  });
+  if (existing.length !== ids.length) {
+    return { ok: false, code: 'not_found' };
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const row of rows) {
+        await tx.pavilionReservableItem.update({
+          where: { id: row.id },
+          data: {
+            pricingType: row.pricingType,
+            minDurationHours: row.minDurationHours,
+          },
+        });
+        await upsertPersonaPrices({
+          itemId: row.id,
+          prices: row.pricesCents,
+          tx,
+        });
+      }
+    });
+  } catch {
+    return { ok: false, code: 'unknown' };
+  }
+
+  return {
+    ok: true,
+    slugs: existing.map((row) => row.slug),
+  };
 }
 
 /**

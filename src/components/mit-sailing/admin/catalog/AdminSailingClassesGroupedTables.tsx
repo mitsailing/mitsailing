@@ -1,6 +1,6 @@
 'use client';
 
-import { AdminCatalogTable } from '@/components/mit-sailing/admin/catalog/AdminCatalogTable';
+import { AdminCatalogTable } from '@/components/mit-sailing/admin/catalog/AdminCatalogResourceTable';
 import type {
   CatalogResourceDefinition,
   CatalogRow,

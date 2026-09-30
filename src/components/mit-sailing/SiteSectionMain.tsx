@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 /** Vertical rhythm for marketing pages below {@link SiteSectionShell} breadcrumbs. */
-type SiteSectionMainVariant = 'catalog' | 'detail' | 'compactDetail';
+type SiteSectionMainVariant = 'admin' | 'catalog' | 'detail' | 'compactDetail';
 
 /** Max width aligns with breadcrumbs, catalog columns, or admin workspaces. */
 type SiteSectionMainMaxWidth = '5xl' | '7xl' | 'admin';
@@ -17,6 +17,7 @@ type SiteSectionMainProps = {
 };
 
 const variantPadding: Record<SiteSectionMainVariant, string> = {
+  admin: 'py-4 md:py-6',
   catalog: 'py-12 md:py-16',
   compactDetail: 'pt-6 pb-16 md:pt-8 md:pb-24',
   detail: 'py-16 md:py-24',

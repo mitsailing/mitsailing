@@ -134,7 +134,6 @@ export async function getSailingCardPdfData(
       },
     },
     where: {
-      sailingRating: { isDeprecated: false },
       userId,
     },
   });

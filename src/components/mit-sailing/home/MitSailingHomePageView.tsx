@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowRight, MapPin, Sunset } from 'lucide-react';
+import { ArrowDown, ArrowRight, Sunset } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Image from 'next/image';
 import { CmsPricingBlock } from '@/components/mit-sailing/cms/CmsPricingBlock';
@@ -7,7 +7,6 @@ import {
   mitAccentLinkClassName,
   textFocusRingClassName,
 } from '@/lib/mit-sailing/tokens';
-import { getSession } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
 import { parseCmsHomeOverviewBody } from '@/libs/mit-sailing/cmsHomeOverview';
 import {
@@ -22,9 +21,12 @@ import {
   loadHomeLearnToSailNextClassesBySlugs,
   loadHomeLearnToSailPrerequisiteNamesByIds,
 } from '@/libs/mit-sailing/homeLearnToSailFromPrisma';
+import { loadHomeSailPathData } from '@/libs/mit-sailing/homeSailPathFromPrisma';
 import { getHomeUpcomingDayGroups } from '@/libs/mit-sailing/homeUpcomingFromPrisma';
 import type { HomeUpcomingDayGroup } from '@/libs/mit-sailing/homeUpcomingFromPrisma';
+import { joinLearnToSailWaitlistAction } from '@/libs/mit-sailing/learnToSailWaitlistActions';
 import { HomeEventRow } from './HomeEventRow';
+import { HomeSailPath } from './HomeSailPath';
 import { SectionHeader } from './SectionHeader';
 
 const HOME_LEARN_TO_SAIL_NEXT_CLASS_SLUGS = [
@@ -33,20 +35,6 @@ const HOME_LEARN_TO_SAIL_NEXT_CLASS_SLUGS = [
   'windsurfing-fundamentals',
   'intermediate-racing-tactics-strategy',
 ] as const;
-
-/**
- * Home hero layout: `next/image` with `fill`, `sizes="100vw"`, and `priority` (LCP); left scrim; shared white CTA focus ring.
- */
-const HERO_IMAGE_CLASS_NAME = 'object-cover object-center brightness-[1.05]';
-
-const HERO_SCRIM_CLASS_NAME =
-  'absolute inset-0 bg-gradient-to-r from-black/58 via-black/24 to-transparent';
-
-const HERO_COPY_STACK_CLASS_NAME =
-  'max-w-xl [text-shadow:0_1px_2px_rgba(0,0,0,0.65)]';
-
-const HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME =
-  'focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-mit-hero-ink focus-visible:outline-none';
 
 type MitSailingHomePageViewProps = { locale: string };
 
@@ -80,64 +68,6 @@ function HomeCmsCtaLink(props: {
       {props.label}
       {icon}
     </a>
-  );
-}
-
-function HomeHeroSection(props: {
-  block: PublicCmsBlock;
-  createAccountLabel: string;
-  isSignedIn: boolean;
-}) {
-  return (
-    <section className="relative flex h-[600px] items-center overflow-hidden bg-mit-hero-ink">
-      {props.block.imageSrc ? (
-        <Image
-          alt={props.block.imageAlt ?? ''}
-          className={HERO_IMAGE_CLASS_NAME}
-          fill
-          priority
-          sizes="100vw"
-          src={props.block.imageSrc}
-        />
-      ) : null}
-      {props.block.imageSrc ? <div className={HERO_SCRIM_CLASS_NAME} /> : null}
-      <div className="relative z-10 mx-auto w-full max-w-7xl px-6">
-        <div className={HERO_COPY_STACK_CLASS_NAME}>
-          {props.block.subtitle ? (
-            <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-widest text-white uppercase">
-              <MapPin className="shrink-0" size={14} />
-              {props.block.subtitle}
-            </div>
-          ) : null}
-          <h1 className="mb-6 font-mit-serif text-4xl leading-tight font-bold text-white">
-            {props.block.title}
-          </h1>
-          {props.block.body ? (
-            <CmsRichText
-              className="mb-10 text-base leading-relaxed text-white"
-              html={props.block.body}
-            />
-          ) : null}
-          <div className="flex flex-wrap items-center gap-4">
-            {props.block.ctaUrl && props.block.ctaLabel ? (
-              <HomeCmsCtaLink
-                className={`inline-flex cursor-pointer items-center justify-center rounded-lg border-2 border-white bg-transparent px-7 py-3 text-base font-medium text-white no-underline backdrop-blur transition-colors hover:bg-white/10 ${HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME}`}
-                href={props.block.ctaUrl}
-                label={props.block.ctaLabel}
-              />
-            ) : null}
-            {props.isSignedIn ? null : (
-              <Link
-                className={`inline-flex items-center justify-center rounded-sm bg-transparent px-2 py-3 text-base font-medium text-white underline-offset-4 transition-colors hover:underline ${HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME}`}
-                href="/signup"
-              >
-                {props.createAccountLabel}
-              </Link>
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -388,17 +318,13 @@ export async function MitSailingHomePageView(
     namespace: 'MitSailingHome',
   });
 
-  const [upcomingDayGroups, session, cmsHomePage] = await Promise.all([
+  const [upcomingDayGroups, cmsHomePage] = await Promise.all([
     getHomeUpcomingDayGroups(),
-    getSession(),
     loadPublishedCmsPageByPath('/'),
   ]);
+  const sailPathData = cmsHomePage ? await loadHomeSailPathData() : null;
 
-  const isSignedIn = Boolean(session?.user?.id);
   const cmsHomePageBlocks = cmsHomePage?.blocks ?? [];
-  const homeHeroBlock = cmsHomePageBlocks.find(
-    (block) => block.kind === 'hero'
-  );
   const homeOverviewBlock = cmsHomePageBlocks.find(
     (block) => block.kind === 'home_overview'
   );
@@ -437,11 +363,16 @@ export async function MitSailingHomePageView(
 
   return (
     <div className="w-full min-w-0">
-      {homeHeroBlock ? (
-        <HomeHeroSection
-          block={homeHeroBlock}
-          createAccountLabel={t('hero_cta_create_account')}
-          isSignedIn={isSignedIn}
+      {cmsHomePage && sailPathData ? (
+        <HomeSailPath
+          experiencedSessions={sailPathData.experiencedSessions}
+          joinWaitlistAction={joinLearnToSailWaitlistAction.bind(
+            null,
+            props.locale,
+            '/'
+          )}
+          scheduleSummary={sailPathData.scheduleSummary}
+          waitlist={sailPathData.waitlist}
         />
       ) : null}
 

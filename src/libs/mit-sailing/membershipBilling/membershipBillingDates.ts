@@ -1,4 +1,3 @@
-import { SailingCardMembershipPriceKind } from '@/generated/prisma/enums';
 import { addNyCalendarDays, nyYmd } from '@/lib/mit-sailing/nyTime';
 
 const renewalMonth = 7;
@@ -10,21 +9,6 @@ const renewalDateKey = (year: number) =>
     renewalMonth.toString().padStart(2, '0'),
     renewalDay.toString().padStart(2, '0'),
   ].join('-');
-
-/**
- * Selects the membership price kind active on a New York calendar date.
- *
- * @param now - Instant to evaluate in America/New_York.
- * @returns Spring pricing before July 15 Eastern; full pricing on or after it.
- */
-export function membershipPriceKindForDate(now: Date) {
-  const dateKey = nyYmd(now);
-  const year = Number(dateKey.slice(0, 4));
-
-  return dateKey < renewalDateKey(year)
-    ? SailingCardMembershipPriceKind.spring
-    : SailingCardMembershipPriceKind.full;
-}
 
 function nextMembershipSeasonStartDateKey(now: Date): string {
   const dateKey = nyYmd(now);

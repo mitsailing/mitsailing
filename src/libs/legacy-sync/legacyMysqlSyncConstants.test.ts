@@ -5,7 +5,7 @@ import {
 } from '@/libs/legacy-sync/legacyMysqlSyncConstants';
 
 describe('isLegacyMysqlSyncCronPattern', () => {
-  it('accepts default hourly cron', () => {
+  it('accepts default six-am eastern cron', () => {
     expect(isLegacyMysqlSyncCronPattern(LEGACY_MYSQL_SYNC_DEFAULT_CRON)).toBe(
       true
     );

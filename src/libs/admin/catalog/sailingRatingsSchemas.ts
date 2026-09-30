@@ -82,7 +82,6 @@ export const sailingRatingFormSchema = z.object({
   windCondition: optionalWindCondition,
   guideUrl: optionalGuideUrl,
   isVisible: z.boolean(),
-  isDeprecated: z.boolean(),
 });
 
 /**
@@ -102,7 +101,6 @@ export function rawSailingRatingFromFormData(formData: FormData) {
     windCondition: formData.get('windCondition'),
     guideUrl: formData.get('guideUrl'),
     isVisible: catalogCheckboxBoolean(formData, 'isVisible'),
-    isDeprecated: catalogCheckboxBoolean(formData, 'isDeprecated'),
   };
 }
 

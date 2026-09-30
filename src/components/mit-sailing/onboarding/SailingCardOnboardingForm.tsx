@@ -1,7 +1,9 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import type * as React from 'react';
 import { useEffect, useRef } from 'react';
+import { FormProvider, useFormState } from 'react-hook-form';
 import { safeStripeHostedPaymentHref } from '@/libs/stripe/stripeHostedPaymentHref';
 import { useSailingCardOnboardingFormModel } from './SailingCardOnboardingFormModel';
 import type { SailingCardOnboardingFormProps } from './SailingCardOnboardingFormModel';
@@ -70,6 +72,12 @@ function HostedMembershipCheckoutPrompt(props: {
 function OnboardingFormFieldsForModel(props: {
   readonly model: SailingCardOnboardingFormModel;
 }) {
+  // Subscribe in this leaf so field errors re-render without relying on the
+  // parent reading formState through a proxy.
+  const { errors } = useFormState({
+    control: props.model.form.control,
+  });
+
   return (
     <OnboardingFormFields
       affiliation={props.model.affiliation}
@@ -81,7 +89,7 @@ function OnboardingFormFieldsForModel(props: {
       identityContinueMode={props.model.identityContinueMode}
       identityValidationPending={props.model.identityValidationPending}
       isPending={props.model.isPending}
-      clientErrors={props.model.form.formState.errors}
+      clientErrors={errors}
       lockedIdentity={props.model.lockedIdentity}
       manualNameRequired={props.model.manualNameRequired}
       mitIdRequired={props.model.mitIdRequired}
@@ -99,6 +107,28 @@ function OnboardingFormFieldsForModel(props: {
       showMitId={props.model.identityVisibility.showMitId}
       state={props.model.state}
     />
+  );
+}
+
+function OnboardingFormShell(props: {
+  readonly children: React.ReactNode;
+  readonly className: string;
+  readonly formRef: React.RefObject<HTMLFormElement | null>;
+  readonly model: SailingCardOnboardingFormModel;
+}) {
+  return (
+    <FormProvider {...props.model.form}>
+      <form
+        autoComplete="on"
+        className={props.className}
+        noValidate
+        onSubmit={props.model.handleSubmit}
+        ref={props.formRef}
+      >
+        <OnboardingFormErrorAlert formError={props.model.state.formError} />
+        {props.children}
+      </form>
+    </FormProvider>
   );
 }
 
@@ -123,28 +153,24 @@ export function SailingCardOnboardingForm(
         <HostedMembershipCheckoutPrompt
           checkoutUrl={props.initialMembershipCheckoutUrl}
         />
-        <form
-          autoComplete="on"
-          ref={formRef}
+        <OnboardingFormShell
           className="flex w-full flex-col gap-6 text-sm"
-          onSubmit={model.handleSubmit}
+          formRef={formRef}
+          model={model}
         >
-          <OnboardingFormErrorAlert formError={model.state.formError} />
           <OnboardingFormFieldsForModel model={model} />
-        </form>
+        </OnboardingFormShell>
       </div>
     );
   }
 
   return (
-    <form
-      autoComplete="on"
+    <OnboardingFormShell
       className="mx-auto flex w-full max-w-3xl flex-col gap-6 text-sm"
-      ref={formRef}
-      onSubmit={model.handleSubmit}
+      formRef={formRef}
+      model={model}
     >
-      <OnboardingFormErrorAlert formError={model.state.formError} />
       <OnboardingFormFieldsForModel model={model} />
-    </form>
+    </OnboardingFormShell>
   );
 }

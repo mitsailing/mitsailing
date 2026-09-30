@@ -73,7 +73,6 @@ describe('FleetListView', () => {
             requiredRatings: [
               {
                 id: 'rating-tech',
-                isDeprecated: false,
                 name: 'Tech Rating',
                 shortName: 'Tech',
                 slug: 'tech-rating',
@@ -167,7 +166,6 @@ describe('FleetBoatDetailView', () => {
           requiredRatings: [
             {
               id: 'rating-tech',
-              isDeprecated: false,
               name: 'Tech Rating',
               shortName: 'Tech',
               slug: 'tech-rating',

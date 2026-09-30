@@ -125,7 +125,6 @@ export const sailingRatingsCatalogHandlers: CatalogServerHandlers = {
         windCondition: true,
         displayOrder: true,
         isVisible: true,
-        isDeprecated: true,
       },
     });
     return rows;
@@ -144,7 +143,6 @@ export const sailingRatingsCatalogHandlers: CatalogServerHandlers = {
         windCondition: true,
         guideUrl: true,
         isVisible: true,
-        isDeprecated: true,
       },
     });
     return row;

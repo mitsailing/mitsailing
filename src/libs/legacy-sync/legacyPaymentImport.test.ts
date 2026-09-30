@@ -5,19 +5,16 @@ import {
   PaymentStatus,
   SailingCardType,
 } from '@/generated/prisma/enums';
-import { Role } from '@/libs/auth/roles';
+import { buildLegacyMemberPaymentMap } from '@/libs/legacy-sync/legacyMemberIdentity';
+import type { LegacyMemberRow } from '@/libs/legacy-sync/legacyMemberIdentity';
 import {
-  buildLegacyMemberPaymentMap,
   importLegacyPaymentRows,
   legacyPaymentAmountCents,
   legacyPaymentPurpose,
   legacyPaymentStatus,
   legacyPaymentUserId,
 } from '@/libs/legacy-sync/legacyPaymentImport';
-import type {
-  LegacyMemberRow,
-  LegacyPaymentRow,
-} from '@/libs/legacy-sync/legacyPaymentImport';
+import type { LegacyPaymentRow } from '@/libs/legacy-sync/legacyPaymentImport';
 
 const mocks = vi.hoisted(() => ({
   executeRaw: vi.fn(),
@@ -90,12 +87,16 @@ function mockLegacyUserSqlSequence(props?: {
     user_key: string;
   }[];
   merged?: readonly { id: string }[];
+  namesUpdated?: readonly { id: string }[];
+  profilesUpdated?: readonly { id: string }[];
   staged?: readonly { id: string; user_key: string }[];
 }) {
   mocks.queryRaw.mockReset();
   mocks.queryRaw
     .mockResolvedValueOnce(props?.existing ?? [])
     .mockResolvedValueOnce(props?.merged ?? [])
+    .mockResolvedValueOnce(props?.namesUpdated ?? [])
+    .mockResolvedValueOnce(props?.profilesUpdated ?? [])
     .mockResolvedValueOnce(
       props?.inserted ?? [
         {
@@ -173,67 +174,6 @@ describe('legacyPaymentImport', () => {
         return result;
       }
     );
-  });
-
-  it('maps active duplicate legacy emails to one canonical app user', () => {
-    const map = buildLegacyMemberPaymentMap([
-      member({ id: '123456789', username: 'sailor' }),
-      member({
-        card: '44',
-        email: ' alternate@example.com ',
-        expire_date: '2026-07-15',
-        first: 'Other',
-        id: '123456789',
-        record_date: '2026-03-01 09:00:00',
-        username: 'old-sailor',
-      }),
-      member({
-        active: '0',
-        email: 'inactive@example.com',
-        id: '999999999',
-        username: 'inactive',
-      }),
-    ]);
-
-    expect(map.canonicalUsers).toHaveLength(1);
-    expect(map.memberUserKeyByLegacyId.get('123456789')).toBe(
-      map.memberUserKeyByEmail.get('alternate@example.com')
-    );
-    expect(map.memberUserKeyByUsername.get('old-sailor')).toBe(
-      map.memberUserKeyByLegacyId.get('123456789')
-    );
-    expect(map.memberUserKeyByLegacyId.has('999999999')).toBe(false);
-  });
-
-  it('maps explicit volunteer and dock staff categories to app roles', () => {
-    const map = buildLegacyMemberPaymentMap([
-      member({ email: 'volunteer@example.com', memb_type: '4' }),
-      member({
-        email: 'instructor@example.com',
-        id: '222222222',
-        memb_type: '12',
-        username: 'instructor',
-      }),
-      member({
-        email: 'dockstaff@example.com',
-        id: '333333333',
-        memb_type: '6',
-        username: 'dockstaff',
-      }),
-      member({
-        email: 'sailing-team@example.com',
-        id: '444444444',
-        memb_type: '10',
-        username: 'sailing-team',
-      }),
-    ]);
-
-    expect(map.canonicalUsers.map((user) => [user.email, user.role])).toEqual([
-      ['volunteer@example.com', Role.VOLUNTEER],
-      ['instructor@example.com', Role.VOLUNTEER_INSTRUCTOR],
-      ['dockstaff@example.com', Role.DOCK_STAFF],
-      ['sailing-team@example.com', Role.USER],
-    ]);
   });
 
   it('normalizes legacy contact phones before staging users', () => {
@@ -325,6 +265,7 @@ describe('legacyPaymentImport', () => {
       })
     ).resolves.toMatchObject({
       cardRecordsMerged: 0,
+      namesUpdated: 0,
       paymentsImported: 0,
       paymentsNeedingReview: 0,
     });
@@ -389,6 +330,96 @@ describe('legacyPaymentImport', () => {
     ).toBe('app-user-1');
   });
 
+  it('name-cases legacy payment payer names', async () => {
+    mockLegacyUserSqlSequence({
+      staged: [{ id: 'imported-user-1', user_key: 'id:123456789' }],
+    });
+
+    await importLegacyPaymentRows({
+      members: [member()],
+      payments: [
+        payment({
+          billTo_firstName: 'YOONSEO',
+          billTo_lastName: "O'NEIL-CHA",
+        }),
+      ],
+    });
+
+    expect(mocks.paymentCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            payerName: "Yoonseo O'Neil-Cha",
+          }),
+        ]),
+      })
+    );
+  });
+
+  it('updates all-caps matched user names during import', async () => {
+    mockLegacyUserSqlSequence({
+      existing: [{ id: 'existing-user', user_key: 'id:123456789' }],
+      inserted: [],
+      namesUpdated: [{ id: 'existing-user' }],
+      staged: [{ id: 'existing-user', user_key: 'id:123456789' }],
+    });
+
+    await expect(
+      importLegacyPaymentRows({
+        members: [member({ first: 'YOONSEO', last: "O'NEIL-CHA" })],
+        payments: [],
+      })
+    ).resolves.toMatchObject({
+      namesUpdated: 1,
+      usersCreated: 0,
+      usersMatched: 1,
+    });
+
+    expectAnyRawSqlContaining([
+      'SET "name" = prepared.name',
+      'target."name" = upper(target."name")',
+    ]);
+  });
+
+  it('refreshes matched user roles and contact fields without touching credentials', async () => {
+    mockLegacyUserSqlSequence({
+      existing: [{ id: 'existing-user', user_key: 'id:123456789' }],
+      inserted: [],
+      profilesUpdated: [{ id: 'existing-user' }],
+      staged: [{ id: 'existing-user', user_key: 'id:123456789' }],
+    });
+
+    await expect(
+      importLegacyPaymentRows({
+        members: [
+          member({
+            emer_name: 'Contact Person',
+            emer_phone: '6175550100',
+            memb_type: '9',
+            phone: '6175550199',
+          }),
+        ],
+        payments: [],
+      })
+    ).resolves.toMatchObject({
+      usersCreated: 0,
+      usersMatched: 1,
+    });
+
+    expectAnyRawSqlContaining([
+      'SET "app_role" = prepared.app_role::"AppRole"',
+      '"role" = prepared.role',
+      '"phone" = prepared.phone',
+      '"emergency_contact_name" = prepared.emergency_contact_name',
+      '"emergency_contact_phone" = prepared.emergency_contact_phone',
+      'mit_owner."mit_id" = prepared.mit_id',
+    ]);
+    expect(allRawSqlCalls().join('\n')).not.toContain(
+      'legacy_import_credential_accounts'
+    );
+    expect(allRawSqlCalls().join('\n')).not.toContain('INSERT INTO "account"');
+  });
+
   it('imports legacy users and payments without storing legacy usernames', async () => {
     mockLegacyUserSqlSequence({
       inserted: [
@@ -421,6 +452,7 @@ describe('legacyPaymentImport', () => {
       })
     ).resolves.toEqual({
       cardRecordsMerged: 1,
+      namesUpdated: 0,
       paymentsImported: 1,
       paymentsNeedingReview: 0,
       usersCreated: 1,
@@ -518,6 +550,7 @@ describe('legacyPaymentImport', () => {
       })
     ).resolves.toEqual({
       cardRecordsMerged: 1,
+      namesUpdated: 0,
       paymentsImported: 0,
       paymentsNeedingReview: 0,
       usersCreated: 0,
@@ -546,6 +579,7 @@ describe('legacyPaymentImport', () => {
       })
     ).resolves.toMatchObject({
       cardRecordsMerged: 0,
+      namesUpdated: 0,
       paymentsImported: 1,
       paymentsNeedingReview: 1,
     });
@@ -596,6 +630,7 @@ describe('legacyPaymentImport', () => {
       `WHEN target."status" = 'needs_review'`,
       'THEN source.status::text::"payment_status"',
       '"updated_at" = NOW()',
+      'OR target."user_id" IS NULL',
       '"legacy_source_id" = source.legacy_source_id',
     ]);
   });

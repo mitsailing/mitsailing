@@ -1,7 +1,7 @@
 import { CronExpressionParser } from 'cron-parser';
 
-/** BullMQ six-field cron (seconds first): top of each hour. */
-export const LEGACY_MYSQL_SYNC_DEFAULT_CRON = '0 0 * * * *';
+/** BullMQ six-field cron (seconds first): 6:00am US Eastern with scheduler tz. */
+export const LEGACY_MYSQL_SYNC_DEFAULT_CRON = '0 0 6 * * *';
 
 const BULLMQ_UNSUPPORTED_HASHED_CRON_FIELD_RE =
   /(?:^|,|\/|-)H(?:$|,|#|\/|-|\(|\)|\d)/iu;
@@ -17,7 +17,7 @@ function containsBullMqUnsupportedHashedCronField(fields: string[]): boolean {
 /**
  * Returns whether `value` is a six-field BullMQ cron pattern (seconds first).
  *
- * @param value - Cron string from env (e.g. `0 0 * * * *`).
+ * @param value - Cron string from env (e.g. `0 0 6 * * *`).
  * @returns True when the pattern has six valid BullMQ fields.
  */
 export function isLegacyMysqlSyncCronPattern(value: string): boolean {

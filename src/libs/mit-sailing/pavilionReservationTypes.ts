@@ -61,7 +61,10 @@ export type PavilionReservableItemPricing = Pick<
 export type PavilionReservableItemSlotPricing = Pick<
   PavilionReservableItemDto,
   'minDurationHours' | 'prices' | 'pricingType'
->;
+> & {
+  /** Optional slug so after-hours flat fees can charge once per booking line. */
+  slug?: string;
+};
 
 /** Resolved persona quote for catalog UI (null = price on request, zero = complimentary). */
 export type PavilionPersonaPriceDisplay = {

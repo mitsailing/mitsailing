@@ -316,7 +316,8 @@ function useOnboardingActionRuntime(props: SailingCardOnboardingFormProps) {
       : state.values;
   const form = useForm<SailingCardOnboardingFormValues>({
     defaultValues: formValues,
-    mode: 'onChange',
+    // First show errors after blur/submit; then revalidate as the user types.
+    mode: 'onTouched',
     reValidateMode: 'onChange',
     values: state.status === 'idle' ? undefined : formValues,
   });

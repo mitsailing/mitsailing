@@ -385,12 +385,6 @@ const sailingRatingsDefinition = {
     },
     { field: 'isVisible', kind: 'visibility', headerKey: 'column_status' },
     {
-      field: 'isDeprecated',
-      kind: 'boolean',
-      headerKey: 'column_deprecated_label',
-      booleanPolarity: 'badWhenTrue',
-    },
-    {
       field: 'displayOrder',
       kind: 'number',
       headerKey: 'column_display_order_label',
@@ -423,11 +417,6 @@ const sailingRatingsDefinition = {
     },
     { field: 'guideUrl', kind: 'url', labelKey: 'field_guide_url' },
     { field: 'isVisible', kind: 'boolean', labelKey: 'field_visible' },
-    {
-      field: 'isDeprecated',
-      kind: 'boolean',
-      labelKey: 'field_deprecated',
-    },
   ],
   capabilities: { create: true, update: true, delete: true, reorder: true },
 } as const satisfies CatalogResourceDefinition;
@@ -766,7 +755,7 @@ const pavilionSpacesDefinition = {
   publicViewHrefField: 'publicSpaceUrl',
 } as const satisfies CatalogResourceDefinition;
 
-export const CATALOG_RESOURCE_IDS = [
+const CATALOG_RESOURCE_IDS = [
   'donation_funds',
   'event_categories',
   'class_categories',

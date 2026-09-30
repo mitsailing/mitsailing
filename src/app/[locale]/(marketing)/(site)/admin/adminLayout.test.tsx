@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import type * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ADMIN_SITE_NAV_ITEMS } from '@/libs/admin/adminNavigation';
+import { Permission } from '@/libs/auth/permissions';
 
 const mocks = vi.hoisted(() => ({
   getTranslations: vi.fn(async () => {
@@ -20,13 +20,19 @@ vi.mock('next-intl/server', () => ({
 }));
 
 vi.mock('@/components/mit-sailing/admin/AdminSideNav', () => ({
-  AdminSideNav: (props: { items: { href: string }[] }) => (
+  AdminSideNav: (props: {
+    groups: { items: { href: string }[] }[];
+    homeItem?: { href: string };
+  }) => (
     <nav data-testid="admin-nav">
-      {props.items.map((item) => (
-        <a href={item.href} key={item.href}>
-          {item.href}
-        </a>
-      ))}
+      {props.homeItem ? <a href={props.homeItem.href}>home</a> : null}
+      {props.groups.flatMap((group) =>
+        group.items.map((item) => (
+          <a href={item.href} key={item.href}>
+            {item.href}
+          </a>
+        ))
+      )}
     </nav>
   ),
 }));
@@ -43,8 +49,8 @@ vi.mock('@/components/mit-sailing/SiteSectionShell', () => ({
   ),
 }));
 
-vi.mock('@/components/mit-sailing/SiteSidebarLayout', () => ({
-  SiteSidebarLayout: (props: {
+vi.mock('@/components/mit-sailing/admin/AdminWorkspaceLayout', () => ({
+  AdminWorkspaceLayout: (props: {
     children: React.ReactNode;
     sidebar: React.ReactNode;
   }) => (
@@ -66,7 +72,7 @@ beforeEach(() => {
   mocks.setRequestLocale.mockClear();
 
   mocks.requireAdminAreaAccess.mockResolvedValue({
-    navItems: ADMIN_SITE_NAV_ITEMS,
+    permissions: [Permission.ADMIN_VIEW, Permission.USERS_VIEW],
     roles: [],
     session: { session: { impersonatedBy: null }, user: { id: 'staff-1' } },
   });

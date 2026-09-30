@@ -23,7 +23,7 @@ import {
 } from '@/libs/mit-sailing/cmsHref';
 import type { NavigationDropdownItem } from './NavigationDropdown';
 import { NavigationDropdown } from './NavigationDropdown';
-import { SiteBrandWordmarkTypography } from './SiteBrandWordmarkTypography';
+import { SiteBrandLogo } from './SiteBrandLogo';
 
 const navLinkClass =
   'text-sm font-medium text-mit-text no-underline transition-colors duration-200 hover:text-primary-ink dark:!text-white dark:hover:!text-white aria-[current=page]:font-semibold aria-[current=page]:text-primary-ink dark:aria-[current=page]:!text-white';
@@ -574,15 +574,12 @@ export function SiteHeader(props: SiteHeaderProps) {
             </h2>
             <div className="flex min-h-[4rem] shrink-0 items-center justify-between border-b border-mit-line px-6">
               <Link
+                aria-label={`${t('site_brand_mit')} ${t('site_brand_sailing')}`}
                 className="flex cursor-pointer items-center gap-2 no-underline focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
                 href="/"
                 onClick={closeMobile}
               >
-                <SiteBrandWordmarkTypography
-                  mitLabel={t('site_brand_mit')}
-                  sailingLabel={t('site_brand_sailing')}
-                  variant="shell"
-                />
+                <SiteBrandLogo />
               </Link>
               <Button
                 aria-controls="site-header-mobile-menu"
@@ -612,14 +609,11 @@ export function SiteHeader(props: SiteHeaderProps) {
     >
       <div className="mx-auto flex h-[4.25rem] max-w-7xl items-center justify-between gap-4 px-6 sm:px-8">
         <Link
+          aria-label={`${t('site_brand_mit')} ${t('site_brand_sailing')}`}
           className="flex cursor-pointer items-center gap-2 no-underline"
           href="/"
         >
-          <SiteBrandWordmarkTypography
-            mitLabel={t('site_brand_mit')}
-            sailingLabel={t('site_brand_sailing')}
-            variant="shell"
-          />
+          <SiteBrandLogo />
         </Link>
 
         <nav

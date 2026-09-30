@@ -74,6 +74,7 @@ describe('worker Docker contract', () => {
     expect(workerInit).not.toContain("from '@sentry/nextjs'");
     expect(workerInit).not.toContain('sentry-node-init');
     expect(logger).toContain("from '@sentry/node'");
+    expect(logger).toContain('reset: true');
     expect(packageJson).toContain('"@sentry/node"');
   });
 

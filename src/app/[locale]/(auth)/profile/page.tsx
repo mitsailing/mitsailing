@@ -176,7 +176,6 @@ export default async function ProfilePage(props: ProfilePageProps) {
       initialMitIdentityLocked={
         dbUser.mitId !== null && dbUser.mitDataWarehouseVerifiedAt !== null
       }
-      initialName={user.name}
       initialPhone={dbUser.phone ?? ''}
       initialSailingAffiliation={dbUser.sailingAffiliation}
       initialSailingCardSummary={profileSailingCardSummary({
