@@ -284,7 +284,7 @@ async function expectPrintCardPopup(page: Page) {
   // Header and card controls both expose "Print card"; target the PDF API link.
   const pdfPrintLink = page
     .getByRole('link', { name: 'Print card' })
-    .filter({ has: page.locator('[href*="/sailing-card/pdf"]') });
+    .and(page.locator('[href*="/sailing-card/pdf"]'));
   const [popup, response] = await Promise.all([
     page.waitForEvent('popup'),
     context.waitForEvent('response', {
