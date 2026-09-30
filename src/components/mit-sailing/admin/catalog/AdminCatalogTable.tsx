@@ -23,6 +23,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AdminTableContainer } from '@/components/mit-sailing/admin/AdminDataRows';
 import { AdminTableSurface } from '@/components/mit-sailing/admin/AdminTableSurface';
+import { catalogTableMessage } from '@/components/mit-sailing/admin/catalog/adminCatalogTableMessage';
 import {
   AdminCatalogTableMobileRow,
   AdminCatalogTableRowCells,
@@ -45,10 +46,8 @@ import {
 } from '@/libs/admin/catalog/adminCatalogPaths';
 import { reorderCatalogResourceAction } from '@/libs/admin/catalog/catalogActions';
 import type {
-  AdminCatalogResourceMessageKey,
   AdminListColumnDef,
   AdminTableMessageKey,
-  AdminUsersMessageKey,
   CatalogReorderScope,
   CatalogResourceDefinition,
   CatalogRow,
@@ -325,20 +324,6 @@ function buildCatalogTablePagination(options: {
     safeCurrentPage,
     totalPages,
   };
-}
-
-function catalogTableMessage(options: {
-  readonly key: AdminTableMessageKey;
-  readonly messageNamespace: AdminCatalogTableProps['messageNamespace'];
-  readonly tCatalog: ReturnType<typeof useTranslations<'AdminCatalogResource'>>;
-  readonly tUsers: ReturnType<typeof useTranslations<'AdminUsers'>>;
-}) {
-  if (options.messageNamespace === 'AdminUsers') {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- messageNamespace picks users keys
-    return options.tUsers(options.key as AdminUsersMessageKey);
-  }
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- default catalog keys
-  return options.tCatalog(options.key as AdminCatalogResourceMessageKey);
 }
 
 /**
