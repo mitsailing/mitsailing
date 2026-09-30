@@ -6,8 +6,8 @@ import {
   AdminPrimaryActionLink,
   AdminSecondaryActionLink,
 } from '@/components/mit-sailing/admin/AdminPrimaryActionLink';
+import { AdminCatalogTable } from '@/components/mit-sailing/admin/catalog/AdminCatalogResourceTable';
 import { AdminCatalogScopeFilter } from '@/components/mit-sailing/admin/catalog/AdminCatalogScopeFilter';
-import { AdminCatalogTable } from '@/components/mit-sailing/admin/catalog/AdminCatalogTable';
 import { AdminSailingClassesGroupedTables } from '@/components/mit-sailing/admin/catalog/AdminSailingClassesGroupedTables';
 import { PavilionRateSheet } from '@/components/mit-sailing/admin/pavilion/PavilionRateSheet';
 import { cn } from '@/lib/utils';

@@ -6,7 +6,7 @@ import type {
 } from '@/libs/admin/catalog/types';
 
 type CatalogTableMessageOptions = {
-  readonly key: AdminTableMessageKey;
+  readonly messageKey: AdminTableMessageKey;
   readonly messageNamespace: 'AdminCatalogResource' | 'AdminUsers' | undefined;
   readonly tCatalog: ReturnType<typeof useTranslations<'AdminCatalogResource'>>;
   readonly tUsers: ReturnType<typeof useTranslations<'AdminUsers'>>;
@@ -21,10 +21,10 @@ type CatalogTableMessageOptions = {
 function catalogTableMessage(options: CatalogTableMessageOptions) {
   if (options.messageNamespace === 'AdminUsers') {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- messageNamespace picks users keys
-    return options.tUsers(options.key as AdminUsersMessageKey);
+    return options.tUsers(options.messageKey as AdminUsersMessageKey);
   }
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- default catalog keys
-  return options.tCatalog(options.key as AdminCatalogResourceMessageKey);
+  return options.tCatalog(options.messageKey as AdminCatalogResourceMessageKey);
 }
 
 type CatalogTableTranslatorOptions = {
@@ -44,7 +44,7 @@ export function createCatalogTableTranslator(
 ) {
   return (messageKey: AdminTableMessageKey) =>
     catalogTableMessage({
-      key: messageKey,
+      messageKey,
       messageNamespace: options.messageNamespace,
       tCatalog: options.tCatalog,
       tUsers: options.tUsers,

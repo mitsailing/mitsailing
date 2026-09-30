@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import type * as React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CatalogResourceDefinition } from '@/libs/admin/catalog/types';
-import { AdminCatalogTable } from './AdminCatalogTable';
+import { AdminCatalogTable } from './AdminCatalogResourceTable';
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {

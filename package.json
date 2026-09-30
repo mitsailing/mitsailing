@@ -191,9 +191,7 @@
     "@better-auth/core": "1.6.30",
     "@hono/node-server": "1.19.15",
     "@react-email/ui": {
-      "next": {
-        "postcss": "$postcss"
-      },
+      "next": "$next",
       "postcss": "$postcss"
     },
     "better-auth": "$better-auth",

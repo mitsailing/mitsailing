@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { catalogResourceDefinitions } from '@/libs/admin/catalog/catalogDefinitions';
 import { usersAdminDefinition } from '@/libs/admin/users/userAdminDefinitions';
 import { AdminCatalogForm } from './AdminCatalogForm';
+import { AdminCatalogTable } from './AdminCatalogResourceTable';
 import { AdminCatalogScopeFilter } from './AdminCatalogScopeFilter';
-import { AdminCatalogTable } from './AdminCatalogTable';
 
 vi.mock('@/libs/admin/catalog/catalogActions', () => ({
   reorderCatalogResourceAction: vi.fn(),
