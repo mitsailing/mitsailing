@@ -41,41 +41,50 @@ function AdminCatalogRowActionLinks(props: {
   readonly userImpersonation: AdminCatalogTableUserImpersonation | undefined;
   readonly viewHref?: string | null;
 }) {
+  const impersonation = props.userImpersonation;
+  const isSelf = impersonation?.currentUserId === props.rowId;
+  const linkClass =
+    'text-sm font-medium text-foreground underline-offset-2 hover:underline';
+  const links = [];
+  if (props.viewHref) {
+    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- allowlisted public CMS path from catalog definition.
+    links.push(
+      <Link className={linkClass} href={props.viewHref} key="view">
+        {props.t('action_view_page')}
+      </Link>
+    );
+  }
+  if (props.canUpdate) {
+    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- edit path from catalog edit helper + row id.
+    links.push(
+      <Link className={linkClass} href={props.editHref(props.rowId)} key="edit">
+        {props.t('action_edit')}
+      </Link>
+    );
+  }
+  if (props.canDelete) {
+    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- delete path from catalog delete helper + row id.
+    links.push(
+      <Link
+        className={linkClass}
+        href={props.deleteHref(props.rowId)}
+        key="delete"
+      >
+        {props.t('action_delete')}
+      </Link>
+    );
+  }
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      {props.viewHref ? (
-        <Link
-          className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-          href={props.viewHref}
-        >
-          {props.t('action_view_page')}
-        </Link>
-      ) : null}
-      {props.canUpdate ? (
-        <Link
-          className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-          href={props.editHref(props.rowId)}
-        >
-          {props.t('action_edit')}
-        </Link>
-      ) : null}
-      {props.canDelete ? (
-        <Link
-          className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-          href={props.deleteHref(props.rowId)}
-        >
-          {props.t('action_delete')}
-        </Link>
-      ) : null}
-      {props.userImpersonation?.currentUserId === props.rowId ? (
+      {links}
+      {isSelf ? (
         <span className="text-xs text-mit-text">
-          {props.userImpersonation.selfLabel}
+          {impersonation?.selfLabel}
         </span>
       ) : null}
-      {props.userImpersonation &&
-      props.rowId !== props.userImpersonation.currentUserId ? (
+      {impersonation && !isSelf ? (
         <ImpersonateButton
-          redirectHref={props.userImpersonation.accountRedirectHref}
+          redirectHref={impersonation.accountRedirectHref}
           userId={props.rowId}
         />
       ) : null}

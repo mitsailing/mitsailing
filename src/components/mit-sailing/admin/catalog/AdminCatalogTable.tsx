@@ -23,7 +23,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AdminTableContainer } from '@/components/mit-sailing/admin/AdminDataRows';
 import { AdminTableSurface } from '@/components/mit-sailing/admin/AdminTableSurface';
-import { catalogTableMessage } from '@/components/mit-sailing/admin/catalog/adminCatalogTableMessage';
+import { createCatalogTableTranslator } from '@/components/mit-sailing/admin/catalog/adminCatalogTableMessage';
 import {
   AdminCatalogTableMobileRow,
   AdminCatalogTableRowCells,
@@ -337,13 +337,11 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
   const tUsers = useTranslations('AdminUsers');
   const router = useRouter();
   const canReorder = props.definition.capabilities.reorder;
-  const t = (messageKey: AdminTableMessageKey) =>
-    catalogTableMessage({
-      key: messageKey,
-      messageNamespace: props.messageNamespace,
-      tCatalog,
-      tUsers,
-    });
+  const t = createCatalogTableTranslator({
+    messageNamespace: props.messageNamespace,
+    tCatalog,
+    tUsers,
+  });
   const editHref = (recordId: string) =>
     catalogEditHref(props.adminBasePath, props.resourceId, recordId);
   const deleteHref = (recordId: string) =>
