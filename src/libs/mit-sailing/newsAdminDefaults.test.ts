@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   easternNextCalendarDayIso,
-  siteAlertsNewCatalogDefaults,
-} from '@/libs/mit-sailing/siteAlertAdminDefaults';
+  newsNewCatalogDefaults,
+} from '@/libs/mit-sailing/newsAdminDefaults';
 
 describe('easternNextCalendarDayIso', () => {
   it('returns the next Eastern calendar day', () => {
@@ -21,10 +21,10 @@ describe('easternNextCalendarDayIso', () => {
   );
 });
 
-describe('siteAlertsNewCatalogDefaults', () => {
+describe('newsNewCatalogDefaults', () => {
   it('sets last date after start date for the same reference instant', () => {
     const instant = new Date('2026-05-07T16:00:00.000Z');
-    const row = siteAlertsNewCatalogDefaults(instant);
+    const row = newsNewCatalogDefaults(instant);
     const start = row['startDate'];
     const last = row['lastDate'];
     expect(typeof start).toBe('string');

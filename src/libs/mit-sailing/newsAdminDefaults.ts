@@ -12,12 +12,12 @@ export function easternNextCalendarDayIso(fromInstant: Date): string {
 }
 
 /**
- * Default {@link CatalogRow} fragments for `GET /admin/site_alerts/new`.
+ * Default {@link CatalogRow} fragments for `GET /admin/news/new`.
  *
  * @param now - Typically server request time
  * @returns Partial row with ISO start/end dates for `<input type="date">`
  */
-export function siteAlertsNewCatalogDefaults(now = new Date()): CatalogRow {
+export function newsNewCatalogDefaults(now = new Date()): CatalogRow {
   const startDateIso = nyYmd(now);
   const lastDateIso = easternNextCalendarDayIso(now);
   return {

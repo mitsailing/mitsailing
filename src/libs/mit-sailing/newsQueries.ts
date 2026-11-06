@@ -8,17 +8,18 @@ import {
   isoCalendarDateFromPrismaDate,
   prismaDateFromIsoCalendar,
 } from '@/libs/mit-sailing/isoCalendarDate';
-import { plainTextFromSiteAlertHtmlish } from '@/libs/mit-sailing/siteAlertPlainText';
+import { plainTextFromNewsHtmlish } from '@/libs/mit-sailing/newsPlainText';
 import type {
-  SiteAlertBannerRow,
-  SiteAlertPublicItem,
-} from '@/libs/mit-sailing/siteAlertTypes';
+  NewsBannerRow,
+  NewsPublicItem,
+} from '@/libs/mit-sailing/newsTypes';
+import { sanitizeNewsBodyHtmlForBanner } from '@/libs/mit-sailing/sanitizeNewsHtml';
 
-export { buildSiteAlertBannerCollapseAlerts } from '@/libs/mit-sailing/siteAlertBannerCollapse';
+export { buildNewsBannerCollapseAlerts } from '@/libs/mit-sailing/newsBannerCollapse';
 
-export const SITE_ALERTS_CACHE_TAG = 'site-alerts';
+export const NEWS_CACHE_TAG = 'news';
 
-const SITE_ALERTS_BANNER_REVALIDATE_SECONDS = 60 * 60;
+const NEWS_BANNER_REVALIDATE_SECONDS = 60 * 60;
 
 /**
  * Prisma `where` for banner eligibility on one Eastern calendar day.
@@ -29,9 +30,9 @@ const SITE_ALERTS_BANNER_REVALIDATE_SECONDS = 60 * 60;
  * @param todayIso - Eastern “today” key `YYYY-MM-DD` (same basis as {@link nyYmd})
  * @returns Clause or `null` when `todayIso` is not a valid calendar date
  */
-export function prismaWhereSiteAlertBannerForCalendarDay(
+export function prismaWhereNewsBannerForCalendarDay(
   todayIso: string
-): Prisma.SiteAlertWhereInput | null {
+): Prisma.NewsWhereInput | null {
   const todayDate = prismaDateFromIsoCalendar(todayIso);
   if (!todayDate) {
     return null;
@@ -47,7 +48,7 @@ function toPublicItem(row: {
   id: string;
   body: string;
   startDate: Date;
-}): SiteAlertPublicItem {
+}): NewsPublicItem {
   return {
     id: row.id,
     startDateIso: isoCalendarDateFromPrismaDate(row.startDate),
@@ -55,14 +56,14 @@ function toPublicItem(row: {
   };
 }
 
-const listSiteAlertsForBannerByDay = unstable_cache(
-  async (todayIso: string): Promise<SiteAlertPublicItem[]> => {
-    const where = prismaWhereSiteAlertBannerForCalendarDay(todayIso);
+const listNewsForBannerByDay = unstable_cache(
+  async (todayIso: string): Promise<NewsPublicItem[]> => {
+    const where = prismaWhereNewsBannerForCalendarDay(todayIso);
     if (!where) {
       return [];
     }
 
-    const rows = await prisma.siteAlert.findMany({
+    const rows = await prisma.news.findMany({
       where,
       orderBy: { startDate: 'desc' },
       select: {
@@ -73,44 +74,44 @@ const listSiteAlertsForBannerByDay = unstable_cache(
     });
     return rows.map(toPublicItem);
   },
-  ['site-alerts-banner-by-day'],
+  ['news-banner-by-day'],
   {
-    revalidate: SITE_ALERTS_BANNER_REVALIDATE_SECONDS,
-    tags: [SITE_ALERTS_CACHE_TAG],
+    revalidate: NEWS_BANNER_REVALIDATE_SECONDS,
+    tags: [NEWS_CACHE_TAG],
   }
 );
 
 /**
- * Lists alerts eligible for the home banner strip at `now`.
+ * Lists news eligible for the home banner strip at `now`.
  *
  * @param now - Evaluation instant (typically server request time)
  * @returns Ordering by newest {@link startDate} first
  */
-export async function listSiteAlertsForBannerAt(
+export async function listNewsForBannerAt(
   now: Date
-): Promise<SiteAlertPublicItem[]> {
+): Promise<NewsPublicItem[]> {
   const todayIso = nyYmd(now);
-  const rows = await listSiteAlertsForBannerByDay(todayIso);
+  const rows = await listNewsForBannerByDay(todayIso);
   return rows;
 }
 
 /**
- * Lists published alerts for `/alerts` whose start date is today or earlier,
+ * Lists published news for `/news` whose start date is today or earlier,
  * including rows past `lastDate`.
  *
  * @param now - Evaluation instant (typically server request time)
  * @returns Same ordering as the banner query subset would use for active rows
  */
-export async function listPublishedSiteAlerts(
+export async function listPublishedNews(
   now: Date = new Date()
-): Promise<SiteAlertPublicItem[]> {
+): Promise<NewsPublicItem[]> {
   const todayIso = nyYmd(now);
   const todayDate = prismaDateFromIsoCalendar(todayIso);
   if (!todayDate) {
     return [];
   }
 
-  const rows = await prisma.siteAlert.findMany({
+  const rows = await prisma.news.findMany({
     where: {
       isPublished: true,
       startDate: { lte: todayDate },
@@ -126,19 +127,18 @@ export async function listPublishedSiteAlerts(
 }
 
 /**
- * Maps public items to banner-ready rows with date labels.
+ * Maps public items to banner-ready rows with date labels and display HTML.
  *
- * @param items - Banner-eligible alerts from {@link listSiteAlertsForBannerAt}
- * @returns Data for {@link SiteAlertsBanner}
+ * @param items - Banner-eligible news from {@link listNewsForBannerAt}
+ * @returns Data for {@link NewsBanner}
  */
-export function mapSiteAlertsToBannerRows(
-  items: SiteAlertPublicItem[]
-): SiteAlertBannerRow[] {
+export function mapNewsToBannerRows(items: NewsPublicItem[]): NewsBannerRow[] {
   return items.map((item) => {
     const dateIso = item.startDateIso;
     return {
       id: item.id,
-      bodyPlainText: plainTextFromSiteAlertHtmlish(item.body),
+      bodyHtml: sanitizeNewsBodyHtmlForBanner(item.body),
+      bodyPlainText: plainTextFromNewsHtmlish(item.body),
       dateLabel: formatEasternShortDateFromIsoCalendar(dateIso),
       dateIso,
     };

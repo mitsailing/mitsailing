@@ -1,27 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildSiteAlertBannerCollapseAlerts,
-  parseStoredSiteAlertBannerCollapse,
-  serializeSiteAlertBannerCollapse,
-  siteAlertBannerStartsCollapsed,
-} from '@/libs/mit-sailing/siteAlertBannerCollapse';
-import type { SiteAlertBannerCollapseAlert } from '@/libs/mit-sailing/siteAlertBannerCollapse';
+  buildNewsBannerCollapseAlerts,
+  parseStoredNewsBannerCollapse,
+  serializeNewsBannerCollapse,
+  newsBannerStartsCollapsed,
+} from '@/libs/mit-sailing/newsBannerCollapse';
+import type { NewsBannerCollapseAlert } from '@/libs/mit-sailing/newsBannerCollapse';
 
-const activeAlerts: SiteAlertBannerCollapseAlert[] = [
+const activeAlerts: NewsBannerCollapseAlert[] = [
   {
-    id: 'alert-1',
-    contentFingerprint: 'alert-1-content',
+    id: 'news-1',
+    contentFingerprint: 'news-1-content',
   },
   {
-    id: 'alert-2',
-    contentFingerprint: 'alert-2-content',
+    id: 'news-2',
+    contentFingerprint: 'news-2-content',
   },
 ];
 
-describe('siteAlertBannerStartsCollapsed', () => {
+describe('newsBannerStartsCollapsed', () => {
   it('preserves collapsed state for same alerts', () => {
     expect(
-      siteAlertBannerStartsCollapsed({
+      newsBannerStartsCollapsed({
         currentAlerts: activeAlerts,
         stored: { alerts: activeAlerts, collapsed: true },
       })
@@ -30,7 +30,7 @@ describe('siteAlertBannerStartsCollapsed', () => {
 
   it('preserves collapsed state after alert removal', () => {
     expect(
-      siteAlertBannerStartsCollapsed({
+      newsBannerStartsCollapsed({
         currentAlerts: activeAlerts.slice(0, 1),
         stored: { alerts: activeAlerts, collapsed: true },
       })
@@ -39,12 +39,12 @@ describe('siteAlertBannerStartsCollapsed', () => {
 
   it('expands for new alert', () => {
     expect(
-      siteAlertBannerStartsCollapsed({
+      newsBannerStartsCollapsed({
         currentAlerts: [
           ...activeAlerts,
           {
-            id: 'alert-3',
-            contentFingerprint: 'alert-3-content',
+            id: 'news-3',
+            contentFingerprint: 'news-3-content',
           },
         ],
         stored: { alerts: activeAlerts, collapsed: true },
@@ -54,11 +54,11 @@ describe('siteAlertBannerStartsCollapsed', () => {
 
   it('expands for edited alert text', () => {
     expect(
-      siteAlertBannerStartsCollapsed({
+      newsBannerStartsCollapsed({
         currentAlerts: [
           {
-            id: 'alert-1',
-            contentFingerprint: 'alert-1-updated-text',
+            id: 'news-1',
+            contentFingerprint: 'news-1-updated-text',
           },
         ],
         stored: { alerts: activeAlerts, collapsed: true },
@@ -68,11 +68,11 @@ describe('siteAlertBannerStartsCollapsed', () => {
 
   it('expands for edited alert date', () => {
     expect(
-      siteAlertBannerStartsCollapsed({
+      newsBannerStartsCollapsed({
         currentAlerts: [
           {
-            id: 'alert-1',
-            contentFingerprint: 'alert-1-updated-date',
+            id: 'news-1',
+            contentFingerprint: 'news-1-updated-date',
           },
         ],
         stored: { alerts: activeAlerts, collapsed: true },
@@ -82,7 +82,7 @@ describe('siteAlertBannerStartsCollapsed', () => {
 
   it('starts collapsed when storage is empty', () => {
     expect(
-      siteAlertBannerStartsCollapsed({
+      newsBannerStartsCollapsed({
         currentAlerts: activeAlerts,
         stored: null,
       })
@@ -91,7 +91,7 @@ describe('siteAlertBannerStartsCollapsed', () => {
 
   it('stays expanded when storage records an expanded banner', () => {
     expect(
-      siteAlertBannerStartsCollapsed({
+      newsBannerStartsCollapsed({
         currentAlerts: activeAlerts,
         stored: { alerts: activeAlerts, collapsed: false },
       })
@@ -100,7 +100,7 @@ describe('siteAlertBannerStartsCollapsed', () => {
 
   it('does not treat empty current alerts as collapsed', () => {
     expect(
-      siteAlertBannerStartsCollapsed({
+      newsBannerStartsCollapsed({
         currentAlerts: [],
         stored: { alerts: activeAlerts, collapsed: true },
       })
@@ -108,55 +108,51 @@ describe('siteAlertBannerStartsCollapsed', () => {
   });
 });
 
-describe('parseStoredSiteAlertBannerCollapse', () => {
+describe('parseStoredNewsBannerCollapse', () => {
   it('reads serialized collapse alerts', () => {
     expect(
-      parseStoredSiteAlertBannerCollapse(
-        serializeSiteAlertBannerCollapse(activeAlerts)
-      )
+      parseStoredNewsBannerCollapse(serializeNewsBannerCollapse(activeAlerts))
     ).toEqual({ alerts: activeAlerts, collapsed: true });
   });
 
   it('ignores invalid storage values', () => {
-    expect(parseStoredSiteAlertBannerCollapse(null)).toBeNull();
-    expect(parseStoredSiteAlertBannerCollapse('{')).toBeNull();
-    expect(parseStoredSiteAlertBannerCollapse('0')).toBeNull();
-    expect(
-      parseStoredSiteAlertBannerCollapse('{"collapsed":false}')
-    ).toBeNull();
+    expect(parseStoredNewsBannerCollapse(null)).toBeNull();
+    expect(parseStoredNewsBannerCollapse('{')).toBeNull();
+    expect(parseStoredNewsBannerCollapse('0')).toBeNull();
+    expect(parseStoredNewsBannerCollapse('{"collapsed":false}')).toBeNull();
   });
 
   it('ignores legacy aggregate fingerprint values', () => {
     expect(
-      parseStoredSiteAlertBannerCollapse(
-        '{"collapsed":true,"fingerprint":"active-alerts"}'
+      parseStoredNewsBannerCollapse(
+        '{"collapsed":true,"fingerprint":"active-news"}'
       )
     ).toBeNull();
   });
 
   it('ignores stored payloads when an alert entry is malformed', () => {
     expect(
-      parseStoredSiteAlertBannerCollapse(
+      parseStoredNewsBannerCollapse(
         '{"collapsed":true,"alerts":[{"id":"a","contentFingerprint":"x"},0]}'
       )
     ).toBeNull();
   });
 });
 
-describe('buildSiteAlertBannerCollapseAlerts', () => {
+describe('buildNewsBannerCollapseAlerts', () => {
   it('builds fingerprints from stable alert fields', () => {
     expect(
-      buildSiteAlertBannerCollapseAlerts([
+      buildNewsBannerCollapseAlerts([
         {
           bodyPlainText: 'Launch delayed',
           dateIso: '2026-05-08',
           dateLabel: 'May 8',
-          id: 'alert-1',
+          id: 'news-1',
         },
       ])
     ).toEqual([
       {
-        id: 'alert-1',
+        id: 'news-1',
         contentFingerprint: JSON.stringify({
           bodyPlainText: 'Launch delayed',
           dateIso: '2026-05-08',

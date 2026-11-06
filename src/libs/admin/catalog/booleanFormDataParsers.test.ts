@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { rawClassCategoryFromFormData } from '@/libs/admin/catalog/classCategoriesSchemas';
 import { rawDonationFundFromFormData } from '@/libs/admin/catalog/donationFundsSchemas';
 import { rawEventCategoryFromFormData } from '@/libs/admin/catalog/eventCategoriesSchemas';
+import { rawNewsFromFormData } from '@/libs/admin/catalog/newsSchemas';
 import { rawSailingClassFromFormData } from '@/libs/admin/catalog/sailingClassesSchemas';
-import { rawSiteAlertFromFormData } from '@/libs/admin/catalog/siteAlertSchemas';
 
 type BooleanParserCase = {
   label: string;
@@ -52,14 +52,14 @@ const booleanParserCases: readonly BooleanParserCase[] = [
     parser: rawSailingClassFromFormData,
   },
   {
-    label: 'site alert publication',
+    label: 'news publication',
     field: 'isPublished',
     fields: [
       ['body', 'Notice'],
       ['startDate', '2026-01-01'],
       ['lastDate', '2026-12-31'],
     ],
-    parser: rawSiteAlertFromFormData,
+    parser: rawNewsFromFormData,
   },
 ];
 

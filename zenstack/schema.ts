@@ -5043,8 +5043,8 @@ export class SchemaType implements SchemaDef {
                 slug: { type: "String" }
             }
         },
-        SiteAlert: {
-            name: "SiteAlert",
+        News: {
+            name: "News",
             fields: {
                 id: {
                     name: "id",
@@ -5052,13 +5052,6 @@ export class SchemaType implements SchemaDef {
                     id: true,
                     attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
                     default: ExpressionUtils.call("cuid") as FieldDefault
-                },
-                legacyNewsId: {
-                    name: "legacyNewsId",
-                    type: "String",
-                    unique: true,
-                    optional: true,
-                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("legacy_news_id") }] }] as readonly AttributeApplication[]
                 },
                 body: {
                     name: "body",
@@ -5096,12 +5089,11 @@ export class SchemaType implements SchemaDef {
             },
             attributes: [
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("Boolean", [ExpressionUtils.field("isPublished"), ExpressionUtils.field("startDate")]) }] },
-                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("site_alerts") }] }
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("news") }] }
             ] as readonly AttributeApplication[],
             idFields: ["id"],
             uniqueFields: {
-                id: { type: "String" },
-                legacyNewsId: { type: "String" }
+                id: { type: "String" }
             }
         },
         CmsPage: {

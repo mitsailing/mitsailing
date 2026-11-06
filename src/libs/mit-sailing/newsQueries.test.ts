@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
-import { prismaWhereSiteAlertBannerForCalendarDay } from '@/libs/mit-sailing/siteAlertQueries';
+import { prismaWhereNewsBannerForCalendarDay } from '@/libs/mit-sailing/newsQueries';
 
 const { findMany } = vi.hoisted(() => ({
   findMany: vi.fn(),
@@ -12,22 +12,22 @@ vi.mock('next/cache', () => ({
     fn: (...args: Args) => Promise<Result>
   ) => fn,
 }));
-vi.mock('@/libs/DB', () => ({ prisma: { siteAlert: { findMany } } }));
+vi.mock('@/libs/DB', () => ({ prisma: { news: { findMany } } }));
 
 beforeEach(() => {
   findMany.mockReset();
 });
 
-describe('prismaWhereSiteAlertBannerForCalendarDay', () => {
+describe('prismaWhereNewsBannerForCalendarDay', () => {
   it('returns null for invalid calendar keys', () => {
-    expect(prismaWhereSiteAlertBannerForCalendarDay('not-a-date')).toBeNull();
+    expect(prismaWhereNewsBannerForCalendarDay('not-a-date')).toBeNull();
   });
 
   it('matches Postgres DATE lte/gte bounds for a known Eastern day', () => {
     const todayIso = '2026-04-15';
     const todayDate = prismaDateFromIsoCalendar(todayIso);
     expect(todayDate).not.toBeNull();
-    expect(prismaWhereSiteAlertBannerForCalendarDay(todayIso)).toEqual({
+    expect(prismaWhereNewsBannerForCalendarDay(todayIso)).toEqual({
       isPublished: true,
       lastDate: { gte: todayDate },
       startDate: { lte: todayDate },
@@ -35,39 +35,57 @@ describe('prismaWhereSiteAlertBannerForCalendarDay', () => {
   });
 });
 
-describe('mapSiteAlertsToBannerRows', () => {
+describe('mapNewsToBannerRows', () => {
   it('uses start date as the visible banner date', async () => {
-    const { mapSiteAlertsToBannerRows } =
-      await import('@/libs/mit-sailing/siteAlertQueries');
+    const { mapNewsToBannerRows } =
+      await import('@/libs/mit-sailing/newsQueries');
 
-    const [row] = mapSiteAlertsToBannerRows([
+    const [row] = mapNewsToBannerRows([
       {
         id: 'seed-site-alert-demo-through-2030',
-        body: 'Demo site alert',
+        body: 'Demo news',
         startDateIso: '2025-01-01',
       },
     ]);
 
     expect(row?.dateIso).toBe('2025-01-01');
     expect(row?.dateLabel).toBe('Wed, Jan 1, 2025');
+    expect(row?.bodyHtml).toBe('Demo news');
+    expect(row?.bodyPlainText).toBe('Demo news');
+  });
+
+  it('unwraps body links in banner html while keeping bold', async () => {
+    const { mapNewsToBannerRows } =
+      await import('@/libs/mit-sailing/newsQueries');
+
+    const [row] = mapNewsToBannerRows([
+      {
+        id: 'news-with-link',
+        body: '<p><strong>Bold</strong> <a href="/news">linked</a></p>',
+        startDateIso: '2025-01-01',
+      },
+    ]);
+
+    expect(row?.bodyHtml).toBe('<p><strong>Bold</strong> linked</p>');
+    expect(row?.bodyPlainText).toBe('Bold linked');
   });
 });
 
-describe('listSiteAlertsForBannerAt', () => {
+describe('listNewsForBannerAt', () => {
   it('queries with Eastern calendar bounds and minimal select', async () => {
     findMany.mockResolvedValue([
       {
-        body: 'Demo site alert',
+        body: 'Demo news',
         id: 'seed-site-alert-demo-through-2030',
         startDate: new Date(Date.UTC(2025, 0, 1)),
       },
     ]);
-    const { listSiteAlertsForBannerAt } =
-      await import('@/libs/mit-sailing/siteAlertQueries');
+    const { listNewsForBannerAt } =
+      await import('@/libs/mit-sailing/newsQueries');
 
     const todayDate = prismaDateFromIsoCalendar('2026-04-15');
 
-    await listSiteAlertsForBannerAt(new Date('2026-04-15T16:00:00.000Z'));
+    await listNewsForBannerAt(new Date('2026-04-15T16:00:00.000Z'));
 
     expect(findMany).toHaveBeenCalledWith({
       orderBy: { startDate: 'desc' },
@@ -86,12 +104,12 @@ describe('listSiteAlertsForBannerAt', () => {
 
   it('uses the Eastern calendar day before UTC midnight', async () => {
     findMany.mockResolvedValue([]);
-    const { listSiteAlertsForBannerAt } =
-      await import('@/libs/mit-sailing/siteAlertQueries');
+    const { listNewsForBannerAt } =
+      await import('@/libs/mit-sailing/newsQueries');
 
     const todayDate = prismaDateFromIsoCalendar('2026-04-14');
 
-    await listSiteAlertsForBannerAt(new Date('2026-04-15T03:30:00.000Z'));
+    await listNewsForBannerAt(new Date('2026-04-15T03:30:00.000Z'));
 
     expect(findMany).toHaveBeenCalledWith({
       orderBy: { startDate: 'desc' },
@@ -109,15 +127,15 @@ describe('listSiteAlertsForBannerAt', () => {
   });
 });
 
-describe('listPublishedSiteAlerts', () => {
+describe('listPublishedNews', () => {
   it('queries published alerts started by the Eastern calendar date', async () => {
     findMany.mockResolvedValue([]);
-    const { listPublishedSiteAlerts } =
-      await import('@/libs/mit-sailing/siteAlertQueries');
+    const { listPublishedNews } =
+      await import('@/libs/mit-sailing/newsQueries');
 
     const todayDate = prismaDateFromIsoCalendar('2026-04-15');
 
-    await listPublishedSiteAlerts(new Date('2026-04-15T16:00:00.000Z'));
+    await listPublishedNews(new Date('2026-04-15T16:00:00.000Z'));
 
     expect(findMany).toHaveBeenCalledWith({
       orderBy: { startDate: 'desc' },
@@ -134,25 +152,25 @@ describe('listPublishedSiteAlerts', () => {
   });
 });
 
-describe('buildSiteAlertBannerCollapseAlerts', () => {
+describe('buildNewsBannerCollapseAlerts', () => {
   it('changes when alert body text changes', async () => {
-    const { buildSiteAlertBannerCollapseAlerts } =
-      await import('@/libs/mit-sailing/siteAlertQueries');
+    const { buildNewsBannerCollapseAlerts } =
+      await import('@/libs/mit-sailing/newsQueries');
 
-    const [current] = buildSiteAlertBannerCollapseAlerts([
+    const [current] = buildNewsBannerCollapseAlerts([
       {
         bodyPlainText: 'Current text',
         dateIso: '2026-04-15',
         dateLabel: 'Wed, Apr 15, 2026',
-        id: 'alert-1',
+        id: 'news-1',
       },
     ]);
-    const [updated] = buildSiteAlertBannerCollapseAlerts([
+    const [updated] = buildNewsBannerCollapseAlerts([
       {
         bodyPlainText: 'Updated text',
         dateIso: '2026-04-15',
         dateLabel: 'Wed, Apr 15, 2026',
-        id: 'alert-1',
+        id: 'news-1',
       },
     ]);
 
@@ -160,23 +178,23 @@ describe('buildSiteAlertBannerCollapseAlerts', () => {
   });
 
   it('changes when alert date changes', async () => {
-    const { buildSiteAlertBannerCollapseAlerts } =
-      await import('@/libs/mit-sailing/siteAlertQueries');
+    const { buildNewsBannerCollapseAlerts } =
+      await import('@/libs/mit-sailing/newsQueries');
 
-    const [current] = buildSiteAlertBannerCollapseAlerts([
+    const [current] = buildNewsBannerCollapseAlerts([
       {
         bodyPlainText: 'Current text',
         dateIso: '2026-04-15',
         dateLabel: 'Wed, Apr 15, 2026',
-        id: 'alert-1',
+        id: 'news-1',
       },
     ]);
-    const [updated] = buildSiteAlertBannerCollapseAlerts([
+    const [updated] = buildNewsBannerCollapseAlerts([
       {
         bodyPlainText: 'Current text',
         dateIso: '2026-04-16',
         dateLabel: 'Thu, Apr 16, 2026',
-        id: 'alert-1',
+        id: 'news-1',
       },
     ]);
 
@@ -184,23 +202,23 @@ describe('buildSiteAlertBannerCollapseAlerts', () => {
   });
 
   it('keeps fingerprint when alert date label changes', async () => {
-    const { buildSiteAlertBannerCollapseAlerts } =
-      await import('@/libs/mit-sailing/siteAlertQueries');
+    const { buildNewsBannerCollapseAlerts } =
+      await import('@/libs/mit-sailing/newsQueries');
 
-    const [current] = buildSiteAlertBannerCollapseAlerts([
+    const [current] = buildNewsBannerCollapseAlerts([
       {
         bodyPlainText: 'Current text',
         dateIso: '2026-04-15',
         dateLabel: 'Wed, Apr 15, 2026',
-        id: 'alert-1',
+        id: 'news-1',
       },
     ]);
-    const [updated] = buildSiteAlertBannerCollapseAlerts([
+    const [updated] = buildNewsBannerCollapseAlerts([
       {
         bodyPlainText: 'Current text',
         dateIso: '2026-04-15',
         dateLabel: 'April 15, 2026',
-        id: 'alert-1',
+        id: 'news-1',
       },
     ]);
 

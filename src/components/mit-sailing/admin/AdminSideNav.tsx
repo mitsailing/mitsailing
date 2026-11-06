@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  AlertTriangle,
   Anchor,
   BookOpen,
   CalendarDays,
@@ -15,6 +14,7 @@ import {
   Mail,
   Megaphone,
   Menu,
+  Newspaper,
   PanelLeftClose,
   PanelLeftOpen,
   Sailboat,
@@ -73,7 +73,7 @@ const ADMIN_NAV_ICONS: Partial<
   nav_sailing_ratings: Star,
   nav_sailing_rating_rules: Settings2,
   nav_fleet: Ship,
-  nav_site_alerts: AlertTriangle,
+  nav_news: Newspaper,
   nav_cms_pages: FileText,
   nav_cms_page_blocks: Layers,
   nav_cms_menus: Menu,

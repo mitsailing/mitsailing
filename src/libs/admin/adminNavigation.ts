@@ -145,10 +145,10 @@ const ADMIN_SITE_NAV_ITEMS: AdminNavItem[] = [
   },
   {
     group: 'content',
-    href: '/admin/site_alerts',
-    labelKey: 'nav_site_alerts',
+    href: '/admin/news',
+    labelKey: 'nav_news',
     match: 'prefix',
-    permissions: [Permission.SITE_ALERTS_MANAGE],
+    permissions: [Permission.NEWS_MANAGE],
   },
   {
     group: 'content',

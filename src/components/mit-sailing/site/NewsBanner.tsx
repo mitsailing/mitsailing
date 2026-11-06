@@ -3,28 +3,29 @@
 import { ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId } from 'react';
-import { useSiteAlertBannerCollapsed } from '@/components/mit-sailing/site/useSiteAlertBannerCollapsed';
+import { useNewsBannerCollapsed } from '@/components/mit-sailing/site/useNewsBannerCollapsed';
 import { Link } from '@/libs/I18nNavigation';
-import type { SiteAlertBannerCollapseAlert } from '@/libs/mit-sailing/siteAlertBannerCollapse';
-import type { SiteAlertBannerRow } from '@/libs/mit-sailing/siteAlertTypes';
+import type { NewsBannerCollapseAlert } from '@/libs/mit-sailing/newsBannerCollapse';
+import type { NewsBannerRow } from '@/libs/mit-sailing/newsTypes';
 
 const linkClass =
   'block min-h-11 text-inherit no-underline outline-offset-[3px] focus-visible:relative focus-visible:z-[1] focus-visible:ring-2 focus-visible:ring-ring';
 
 /**
- * Site strip listing active banner alerts (collapsible).
+ * Site strip listing active banner news (collapsible).
+ * The message area is one link to `/news`; body anchors are unwrapped server-side.
  *
  * @param props - Banner rows already filtered for the visibility window
  * @returns Banner markup or `null` when there are no rows
  */
-export function SiteAlertsBanner(props: {
-  collapseAlerts: SiteAlertBannerCollapseAlert[];
-  rows: SiteAlertBannerRow[];
+export function NewsBanner(props: {
+  collapseAlerts: NewsBannerCollapseAlert[];
+  rows: NewsBannerRow[];
 }) {
   const t = useTranslations('MitSailingSite');
   const disclosureId = useId();
   const headingId = `${disclosureId}-heading`;
-  const { collapsed, toggleCollapsed } = useSiteAlertBannerCollapsed(
+  const { collapsed, toggleCollapsed } = useNewsBannerCollapsed(
     props.collapseAlerts
   );
 
@@ -35,28 +36,28 @@ export function SiteAlertsBanner(props: {
   const total = props.rows.length;
   const collapsedCountLabel =
     total === 1
-      ? t('alerts_collapsed_count_one')
-      : t('alerts_collapsed_count_many', { count: total });
+      ? t('news_collapsed_count_one')
+      : t('news_collapsed_count_many', { count: total });
 
   return (
     <section
       aria-labelledby={headingId}
       className="bg-muted text-foreground"
-      data-alert-banner
+      data-news-banner
     >
       <h2 className="sr-only" id={headingId}>
-        {t('alerts_banner_heading')}
+        {t('news_banner_heading')}
       </h2>
       <div className="mx-auto flex max-w-7xl items-stretch">
         <div className="min-w-0 flex-1" id={disclosureId}>
           <Link
             aria-label={
               collapsed
-                ? `${t('alerts_banner_aria_prefix')}: ${collapsedCountLabel} ${t('alerts_see_all')}.`
-                : t('alerts_banner_link_expanded_aria')
+                ? `${t('news_banner_aria_prefix')}: ${collapsedCountLabel} ${t('news_see_all')}.`
+                : t('news_banner_link_expanded_aria')
             }
             className={linkClass}
-            href="/alerts"
+            href="/news"
           >
             {collapsed ? (
               <div className="flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 px-5 py-2.5 sm:px-6">
@@ -64,7 +65,7 @@ export function SiteAlertsBanner(props: {
                   {collapsedCountLabel}
                 </span>
                 <span className="text-sm font-semibold text-foreground underline underline-offset-[3px]">
-                  {t('alerts_see_all')}
+                  {t('news_see_all')}
                 </span>
                 <span aria-hidden className="text-base leading-none">
                   ›
@@ -85,15 +86,17 @@ export function SiteAlertsBanner(props: {
                         >
                           {row.dateLabel}
                         </time>
-                        <span className="min-w-0 flex-1 [overflow-wrap:anywhere] hyphens-auto">
-                          {row.bodyPlainText}
-                        </span>
+                        <div
+                          className="news-banner-body min-w-0 flex-1 [overflow-wrap:anywhere] hyphens-auto [&_p]:m-0 [&_p+p]:mt-1.5"
+                          // eslint-disable-next-line react/no-danger -- trusted subset after sanitizeNewsBodyHtmlForBanner
+                          dangerouslySetInnerHTML={{ __html: row.bodyHtml }}
+                        />
                       </div>
                     </li>
                   ))}
                 </ul>
                 <div className="mt-3 flex items-center gap-1 text-start text-sm font-semibold text-foreground underline decoration-transparent underline-offset-[3px]">
-                  <span>{t('alerts_view_all')}</span>
+                  <span>{t('news_view_all')}</span>
                   <span aria-hidden className="text-base leading-none">
                     ›
                   </span>
@@ -107,8 +110,8 @@ export function SiteAlertsBanner(props: {
           aria-expanded={!collapsed}
           aria-label={
             collapsed
-              ? t('alerts_toggle_expand_aria')
-              : t('alerts_toggle_collapse_aria')
+              ? t('news_toggle_expand_aria')
+              : t('news_toggle_collapse_aria')
           }
           className="flex shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border border-transparent px-3 py-1.5 text-xs leading-tight font-semibold text-foreground! transition-colors hover:bg-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:min-w-[4.5rem]"
           data-expanded={(!collapsed).toString()}
@@ -126,7 +129,7 @@ export function SiteAlertsBanner(props: {
             />
           </span>
           <span aria-hidden className="leading-tight text-foreground!">
-            {collapsed ? t('alerts_show_more') : t('alerts_show_less')}
+            {collapsed ? t('news_show_more') : t('news_show_less')}
           </span>
         </button>
       </div>

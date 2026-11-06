@@ -1,20 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
-  parseSiteAlertDates,
-  rawSiteAlertFromFormData,
-  siteAlertFormSchema,
-} from '@/libs/admin/catalog/siteAlertSchemas';
+  parseNewsDates,
+  rawNewsFromFormData,
+  newsFormSchema,
+} from '@/libs/admin/catalog/newsSchemas';
 import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
 
-describe('parseSiteAlertDates', () => {
+describe('parseNewsDates', () => {
   it('parses start and last dates', () => {
-    const data = siteAlertFormSchema.parse({
+    const data = newsFormSchema.parse({
       body: '',
       startDate: '2026-07-04',
       lastDate: '2026-07-05',
       isPublished: false,
     });
-    const parsed = parseSiteAlertDates(data);
+    const parsed = parseNewsDates(data);
     expect(parsed).not.toBeNull();
     if (parsed) {
       const expectedStart = prismaDateFromIsoCalendar('2026-07-04');
@@ -37,8 +37,8 @@ describe('parseSiteAlertDates', () => {
       lastDate: '2026-07-04',
       isPublished: false,
     };
-    expect(siteAlertFormSchema.safeParse(raw).success).toBe(true);
-    expect(parseSiteAlertDates(siteAlertFormSchema.parse(raw))).toBeNull();
+    expect(newsFormSchema.safeParse(raw).success).toBe(true);
+    expect(parseNewsDates(newsFormSchema.parse(raw))).toBeNull();
   });
 
   it('returns null when last date string is invalid', () => {
@@ -48,30 +48,30 @@ describe('parseSiteAlertDates', () => {
       lastDate: 'invalid',
       isPublished: false,
     };
-    expect(siteAlertFormSchema.safeParse(raw).success).toBe(true);
-    expect(parseSiteAlertDates(siteAlertFormSchema.parse(raw))).toBeNull();
+    expect(newsFormSchema.safeParse(raw).success).toBe(true);
+    expect(parseNewsDates(newsFormSchema.parse(raw))).toBeNull();
   });
 });
 
-describe('rawSiteAlertFromFormData', () => {
+describe('rawNewsFromFormData', () => {
   it('reads isPublished from checkboxes', () => {
     const fd = new FormData();
     fd.set('body', 'Hello');
     fd.set('startDate', '2026-01-01');
     fd.set('lastDate', '2026-12-31');
     fd.append('isPublished', 'true');
-    const raw = rawSiteAlertFromFormData(fd);
+    const raw = rawNewsFromFormData(fd);
     expect(raw['isPublished']).toBe(true);
-    expect(siteAlertFormSchema.safeParse(raw).success).toBe(true);
+    expect(newsFormSchema.safeParse(raw).success).toBe(true);
   });
 
   it('maps absent date keys to empty strings', () => {
     const fd = new FormData();
     fd.set('body', 'x');
     fd.append('isPublished', 'false');
-    const raw = rawSiteAlertFromFormData(fd);
+    const raw = rawNewsFromFormData(fd);
     expect(raw['startDate']).toBe('');
     expect(raw['lastDate']).toBe('');
-    expect(siteAlertFormSchema.safeParse(raw).success).toBe(false);
+    expect(newsFormSchema.safeParse(raw).success).toBe(false);
   });
 });

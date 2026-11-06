@@ -1,7 +1,7 @@
 /**
- * Site alert row shaped for public marketing (banner and `/alerts`).
+ * News row shaped for public marketing (banner and `/news`).
  */
-export type SiteAlertPublicItem = {
+export type NewsPublicItem = {
   id: string;
   /** Civil ISO start date (`YYYY-MM-DD`). */
   startDateIso: string;
@@ -9,8 +9,13 @@ export type SiteAlertPublicItem = {
 };
 
 /** Home banner row with formatted date labels (built on the server). */
-export type SiteAlertBannerRow = {
+export type NewsBannerRow = {
   id: string;
+  /**
+   * Sanitized body HTML for the banner strip: paragraphs, bold, italic, and
+   * line breaks only (anchors unwrapped so the strip can stay one link).
+   */
+  bodyHtml: string;
   /** Plain text derived from the HTML-ish body (tags stripped). */
   bodyPlainText: string;
   dateLabel: string;

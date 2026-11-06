@@ -3,8 +3,6 @@ import type { LegacyEventImportResult } from '@/libs/legacy-sync/legacyEventImpo
 import { runLegacyImportWithAudit } from '@/libs/legacy-sync/legacyImportRun';
 import { legacyMysqlReaderFromEnv } from '@/libs/legacy-sync/legacyMysqlReader';
 import type { LegacyMysqlReader } from '@/libs/legacy-sync/legacyMysqlReader';
-import { importLegacyNews } from '@/libs/legacy-sync/legacyNewsImport';
-import type { LegacyNewsImportResult } from '@/libs/legacy-sync/legacyNewsImport';
 import { importLegacyPavilionReservations } from '@/libs/legacy-sync/legacyPavilionReservationImport';
 import type { LegacyPavilionReservationImportResult } from '@/libs/legacy-sync/legacyPavilionReservationImport';
 import {
@@ -20,7 +18,6 @@ import type { LegacyRatingImportResult } from '@/libs/legacy-sync/legacyRatingIm
 
 type LegacyDataImportResult = {
   readonly events: LegacyEventImportResult;
-  readonly news: LegacyNewsImportResult;
   readonly pavilionReservations: LegacyPavilionReservationImportResult;
   readonly payments: LegacyPaymentImportResult;
   readonly ratings: LegacyRatingImportResult;
@@ -28,15 +25,13 @@ type LegacyDataImportResult = {
 };
 
 function legacyImportRowCount(result: LegacyDataImportResult): bigint {
-  const { events, news, pavilionReservations, payments, ratings, users } =
-    result;
+  const { events, pavilionReservations, payments, ratings, users } = result;
   return BigInt(
     users.usersCreated +
       users.usersMatched +
       events.eventsImported +
       events.registrationsImported +
       ratings.userRatingsImported +
-      news.imported +
       pavilionReservations.imported +
       payments.paymentsImported
   );
@@ -48,10 +43,9 @@ async function importLegacyDataWithReader(
   const users = await importLegacyUsers(reader);
   const events = await importLegacyEvents(reader);
   const ratings = await importLegacyRatings(reader);
-  const news = await importLegacyNews(reader);
   const pavilionReservations = await importLegacyPavilionReservations(reader);
   const payments = await importLegacyPayments({ reader });
-  return { events, news, pavilionReservations, payments, ratings, users };
+  return { events, pavilionReservations, payments, ratings, users };
 }
 
 export type ImportLegacyDataOptions = {
@@ -84,7 +78,7 @@ export async function importLegacyData(
       },
       recordImportedRows: (result) => ({
         rowCount: legacyImportRowCount(result),
-        tableCount: 12,
+        tableCount: 11,
       }),
       sourceHost: options.sourceHost,
       useAdvisoryLock: options.useAdvisoryLock,

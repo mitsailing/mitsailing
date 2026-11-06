@@ -26,6 +26,7 @@ export type AdminFieldKind =
   | 'string'
   | 'text'
   | 'richText'
+  | 'newsBody'
   | 'image'
   | 'imageList'
   | 'url'

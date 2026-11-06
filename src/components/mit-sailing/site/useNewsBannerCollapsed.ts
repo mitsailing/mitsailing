@@ -1,26 +1,26 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
-import type { SiteAlertBannerCollapseAlert } from '@/libs/mit-sailing/siteAlertBannerCollapse';
+import type { NewsBannerCollapseAlert } from '@/libs/mit-sailing/newsBannerCollapse';
 import {
-  parseStoredSiteAlertBannerCollapse,
-  serializeSiteAlertBannerCollapse,
-  SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY,
-  siteAlertBannerStartsCollapsed,
-} from '@/libs/mit-sailing/siteAlertBannerCollapse';
+  NEWS_BANNER_COLLAPSE_STORAGE_KEY,
+  newsBannerStartsCollapsed,
+  parseStoredNewsBannerCollapse,
+  serializeNewsBannerCollapse,
+} from '@/libs/mit-sailing/newsBannerCollapse';
 
-const CHANGED_EVENT = 'mitsailing:site-alert-banner-collapse-changed';
+const CHANGED_EVENT = 'mitsailing:news-banner-collapse-changed';
 let storageFault: boolean | null = null;
 
-function collapsedSnapshot(alerts: readonly SiteAlertBannerCollapseAlert[]) {
+function collapsedSnapshot(alerts: readonly NewsBannerCollapseAlert[]) {
   if (storageFault !== null) {
     return storageFault;
   }
   try {
-    return siteAlertBannerStartsCollapsed({
+    return newsBannerStartsCollapsed({
       currentAlerts: alerts,
-      stored: parseStoredSiteAlertBannerCollapse(
-        window.localStorage.getItem(SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY)
+      stored: parseStoredNewsBannerCollapse(
+        window.localStorage.getItem(NEWS_BANNER_COLLAPSE_STORAGE_KEY)
       ),
     });
   } catch {
@@ -33,7 +33,7 @@ function subscribe(onChange: () => void) {
     if (
       event instanceof StorageEvent &&
       event.key !== null &&
-      event.key !== SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY
+      event.key !== NEWS_BANNER_COLLAPSE_STORAGE_KEY
     ) {
       return;
     }
@@ -51,13 +51,13 @@ function subscribe(onChange: () => void) {
 }
 
 /**
- * Reads and toggles persisted site alert banner collapse state.
+ * Reads and toggles persisted news banner collapse state.
  *
- * @param alerts - Current banner alerts used for storage fingerprinting
+ * @param alerts - Current banner items used for storage fingerprinting
  * @returns Collapsed flag and toggle handler
  */
-export function useSiteAlertBannerCollapsed(
-  alerts: readonly SiteAlertBannerCollapseAlert[]
+export function useNewsBannerCollapsed(
+  alerts: readonly NewsBannerCollapseAlert[]
 ) {
   const collapsed = useSyncExternalStore(
     subscribe,
@@ -70,8 +70,8 @@ export function useSiteAlertBannerCollapsed(
     storageFault = null;
     try {
       window.localStorage.setItem(
-        SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY,
-        serializeSiteAlertBannerCollapse([...alerts], next)
+        NEWS_BANNER_COLLAPSE_STORAGE_KEY,
+        serializeNewsBannerCollapse([...alerts], next)
       );
     } catch {
       storageFault = next;
@@ -83,6 +83,6 @@ export function useSiteAlertBannerCollapsed(
 }
 
 /** Resets in-memory collapse override (tests only). */
-export function resetSiteAlertBannerCollapseStateForTests() {
+export function resetNewsBannerCollapseStateForTests() {
   storageFault = null;
 }

@@ -54,24 +54,24 @@ describe('createLegacyMysqlReader', () => {
 describe('createFixtureLegacyMysqlReader', () => {
   it('returns configured fixture rows', async () => {
     const reader = createFixtureLegacyMysqlReader({
-      news: [
+      ratingTypes: [
         {
-          end_date: null,
-          id: '1',
-          news: 'Hello',
-          news_date: '2026-01-01',
-          updater: null,
+          basic_opt: null,
+          name: 'Provisional',
+          rank: '1',
+          status: null,
+          type: null,
         },
       ],
     });
 
-    await expect(reader.fetchNews()).resolves.toEqual([
+    await expect(reader.fetchRatingTypes()).resolves.toEqual([
       {
-        end_date: null,
-        id: '1',
-        news: 'Hello',
-        news_date: '2026-01-01',
-        updater: null,
+        basic_opt: null,
+        name: 'Provisional',
+        rank: '1',
+        status: null,
+        type: null,
       },
     ]);
   });

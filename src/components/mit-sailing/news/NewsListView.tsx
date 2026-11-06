@@ -1,35 +1,35 @@
 import { getTranslations } from 'next-intl/server';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { formatEasternShortDateFromIsoCalendar } from '@/libs/mit-sailing/easternTimeFormat';
-import { sanitizeSiteAlertBodyHtml } from '@/libs/mit-sailing/sanitizeSiteAlertHtml';
-import type { SiteAlertPublicItem } from '@/libs/mit-sailing/siteAlertTypes';
+import type { NewsPublicItem } from '@/libs/mit-sailing/newsTypes';
+import { sanitizeNewsBodyHtml } from '@/libs/mit-sailing/sanitizeNewsHtml';
 
-type SiteAlertsListViewProps = {
+type NewsListViewProps = {
   locale: string;
   headingId: string;
-  alerts: SiteAlertPublicItem[];
+  items: NewsPublicItem[];
 };
 
 /**
  * @param props - List props
  * @param props.locale - Active locale
  * @param props.headingId - Page `h1` id for `aria-labelledby`
- * @param props.alerts - Items to render (newest-first)
- * @returns Server-rendered alert list
+ * @param props.items - Items to render (newest-first)
+ * @returns Server-rendered news list
  */
-export async function SiteAlertsListView(props: SiteAlertsListViewProps) {
+export async function NewsListView(props: NewsListViewProps) {
   const t = await getTranslations({
     locale: props.locale,
-    namespace: 'MitSailingAlerts',
+    namespace: 'MitSailingNews',
   });
 
-  if (props.alerts.length === 0) {
+  if (props.items.length === 0) {
     return <p className="text-muted-foreground">{t('list_empty')}</p>;
   }
 
   return (
     <ul aria-labelledby={props.headingId} className="flex flex-col gap-4">
-      {props.alerts.map((item) => {
+      {props.items.map((item) => {
         const dateIso = item.startDateIso;
         return (
           <li key={item.id}>
@@ -46,10 +46,10 @@ export async function SiteAlertsListView(props: SiteAlertsListViewProps) {
               </CardHeader>
               <CardContent className="pt-0">
                 <div
-                  className="site-alert-body text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2"
-                  // eslint-disable-next-line react/no-danger -- trusted subset after sanitizeSiteAlertBodyHtml
+                  className="news-body text-sm leading-relaxed whitespace-pre-line text-muted-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_em]:italic [&_p]:m-0 [&_p+p]:mt-3 [&_strong]:font-semibold"
+                  // eslint-disable-next-line react/no-danger -- trusted subset after sanitizeNewsBodyHtml
                   dangerouslySetInnerHTML={{
-                    __html: sanitizeSiteAlertBodyHtml(item.body),
+                    __html: sanitizeNewsBodyHtml(item.body),
                   }}
                 />
               </CardContent>

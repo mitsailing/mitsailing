@@ -12,7 +12,7 @@ describe('catalogPermissionForOperation', () => {
     ['sailing_classes', Permission.SAILING_CLASSES_MANAGE],
     ['sailing_rating_rules', Permission.SAILING_RATING_RULES_MANAGE],
     ['sailing_ratings', Permission.SAILING_RATINGS_MANAGE],
-    ['site_alerts', Permission.SITE_ALERTS_MANAGE],
+    ['news', Permission.NEWS_MANAGE],
   ])(
     'maps %s mutations to its resource permission',
     (resourceId, permission) => {
