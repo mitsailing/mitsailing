@@ -11,7 +11,6 @@ import { AdminRichTextMarkButton } from '@/components/mit-sailing/admin/catalog/
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { newsBodyEditorHtml } from '@/libs/mit-sailing/newsBodyEditorHtml';
 
 type NewsBodyEditorInstance = NonNullable<ReturnType<typeof useEditor>>;
 
@@ -99,8 +98,7 @@ function AdminNewsBodyLinkRow(props: {
 
 /**
  * Limited TipTap body editor for news: paragraphs, bold, italic, and links.
- * Legacy plain-text newlines load as hard breaks. Enter starts a new
- * paragraph; Shift+Enter inserts a line break.
+ * Enter starts a new paragraph; Shift+Enter inserts a line break.
  *
  * @param props - Field wiring for the catalog form
  * @returns Labeled editor with a small toolbar and hidden HTML input
@@ -132,7 +130,7 @@ export function AdminNewsBodyEditor(props: {
   }
 
   const editor = useEditor({
-    content: newsBodyEditorHtml(props.defaultValue),
+    content: props.defaultValue || '<p></p>',
     editorProps: {
       attributes: editorAttributes,
     },
