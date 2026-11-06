@@ -3,6 +3,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId } from 'react';
+import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { useNewsBannerCollapsed } from '@/components/mit-sailing/site/useNewsBannerCollapsed';
 import { Link } from '@/libs/I18nNavigation';
 import type { NewsBannerCollapseAlert } from '@/libs/mit-sailing/newsBannerCollapse';
@@ -10,6 +11,63 @@ import type { NewsBannerRow } from '@/libs/mit-sailing/newsTypes';
 
 const linkClass =
   'block min-h-11 text-inherit no-underline outline-offset-[3px] focus-visible:relative focus-visible:z-[1] focus-visible:ring-2 focus-visible:ring-ring';
+
+function NewsBannerCollapsedSummary(props: {
+  collapsedCountLabel: string;
+  seeAllLabel: string;
+}) {
+  return (
+    <div className="flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 px-5 py-2.5 sm:px-6">
+      <span className="text-[clamp(0.8125rem,2.8vw,0.9375rem)] text-foreground">
+        {props.collapsedCountLabel}
+      </span>
+      <span className="text-sm font-semibold text-foreground underline underline-offset-[3px]">
+        {props.seeAllLabel}
+      </span>
+      <span aria-hidden className="text-base leading-none">
+        ›
+      </span>
+    </div>
+  );
+}
+
+function NewsBannerExpandedList(props: {
+  headingId: string;
+  rows: NewsBannerRow[];
+  viewAllLabel: string;
+}) {
+  return (
+    <div className="flex min-h-11 flex-col justify-center gap-0 px-5 py-3 sm:px-6">
+      <ul
+        aria-labelledby={props.headingId}
+        className="flex flex-col gap-2.5 p-0 [list-style:none]"
+      >
+        {props.rows.map((row) => (
+          <li className="m-0" key={row.id}>
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[clamp(0.8125rem,2.8vw,0.9375rem)] leading-snug">
+              <time
+                className="shrink-0 font-semibold text-foreground tabular-nums"
+                dateTime={row.dateIso}
+              >
+                {row.dateLabel}
+              </time>
+              <CmsRichText
+                className="news-banner-body min-w-0 flex-1 [overflow-wrap:anywhere] hyphens-auto [&_p]:m-0 [&_p+p]:mt-1.5"
+                sanitizedHtml={row.bodyHtml}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 flex items-center gap-1 text-start text-sm font-semibold text-foreground underline decoration-transparent underline-offset-[3px]">
+        <span>{props.viewAllLabel}</span>
+        <span aria-hidden className="text-base leading-none">
+          ›
+        </span>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Site strip listing active banner news (collapsible).
@@ -60,48 +118,16 @@ export function NewsBanner(props: {
             href="/news"
           >
             {collapsed ? (
-              <div className="flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 px-5 py-2.5 sm:px-6">
-                <span className="text-[clamp(0.8125rem,2.8vw,0.9375rem)] text-foreground">
-                  {collapsedCountLabel}
-                </span>
-                <span className="text-sm font-semibold text-foreground underline underline-offset-[3px]">
-                  {t('news_see_all')}
-                </span>
-                <span aria-hidden className="text-base leading-none">
-                  ›
-                </span>
-              </div>
+              <NewsBannerCollapsedSummary
+                collapsedCountLabel={collapsedCountLabel}
+                seeAllLabel={t('news_see_all')}
+              />
             ) : (
-              <div className="flex min-h-11 flex-col justify-center gap-0 px-5 py-3 sm:px-6">
-                <ul
-                  aria-labelledby={headingId}
-                  className="flex flex-col gap-2.5 p-0 [list-style:none]"
-                >
-                  {props.rows.map((row) => (
-                    <li className="m-0" key={row.id}>
-                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[clamp(0.8125rem,2.8vw,0.9375rem)] leading-snug">
-                        <time
-                          className="shrink-0 font-semibold text-foreground tabular-nums"
-                          dateTime={row.dateIso}
-                        >
-                          {row.dateLabel}
-                        </time>
-                        <div
-                          className="news-banner-body min-w-0 flex-1 [overflow-wrap:anywhere] hyphens-auto [&_p]:m-0 [&_p+p]:mt-1.5"
-                          // eslint-disable-next-line react/no-danger -- trusted subset after sanitizeNewsBodyHtmlForBanner
-                          dangerouslySetInnerHTML={{ __html: row.bodyHtml }}
-                        />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-3 flex items-center gap-1 text-start text-sm font-semibold text-foreground underline decoration-transparent underline-offset-[3px]">
-                  <span>{t('news_view_all')}</span>
-                  <span aria-hidden className="text-base leading-none">
-                    ›
-                  </span>
-                </div>
-              </div>
+              <NewsBannerExpandedList
+                headingId={headingId}
+                rows={props.rows}
+                viewAllLabel={t('news_view_all')}
+              />
             )}
           </Link>
         </div>

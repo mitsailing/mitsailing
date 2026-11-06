@@ -44,9 +44,8 @@ test.describe('Admin news', () => {
     const bodyEditor = page.locator('.ProseMirror[aria-label="Body"]');
     await bodyEditor.click();
     await page.keyboard.type(marker);
-    await expect(page.locator('input[name="body"]')).toHaveValue(
-      new RegExp(marker, 'u')
-    );
+    const bodyHtml = await page.locator('input[name="body"]').inputValue();
+    expect(bodyHtml).toContain(marker);
 
     await submitCatalogSave(page);
     await expect(page).toHaveURL(/\/admin\/news\/[^/]+\/edit\/?$/);
@@ -86,9 +85,8 @@ test.describe('Admin news', () => {
     const bodyEditor = page.locator('.ProseMirror[aria-label="Body"]');
     await bodyEditor.click();
     await page.keyboard.type(marker);
-    await expect(page.locator('input[name="body"]')).toHaveValue(
-      new RegExp(marker, 'u')
-    );
+    const bodyHtml = await page.locator('input[name="body"]').inputValue();
+    expect(bodyHtml).toContain(marker);
     await page.getByLabel('Published on site').check();
 
     await submitCatalogSave(page);

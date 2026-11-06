@@ -1,29 +1,8 @@
 import sanitizeHtml from 'sanitize-html';
-
-/** Allowed schemes for remote links (`transformNewsAnchor` adds rel/target). */
-const REMOTE_HREF_PREFIXES = ['http://', 'https://', 'mailto:'] as const;
-
-function startsWithDangerousScheme(lowerHref: string): boolean {
-  const jsScheme = `${['java', 'script'].join('')}:`;
-  const vbScheme = `${['vb', 'script'].join('')}:`;
-  const prefixes = [jsScheme, 'data:', vbScheme] as const;
-  return prefixes.some((p) => lowerHref.startsWith(p));
-}
-
-function isAllowedHref(href: string): boolean {
-  const h = href.trim();
-  if (!h) {
-    return false;
-  }
-  const lower = h.toLowerCase();
-  if (startsWithDangerousScheme(lower)) {
-    return false;
-  }
-  if (h.startsWith('/') && !h.startsWith('//')) {
-    return true;
-  }
-  return REMOTE_HREF_PREFIXES.some((p) => lower.startsWith(p));
-}
+import {
+  isAllowedNewsHref,
+  REMOTE_HREF_PREFIXES,
+} from '@/libs/mit-sailing/hrefSafety';
 
 type SanitizeHtmlOptions = NonNullable<Parameters<typeof sanitizeHtml>[1]>;
 type SanitizeAttribs = Record<string, string>;
@@ -34,7 +13,7 @@ function transformNewsAnchor(
   attribs: SanitizeAttribs
 ): SanitizeTagResult {
   const href = (attribs.href ?? '').trim();
-  if (!isAllowedHref(href)) {
+  if (!isAllowedNewsHref(href)) {
     return { tagName: 'span', attribs: {} };
   }
   const lower = href.toLowerCase();

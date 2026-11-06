@@ -3,13 +3,12 @@ import {
   isAppRelativeCmsHref,
   isSafeCmsAppPath,
 } from '@/libs/mit-sailing/cmsHref';
+import {
+  REMOTE_HREF_PREFIXES,
+  startsWithDangerousScheme,
+} from '@/libs/mit-sailing/hrefSafety';
 
-const ALLOWED_HREF_PREFIXES = [
-  'http://',
-  'https://',
-  'mailto:',
-  'tel:',
-] as const;
+const ALLOWED_HREF_PREFIXES = [...REMOTE_HREF_PREFIXES, 'tel:'] as const;
 const NEW_TAB_HREF_PREFIXES = ['http://', 'https://'] as const;
 const CMS_MEDIA_IMAGE_EXTENSIONS = ['.gif', '.jpg', '.jpeg', '.png', '.webp'];
 const CMS_MEDIA_IMAGE_PATH_RE = /^\/cms-media\/[^/?#]+\/[^/?#]+$/u;
@@ -22,27 +21,6 @@ const CMS_IMAGE_MAX_DIMENSION = 1600;
 type SanitizeHtmlOptions = NonNullable<Parameters<typeof sanitizeHtml>[1]>;
 type SanitizeAttribs = Record<string, string>;
 type SanitizeTagResult = { tagName: string; attribs: SanitizeAttribs };
-
-function isControlOrWhitespace(char: string): boolean {
-  const codePoint = char.codePointAt(0);
-  if (codePoint === undefined) {
-    return false;
-  }
-  return codePoint <= 31 || codePoint === 127 || char.trim() === '';
-}
-
-function startsWithDangerousScheme(lowerHref: string): boolean {
-  const jsScheme = `${['java', 'script'].join('')}:`;
-  const vbScheme = `${['vb', 'script'].join('')}:`;
-  const prefixes = [jsScheme, 'data:', vbScheme] as const;
-  let normalizedHref = '';
-  for (const char of lowerHref) {
-    if (!isControlOrWhitespace(char)) {
-      normalizedHref += char;
-    }
-  }
-  return prefixes.some((p) => normalizedHref.startsWith(p));
-}
 
 /**
  * Allowed `<a href>` values for CMS rich text; app-relative paths use {@link isAppRelativeCmsHref}.

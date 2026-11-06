@@ -30,10 +30,15 @@ import {
   uploadCmsMediaFile,
 } from '@/components/mit-sailing/admin/catalog/AdminCmsMediaControls';
 import type { CmsMediaAsset } from '@/components/mit-sailing/admin/catalog/AdminCmsMediaControls';
+import { AdminRichTextMarkButton } from '@/components/mit-sailing/admin/catalog/AdminRichTextMarkButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
+import {
+  REMOTE_HREF_PREFIXES,
+  startsWithDangerousScheme,
+} from '@/libs/mit-sailing/hrefSafety';
 
 export {
   cmsMediaAssetFromUnknown,
@@ -82,13 +87,7 @@ export function isAllowedEditorHref(href: string): boolean {
     return false;
   }
   const lower = trimmed.toLowerCase();
-  const jsScheme = `${['java', 'script'].join('')}:`;
-  const vbScheme = `${['vb', 'script'].join('')}:`;
-  if (
-    lower.startsWith(jsScheme) ||
-    lower.startsWith(vbScheme) ||
-    lower.startsWith('data:')
-  ) {
+  if (startsWithDangerousScheme(lower)) {
     return false;
   }
   if (trimmed === '#') {
@@ -97,11 +96,7 @@ export function isAllowedEditorHref(href: string): boolean {
   if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
     return true;
   }
-  return (
-    lower.startsWith('https://') ||
-    lower.startsWith('http://') ||
-    lower.startsWith('mailto:')
-  );
+  return REMOTE_HREF_PREFIXES.some((prefix) => lower.startsWith(prefix));
 }
 
 export function nodeStringAttribute(
@@ -340,10 +335,11 @@ function AdminRichTextFormatControls(props: {
 
   return (
     <>
-      <Button
-        aria-label={t('rich_text_bold')}
-        aria-pressed={props.editor?.isActive('bold') ?? false}
+      <AdminRichTextMarkButton
+        active={props.editor?.isActive('bold') ?? false}
         disabled={props.disabled}
+        Icon={Bold}
+        label={t('rich_text_bold')}
         onClick={() => {
           mutateEditor({
             editor: props.editor,
@@ -353,17 +349,12 @@ function AdminRichTextFormatControls(props: {
             syncEditorState: props.syncEditorState,
           });
         }}
-        size="icon"
-        title={t('rich_text_bold')}
-        type="button"
-        variant={props.editor?.isActive('bold') ? 'secondary' : 'ghost'}
-      >
-        <Bold aria-hidden />
-      </Button>
-      <Button
-        aria-label={t('rich_text_italic')}
-        aria-pressed={props.editor?.isActive('italic') ?? false}
+      />
+      <AdminRichTextMarkButton
+        active={props.editor?.isActive('italic') ?? false}
         disabled={props.disabled}
+        Icon={Italic}
+        label={t('rich_text_italic')}
         onClick={() => {
           mutateEditor({
             editor: props.editor,
@@ -373,17 +364,12 @@ function AdminRichTextFormatControls(props: {
             syncEditorState: props.syncEditorState,
           });
         }}
-        size="icon"
-        title={t('rich_text_italic')}
-        type="button"
-        variant={props.editor?.isActive('italic') ? 'secondary' : 'ghost'}
-      >
-        <Italic aria-hidden />
-      </Button>
-      <Button
-        aria-label={t('rich_text_bullet_list')}
-        aria-pressed={props.editor?.isActive('bulletList') ?? false}
+      />
+      <AdminRichTextMarkButton
+        active={props.editor?.isActive('bulletList') ?? false}
         disabled={props.disabled}
+        Icon={List}
+        label={t('rich_text_bullet_list')}
         onClick={() => {
           mutateEditor({
             editor: props.editor,
@@ -393,17 +379,12 @@ function AdminRichTextFormatControls(props: {
             syncEditorState: props.syncEditorState,
           });
         }}
-        size="icon"
-        title={t('rich_text_bullet_list')}
-        type="button"
-        variant={props.editor?.isActive('bulletList') ? 'secondary' : 'ghost'}
-      >
-        <List aria-hidden />
-      </Button>
-      <Button
-        aria-label={t('rich_text_ordered_list')}
-        aria-pressed={props.editor?.isActive('orderedList') ?? false}
+      />
+      <AdminRichTextMarkButton
+        active={props.editor?.isActive('orderedList') ?? false}
         disabled={props.disabled}
+        Icon={ListOrdered}
+        label={t('rich_text_ordered_list')}
         onClick={() => {
           mutateEditor({
             editor: props.editor,
@@ -413,27 +394,17 @@ function AdminRichTextFormatControls(props: {
             syncEditorState: props.syncEditorState,
           });
         }}
-        size="icon"
-        title={t('rich_text_ordered_list')}
-        type="button"
-        variant={props.editor?.isActive('orderedList') ? 'secondary' : 'ghost'}
-      >
-        <ListOrdered aria-hidden />
-      </Button>
-      <Button
-        aria-label={t('rich_text_link')}
+      />
+      <AdminRichTextMarkButton
         disabled={props.disabled}
+        Icon={Link}
+        label={t('rich_text_link')}
         onClick={handleOpenLinkEditor}
-        size="icon"
-        title={t('rich_text_link')}
-        type="button"
-        variant="ghost"
-      >
-        <Link aria-hidden />
-      </Button>
-      <Button
-        aria-label={t('rich_text_unlink')}
+      />
+      <AdminRichTextMarkButton
         disabled={props.disabled}
+        Icon={Unlink}
+        label={t('rich_text_unlink')}
         onClick={() => {
           mutateEditor({
             editor: props.editor,
@@ -443,13 +414,7 @@ function AdminRichTextFormatControls(props: {
             syncEditorState: props.syncEditorState,
           });
         }}
-        size="icon"
-        title={t('rich_text_unlink')}
-        type="button"
-        variant="ghost"
-      >
-        <Unlink aria-hidden />
-      </Button>
+      />
     </>
   );
 }

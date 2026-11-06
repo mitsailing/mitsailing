@@ -7,9 +7,94 @@ import { Bold, Italic, Link, Unlink } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { isAllowedEditorHref } from '@/components/mit-sailing/admin/catalog/AdminRichTextEditor';
+import { AdminRichTextMarkButton } from '@/components/mit-sailing/admin/catalog/AdminRichTextMarkButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
+type NewsBodyEditorInstance = NonNullable<ReturnType<typeof useEditor>>;
+
+function AdminNewsBodyToolbar(props: {
+  disabled: boolean;
+  editor: NewsBodyEditorInstance | null;
+  onOpenLinkEditor: () => void;
+}) {
+  const t = useTranslations('AdminCatalogResource');
+
+  return (
+    <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted/40 p-1.5">
+      <AdminRichTextMarkButton
+        active={props.editor?.isActive('bold') ?? false}
+        disabled={props.disabled}
+        Icon={Bold}
+        label={t('rich_text_bold')}
+        onClick={() => {
+          props.editor?.chain().focus().toggleBold().run();
+        }}
+      />
+      <AdminRichTextMarkButton
+        active={props.editor?.isActive('italic') ?? false}
+        disabled={props.disabled}
+        Icon={Italic}
+        label={t('rich_text_italic')}
+        onClick={() => {
+          props.editor?.chain().focus().toggleItalic().run();
+        }}
+      />
+      <AdminRichTextMarkButton
+        disabled={props.disabled}
+        Icon={Link}
+        label={t('rich_text_link')}
+        onClick={props.onOpenLinkEditor}
+      />
+      <AdminRichTextMarkButton
+        disabled={props.disabled || !props.editor?.isActive('link')}
+        Icon={Unlink}
+        label={t('rich_text_unlink')}
+        onClick={() => {
+          props.editor?.chain().focus().unsetLink().run();
+        }}
+      />
+    </div>
+  );
+}
+
+function AdminNewsBodyLinkRow(props: {
+  disabled: boolean;
+  linkHref: string;
+  onApply: () => void;
+  onHrefChange: (value: string) => void;
+}) {
+  const t = useTranslations('AdminCatalogResource');
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-b border-border bg-background p-2">
+      <Input
+        aria-label={t('rich_text_link_url')}
+        className="max-w-sm"
+        onChange={(event) => {
+          props.onHrefChange(event.target.value);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            props.onApply();
+          }
+        }}
+        type="url"
+        value={props.linkHref}
+      />
+      <Button
+        disabled={props.disabled}
+        onClick={props.onApply}
+        type="button"
+        variant="outline"
+      >
+        {t('rich_text_apply_link')}
+      </Button>
+    </div>
+  );
+}
 
 /**
  * Limited TipTap body editor for news: paragraphs, bold, italic, and links.
@@ -28,7 +113,6 @@ export function AdminNewsBodyEditor(props: {
   onChange?: (value: string) => void;
   required?: boolean;
 }) {
-  const t = useTranslations('AdminCatalogResource');
   const [html, setHtml] = useState(props.defaultValue);
   const [linkEditorOpen, setLinkEditorOpen] = useState(false);
   const [linkHref, setLinkHref] = useState('');
@@ -113,86 +197,18 @@ export function AdminNewsBodyEditor(props: {
         {props.label}
       </Label>
       <div className="overflow-hidden rounded-lg border border-input bg-background text-foreground shadow-xs focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input-background dark:contrast-more:border-white">
-        <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted/40 p-1.5">
-          <Button
-            aria-label={t('rich_text_bold')}
-            aria-pressed={editor?.isActive('bold') ?? false}
-            disabled={disabled}
-            onClick={() => {
-              editor?.chain().focus().toggleBold().run();
-            }}
-            size="icon"
-            title={t('rich_text_bold')}
-            type="button"
-            variant={editor?.isActive('bold') ? 'secondary' : 'ghost'}
-          >
-            <Bold aria-hidden />
-          </Button>
-          <Button
-            aria-label={t('rich_text_italic')}
-            aria-pressed={editor?.isActive('italic') ?? false}
-            disabled={disabled}
-            onClick={() => {
-              editor?.chain().focus().toggleItalic().run();
-            }}
-            size="icon"
-            title={t('rich_text_italic')}
-            type="button"
-            variant={editor?.isActive('italic') ? 'secondary' : 'ghost'}
-          >
-            <Italic aria-hidden />
-          </Button>
-          <Button
-            aria-label={t('rich_text_link')}
-            disabled={disabled}
-            onClick={openLinkEditor}
-            size="icon"
-            title={t('rich_text_link')}
-            type="button"
-            variant="ghost"
-          >
-            <Link aria-hidden />
-          </Button>
-          <Button
-            aria-label={t('rich_text_unlink')}
-            disabled={disabled || !editor?.isActive('link')}
-            onClick={() => {
-              editor?.chain().focus().unsetLink().run();
-            }}
-            size="icon"
-            title={t('rich_text_unlink')}
-            type="button"
-            variant="ghost"
-          >
-            <Unlink aria-hidden />
-          </Button>
-        </div>
+        <AdminNewsBodyToolbar
+          disabled={disabled}
+          editor={editor}
+          onOpenLinkEditor={openLinkEditor}
+        />
         {linkEditorOpen ? (
-          <div className="flex flex-wrap items-center gap-2 border-b border-border bg-background p-2">
-            <Input
-              aria-label={t('rich_text_link_url')}
-              className="max-w-sm"
-              onChange={(event) => {
-                setLinkHref(event.target.value);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  applyLink();
-                }
-              }}
-              type="url"
-              value={linkHref}
-            />
-            <Button
-              disabled={disabled}
-              onClick={applyLink}
-              type="button"
-              variant="outline"
-            >
-              {t('rich_text_apply_link')}
-            </Button>
-          </div>
+          <AdminNewsBodyLinkRow
+            disabled={disabled}
+            linkHref={linkHref}
+            onApply={applyLink}
+            onHrefChange={setLinkHref}
+          />
         ) : null}
         <EditorContent editor={editor} id={props.fieldId} />
       </div>
