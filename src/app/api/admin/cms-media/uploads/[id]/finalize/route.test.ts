@@ -243,7 +243,7 @@ describe('cms media upload finalize route', () => {
     expect(mocks.updateMany).not.toHaveBeenCalled();
   });
 
-  it('returns 409 when another finalize has only marked the asset queued', async () => {
+  it('treats a concurrent queued finalize as idempotent success', async () => {
     vi.stubGlobal(
       'fetch',
       vi
@@ -260,10 +260,15 @@ describe('cms media upload finalize route', () => {
 
     const response = await POST(finalizeRequest(), routeProps());
 
-    await expect(response.json()).resolves.toEqual({
-      error: 'upload_finalize_conflict',
-    });
-    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        asset: expect.objectContaining({
+          id: 'asset-1',
+          status: 'queued',
+        }),
+      })
+    );
+    expect(response.status).toBe(200);
     expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
   });
 

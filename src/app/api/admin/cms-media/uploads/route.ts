@@ -1,9 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/libs/auth/dal';
-import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
+import { authorizeCmsMediaLibraryAccess } from '@/libs/mit-sailing/cmsMediaAuthorization';
 import {
   buildCmsMediaReadyPath,
   resolveCmsMediaUploadFilePath,
@@ -21,7 +20,6 @@ export const runtime = 'nodejs';
 type UploadSessionRequest = {
   byteSize: number;
   originalFilename: string;
-  pageId: string | null;
   type: string;
 };
 
@@ -49,21 +47,14 @@ function uploadSessionRequestFromUnknown(
   const originalFilename = stringField(value, 'originalFilename');
   const type = stringField(value, 'type');
   const byteSize = numberField(value, 'byteSize');
-  const pageId = stringField(value, 'pageId');
   if (!originalFilename || !type || byteSize === null) {
     return null;
   }
   return {
     byteSize,
     originalFilename,
-    pageId: pageId && pageId.trim().length > 0 ? pageId.trim() : null,
     type,
   };
-}
-
-async function currentAdminUserId(): Promise<string | null> {
-  const currentUser = await getCurrentUser();
-  return currentUser?.role === Role.ADMIN ? currentUser.id : null;
 }
 
 async function requestBody(request: Request): Promise<unknown> {
@@ -101,9 +92,13 @@ function sessionAssetFromRecord(asset: {
 }
 
 export async function POST(request: Request) {
-  const userId = await currentAdminUserId();
-  if (!userId) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const body = uploadSessionRequestFromUnknown(await requestBody(request));
+  if (!body) {
+    return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
+  }
+  const auth = await authorizeCmsMediaLibraryAccess();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
   const secret = uploadSecret();
   if (!secret) {
@@ -112,10 +107,6 @@ export async function POST(request: Request) {
       { status: 503 }
     );
   }
-  const body = uploadSessionRequestFromUnknown(await requestBody(request));
-  if (!body) {
-    return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
-  }
   const validation = validateCmsMediaMetadata({
     byteSize: body.byteSize,
     declaredMimeType: body.type,
@@ -123,15 +114,6 @@ export async function POST(request: Request) {
   });
   if (!validation.ok) {
     return NextResponse.json({ error: validation.code }, { status: 415 });
-  }
-  if (body.pageId) {
-    const page = await prisma.cmsPage.findUnique({
-      select: { id: true },
-      where: { id: body.pageId },
-    });
-    if (!page) {
-      return NextResponse.json({ error: 'invalid_page' }, { status: 400 });
-    }
   }
 
   const id = randomUUID();
@@ -158,7 +140,6 @@ export async function POST(request: Request) {
       mediaKind: validation.mediaKind,
       mimeType: validation.mimeType,
       originalFilename: body.originalFilename,
-      pageId: body.pageId,
       publicPath,
       rawFilePath,
       rawUploadId: id,
@@ -166,7 +147,7 @@ export async function POST(request: Request) {
       status: 'uploading',
       storageProvider: 'server_folder',
       storedFilename: validation.storedFilename,
-      uploadedByUserId: userId,
+      uploadedByUserId: auth.userId,
     },
     select: {
       byteSize: true,

@@ -85,6 +85,7 @@ describe('sailingClassFormSchema', () => {
       '/images/class.jpg?size=1',
       'C:\\images\\class.jpg',
       '/\\evil.test',
+      '/cms-media/asset-1/notes.pdf',
     ]) {
       expect(
         sailingClassFormSchema.safeParse(sailingClassInput(imagePaths)).success

@@ -1716,9 +1716,8 @@ model CmsPage {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  blocks      CmsPageBlock[]
-  menuItems   CmsMenuItem[]
-  mediaAssets CmsMediaAsset[]
+  blocks    CmsPageBlock[]
+  menuItems CmsMenuItem[]
 
   @@index([isPublished, path])
   @@map("cms_pages")
@@ -1750,7 +1749,6 @@ model CmsPageBlock {
 
 model CmsMediaAsset {
   id                  String                  @id @default(cuid())
-  pageId              String?                 @map("page_id")
   storedFilename      String                  @map("stored_filename")
   originalFilename    String                  @map("original_filename")
   mimeType            String                  @map("mime_type")
@@ -1770,11 +1768,9 @@ model CmsMediaAsset {
   createdAt           DateTime                @default(now()) @map("created_at")
   updatedAt           DateTime                @updatedAt @map("updated_at")
 
-  page         CmsPage?                      @relation(fields: [pageId], references: [id], onDelete: SetNull)
-  uploadedBy   User?                         @relation("CmsMediaUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  uploadedBy    User?                          @relation("CmsMediaUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
   pavilionMedia PavilionReservableItemMedia[]
 
-  @@index([pageId, createdAt])
   @@index([uploadedByUserId])
   @@index([status, createdAt])
   @@index([storageProvider, status])

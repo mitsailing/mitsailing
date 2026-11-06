@@ -5163,12 +5163,6 @@ export class SchemaType implements SchemaDef {
                     type: "CmsMenuItem",
                     array: true,
                     relation: { opposite: "linkedPage" }
-                },
-                mediaAssets: {
-                    name: "mediaAssets",
-                    type: "CmsMediaAsset",
-                    array: true,
-                    relation: { opposite: "page" }
                 }
             },
             attributes: [
@@ -5306,15 +5300,6 @@ export class SchemaType implements SchemaDef {
                     attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
                     default: ExpressionUtils.call("cuid") as FieldDefault
                 },
-                pageId: {
-                    name: "pageId",
-                    type: "String",
-                    optional: true,
-                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("page_id") }] }] as readonly AttributeApplication[],
-                    foreignKeyFor: [
-                        "page"
-                    ] as readonly string[]
-                },
                 storedFilename: {
                     name: "storedFilename",
                     type: "String",
@@ -5421,13 +5406,6 @@ export class SchemaType implements SchemaDef {
                     updatedAt: true,
                     attributes: [{ name: "@updatedAt" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("updated_at") }] }] as readonly AttributeApplication[]
                 },
-                page: {
-                    name: "page",
-                    type: "CmsPage",
-                    optional: true,
-                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("pageId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
-                    relation: { opposite: "mediaAssets", fields: ["pageId"], references: ["id"], onDelete: "SetNull" }
-                },
                 uploadedBy: {
                     name: "uploadedBy",
                     type: "User",
@@ -5443,7 +5421,6 @@ export class SchemaType implements SchemaDef {
                 }
             },
             attributes: [
-                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("pageId"), ExpressionUtils.field("createdAt")]) }] },
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("uploadedByUserId")]) }] },
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("CmsMediaStatus", [ExpressionUtils.field("status"), ExpressionUtils.field("createdAt")]) }] },
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("CmsMediaStorageProvider", [ExpressionUtils.field("storageProvider"), ExpressionUtils.field("status")]) }] },

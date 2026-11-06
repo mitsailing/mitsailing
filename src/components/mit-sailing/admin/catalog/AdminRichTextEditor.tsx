@@ -23,8 +23,9 @@ import type { RefObject } from 'react';
 import { useRef, useState } from 'react';
 import {
   AdminCmsMediaPickerPanel,
-  currentPageId,
+  isAdminImagePath,
   isCmsMediaPath,
+  isCmsMediaPdfPath,
   loadCmsMediaAssets,
   stringField,
   uploadCmsMediaFile,
@@ -35,12 +36,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
+import { authClient } from '@/libs/auth-client';
+import { CMS_MEDIA_BROWSER_EDITOR_ACCEPT } from '@/libs/mit-sailing/cmsMediaValidation';
 import { isAllowedNewsHref } from '@/libs/mit-sailing/hrefSafety';
 
 export {
   cmsMediaAssetFromUnknown,
   cmsMediaAssetsFromUnknown,
-  currentPageId,
   isCmsMediaPath,
   stringField,
 } from '@/components/mit-sailing/admin/catalog/AdminCmsMediaControls';
@@ -590,7 +592,7 @@ function AdminRichTextToolbar(props: {
         ))}
       </NativeSelect>
       <input
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept={CMS_MEDIA_BROWSER_EDITOR_ACCEPT}
         className="sr-only"
         onChange={(event) => {
           // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the upload promise.
@@ -619,6 +621,11 @@ export function AdminRichTextEditor(props: {
   required?: boolean;
 }) {
   const t = useTranslations('AdminCatalogResource');
+  const { data: sessionData } = authClient.useSession();
+  const signedInUserId =
+    sessionData?.user && typeof sessionData.user.id === 'string'
+      ? sessionData.user.id
+      : null;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorShellRef = useRef<HTMLDivElement>(null);
   const editorPropsRef = useRef({
@@ -700,22 +707,85 @@ export function AdminRichTextEditor(props: {
     setPickerOpen(false);
   }
 
+  function insertCmsPdfLink(asset: CmsMediaAsset) {
+    if (!editor) {
+      return;
+    }
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        marks: [
+          {
+            attrs: {
+              href: asset.publicPath,
+              rel: 'noopener noreferrer',
+              target: '_blank',
+            },
+            type: 'link',
+          },
+        ],
+        text: asset.originalFilename,
+        type: 'text',
+      })
+      .run();
+    syncEditorState(editor);
+    setPickerOpen(false);
+  }
+
+  function insertCmsMediaAsset(asset: CmsMediaAsset) {
+    if (
+      isCmsMediaPdfPath(asset.publicPath) ||
+      asset.mimeType === 'application/pdf'
+    ) {
+      insertCmsPdfLink(asset);
+      return;
+    }
+    if (!isAdminImagePath(asset.publicPath)) {
+      setMediaError(t('rich_text_media_unsupported_type'));
+      return;
+    }
+    insertCmsImage(asset);
+  }
+
+  function mediaFailureMessage(error: string | undefined) {
+    return error && error.length > 0 ? error : t('rich_text_media_error');
+  }
+
+  function browserFormErrorMessage(code: string) {
+    if (code === 'too_large') {
+      return t('rich_text_media_too_large');
+    }
+    if (code === 'unsupported_type') {
+      return t('rich_text_media_unsupported_type');
+    }
+    return t('rich_text_media_error');
+  }
+
   async function loadAssets() {
     setMediaBusy(true);
     setMediaError(null);
     try {
-      const pageId = currentPageId(
-        editorShellRef.current?.closest('form') ?? null
-      );
-      const loadedAssets = await loadCmsMediaAssets({ pageId });
-      if (!loadedAssets) {
-        setMediaError(t('rich_text_media_error'));
+      const loaded = await loadCmsMediaAssets({
+        userId: signedInUserId,
+      });
+      if (!loaded.ok) {
+        setMediaError(mediaFailureMessage(loaded.failure.error));
         return;
       }
-      setAssets(loadedAssets);
+      setAssets(
+        loaded.assets.filter(
+          (asset) =>
+            isAdminImagePath(asset.publicPath) ||
+            isCmsMediaPdfPath(asset.publicPath) ||
+            asset.mimeType === 'application/pdf'
+        )
+      );
       setPickerOpen(true);
-    } catch {
-      setMediaError(t('rich_text_media_error'));
+    } catch (error: unknown) {
+      setMediaError(
+        error instanceof Error ? error.message : t('rich_text_media_error')
+      );
     } finally {
       setMediaBusy(false);
     }
@@ -726,15 +796,23 @@ export function AdminRichTextEditor(props: {
     setMediaError(null);
     setUploadingFilename(file.name);
     try {
-      const pageId = currentPageId(
-        editorShellRef.current?.closest('form') ?? null
-      );
-      const asset = await uploadCmsMediaFile({ file, pageId });
-      if (!asset || !isCmsMediaPath(asset.publicPath)) {
+      const result = await uploadCmsMediaFile({
+        file,
+        userId: signedInUserId,
+      });
+      if (!result.ok) {
+        if ('formError' in result) {
+          setMediaError(browserFormErrorMessage(result.formError));
+          return;
+        }
+        setMediaError(mediaFailureMessage(result.failure.error));
+        return;
+      }
+      if (!isCmsMediaPath(result.asset.publicPath)) {
         setMediaError(t('rich_text_media_error'));
         return;
       }
-      insertCmsImage(asset);
+      insertCmsMediaAsset(result.asset);
     } finally {
       setMediaBusy(false);
       setUploadingFilename(null);
@@ -879,7 +957,10 @@ export function AdminRichTextEditor(props: {
           </div>
         ) : null}
         {pickerOpen ? (
-          <AdminCmsMediaPickerPanel assets={assets} onSelect={insertCmsImage} />
+          <AdminCmsMediaPickerPanel
+            assets={assets}
+            onSelect={insertCmsMediaAsset}
+          />
         ) : null}
         <EditorContent editor={editor} id={props.fieldId} />
       </div>

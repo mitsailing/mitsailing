@@ -1,33 +1,37 @@
 import path from 'node:path';
 import type { CmsMediaKind } from '@/libs/mit-sailing/cmsMediaTypes';
 
-const CMS_MEDIA_MAX_BYTES = 100 * 1024 * 1024;
+const CMS_MEDIA_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
+const CMS_MEDIA_IMAGE_MAX_BYTES = 25 * 1024 * 1024;
+const CMS_MEDIA_PDF_MAX_BYTES = 20 * 1024 * 1024;
+const CMS_MEDIA_FILE_MAX_BYTES = CMS_MEDIA_VIDEO_MAX_BYTES;
 const CMS_MEDIA_SIGNATURE_SCAN_BYTES = 64;
 
-export const CMS_MEDIA_ALLOWED_MIME_TYPES = [
+const CMS_MEDIA_ALLOWED_MIME_TYPES = [
   'image/jpeg',
   'image/png',
   'image/webp',
   'image/gif',
 ] as const;
 
-export type CmsMediaMimeType = (typeof CMS_MEDIA_ALLOWED_MIME_TYPES)[number];
+const CMS_MEDIA_HEIC_MIME_TYPES = ['image/heic', 'image/heif'] as const;
 
-const CMS_MEDIA_ALLOWED_FILE_MIME_TYPES = [
-  'application/pdf',
-  'text/plain',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-powerpoint',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-] as const;
+export type CmsMediaMimeType = (typeof CMS_MEDIA_ALLOWED_MIME_TYPES)[number];
+export type CmsMediaHeicMimeType = (typeof CMS_MEDIA_HEIC_MIME_TYPES)[number];
+
+const CMS_MEDIA_ALLOWED_FILE_MIME_TYPES = ['application/pdf'] as const;
 
 const CMS_MEDIA_ALLOWED_VIDEO_MIME_TYPES = [
   'video/mp4',
   'video/quicktime',
   'video/webm',
+] as const;
+
+/** MIME types safe to echo as Content-Type when serving ready CMS media. */
+export const CMS_MEDIA_PUBLIC_RESPONSE_MIME_TYPES = [
+  ...CMS_MEDIA_ALLOWED_MIME_TYPES,
+  ...CMS_MEDIA_ALLOWED_FILE_MIME_TYPES,
+  ...CMS_MEDIA_ALLOWED_VIDEO_MIME_TYPES,
 ] as const;
 
 export type CmsMediaValidationErrorCode =
@@ -44,20 +48,16 @@ const CMS_MEDIA_EXTENSIONS: Record<CmsMediaMimeType, string> = {
   'image/webp': '.webp',
 };
 
+const CMS_MEDIA_HEIC_EXTENSIONS: Record<CmsMediaHeicMimeType, string> = {
+  'image/heic': '.heic',
+  'image/heif': '.heif',
+};
+
 const CMS_MEDIA_FILE_EXTENSIONS: Record<
   (typeof CMS_MEDIA_ALLOWED_FILE_MIME_TYPES)[number],
   string
 > = {
-  'application/msword': '.doc',
   'application/pdf': '.pdf',
-  'application/vnd.ms-excel': '.xls',
-  'application/vnd.ms-powerpoint': '.ppt',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation':
-    '.pptx',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-    '.docx',
-  'text/plain': '.txt',
 };
 
 const CMS_MEDIA_VIDEO_EXTENSIONS: Record<
@@ -70,6 +70,7 @@ const CMS_MEDIA_VIDEO_EXTENSIONS: Record<
 };
 
 const ALLOWED_MIME_TYPE_SET = new Set<string>(CMS_MEDIA_ALLOWED_MIME_TYPES);
+const ALLOWED_HEIC_MIME_TYPE_SET = new Set<string>(CMS_MEDIA_HEIC_MIME_TYPES);
 const ALLOWED_FILE_MIME_TYPE_SET = new Set<string>(
   CMS_MEDIA_ALLOWED_FILE_MIME_TYPES
 );
@@ -79,6 +80,10 @@ const ALLOWED_VIDEO_MIME_TYPE_SET = new Set<string>(
 
 function isCmsMediaMimeType(value: string): value is CmsMediaMimeType {
   return ALLOWED_MIME_TYPE_SET.has(value);
+}
+
+function isCmsMediaHeicMimeType(value: string): value is CmsMediaHeicMimeType {
+  return ALLOWED_HEIC_MIME_TYPE_SET.has(value);
 }
 
 function isCmsMediaFileMimeType(
@@ -128,6 +133,27 @@ function bytesContainSignature(
 }
 
 /**
+ * Normalizes browser-declared image MIME aliases before validation.
+ *
+ * @param declaredMimeType - Browser Content-Type or empty string.
+ * @returns Canonical MIME type string.
+ */
+export function normalizeCmsMediaDeclaredMimeType(
+  declaredMimeType: string
+): string {
+  const trimmed = declaredMimeType.trim().toLowerCase();
+  if (trimmed === 'image/jpg') {
+    return 'image/jpeg';
+  }
+  return trimmed;
+}
+
+function filenameSuggestsHeic(originalFilename: string): boolean {
+  const lower = originalFilename.toLowerCase();
+  return lower.endsWith('.heic') || lower.endsWith('.heif');
+}
+
+/**
  * Detects supported CMS image MIME types from file signatures.
  *
  * @param bytes - Uploaded file bytes
@@ -157,6 +183,48 @@ export function detectCmsMediaMimeType(
     bytes[11] === 80
   ) {
     return 'image/webp';
+  }
+  return null;
+}
+
+/**
+ * Detects HEIC/HEIF containers via the ISO BMFF `ftyp` brand.
+ *
+ * @param bytes - Uploaded file header bytes
+ * @returns HEIC MIME type when the brand matches, otherwise null
+ */
+export function detectCmsMediaHeicMimeType(
+  bytes: Uint8Array
+): CmsMediaHeicMimeType | null {
+  if (
+    bytes.byteLength < 12 ||
+    !bytesContainSignature(bytes, [102, 116, 121, 112])
+  ) {
+    return null;
+  }
+  const brands: string[] = [];
+  for (let index = 8; index + 4 <= Math.min(bytes.byteLength, 32); index += 4) {
+    brands.push(
+      String.fromCodePoint(
+        bytes[index] ?? 0,
+        bytes[index + 1] ?? 0,
+        bytes[index + 2] ?? 0,
+        bytes[index + 3] ?? 0
+      )
+    );
+  }
+  const brandText = brands.join(' ').toLowerCase();
+  if (
+    brandText.includes('heic') ||
+    brandText.includes('heix') ||
+    brandText.includes('hevc') ||
+    brandText.includes('hevx') ||
+    brandText.includes('mif1') ||
+    brandText.includes('msf1')
+  ) {
+    return brandText.includes('heif') || brandText.includes('mif1')
+      ? 'image/heif'
+      : 'image/heic';
   }
   return null;
 }
@@ -207,6 +275,12 @@ function sanitizeCmsMediaFilenameForKind(props: {
 }): string {
   if (props.mediaKind === 'image' && isCmsMediaMimeType(props.mimeType)) {
     return sanitizeCmsMediaFilename(props.originalFilename, props.mimeType);
+  }
+  if (props.mediaKind === 'image' && isCmsMediaHeicMimeType(props.mimeType)) {
+    return sanitizeCmsMediaFilenameWithExtension({
+      extension: CMS_MEDIA_HEIC_EXTENSIONS[props.mimeType],
+      originalFilename: props.originalFilename,
+    });
   }
   if (props.mediaKind === 'file' && isCmsMediaFileMimeType(props.mimeType)) {
     return sanitizeCmsMediaFilenameWithExtension({
@@ -265,51 +339,137 @@ export function resolveCmsMediaStoragePath(props: {
   return candidate.startsWith(rootPrefix) ? candidate : null;
 }
 
+function maxBytesForMediaKind(mediaKind: CmsMediaKind, mimeType: string) {
+  if (mediaKind === 'image') {
+    return CMS_MEDIA_IMAGE_MAX_BYTES;
+  }
+  if (mediaKind === 'video') {
+    return CMS_MEDIA_VIDEO_MAX_BYTES;
+  }
+  if (mimeType === 'application/pdf') {
+    return CMS_MEDIA_PDF_MAX_BYTES;
+  }
+  return CMS_MEDIA_FILE_MAX_BYTES;
+}
+
 export function validateCmsMediaUpload(props: {
   bytes: Uint8Array;
   declaredMimeType: string;
   originalFilename: string;
 }):
-  | { ok: true; mimeType: CmsMediaMimeType; storedFilename: string }
+  | {
+      ok: true;
+      mediaKind: CmsMediaKind;
+      mimeType: string;
+      storedFilename: string;
+    }
   | { ok: false; code: CmsMediaValidationErrorCode } {
   if (props.bytes.byteLength === 0) {
     return { ok: false, code: 'empty_file' };
   }
-  if (props.bytes.byteLength > CMS_MEDIA_MAX_BYTES) {
+  const declared = normalizeCmsMediaDeclaredMimeType(props.declaredMimeType);
+  const detectedImage = detectCmsMediaMimeType(props.bytes);
+  const detectedHeic = detectCmsMediaHeicMimeType(props.bytes);
+  const isPdf =
+    declared === 'application/pdf' ||
+    (declared.length === 0 &&
+      props.originalFilename.toLowerCase().endsWith('.pdf'));
+
+  if (isPdf) {
+    if (props.bytes.byteLength > CMS_MEDIA_PDF_MAX_BYTES) {
+      return { ok: false, code: 'too_large' };
+    }
+    if (!bytesStartWith(props.bytes, [37, 80, 68, 70])) {
+      return { ok: false, code: 'mime_mismatch' };
+    }
+    return {
+      ok: true,
+      mediaKind: 'file',
+      mimeType: 'application/pdf',
+      storedFilename: sanitizeCmsMediaFilenameForKind({
+        mediaKind: 'file',
+        mimeType: 'application/pdf',
+        originalFilename: props.originalFilename,
+      }),
+    };
+  }
+
+  if (props.bytes.byteLength > CMS_MEDIA_IMAGE_MAX_BYTES) {
     return { ok: false, code: 'too_large' };
   }
+
+  if (detectedHeic) {
+    if (
+      declared.length > 0 &&
+      !isCmsMediaHeicMimeType(declared) &&
+      declared !== 'image/heic' &&
+      declared !== 'image/heif'
+    ) {
+      return { ok: false, code: 'mime_mismatch' };
+    }
+    const mimeType = isCmsMediaHeicMimeType(declared) ? declared : detectedHeic;
+    return {
+      ok: true,
+      mediaKind: 'image',
+      mimeType,
+      storedFilename: sanitizeCmsMediaFilenameForKind({
+        mediaKind: 'image',
+        mimeType,
+        originalFilename: props.originalFilename,
+      }),
+    };
+  }
+
   if (
-    props.declaredMimeType.length > 0 &&
-    !isCmsMediaMimeType(props.declaredMimeType)
+    declared.length > 0 &&
+    !isCmsMediaMimeType(declared) &&
+    !isCmsMediaHeicMimeType(declared)
   ) {
     return { ok: false, code: 'unsupported_type' };
   }
-  const detected = detectCmsMediaMimeType(props.bytes);
-  if (!detected) {
+  if (!detectedImage) {
     return { ok: false, code: 'unsupported_type' };
   }
-  if (
-    props.declaredMimeType.length > 0 &&
-    props.declaredMimeType !== detected
-  ) {
+  if (declared.length > 0 && declared !== detectedImage) {
     return { ok: false, code: 'mime_mismatch' };
   }
   return {
     ok: true,
-    mimeType: detected,
-    storedFilename: sanitizeCmsMediaFilename(props.originalFilename, detected),
+    mediaKind: 'image',
+    mimeType: detectedImage,
+    storedFilename: sanitizeCmsMediaFilename(
+      props.originalFilename,
+      detectedImage
+    ),
   };
 }
 
 export function mediaKindFromMimeType(mimeType: string): CmsMediaKind | null {
-  if (isCmsMediaMimeType(mimeType)) {
+  const normalized = normalizeCmsMediaDeclaredMimeType(mimeType);
+  if (isCmsMediaMimeType(normalized) || isCmsMediaHeicMimeType(normalized)) {
     return 'image';
   }
-  if (isCmsMediaFileMimeType(mimeType)) {
+  if (isCmsMediaFileMimeType(normalized)) {
     return 'file';
   }
-  if (isCmsMediaVideoMimeType(mimeType)) {
+  if (isCmsMediaVideoMimeType(normalized)) {
     return 'video';
+  }
+  return null;
+}
+
+function resolveDeclaredMimeTypeForMetadata(props: {
+  declaredMimeType: string;
+  originalFilename: string;
+}): string | null {
+  const declared = normalizeCmsMediaDeclaredMimeType(props.declaredMimeType);
+  if (declared.length > 0) {
+    return declared;
+  }
+  if (filenameSuggestsHeic(props.originalFilename)) {
+    return props.originalFilename.toLowerCase().endsWith('.heif')
+      ? 'image/heif'
+      : 'image/heic';
   }
   return null;
 }
@@ -332,20 +492,24 @@ export function validateCmsMediaMetadata(props: {
   if (props.byteSize <= 0) {
     return { ok: false, code: 'empty_file' };
   }
-  const mediaKind = mediaKindFromMimeType(props.declaredMimeType);
+  const mimeType = resolveDeclaredMimeTypeForMetadata(props);
+  if (!mimeType) {
+    return { ok: false, code: 'unsupported_type' };
+  }
+  const mediaKind = mediaKindFromMimeType(mimeType);
   if (!mediaKind) {
     return { ok: false, code: 'unsupported_type' };
   }
-  if (props.byteSize > CMS_MEDIA_MAX_BYTES) {
+  if (props.byteSize > maxBytesForMediaKind(mediaKind, mimeType)) {
     return { ok: false, code: 'too_large' };
   }
   return {
     ok: true,
     mediaKind,
-    mimeType: props.declaredMimeType,
+    mimeType,
     storedFilename: sanitizeCmsMediaFilenameForKind({
       mediaKind,
-      mimeType: props.declaredMimeType,
+      mimeType,
       originalFilename: props.originalFilename,
     }),
   };
@@ -355,23 +519,35 @@ export function detectCmsMediaKind(
   bytes: Uint8Array,
   declaredMimeType: string
 ): CmsMediaKind | null {
+  const declared = normalizeCmsMediaDeclaredMimeType(declaredMimeType);
   if (detectCmsMediaMimeType(bytes)) {
     return 'image';
   }
-  if (isCmsMediaMimeType(declaredMimeType)) {
+  if (detectCmsMediaHeicMimeType(bytes)) {
+    return 'image';
+  }
+  if (isCmsMediaMimeType(declared) || isCmsMediaHeicMimeType(declared)) {
     return null;
   }
-  if (declaredMimeType === 'application/pdf') {
+  if (declared === 'application/pdf') {
     return bytesStartWith(bytes, [37, 80, 68, 70]) ? 'file' : null;
   }
-  if (
-    declaredMimeType === 'video/mp4' ||
-    declaredMimeType === 'video/quicktime'
-  ) {
+  if (declared === 'video/mp4' || declared === 'video/quicktime') {
     return bytesContainSignature(bytes, [102, 116, 121, 112]) ? 'video' : null;
   }
-  if (declaredMimeType === 'video/webm') {
+  if (declared === 'video/webm') {
     return bytesStartWith(bytes, [26, 69, 223, 163]) ? 'video' : null;
   }
-  return mediaKindFromMimeType(declaredMimeType);
+  return mediaKindFromMimeType(declared);
 }
+
+export const CMS_MEDIA_BROWSER_IMAGE_ACCEPT =
+  'image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif';
+
+export const CMS_MEDIA_BROWSER_EDITOR_ACCEPT = `${CMS_MEDIA_BROWSER_IMAGE_ACCEPT},application/pdf,.pdf`;
+
+export {
+  CMS_MEDIA_IMAGE_MAX_BYTES,
+  CMS_MEDIA_PDF_MAX_BYTES,
+  CMS_MEDIA_VIDEO_MAX_BYTES,
+};

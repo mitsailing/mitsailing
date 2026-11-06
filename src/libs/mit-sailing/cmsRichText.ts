@@ -12,6 +12,7 @@ const ALLOWED_HREF_PREFIXES = [...REMOTE_HREF_PREFIXES, 'tel:'] as const;
 const NEW_TAB_HREF_PREFIXES = ['http://', 'https://'] as const;
 const CMS_MEDIA_IMAGE_EXTENSIONS = ['.gif', '.jpg', '.jpeg', '.png', '.webp'];
 const CMS_MEDIA_IMAGE_PATH_RE = /^\/cms-media\/[^/?#]+\/[^/?#]+$/u;
+const CMS_MEDIA_PDF_PATH_RE = /^\/cms-media\/[^/?#]+\/[^/?#]+\.pdf$/iu;
 /** Opening or closing tags for CMS rich text (allowed + transformTags); avoids treating `<support>`-style text as HTML. */
 const HTML_TAG_RE =
   /<\s*(?:\/\s*)?(?:strong|img|h[1-6]|ul|ol|li|p|em|br|a|b|i)\b[^>]*>/iu;
@@ -124,7 +125,9 @@ function transformCmsRichTextAnchor(
     return { tagName: 'span', attribs: {} };
   }
   const lower = href.toLowerCase();
-  const opensNewTab = NEW_TAB_HREF_PREFIXES.some((p) => lower.startsWith(p));
+  const opensNewTab =
+    NEW_TAB_HREF_PREFIXES.some((p) => lower.startsWith(p)) ||
+    CMS_MEDIA_PDF_PATH_RE.test(href);
   return {
     tagName: 'a',
     attribs: opensNewTab

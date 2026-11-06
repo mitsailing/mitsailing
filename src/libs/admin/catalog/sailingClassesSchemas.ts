@@ -1,6 +1,6 @@
 import * as z from 'zod';
 import type { AdminCatalogResourceMessageKey } from '@/libs/admin/catalog/types';
-import { isSafeCmsAppPath } from '@/libs/mit-sailing/cmsHref';
+import { isSafeCatalogGalleryPath } from '@/libs/mit-sailing/cmsHref';
 import { catalogUrlFragmentSlugSchema } from '@/libs/validation/catalogUrlFragmentSlugSchema';
 
 const sailingClassesValidationMessages = {
@@ -35,7 +35,7 @@ export const sailingClassFormSchema = z.object({
     .string()
     .transform(imagePathsFromLines)
     .refine(
-      (paths) => paths.every((path) => isSafeCmsAppPath(path)),
+      (paths) => paths.every((path) => isSafeCatalogGalleryPath(path)),
       sailingClassesValidationMessages.imagePaths
     ),
   isVisible: z.boolean(),

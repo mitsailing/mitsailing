@@ -10,6 +10,7 @@ import {
 import type * as FsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import sharp from 'sharp';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CmsMediaProcessingQueue } from '@/worker/cmsMediaProcessingJob';
 
@@ -53,22 +54,41 @@ async function createMediaRoot(): Promise<string> {
 
 function processingAsset(props: {
   byteSize: bigint;
+  mediaKind?: 'file' | 'image' | 'video';
+  mimeType?: string;
+  originalFilename?: string;
   rawPath: string;
   readyPath: string;
+  storedFilename?: string;
 }) {
   return {
     byteSize: props.byteSize,
     id: 'asset-1',
-    mediaKind: 'image',
-    mimeType: 'image/png',
+    mediaKind: props.mediaKind ?? 'image',
+    mimeType: props.mimeType ?? 'image/png',
+    originalFilename: props.originalFilename ?? 'Race Day.png',
     rawFilePath: props.rawPath,
     rawUploadId: 'asset-1',
     readyFilePath: props.readyPath,
     status: 'queued',
     storageProvider: 'server_folder',
-    storedFilename: 'race-day.png',
+    storedFilename: props.storedFilename ?? 'race-day.png',
     updatedAt: new Date(Date.UTC(2026, 4, 17, 12)),
   };
+}
+
+async function tinyPngBytes() {
+  const bytes = await sharp({
+    create: {
+      background: { b: 0, g: 0, r: 255 },
+      channels: 3,
+      height: 8,
+      width: 8,
+    },
+  })
+    .png()
+    .toBuffer();
+  return bytes;
 }
 
 describe('cms media processing job', () => {
@@ -142,18 +162,17 @@ describe('cms media processing job', () => {
     const root = await createMediaRoot();
     const { processCmsMediaProcessingJob } =
       await import('@/worker/cmsMediaProcessingJob');
+    const pngBytes = await tinyPngBytes();
     const rawPath = path.join(root, 'uploads', 'asset-1');
     const readyPath = path.join(root, 'ready', 'asset-1', 'race-day.png');
     await mkdir(path.dirname(rawPath), { recursive: true });
-    await writeFile(
-      rawPath,
-      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3])
-    );
+    await writeFile(rawPath, pngBytes);
     findUnique.mockResolvedValue({
-      byteSize: BigInt(Number('11')),
+      byteSize: BigInt(pngBytes.byteLength),
       id: 'asset-1',
       mediaKind: 'image',
       mimeType: 'image/png',
+      originalFilename: 'Race Day.png',
       rawFilePath: rawPath,
       rawUploadId: 'asset-1',
       readyFilePath: readyPath,
@@ -165,8 +184,10 @@ describe('cms media processing job', () => {
 
     await processCmsMediaProcessingJob({ assetId: 'asset-1' });
 
-    await expect(readFile(readyPath)).resolves.toEqual(
-      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3])
+    const readyBytes = await readFile(readyPath);
+    expect(readyBytes.byteLength).toBeGreaterThan(0);
+    expect(readyBytes.subarray(0, 8)).toEqual(
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
     );
     const readyDirStat = await stat(path.dirname(readyPath));
     const readyFileStat = await stat(readyPath);
@@ -174,8 +195,10 @@ describe('cms media processing job', () => {
     expect(readyFileStat.mode.toString(8).slice(-3)).toBe('644');
     expect(update).toHaveBeenLastCalledWith({
       data: expect.objectContaining({
+        mimeType: 'image/png',
         processingErrorCode: null,
         status: 'ready',
+        storedFilename: 'race-day.png',
       }),
       where: { id: 'asset-1' },
     });
@@ -185,16 +208,14 @@ describe('cms media processing job', () => {
     const root = await createMediaRoot();
     const { processCmsMediaProcessingJob } =
       await import('@/worker/cmsMediaProcessingJob');
+    const pngBytes = await tinyPngBytes();
     const rawPath = path.join(root, 'uploads', 'asset-1');
     const readyPath = path.join(root, 'ready', 'asset-1', 'race-day.png');
     await mkdir(path.dirname(rawPath), { recursive: true });
-    await writeFile(
-      rawPath,
-      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3])
-    );
+    await writeFile(rawPath, pngBytes);
     findUnique.mockResolvedValue({
       ...processingAsset({
-        byteSize: BigInt(Number('11')),
+        byteSize: BigInt(pngBytes.byteLength),
         rawPath,
         readyPath,
       }),
@@ -203,9 +224,43 @@ describe('cms media processing job', () => {
 
     await processCmsMediaProcessingJob({ assetId: 'asset-1' });
 
-    await expect(readFile(readyPath)).resolves.toEqual(
-      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3])
+    const readyBytes = await readFile(readyPath);
+    expect(readyBytes.subarray(0, 8)).toEqual(
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
     );
+    expect(update).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({
+        processingErrorCode: null,
+        status: 'ready',
+      }),
+      where: { id: 'asset-1' },
+    });
+  });
+
+  it('moves pdf bytes unchanged into the ready folder', async () => {
+    const root = await createMediaRoot();
+    const { processCmsMediaProcessingJob } =
+      await import('@/worker/cmsMediaProcessingJob');
+    const pdfBytes = Buffer.from('%PDF-1.4 handbook');
+    const rawPath = path.join(root, 'uploads', 'asset-1');
+    const readyPath = path.join(root, 'ready', 'asset-1', 'handbook.pdf');
+    await mkdir(path.dirname(rawPath), { recursive: true });
+    await writeFile(rawPath, pdfBytes);
+    findUnique.mockResolvedValue(
+      processingAsset({
+        byteSize: BigInt(pdfBytes.byteLength),
+        mediaKind: 'file',
+        mimeType: 'application/pdf',
+        originalFilename: 'handbook.pdf',
+        rawPath,
+        readyPath,
+        storedFilename: 'handbook.pdf',
+      })
+    );
+
+    await processCmsMediaProcessingJob({ assetId: 'asset-1' });
+
+    await expect(readFile(readyPath)).resolves.toEqual(pdfBytes);
     expect(update).toHaveBeenLastCalledWith({
       data: expect.objectContaining({
         processingErrorCode: null,

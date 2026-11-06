@@ -110,9 +110,14 @@ describe('uploadCmsMediaFile', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const asset = await uploadCmsMediaFile({ file });
+    const result = await uploadCmsMediaFile({ file });
 
-    expect(asset).toBeNull();
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: false,
+        failure: expect.objectContaining({ error: 'upload_asset_mismatch' }),
+      })
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/admin/cms-media/uploads/session-asset',
       { method: 'DELETE' }
@@ -206,8 +211,11 @@ describe('uploadCmsMediaFile', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(uploadCmsMediaFile({ file })).rejects.toThrow(
-      'CMS media upload session response invalid'
+    await expect(uploadCmsMediaFile({ file })).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        failure: expect.objectContaining({ error: 'invalid_upload_session' }),
+      })
     );
     expect(uploadCmsMediaWithTus).not.toHaveBeenCalled();
   });
@@ -243,6 +251,9 @@ describe('uploadCmsMediaFile', () => {
       assetId: 'session-asset',
       error: cancelError,
       message: 'Failed to cancel CMS media upload',
+      route: '/api/admin/cms-media/uploads/session-asset',
+      status: 500,
+      userId: undefined,
     });
   });
 
@@ -273,7 +284,12 @@ describe('uploadCmsMediaFile', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(uploadCmsMediaFile({ file })).resolves.toBeNull();
+    await expect(uploadCmsMediaFile({ file })).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        failure: expect.objectContaining({ error: 'upload_asset_mismatch' }),
+      })
+    );
 
     const error = expect.objectContaining({
       message: 'CMS media upload cancel failed: 500 Internal Server Error',
@@ -284,6 +300,8 @@ describe('uploadCmsMediaFile', () => {
         assetId: 'session-asset',
         error,
         message: 'Failed to cancel CMS media upload',
+        route: '/api/admin/cms-media/uploads/session-asset',
+        status: 500,
       })
     );
   });
@@ -328,13 +346,14 @@ describe('uploadCmsMediaFile', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(uploadCmsMediaFile({ file })).resolves.toEqual(
-      expect.objectContaining({
+    await expect(uploadCmsMediaFile({ file })).resolves.toEqual({
+      ok: true,
+      asset: expect.objectContaining({
         id: 'session-asset',
         originalFilename: 'hero.png',
         status: 'ready',
-      })
-    );
+      }),
+    });
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/admin/cms-media/uploads/session-asset'
@@ -366,14 +385,21 @@ describe('uploadCmsMediaFile', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(uploadCmsMediaFile({ file })).resolves.toBeNull();
+    await expect(uploadCmsMediaFile({ file })).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        failure: expect.objectContaining({ status: 500 }),
+      })
+    );
 
-    expect(cmsMediaClientErrorMocks.report).toHaveBeenCalledWith({
-      action: 'finalizeUpload',
-      message: 'CMS media upload finalize failed',
-      sessionAssetId: 'session-asset',
-      uploadAssetId: 'session-asset',
-    });
+    expect(cmsMediaClientErrorMocks.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'finalizeUpload',
+        route: '/api/admin/cms-media/uploads/session-asset/finalize',
+        status: 500,
+        uploadAssetId: 'session-asset',
+      })
+    );
   });
 
   it('falls back to direct upload when resumable uploads are unavailable', async () => {
@@ -401,12 +427,13 @@ describe('uploadCmsMediaFile', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(uploadCmsMediaFile({ file })).resolves.toEqual(
-      expect.objectContaining({
+    await expect(uploadCmsMediaFile({ file })).resolves.toEqual({
+      ok: true,
+      asset: expect.objectContaining({
         id: 'direct-asset',
         originalFilename: 'hero.png',
-      })
-    );
+      }),
+    });
 
     expect(uploadCmsMediaWithTus).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledWith(
@@ -415,7 +442,7 @@ describe('uploadCmsMediaFile', () => {
     );
   });
 
-  it('uploads direct fallback media with page context', async () => {
+  it('uploads direct fallback media with only the file field', async () => {
     const file = new File(['image-bytes'], 'hero.png', { type: 'image/png' });
     const directFormDataValues: FormData[] = [];
 
@@ -442,16 +469,21 @@ describe('uploadCmsMediaFile', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(
-      uploadCmsMediaFile({ file, pageId: 'cms-page-1' })
-    ).resolves.toEqual(
-      expect.objectContaining({
+    await expect(uploadCmsMediaFile({ file })).resolves.toEqual({
+      ok: true,
+      asset: expect.objectContaining({
         id: 'direct-asset',
         originalFilename: 'hero.png',
-      })
-    );
+      }),
+    });
 
-    expect(directFormDataValues.at(0)?.get('pageId')).toBe('cms-page-1');
+    const formData = directFormDataValues.at(0);
+    expect(formData).toBeDefined();
+    if (!formData) {
+      throw new Error('Expected direct upload FormData');
+    }
+    expect(formData.get('file')).toBe(file);
+    expect([...formData.keys()]).toEqual(['file']);
   });
 
   it('returns null when direct fallback upload is rejected', async () => {
@@ -472,7 +504,12 @@ describe('uploadCmsMediaFile', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(uploadCmsMediaFile({ file })).resolves.toBeNull();
+    await expect(uploadCmsMediaFile({ file })).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        failure: expect.objectContaining({ status: 415 }),
+      })
+    );
   });
 
   it('parses direct fallback media from legacy response fields', async () => {
@@ -493,13 +530,14 @@ describe('uploadCmsMediaFile', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(uploadCmsMediaFile({ file })).resolves.toEqual(
-      expect.objectContaining({
+    await expect(uploadCmsMediaFile({ file })).resolves.toEqual({
+      ok: true,
+      asset: expect.objectContaining({
         id: '/cms-media/legacy-asset.png',
         originalFilename: 'hero.png',
         publicPath: '/cms-media/legacy-asset.png',
-      })
-    );
+      }),
+    });
   });
 
   it('returns null when queued upload processing fails', async () => {
@@ -534,7 +572,12 @@ describe('uploadCmsMediaFile', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(uploadCmsMediaFile({ file })).resolves.toBeNull();
+    await expect(uploadCmsMediaFile({ file })).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        failure: expect.objectContaining({ error: 'processing_failed' }),
+      })
+    );
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/admin/cms-media/uploads/session-asset'
@@ -571,7 +614,12 @@ describe('uploadCmsMediaFile', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(uploadCmsMediaFile({ file })).resolves.toBeNull();
+    await expect(uploadCmsMediaFile({ file })).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        failure: expect.objectContaining({ status: 500 }),
+      })
+    );
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/admin/cms-media/uploads/session-asset'
@@ -608,7 +656,12 @@ describe('uploadCmsMediaFile', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(uploadCmsMediaFile({ file })).resolves.toBeNull();
+    await expect(uploadCmsMediaFile({ file })).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        failure: expect.objectContaining({ error: 'invalid_upload_status' }),
+      })
+    );
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/admin/cms-media/uploads/session-asset'
@@ -637,7 +690,12 @@ describe('uploadCmsMediaFile', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(uploadCmsMediaFile({ file })).resolves.toBeNull();
+    await expect(uploadCmsMediaFile({ file })).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        failure: expect.objectContaining({ error: 'invalid_asset_id' }),
+      })
+    );
 
     expect(fetchMock).not.toHaveBeenCalledWith(
       '/api/admin/cms-media/uploads/unsafe%2Fasset/finalize',
@@ -646,7 +704,8 @@ describe('uploadCmsMediaFile', () => {
     expect(cmsMediaClientErrorMocks.report).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'finalizeUpload',
-        message: 'CMS media upload finalize failed',
+        message: 'invalid_asset_id',
+        uploadAssetId: 'unsafe/asset',
       })
     );
   });

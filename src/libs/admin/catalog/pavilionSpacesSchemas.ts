@@ -1,6 +1,6 @@
 import * as z from 'zod';
 import type { AdminCatalogResourceMessageKey } from '@/libs/admin/catalog/types';
-import { isSafeCmsAppPath } from '@/libs/mit-sailing/cmsHref';
+import { isSafeCatalogGalleryPath } from '@/libs/mit-sailing/cmsHref';
 import type { PAVILION_RESERVATION_PERSONAS } from '@/libs/mit-sailing/pavilionReservationPersonas';
 
 const pavilionSpacesValidationMessages = {
@@ -112,7 +112,7 @@ export const pavilionSpaceFormSchema = z
       .string()
       .transform(imagePathsFromLines)
       .refine(
-        (paths) => paths.every((path) => isSafeCmsAppPath(path)),
+        (paths) => paths.every((path) => isSafeCatalogGalleryPath(path)),
         pavilionSpacesValidationMessages.imagePaths
       ),
     priceMitAcademic: optionalWholeDollarCents,

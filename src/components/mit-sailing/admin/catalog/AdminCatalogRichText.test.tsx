@@ -730,7 +730,12 @@ describe('AdminRichTextEditor media controls', () => {
       uploadCmsMediaFile({
         file: new File(['png'], 'race.png', { type: 'image/png' }),
       })
-    ).rejects.toThrow('CMS media upload session failed');
+    ).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        failure: expect.objectContaining({ status: 404 }),
+      })
+    );
     expect(fetchMock).not.toHaveBeenCalledWith(
       '/api/admin/cms-media',
       expect.anything()
@@ -750,7 +755,12 @@ describe('AdminRichTextEditor media controls', () => {
       uploadCmsMediaFile({
         file: new File(['png'], 'race.png', { type: 'image/png' }),
       })
-    ).resolves.toBeNull();
+    ).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        failure: expect.objectContaining({ error: 'upload_asset_mismatch' }),
+      })
+    );
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/admin/cms-media/uploads/asset-new',
@@ -776,7 +786,12 @@ describe('AdminRichTextEditor media controls', () => {
       uploadCmsMediaFile({
         file: new File(['png'], 'race.png', { type: 'image/png' }),
       })
-    ).resolves.toBeNull();
+    ).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        failure: expect.objectContaining({ error: 'upload_asset_mismatch' }),
+      })
+    );
     expect(fetchMock).not.toHaveBeenCalledWith(
       '/api/admin/cms-media/uploads/https%3A%2F%2Fexample.test%2Fupload/finalize',
       expect.objectContaining({ method: 'POST' })
@@ -805,13 +820,19 @@ describe('AdminRichTextEditor media controls', () => {
       uploadCmsMediaFile({
         file: new File(['png'], 'race.png', { type: 'image/png' }),
       })
-    ).resolves.toBeNull();
-    expect(cmsMediaClientErrorMocks.report).toHaveBeenCalledWith({
-      action: 'finalizeUpload',
-      message: 'CMS media upload finalize failed',
-      sessionAssetId: 'asset-1',
-      uploadAssetId: 'asset-1',
-    });
+    ).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        failure: expect.objectContaining({ status: 503 }),
+      })
+    );
+    expect(cmsMediaClientErrorMocks.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'finalizeUpload',
+        status: 503,
+        uploadAssetId: 'asset-1',
+      })
+    );
   });
 
   it('submits uploaded aligned cms image html', async () => {
@@ -997,7 +1018,7 @@ describe('AdminRichTextEditor media controls', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: 'Select existing image' })
+      screen.getByRole('button', { name: 'Select existing image or PDF' })
     );
     await user.click(screen.getByRole('button', { name: 'dock.jpg' }));
     await user.click(screen.getByRole('button', { name: 'Align image left' }));
@@ -1024,11 +1045,11 @@ describe('AdminRichTextEditor media controls', () => {
     const view = renderCmsBlockForm();
 
     await user.click(
-      screen.getByRole('button', { name: 'Select existing image' })
+      screen.getByRole('button', { name: 'Select existing image or PDF' })
     );
     await user.click(await screen.findByRole('button', { name: 'reused.jpg' }));
     await user.click(
-      screen.getByRole('button', { name: 'Select existing image' })
+      screen.getByRole('button', { name: 'Select existing image or PDF' })
     );
     await user.click(await screen.findByRole('button', { name: 'reused.jpg' }));
     await user.click(screen.getByRole('button', { name: 'Align image right' }));
@@ -1052,12 +1073,10 @@ describe('AdminRichTextEditor media controls', () => {
     renderCmsBlockForm();
 
     await user.click(
-      screen.getByRole('button', { name: 'Select existing image' })
+      screen.getByRole('button', { name: 'Select existing image or PDF' })
     );
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Could not load CMS images.'
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent('HTTP 500');
   });
 
   it('shows media error when image upload fails', async () => {
@@ -1076,9 +1095,7 @@ describe('AdminRichTextEditor media controls', () => {
       new File(['png'], 'failed.png', { type: 'image/png' })
     );
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Could not load CMS images.'
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent('HTTP 500');
     expect(hiddenBodyValue(view.container)).not.toContain('failed.png');
   });
 
@@ -1102,7 +1119,7 @@ describe('AdminRichTextEditor media controls', () => {
     );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Could not load CMS images.'
+      'invalid_upload_session'
     );
     expect(hiddenBodyValue(view.container)).not.toContain('/uploads');
   });
