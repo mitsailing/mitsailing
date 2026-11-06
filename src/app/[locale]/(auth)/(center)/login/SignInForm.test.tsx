@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { componentTestRouter } from '@/test/component';
@@ -13,9 +13,6 @@ const authClientMock = vi.hoisted(() => ({
     email: vi.fn(),
   },
 }));
-const signInEmailActionMock = vi.hoisted(() => ({
-  resolveSignInEmailAction: vi.fn(),
-}));
 const reportUnknownAuthClientErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/libs/auth-client', () => ({
@@ -26,73 +23,24 @@ vi.mock('@/libs/auth/reportAuthClientError', () => ({
   reportUnknownAuthClientError: reportUnknownAuthClientErrorMock,
 }));
 
-vi.mock('@/libs/auth/signInEmailActions', () => ({
-  resolveSignInEmailAction: signInEmailActionMock.resolveSignInEmailAction,
-}));
-
 beforeEach(() => {
   vi.clearAllMocks();
   authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({});
   authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({});
   authClientMock.signIn.email.mockResolvedValue({});
-  signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
-    email: 'sailor@mit.edu',
-    state: 'password',
-  });
 });
 
-async function revealPasswordFor(
-  user: ReturnType<typeof userEvent.setup>,
-  email: string
-) {
-  const normalizedEmail = email.trim().toLowerCase();
-  signInEmailActionMock.resolveSignInEmailAction.mockResolvedValueOnce({
-    email: normalizedEmail,
-    state: 'password',
-  });
-  await user.type(screen.getByLabelText('Email'), email);
-  await user.click(screen.getByRole('button', { name: 'Continue' }));
-  await screen.findByLabelText('Password');
-}
-
-async function submitEmailStep(
-  user: ReturnType<typeof userEvent.setup>,
-  email: string
-) {
-  await user.type(screen.getByLabelText('Email'), email);
-  await user.click(screen.getByRole('button', { name: 'Continue' }));
-}
-
-async function expectEmailStepRedirect(props: {
-  readonly expectedPath: string;
-  readonly resolvedEmail: string;
-  readonly state: 'reset_required' | 'sign_up';
-  readonly submittedEmail?: string;
-}) {
-  const user = userEvent.setup();
-  signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
-    email: props.resolvedEmail,
-    state: props.state,
-  });
-
-  render(<SignInForm callbackUrl="/fleet" />);
-
-  await submitEmailStep(user, props.submittedEmail ?? props.resolvedEmail);
-
-  expect(componentTestRouter().push).toHaveBeenCalledWith(props.expectedPath);
-}
-
-async function submitPasswordStep(props: {
+async function submitSignIn(props: {
   readonly email: string;
   readonly password: string;
   readonly user: ReturnType<typeof userEvent.setup>;
 }) {
-  await revealPasswordFor(props.user, props.email);
+  await props.user.type(screen.getByLabelText('Email'), props.email);
   await props.user.type(screen.getByLabelText('Password'), props.password);
   await props.user.click(screen.getByRole('button', { name: 'Sign in' }));
 }
 
-async function expectPasswordSignInAlert(props: {
+async function expectSignInAlert(props: {
   readonly alertText: string;
   readonly email?: string;
   readonly password?: string;
@@ -100,7 +48,7 @@ async function expectPasswordSignInAlert(props: {
   const user = userEvent.setup();
   render(<SignInForm callbackUrl="/fleet" />);
 
-  await submitPasswordStep({
+  await submitSignIn({
     email: props.email ?? 'sailor@mit.edu',
     password: props.password ?? 'wrong-password',
     user,
@@ -117,7 +65,7 @@ async function submitUnverifiedResend() {
 
   render(<SignInForm callbackUrl="/fleet" />);
 
-  await submitPasswordStep({
+  await submitSignIn({
     email: 'new-sailor@mit.edu',
     password: 'correct-password',
     user,
@@ -128,132 +76,12 @@ async function submitUnverifiedResend() {
 }
 
 describe('SignInForm', () => {
-  it('starts with email only and reveals password for active users', async () => {
-    const user = userEvent.setup();
-
+  it('shows email and password together on first render', () => {
     render(<SignInForm callbackUrl="/fleet" />);
 
-    expect(screen.queryByLabelText('Password')).toBeNull();
-
-    await submitEmailStep(user, ' Sailor@MIT.EDU ');
-
-    expect(signInEmailActionMock.resolveSignInEmailAction).toHaveBeenCalledWith(
-      {
-        email: 'sailor@mit.edu',
-      }
-    );
-    expect(await screen.findByLabelText('Password')).toBeInTheDocument();
-  });
-
-  it('sends reset-required users to create a password', async () => {
-    await expectEmailStepRedirect({
-      expectedPath:
-        '/reset-password?email=legacy%40mit.edu&codeSent=1&mode=create-password&callbackUrl=%2Ffleet',
-      resolvedEmail: 'legacy@mit.edu',
-      state: 'reset_required',
-    });
-  });
-
-  it('shows reset delivery failure when create-password email cannot be sent', async () => {
-    const user = userEvent.setup();
-    signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
-      email: 'legacy@mit.edu',
-      state: 'reset_failed',
-    });
-
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await submitEmailStep(user, 'legacy@mit.edu');
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We could not send a reset code.'
-    );
-    expect(componentTestRouter().push).not.toHaveBeenCalled();
-  });
-
-  it('sends unknown emails to sign up', async () => {
-    await expectEmailStepRedirect({
-      expectedPath: '/signup?email=new%40mit.edu&callbackUrl=%2Ffleet',
-      resolvedEmail: 'new@mit.edu',
-      state: 'sign_up',
-    });
-  });
-
-  it('shows invalid email message when server rejects submitted email', async () => {
-    const user = userEvent.setup();
-    signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
-      state: 'invalid_email',
-    });
-
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await submitEmailStep(user, 'sailor@mit.edu');
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Enter a valid email address with a domain'
-    );
-    expect(screen.queryByLabelText('Password')).toBeNull();
-  });
-
-  it('shows request failure when email lookup fails', async () => {
-    const user = userEvent.setup();
-    signInEmailActionMock.resolveSignInEmailAction.mockRejectedValue(
-      new Error('network')
-    );
-
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await submitEmailStep(user, 'sailor@mit.edu');
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We could not complete that request right now.'
-    );
-    expect(reportUnknownAuthClientErrorMock).toHaveBeenCalledWith({
-      action: 'sign_in.email_lookup.thrown',
-      code: undefined,
-      message: 'network',
-    });
-    expect(screen.queryByLabelText('Password')).toBeNull();
-  });
-
-  it('clears password and returns to email step when email changes', async () => {
-    const user = userEvent.setup();
-
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await revealPasswordFor(user, 'sailor@mit.edu');
-    await user.type(screen.getByLabelText('Password'), 'correct-password');
-    await user.clear(screen.getByLabelText('Email'));
-    await user.type(screen.getByLabelText('Email'), 'other@mit.edu');
-
-    expect(screen.queryByLabelText('Password')).toBeNull();
-    expect(
-      screen.getByRole('button', { name: 'Continue' })
-    ).toBeInTheDocument();
-    expect(authClientMock.signIn.email).not.toHaveBeenCalled();
-  });
-
-  it('does not sign in when password step has an invalid email', async () => {
-    const user = userEvent.setup();
-    signInEmailActionMock.resolveSignInEmailAction.mockResolvedValue({
-      email: 'sailor@mit',
-      state: 'password',
-    });
-
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await submitEmailStep(user, 'sailor@mit.edu');
-    await screen.findByLabelText('Password');
-    const form = screen.getByLabelText('Email').closest('form');
-    if (!form) {
-      throw new Error('Expected sign-in form.');
-    }
-    fireEvent.submit(form);
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Enter a valid email address with a domain'
-    );
-    expect(authClientMock.signIn.email).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Email')).toBeInTheDocument();
+    expect(screen.getByLabelText('Password')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
   });
 
   it('Visitor signs in and returns to the requested page', async () => {
@@ -261,7 +89,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await submitPasswordStep({
+    await submitSignIn({
       email: ' Sailor@MIT.EDU ',
       password: 'correct-password',
       user,
@@ -284,7 +112,11 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await submitEmailStep(user, 'sailor@mit');
+    await submitSignIn({
+      email: 'sailor@mit',
+      password: 'correct-password',
+      user,
+    });
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Enter a valid email address with a domain'
@@ -292,12 +124,36 @@ describe('SignInForm', () => {
     expect(authClientMock.signIn.email).not.toHaveBeenCalled();
   });
 
+  it('Legacy sailor sees check-email copy when a new password is required', async () => {
+    authClientMock.signIn.email.mockResolvedValue({
+      error: { code: 'PASSWORD_RESET_REQUIRED' },
+    });
+
+    await expectSignInAlert({
+      alertText: 'Check your email for a reset code',
+      email: 'legacy@mit.edu',
+      password: 'any-password',
+    });
+  });
+
+  it('Legacy sailor sees reset failure when the create-password email cannot be sent', async () => {
+    authClientMock.signIn.email.mockResolvedValue({
+      error: { code: 'PASSWORD_RESET_FAILED' },
+    });
+
+    await expectSignInAlert({
+      alertText: 'We could not send a reset code.',
+      email: 'legacy@mit.edu',
+      password: 'any-password',
+    });
+  });
+
   it('Locked-out sailor sees the lockout recovery message', async () => {
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'ACCOUNT_LOCKED' },
     });
 
-    await expectPasswordSignInAlert({
+    await expectSignInAlert({
       alertText: 'Your account is temporarily locked',
       email: 'locked@mit.edu',
     });
@@ -308,7 +164,7 @@ describe('SignInForm', () => {
       error: { code: 'BANNED_USER' },
     });
 
-    await expectPasswordSignInAlert({
+    await expectSignInAlert({
       alertText: 'Your account has been disabled. Contact support.',
       email: 'banned@mit.edu',
       password: 'correct-password',
@@ -320,7 +176,7 @@ describe('SignInForm', () => {
       error: { code: 'INVALID_EMAIL_OR_PASSWORD' },
     });
 
-    await expectPasswordSignInAlert({
+    await expectSignInAlert({
       alertText: 'Invalid email or password.',
     });
   });
@@ -330,7 +186,7 @@ describe('SignInForm', () => {
       error: { code: 'TOO_MANY_REQUESTS' },
     });
 
-    await expectPasswordSignInAlert({ alertText: 'Too many attempts.' });
+    await expectSignInAlert({ alertText: 'Too many attempts.' });
   });
 
   it('Visitor sees credentials message after an unexpected sign-in error', async () => {
@@ -338,7 +194,7 @@ describe('SignInForm', () => {
       error: { message: 'Account requires staff approval.' },
     });
 
-    await expectPasswordSignInAlert({
+    await expectSignInAlert({
       alertText: 'Invalid email or password.',
       password: 'correct-password',
     });
@@ -355,7 +211,7 @@ describe('SignInForm', () => {
       error: {},
     });
 
-    await expectPasswordSignInAlert({
+    await expectSignInAlert({
       alertText: 'Invalid email or password.',
     });
 
@@ -368,7 +224,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await submitPasswordStep({
+    await submitSignIn({
       email: 'sailor@mit.edu',
       password: 'correct-password',
       user,
@@ -393,7 +249,7 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet" />);
 
-    await submitPasswordStep({
+    await submitSignIn({
       email: ' Sailor@MIT.EDU ',
       password: 'correct-password',
       user,

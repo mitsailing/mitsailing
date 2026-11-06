@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { faker } from '@faker-js/faker';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
@@ -667,6 +668,63 @@ test.describe('Auth', () => {
     await expect(formAlert(page)).toContainText(
       'Verify your email before signing in.'
     );
+
+    await cleanupByEmail(email);
+  });
+
+  test('legacy sailor without a new-site password gets a create-password reset from sign-in', async ({
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const password = 'Correct-Horse-Battery-Staple';
+    const userId = randomUUID();
+
+    await pool.query(
+      `INSERT INTO "user" (
+         "id",
+         "name",
+         "email",
+         "email_verified",
+         "role",
+         "app_role",
+         "created_at",
+         "updated_at"
+       ) VALUES ($1, $2, $3, true, 'user', 'user', NOW(), NOW())`,
+      [userId, 'Legacy Sailor', email]
+    );
+
+    await submitEmailPasswordSignIn({
+      email,
+      page,
+      password: invalidCredential,
+    });
+
+    await expect(formAlert(page)).toContainText(
+      'Check your email for a reset code'
+    );
+
+    const resetCode = await findLatestPasswordResetCode(email);
+    await page.goto(
+      `/reset-password?email=${encodeURIComponent(email)}&codeSent=1&mode=create-password`
+    );
+    await completeResetCodeStep(page, resetCode);
+    await submitNewPassword({
+      page,
+      password,
+      passwordConfirmation: password,
+    });
+
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+
+    const { rows } = await pool.query<{ new_password_set_at: Date | null }>(
+      `SELECT "new_password_set_at" FROM "user" WHERE "email" = $1`,
+      [email]
+    );
+    expect(rows[0]?.new_password_set_at).not.toBeNull();
+
+    await page.context().clearCookies();
+    await submitEmailPasswordSignIn({ email, page, password });
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
 
     await cleanupByEmail(email);
   });

@@ -89,7 +89,6 @@ const authCoverageFiles = [
   'src/libs/auth/reportAuthClientError.ts',
   'src/libs/auth/roles.ts',
   'src/libs/auth/server-admin.ts',
-  'src/libs/auth/signInEmailActions.ts',
   'src/libs/auth/themePreferenceActions.ts',
   'src/libs/auth/unlock-token.ts',
 ];

@@ -525,6 +525,10 @@ describe('auth', () => {
         timeCost: 3,
       }
     );
+    expect(authMocks.prisma.user.updateMany).toHaveBeenCalledWith({
+      data: { newPasswordSetAt: expect.any(Date) },
+      where: { email: 'sailor@example.com', newPasswordSetAt: null },
+    });
     expect(authMocks.sendPasswordChangedNotice).toHaveBeenCalledWith(
       'sailor@example.com'
     );

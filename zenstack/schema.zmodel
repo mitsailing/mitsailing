@@ -135,6 +135,9 @@ model User {
   sailingCardSwimAgreementInitials String? @map("sailing_card_swim_agreement_initials")
   sailingCardSwimAgreementInitialedAt DateTime? @map("sailing_card_swim_agreement_initialed_at")
   image            String?
+  // First time this user set a new-site password (sign-up or password reset).
+  // Null means they still need the go-live create-password flow.
+  newPasswordSetAt DateTime?       @map("new_password_set_at")
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
   themePreference  ThemePreference @default(SYSTEM) @map("theme_preference")

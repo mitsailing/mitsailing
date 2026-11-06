@@ -59,6 +59,13 @@ async function main() {
     },
     update: { password: passwordHash },
   });
+
+  // Seeded admin already has a new-site password. Null-only so a re-seed does
+  // not rewrite the original first-password timestamp.
+  await prisma.user.updateMany({
+    where: { id: user.id, newPasswordSetAt: null },
+    data: { newPasswordSetAt: new Date() },
+  });
 }
 
 async function run(): Promise<void> {

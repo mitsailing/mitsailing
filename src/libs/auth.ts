@@ -137,6 +137,10 @@ export const auth = betterAuth({
       },
     },
     onPasswordReset: async ({ user }) => {
+      await prisma.user.updateMany({
+        where: { email: user.email, newPasswordSetAt: null },
+        data: { newPasswordSetAt: new Date() },
+      });
       await sendPasswordChangedNotice(user.email);
     },
   },
@@ -295,6 +299,9 @@ export const auth = betterAuth({
             enMessages.AuthErrors.INVALID_EMAIL_OR_PASSWORD,
           EMAIL_NOT_VERIFIED: enMessages.AuthErrors.EMAIL_NOT_VERIFIED,
           PASSWORD_COMPROMISED: enMessages.AuthErrors.PASSWORD_COMPROMISED,
+          PASSWORD_RESET_REQUIRED:
+            enMessages.SignInPage.error_password_reset_required,
+          PASSWORD_RESET_FAILED: enMessages.SignInPage.error_reset_failed,
         },
       },
     }),

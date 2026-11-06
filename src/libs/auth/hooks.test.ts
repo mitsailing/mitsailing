@@ -11,19 +11,23 @@ const {
   create,
   deleteMany,
   findUnique,
+  requestPasswordResetEmailOTP,
   sendAccountLockedEmailMock,
   sendPasswordChangedNoticeMock,
   assertPasswordNotCompromisedMock,
   loggerError,
+  updateMany,
 } = vi.hoisted(() => ({
   count: vi.fn(),
   create: vi.fn(),
   deleteMany: vi.fn(),
   findUnique: vi.fn(),
+  requestPasswordResetEmailOTP: vi.fn(),
   sendAccountLockedEmailMock: vi.fn(),
   sendPasswordChangedNoticeMock: vi.fn(),
   assertPasswordNotCompromisedMock: vi.fn(),
   loggerError: vi.fn(),
+  updateMany: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -52,7 +56,14 @@ vi.mock('better-auth/api', () => {
 vi.mock('@/libs/DB', () => ({
   prisma: {
     failedLoginAttempt: { count, create, deleteMany },
-    user: { findUnique },
+    user: { findUnique, updateMany },
+  },
+}));
+vi.mock('@/libs/auth', () => ({
+  auth: {
+    api: {
+      requestPasswordResetEmailOTP,
+    },
   },
 }));
 vi.mock('@/libs/auth/password-compromise', () => ({
@@ -161,9 +172,11 @@ beforeEach(() => {
   create.mockResolvedValue({});
   deleteMany.mockResolvedValue({ count: 0 });
   findUnique.mockResolvedValue(null);
+  requestPasswordResetEmailOTP.mockResolvedValue({ success: true });
   sendAccountLockedEmailMock.mockImplementation(async () => {});
   sendPasswordChangedNoticeMock.mockImplementation(async () => {});
   assertPasswordNotCompromisedMock.mockImplementation(async () => {});
+  updateMany.mockResolvedValue({ count: 1 });
 });
 
 afterEach(() => {
@@ -303,6 +316,91 @@ describe('signInEmailHooks before', () => {
       )
     ).rejects.toBe(compromisedError);
   });
+
+  it('reject sign-in without a first new-site password and send reset code', async () => {
+    findUnique.mockResolvedValue({ newPasswordSetAt: null });
+
+    await expect(
+      hooks.before(
+        authContext({
+          body: { email: ' Legacy.User@Example.COM ' },
+          path: '/sign-in/email',
+          request: requestWithCfIp('203.0.113.10'),
+        })
+      )
+    ).rejects.toMatchObject({
+      body: { message: 'PASSWORD_RESET_REQUIRED' },
+      status: 'FORBIDDEN',
+    });
+
+    expect(findUnique).toHaveBeenCalledWith({
+      select: { newPasswordSetAt: true },
+      where: { email: 'legacy.user@example.com' },
+    });
+    expect(requestPasswordResetEmailOTP).toHaveBeenCalledWith({
+      body: { email: 'legacy.user@example.com' },
+      headers: expect.any(Headers),
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('allow sign-in when first new-site password is already set', async () => {
+    findUnique.mockResolvedValue({
+      newPasswordSetAt: new Date('2026-05-01T12:00:00.000Z'),
+    });
+
+    await expect(
+      hooks.before(
+        authContext({
+          body: { email: 'active@example.com' },
+          path: '/sign-in/email',
+        })
+      )
+    ).resolves.toBeUndefined();
+
+    expect(requestPasswordResetEmailOTP).not.toHaveBeenCalled();
+  });
+
+  it('reject sign-in when create-password reset email fails', async () => {
+    findUnique.mockResolvedValue({ newPasswordSetAt: null });
+    requestPasswordResetEmailOTP.mockRejectedValue(new Error('smtp down'));
+
+    await expect(
+      hooks.before(
+        authContext({
+          body: { email: 'legacy@example.com' },
+          path: '/sign-in/email',
+        })
+      )
+    ).rejects.toMatchObject({
+      body: { message: 'PASSWORD_RESET_FAILED' },
+      status: 'BAD_REQUEST',
+    });
+
+    expect(loggerError).toHaveBeenCalledWith(
+      'Failed to send password reset email OTP for first-password sign-in',
+      {
+        email: 'legacy@example.com',
+        error: expect.any(Error),
+      }
+    );
+  });
+
+  it('prefer lockout over create-password reset', async () => {
+    count.mockResolvedValue(5);
+    findUnique.mockResolvedValue({ newPasswordSetAt: null });
+
+    await expect(
+      hooks.before(
+        authContext({
+          body: { email: 'locked@example.com' },
+          path: '/sign-in/email',
+        })
+      )
+    ).rejects.toMatchObject(lockedError);
+
+    expect(requestPasswordResetEmailOTP).not.toHaveBeenCalled();
+  });
 });
 
 describe('signInEmailHooks after sign-in', () => {
@@ -422,6 +520,33 @@ describe('signInEmailHooks after sign-in', () => {
       'Failed to send account-locked email: {error}',
       { error: deliveryError }
     );
+  });
+});
+
+describe('signInEmailHooks after sign-up', () => {
+  it('mark first new-site password timestamp on sign-up', async () => {
+    await hooks.after(
+      authContext({
+        body: { email: ' New.User@Example.COM ' },
+        path: '/sign-up/email',
+      })
+    );
+
+    expect(updateMany).toHaveBeenCalledWith({
+      data: { newPasswordSetAt: new Date('2026-05-08T16:30:00.000Z') },
+      where: { email: 'new.user@example.com', newPasswordSetAt: null },
+    });
+  });
+
+  it('skip first-password mark without sign-up email', async () => {
+    await hooks.after(
+      authContext({
+        body: { email: '' },
+        path: '/sign-up/email',
+      })
+    );
+
+    expect(updateMany).not.toHaveBeenCalled();
   });
 });
 

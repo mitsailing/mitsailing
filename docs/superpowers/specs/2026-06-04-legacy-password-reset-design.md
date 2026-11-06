@@ -10,30 +10,31 @@ This slice changes the legacy user import, user credential state, Better Auth pa
 
 ## Credential State
 
-Use Better Auth's existing `account` table as the source of truth:
+`User.newPasswordSetAt` is the set-once marker for the first new-site password:
 
-- A user with a `credential` account row and non-null `password` has created a new-site password.
-- A user without that credential row has not created a new-site password and should go through create-password.
+- Null means the sailor still needs the go-live create-password flow.
+- Non-null is the first time they set a password on this site (sign-up or password reset). Later resets and password changes leave that timestamp alone.
 
-Do not duplicate this with a `User` boolean. A separate field is only justified later for a different lifecycle, such as forcing a reset for users who already have valid credentials.
+Better Auth's `account` credential row still holds the password hash. Legacy import must not create placeholder credential accounts. Better Auth creates a credential account during `/email-otp/reset-password` when one does not exist.
 
 ## Legacy Import
 
-The legacy import should continue using temporary tables and bulk SQL. Imported legacy users are inserted as `User` rows only.
-
-The import must not create placeholder credential accounts. Better Auth 1.6.13 creates a credential account during `/reset-password` and `/email-otp/reset-password` when one does not exist, so placeholder hashes only create ambiguity.
+The legacy import should continue using temporary tables and bulk SQL. Imported legacy users are inserted as `User` rows only. `new_password_set_at` stays null for those rows.
 
 Nightly sync must not insert, update, or delete Better Auth credential accounts. Once a user creates a password, the credential account stays owned by Better Auth.
 
 ## Login Flow
 
-The login page becomes email-first:
+The login page always shows email and password together and submits through `authClient.signIn.email`.
 
-- Unknown email: route to sign-up with the entered email context where possible.
-- Known user without a credential password: request a password reset OTP and route to `/reset-password` with create-password copy.
-- Known user with a credential password: reveal the password field and submit through `authClient.signIn.email`.
+Before Better Auth checks the password:
 
-The lookup should be a server action, not a public API route, to keep the database query server-only and avoid adding another auth route beside Better Auth.
+- Locked-out users still get the existing lockout response. No reset email is sent.
+- Unknown emails fall through to the normal invalid-credentials result. No sign-up redirect.
+- Known users with `newPasswordSetAt` null get a password-reset OTP and a `PASSWORD_RESET_REQUIRED` response. The form tells them to check email and set a new password.
+- Known users with `newPasswordSetAt` set continue with normal password sign-in.
+
+The first successful password reset (or sign-up) writes `newPasswordSetAt` once.
 
 ## Support Flow
 
@@ -48,6 +49,6 @@ Keep Apple Mail OTP autofill simple by avoiding duplicate plaintext code blocks 
 Use TDD for each behavior:
 
 - Legacy import SQL does not create placeholder credential accounts.
-- Login email lookup branches on Better Auth credential account existence.
-- Login email-first branching handles unknown, reset-required, and active users.
+- Sign-in blocks null `newPasswordSetAt` users, sends a reset OTP, and does not count that rejection as a failed password attempt.
+- First password reset and sign-up write `newPasswordSetAt` once and do not overwrite it later.
 - Reset page support action sends a report to `ak@callred.com`.

@@ -183,6 +183,12 @@ export class SchemaType implements SchemaDef {
                     type: "String",
                     optional: true
                 },
+                newPasswordSetAt: {
+                    name: "newPasswordSetAt",
+                    type: "DateTime",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("new_password_set_at") }] }] as readonly AttributeApplication[]
+                },
                 createdAt: {
                     name: "createdAt",
                     type: "DateTime",

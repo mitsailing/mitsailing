@@ -81,12 +81,58 @@ async function notifyPasswordChange(ctx: {
 }
 
 /**
+ * Marks the first new-site password for a user. Null-only update so later
+ * resets and password changes leave the original timestamp alone.
+ *
+ * @param email - Normalized account email
+ */
+async function markNewPasswordSetAt(email: string) {
+  await prisma.user.updateMany({
+    where: { email, newPasswordSetAt: null },
+    data: { newPasswordSetAt: new Date() },
+  });
+}
+
+/**
+ * Sends a create-password reset OTP for sailors who have not set a new-site
+ * password yet, then blocks the password check.
+ *
+ * @param options - Normalized email and optional request headers for Better Auth
+ * @throws APIError when reset is required or reset delivery fails
+ */
+async function requireNewPasswordReset(options: {
+  email: string;
+  requestHeaders: Headers | undefined;
+}) {
+  try {
+    const { auth } = await import('@/libs/auth');
+    await auth.api.requestPasswordResetEmailOTP({
+      body: { email: options.email },
+      headers: options.requestHeaders ?? new Headers(),
+    });
+  } catch (error) {
+    logger.error(
+      'Failed to send password reset email OTP for first-password sign-in',
+      {
+        email: options.email,
+        error,
+      }
+    );
+    throw new APIError('BAD_REQUEST', { message: 'PASSWORD_RESET_FAILED' });
+  }
+
+  throw new APIError('FORBIDDEN', { message: 'PASSWORD_RESET_REQUIRED' });
+}
+
+/**
  * Lockout + explicit-EMAIL_EXISTS hook pair registered on Better Auth.
  *
  * Devise Lockable parity: five failures inside 15 minutes locks the account
- * for the remainder of the window. The `/sign-up/email` override restores the
- * explicit "that email is already in the system" message that BA suppresses
- * by default for user-enumeration reasons.
+ * for the remainder of the window. Better Auth 1.7 hides duplicate emails when
+ * `requireEmailVerification` is on; we still throw EMAIL_EXISTS on purpose so
+ * sign-up can show "that email is already in the system." Sailors without
+ * `newPasswordSetAt` are sent a create-password reset before the password
+ * check runs.
  */
 export const signInEmailHooks = {
   before: createAuthMiddleware(async (ctx) => {
@@ -98,6 +144,18 @@ export const signInEmailHooks = {
       const email = normalizeEmail(ctx.body?.email);
       if (email && (await countRecentFailures(email)) >= MAX_FAILED_ATTEMPTS) {
         throw new APIError('FORBIDDEN', { message: 'ACCOUNT_LOCKED' });
+      }
+      if (email) {
+        const user = await prisma.user.findUnique({
+          where: { email },
+          select: { newPasswordSetAt: true },
+        });
+        if (user && user.newPasswordSetAt === null) {
+          await requireNewPasswordReset({
+            email,
+            requestHeaders: ctx.request?.headers,
+          });
+        }
       }
     }
 
@@ -115,6 +173,14 @@ export const signInEmailHooks = {
   after: createAuthMiddleware(async (ctx) => {
     if (ctx.path === '/change-password') {
       await notifyPasswordChange(ctx);
+      return;
+    }
+
+    if (ctx.path === '/sign-up/email') {
+      const email = normalizeEmail(ctx.body?.email);
+      if (email) {
+        await markNewPasswordSetAt(email);
+      }
       return;
     }
 
