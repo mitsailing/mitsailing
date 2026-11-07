@@ -35,6 +35,7 @@ const appSinks = buildAppLoggerSinkNames({
 });
 
 await configure({
+  reset: true,
   sinks: {
     console: getConsoleSink({ formatter: getJsonLinesFormatter() }),
     betterStack: fromAsyncSink(betterStackSink),

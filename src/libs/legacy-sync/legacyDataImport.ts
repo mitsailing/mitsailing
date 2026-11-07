@@ -1,36 +1,95 @@
-import { importLegacyEventsFromSchema } from '@/libs/legacy-sync/legacyEventImport';
+import { importLegacyEvents } from '@/libs/legacy-sync/legacyEventImport';
 import type { LegacyEventImportResult } from '@/libs/legacy-sync/legacyEventImport';
-import { importLegacyNewsFromSchema } from '@/libs/legacy-sync/legacyNewsImport';
-import type { LegacyNewsImportResult } from '@/libs/legacy-sync/legacyNewsImport';
-import { importLegacyPavilionReservationsFromSchema } from '@/libs/legacy-sync/legacyPavilionReservationImport';
+import { runLegacyImportWithAudit } from '@/libs/legacy-sync/legacyImportRun';
+import { legacyMysqlReaderFromEnv } from '@/libs/legacy-sync/legacyMysqlReader';
+import type { LegacyMysqlReader } from '@/libs/legacy-sync/legacyMysqlReader';
+import { importLegacyPavilionReservations } from '@/libs/legacy-sync/legacyPavilionReservationImport';
 import type { LegacyPavilionReservationImportResult } from '@/libs/legacy-sync/legacyPavilionReservationImport';
 import {
-  importLegacyPaymentsFromSchema,
-  importLegacyUsersFromSchema,
+  importLegacyPayments,
+  importLegacyUsers,
 } from '@/libs/legacy-sync/legacyPaymentImport';
 import type {
   LegacyPaymentImportResult,
   LegacyUserImportResult,
 } from '@/libs/legacy-sync/legacyPaymentImport';
-import { importLegacyRatingsFromSchema } from '@/libs/legacy-sync/legacyRatingImport';
+import { importLegacyRatings } from '@/libs/legacy-sync/legacyRatingImport';
 import type { LegacyRatingImportResult } from '@/libs/legacy-sync/legacyRatingImport';
 
-export type LegacyDataImportResult = {
+type LegacyDataImportResult = {
   readonly events: LegacyEventImportResult;
-  readonly news: LegacyNewsImportResult;
   readonly pavilionReservations: LegacyPavilionReservationImportResult;
   readonly payments: LegacyPaymentImportResult;
   readonly ratings: LegacyRatingImportResult;
   readonly users: LegacyUserImportResult;
 };
 
-export async function importLegacyDataFromSchema(): Promise<LegacyDataImportResult> {
-  const users = await importLegacyUsersFromSchema();
-  const events = await importLegacyEventsFromSchema();
-  const ratings = await importLegacyRatingsFromSchema();
-  const news = await importLegacyNewsFromSchema();
-  const pavilionReservations =
-    await importLegacyPavilionReservationsFromSchema();
-  const payments = await importLegacyPaymentsFromSchema();
-  return { events, news, pavilionReservations, payments, ratings, users };
+function legacyImportRowCount(result: LegacyDataImportResult): bigint {
+  const { events, pavilionReservations, payments, ratings, users } = result;
+  return BigInt(
+    users.usersCreated +
+      users.usersMatched +
+      events.eventsImported +
+      events.registrationsImported +
+      ratings.userRatingsImported +
+      pavilionReservations.imported +
+      payments.paymentsImported
+  );
+}
+
+async function importLegacyDataWithReader(
+  reader: LegacyMysqlReader
+): Promise<LegacyDataImportResult> {
+  const users = await importLegacyUsers(reader);
+  const events = await importLegacyEvents(reader);
+  const ratings = await importLegacyRatings(reader);
+  const pavilionReservations = await importLegacyPavilionReservations(reader);
+  const payments = await importLegacyPayments({ reader });
+  return { events, pavilionReservations, payments, ratings, users };
+}
+
+export type ImportLegacyDataOptions = {
+  readonly reader?: LegacyMysqlReader;
+  readonly sourceHost?: string;
+  readonly useAdvisoryLock?: boolean;
+};
+
+export type LegacyDataImportOutcome =
+  | { readonly result: LegacyDataImportResult; readonly skipped: false }
+  | { readonly skipped: true };
+
+/**
+ * Imports legacy sailing data from MySQL into app tables.
+ *
+ * @param options - Reader override, source host, and advisory-lock flag
+ * @returns Import result or a skipped outcome when the lock is held
+ */
+export async function importLegacyData(
+  options: ImportLegacyDataOptions = {}
+): Promise<LegacyDataImportOutcome> {
+  const reader = options.reader ?? legacyMysqlReaderFromEnv();
+  const ownsReader = options.reader === undefined;
+
+  try {
+    const audited = await runLegacyImportWithAudit({
+      importRows: async () => {
+        const result = await importLegacyDataWithReader(reader);
+        return result;
+      },
+      recordImportedRows: (result) => ({
+        rowCount: legacyImportRowCount(result),
+        tableCount: 11,
+      }),
+      sourceHost: options.sourceHost,
+      useAdvisoryLock: options.useAdvisoryLock,
+    });
+    if (audited.skipped) {
+      return { skipped: true };
+    }
+    return { result: audited.result, skipped: false };
+  } finally {
+    if (ownsReader) {
+      await reader.close();
+    }
+  }
 }

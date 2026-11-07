@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check, ExternalLink } from 'lucide-react';
 import type React from 'react';
 import { keyedStringItems } from '@/lib/keyedStringList';
 import { Link } from '@/libs/I18nNavigation';
@@ -13,6 +13,7 @@ import {
   parseCmsPricingBody,
 } from '@/libs/mit-sailing/cmsPricing';
 import type { PublicCmsBlock } from '@/libs/mit-sailing/cmsQueries';
+import messages from '@/locales/en.json';
 
 function pricingGridClassName(count: number): string {
   if (count === 1) {
@@ -53,6 +54,39 @@ function CmsPricingPlanLink(props: {
       {...externalCmsLinkProps(props.href)}
     >
       {props.label}
+    </a>
+  );
+}
+
+function CmsPricingDetailLink(props: {
+  href: string | null;
+  label: string | undefined;
+}) {
+  if (!props.href || !props.label) {
+    return null;
+  }
+  const className =
+    'mt-3 inline-flex items-center gap-1 text-sm leading-6 font-semibold text-primary-ink underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-mit-red focus-visible:ring-offset-2 focus-visible:outline-none';
+  const external = !isAppRelativeCmsHref(props.href);
+
+  if (!external) {
+    return (
+      // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- safeCmsHref and isAppRelativeCmsHref restrict CMS links before rendering.
+      <Link className={className} href={props.href}>
+        {props.label}
+      </Link>
+    );
+  }
+  return (
+    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- safeCmsHref restricts CMS links to http(s) URLs before rendering.
+    <a
+      className={className}
+      href={props.href}
+      {...externalCmsLinkProps(props.href)}
+    >
+      {props.label}
+      <ExternalLink aria-hidden className="size-3.5" />
+      <span className="sr-only">{` (${messages.PricingPage.pricing_chart_gym_rates_new_tab})`}</span>
     </a>
   );
 }
@@ -119,6 +153,10 @@ function CmsPricingCard(props: { plan: CmsPricingData['plans'][number] }) {
         ) : null}
       </div>
       <CmsPricingPriceRows plan={props.plan} />
+      <CmsPricingDetailLink
+        href={safeCmsHref(props.plan.detailLinkUrl)}
+        label={props.plan.detailLinkLabel}
+      />
       <CmsPricingPlanLink href={href} label={props.plan.linkLabel} />
       <ul className="mt-8 flex-1 space-y-3 text-sm/6 text-muted-foreground">
         {keyedStringItems(props.plan.features).map((entry) => (

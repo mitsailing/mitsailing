@@ -12,7 +12,6 @@ function minimalRatingInput(overrides: Partial<Record<string, unknown>> = {}) {
     windCondition: '',
     guideUrl: '',
     isVisible: true,
-    isDeprecated: false,
     ...overrides,
   };
 }

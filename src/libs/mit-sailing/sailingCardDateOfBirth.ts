@@ -154,13 +154,12 @@ export const formatSailingCardDateOfBirthInput = (value: string) => {
   }
 
   const digits = value.replaceAll(/\D/g, '').slice(0, 8);
-  if (digits.length < 2) {
+  // Keep a bare 1–2 digit month (no trailing slash) so backspace can clear the
+  // field. Insert `/` only once day digits exist.
+  if (digits.length <= 2) {
     return digits;
   }
-  if (digits.length < 4) {
-    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  }
-  if (digits.length === 4) {
+  if (digits.length <= 4) {
     return `${digits.slice(0, 2)}/${digits.slice(2)}`;
   }
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;

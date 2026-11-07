@@ -55,7 +55,11 @@ export default async function ReservePage(props: PageProps) {
       locale={locale}
       segments={[{ label: t('section_reserve_pavilion') }]}
     >
-      <SiteSectionMain maxWidth="7xl" variant="catalog">
+      <SiteSectionMain
+        className="max-w-[1100px] py-8 md:py-10"
+        maxWidth="5xl"
+        variant="catalog"
+      >
         <PavilionReservationWizard
           action={action}
           blockedRanges={blockedRanges}

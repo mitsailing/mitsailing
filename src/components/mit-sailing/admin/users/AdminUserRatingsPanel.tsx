@@ -47,8 +47,6 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
     error = t('rating_error_missing_prerequisites');
   } else if (props.errorCode === 'already_granted') {
     error = t('rating_error_already_granted');
-  } else if (props.errorCode === 'deprecated') {
-    error = t('rating_error_deprecated');
   } else if (props.errorCode) {
     error = t('rating_error_unknown');
   }
@@ -88,17 +86,10 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
           {props.rows.map((row) => {
             let grantDisabledMessage: string | null = null;
             if (!row.eligibility.eligible) {
-              if (row.eligibility.reason === 'missing_prerequisites') {
-                grantDisabledMessage = t(
-                  'rating_grant_disabled_missing_prerequisites'
-                );
-              } else if (row.eligibility.reason === 'deprecated') {
-                grantDisabledMessage = t('rating_grant_disabled_deprecated');
-              } else {
-                grantDisabledMessage = t(
-                  'rating_grant_disabled_already_granted'
-                );
-              }
+              grantDisabledMessage =
+                row.eligibility.reason === 'missing_prerequisites'
+                  ? t('rating_grant_disabled_missing_prerequisites')
+                  : t('rating_grant_disabled_already_granted');
             }
             const grantDisabledMessageId = `${row.id}-grant-disabled`;
             let ratingAction = null;
@@ -147,11 +138,6 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
                   <div className="font-semibold text-foreground">
                     {row.name}
                   </div>
-                  {row.isDeprecated ? (
-                    <div className="text-xs text-muted-foreground">
-                      {t('rating_status_deprecated')}
-                    </div>
-                  ) : null}
                 </TableCell>
                 <TableCell>
                   {row.issuedAt

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   importLegacyPavilionReservationRows,
-  importLegacyPavilionReservationsFromSchema,
+  importLegacyPavilionReservations,
   legacyPavilionReservationRowsFromCsv,
   legacyReservationReferenceCode,
   legacyReservationSlotDeleteWhere,
@@ -49,7 +49,7 @@ vi.mock('@/libs/DB', () => ({
 describe('legacyPavilionReservationImport', () => {
   it('exposes import entrypoints', () => {
     expect(importLegacyPavilionReservationRows).toBeTypeOf('function');
-    expect(importLegacyPavilionReservationsFromSchema).toBeTypeOf('function');
+    expect(importLegacyPavilionReservations).toBeTypeOf('function');
   });
 
   it('parses legacy pavilion csv rows', () => {

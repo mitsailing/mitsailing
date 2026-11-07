@@ -7,6 +7,7 @@ import type {
   UseFormRegister,
   UseFormSetValue,
 } from 'react-hook-form';
+import { useFormState } from 'react-hook-form';
 import { SailingCardType } from '@/generated/prisma/enums';
 import type { SailingAffiliation } from '@/generated/prisma/enums';
 import { cn } from '@/lib/utils';
@@ -20,7 +21,10 @@ import type {
   SailingCardOnboardingFormValues,
 } from '@/libs/mit-sailing/sailingCardOnboardingActions';
 import { ariaInvalidWhenShown } from '@/utils/ariaInvalidWhenShown';
-import { FieldError } from './SailingCardOnboardingFieldError';
+import {
+  FieldError,
+  isOnboardingFieldInvalid,
+} from './SailingCardOnboardingFieldError';
 import { fieldErrorId } from './SailingCardOnboardingFormHelpers';
 
 const usdFormatter = new Intl.NumberFormat('en-US', {
@@ -188,12 +192,18 @@ function FitnessMembershipQuestion(props: {
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
+  const { dirtyFields } = useFormState({ name: 'hasFitnessMembership' });
   const error = props.state.fieldErrors.hasFitnessMembership;
   const clientError = props.clientErrors.hasFitnessMembership;
+  const showError = isOnboardingFieldInvalid({
+    clientInvalid: clientError !== undefined,
+    fieldIsDirty: dirtyFields.hasFitnessMembership === true,
+    serverInvalid: error !== undefined,
+  });
   const helpId = 'sailing-card-onboarding-hasFitnessMembership-help';
   const describedBy = cn(
     helpId,
-    error || clientError ? fieldErrorId('hasFitnessMembership') : undefined
+    showError ? fieldErrorId('hasFitnessMembership') : undefined
   );
   const registration = props.register('hasFitnessMembership', {
     required: 'error_required',
@@ -211,7 +221,7 @@ function FitnessMembershipQuestion(props: {
       className="flex flex-col gap-2"
       aria-describedby={describedBy}
       aria-invalid={ariaInvalidWhenShown({
-        shown: Boolean(error ?? clientError),
+        shown: showError,
         invalid: true,
       })}
     >
@@ -365,8 +375,14 @@ function CardTypeSelect(props: {
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
+  const { dirtyFields } = useFormState({ name: 'cardType' });
   const cardTypeError = props.state.fieldErrors.cardType;
   const cardTypeClientError = props.clientErrors.cardType;
+  const showError = isOnboardingFieldInvalid({
+    clientInvalid: cardTypeClientError !== undefined,
+    fieldIsDirty: dirtyFields.cardType === true,
+    serverInvalid: cardTypeError !== undefined,
+  });
   const helpId = 'sailing-card-type-help';
   const noFitnessPathId = 'sailing-card-type-no-fitness-path';
   const cardTypes = [
@@ -380,12 +396,10 @@ function CardTypeSelect(props: {
       aria-describedby={cn(
         helpId,
         props.hasFitnessMembershipValue === 'no' ? noFitnessPathId : undefined,
-        cardTypeError || cardTypeClientError
-          ? fieldErrorId('cardType')
-          : undefined
+        showError ? fieldErrorId('cardType') : undefined
       )}
       aria-invalid={ariaInvalidWhenShown({
-        shown: Boolean(cardTypeError ?? cardTypeClientError),
+        shown: showError,
         invalid: true,
       })}
       className="flex flex-col gap-2"
@@ -499,7 +513,7 @@ export function CardRequestSection(props: {
   });
 
   return (
-    <section className="flex flex-col gap-3 border-t border-border pt-5">
+    <section className="flex flex-col gap-3 pt-6">
       <h2 className="text-base font-semibold text-foreground">
         {t('card_request_heading')}
       </h2>

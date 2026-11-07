@@ -26,7 +26,7 @@ import type { CatalogScopedListState } from '@/libs/admin/catalog/scopedCatalogL
 import type { CatalogRow } from '@/libs/admin/catalog/types';
 import { requirePermission } from '@/libs/auth/dal';
 import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
-import { siteAlertsNewCatalogDefaults } from '@/libs/mit-sailing/siteAlertAdminDefaults';
+import { newsNewCatalogDefaults } from '@/libs/mit-sailing/newsAdminDefaults';
 
 type PageProps = {
   params: Promise<{ locale: string; resource: string }>;
@@ -103,8 +103,8 @@ function catalogNewRowDefaults(props: {
   resource: CatalogResourceId;
   scopedList: CatalogScopedListState | undefined;
 }): CatalogRow | undefined {
-  if (props.resource === 'site_alerts') {
-    return siteAlertsNewCatalogDefaults();
+  if (props.resource === 'news') {
+    return newsNewCatalogDefaults();
   }
   if (props.resource === 'cms_page_blocks' && props.scopedList?.selectedValue) {
     return { pageId: props.scopedList.selectedValue };

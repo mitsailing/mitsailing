@@ -14,6 +14,8 @@ export type CmsPricingPlan = {
   badge?: string;
   linkLabel?: string;
   linkUrl?: string;
+  detailLinkLabel?: string;
+  detailLinkUrl?: string;
   features: string[];
   highlighted?: boolean;
 };
@@ -109,6 +111,10 @@ function planFromUnknown(value: unknown): CmsPricingPlan | null {
     badge: stringFromUnknown(propertyFromUnknown(value, 'badge')),
     linkLabel: stringFromUnknown(propertyFromUnknown(value, 'linkLabel')),
     linkUrl: urlFromUnknown(propertyFromUnknown(value, 'linkUrl')),
+    detailLinkLabel: stringFromUnknown(
+      propertyFromUnknown(value, 'detailLinkLabel')
+    ),
+    detailLinkUrl: urlFromUnknown(propertyFromUnknown(value, 'detailLinkUrl')),
     features,
     highlighted: booleanFromUnknown(propertyFromUnknown(value, 'highlighted')),
   };

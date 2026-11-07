@@ -309,55 +309,55 @@ const sailingClassesDefinition = {
   capabilities: catalogCapabilitiesCrudReorder,
 } as const satisfies CatalogResourceDefinition;
 
-const siteAlertsDefinition = {
-  id: 'site_alerts',
-  titleKey: 'title_admin_catalog_site_alerts',
-  metaTitleKey: 'meta_title_admin_catalog_site_alerts',
-  hubLabelKey: 'hub_label_site_alerts',
+const newsDefinition = {
+  id: 'news',
+  titleKey: 'title_admin_catalog_news',
+  metaTitleKey: 'meta_title_admin_catalog_news',
+  hubLabelKey: 'hub_label_news',
   listColumns: [
     {
       field: 'bodyPlainText',
       kind: 'string',
-      headerKey: 'column_site_alert_message',
+      headerKey: 'column_body',
     },
     {
       field: 'isPublished',
       kind: 'visibility',
-      headerKey: 'column_site_alert_published',
+      headerKey: 'column_news_published',
     },
     {
       field: 'startDateLabel',
       kind: 'string',
-      headerKey: 'column_site_alert_start_date',
+      headerKey: 'column_news_start_date',
     },
     {
       field: 'lastDateLabel',
       kind: 'string',
-      headerKey: 'column_site_alert_last_date',
+      headerKey: 'column_news_last_date',
     },
   ],
   formFields: [
     {
       field: 'body',
-      kind: 'text',
-      labelKey: 'field_site_alert_message',
+      kind: 'newsBody',
+      labelKey: 'field_body',
     },
     {
       field: 'startDate',
       kind: 'date',
       required: true,
-      labelKey: 'field_site_alert_start_date',
+      labelKey: 'field_news_start_date',
     },
     {
       field: 'lastDate',
       kind: 'date',
       required: true,
-      labelKey: 'field_site_alert_last_date',
+      labelKey: 'field_news_last_date',
     },
     {
       field: 'isPublished',
       kind: 'boolean',
-      labelKey: 'field_site_alert_published',
+      labelKey: 'field_news_published',
     },
   ],
   capabilities: {
@@ -384,12 +384,6 @@ const sailingRatingsDefinition = {
       headerKey: 'column_wind_condition_label',
     },
     { field: 'isVisible', kind: 'visibility', headerKey: 'column_status' },
-    {
-      field: 'isDeprecated',
-      kind: 'boolean',
-      headerKey: 'column_deprecated_label',
-      booleanPolarity: 'badWhenTrue',
-    },
     {
       field: 'displayOrder',
       kind: 'number',
@@ -423,11 +417,6 @@ const sailingRatingsDefinition = {
     },
     { field: 'guideUrl', kind: 'url', labelKey: 'field_guide_url' },
     { field: 'isVisible', kind: 'boolean', labelKey: 'field_visible' },
-    {
-      field: 'isDeprecated',
-      kind: 'boolean',
-      labelKey: 'field_deprecated',
-    },
   ],
   capabilities: { create: true, update: true, delete: true, reorder: true },
 } as const satisfies CatalogResourceDefinition;
@@ -766,7 +755,7 @@ const pavilionSpacesDefinition = {
   publicViewHrefField: 'publicSpaceUrl',
 } as const satisfies CatalogResourceDefinition;
 
-export const CATALOG_RESOURCE_IDS = [
+const CATALOG_RESOURCE_IDS = [
   'donation_funds',
   'event_categories',
   'class_categories',
@@ -774,7 +763,7 @@ export const CATALOG_RESOURCE_IDS = [
   'sailing_ratings',
   'sailing_rating_rules',
   'fleet',
-  'site_alerts',
+  'news',
   'pavilion_spaces',
   'cms_pages',
   'cms_page_blocks',
@@ -795,7 +784,7 @@ export const catalogResourceDefinitions: Record<
   sailing_ratings: sailingRatingsDefinition,
   sailing_rating_rules: sailingRatingRulesDefinition,
   fleet: fleetDefinition,
-  site_alerts: siteAlertsDefinition,
+  news: newsDefinition,
   pavilion_spaces: pavilionSpacesDefinition,
   cms_pages: cmsPagesDefinition,
   cms_page_blocks: cmsPageBlocksDefinition,

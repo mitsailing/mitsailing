@@ -10,6 +10,7 @@ import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
 import type { PublicEventRegistrationFormState } from '@/libs/mit-sailing/eventRegistrationActions';
+import { collectEventRegistrationClientFieldErrors } from '@/libs/mit-sailing/eventRegistrationClientValidation';
 import type { EventRegistrationMutationCode } from '@/libs/mit-sailing/eventRegistrationErrors';
 import { eventUsesLearnToSailWaitlist } from '@/libs/mit-sailing/learnToSailEvents';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
@@ -90,6 +91,39 @@ function fieldErrorMessage(props: {
 }): string | null {
   const code = props.state.fieldErrors[props.name];
   return code ? props.labels.errorMessages[code] : null;
+}
+
+function registrationDisplayState(props: {
+  clientFieldErrors: Record<string, EventRegistrationMutationCode>;
+  dismissedFieldNames: ReadonlySet<string>;
+  state: PublicEventRegistrationFormState;
+}): PublicEventRegistrationFormState {
+  const fieldErrors: Record<string, EventRegistrationMutationCode> = {
+    ...props.clientFieldErrors,
+  };
+  for (const [name, code] of Object.entries(props.state.fieldErrors)) {
+    if (props.dismissedFieldNames.has(name) || name in fieldErrors) {
+      continue;
+    }
+    fieldErrors[name] = code;
+  }
+  return {
+    ...props.state,
+    fieldErrors,
+  };
+}
+
+function controlNameFromEventTarget(target: EventTarget | null): string | null {
+  if (
+    !(
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLSelectElement ||
+      target instanceof HTMLTextAreaElement
+    )
+  ) {
+    return null;
+  }
+  return target.name || null;
 }
 
 function prefersReducedMotion(): boolean {
@@ -184,6 +218,7 @@ function restoreFormValues(
 }
 
 function QuestionField(props: {
+  onFieldInteraction: (name: string) => void;
   question: PublicEventDetail['registrationQuestions'][number];
   labels: EventRegistrationFormLabels;
   state: PublicEventRegistrationFormState;
@@ -254,6 +289,9 @@ function QuestionField(props: {
               defaultChecked={fieldValues(props.state, name).includes('true')}
               id={switchId}
               name={name}
+              onCheckedChange={() => {
+                props.onFieldInteraction(name);
+              }}
               required={props.question.required}
             />
             <HeadlessLabel className="min-w-0 flex-1 cursor-pointer leading-relaxed font-normal text-mit-text">
@@ -294,6 +332,7 @@ function QuestionField(props: {
 
 function SwimAgreementField(props: {
   labels: EventRegistrationFormLabels;
+  onFieldInteraction: (name: string) => void;
   state: PublicEventRegistrationFormState;
 }) {
   const errorId = 'event-registration-swim-error';
@@ -314,7 +353,7 @@ function SwimAgreementField(props: {
         {props.labels.swimAgreementHeading}
         <RequiredMarker label={props.labels.required} />
       </h3>
-      <Field className="flex items-start gap-3 rounded-md border border-border bg-card p-4 text-sm text-mit-text">
+      <Field className="flex items-start gap-3 text-sm text-mit-text">
         <RegistrationBooleanSwitch
           aria-describedby={
             errorMessage
@@ -334,6 +373,9 @@ function SwimAgreementField(props: {
           ).includes('true')}
           id="event-registration-swim-agreement-switch"
           name="swimAgreementAccepted"
+          onCheckedChange={() => {
+            props.onFieldInteraction('swimAgreementAccepted');
+          }}
           required
         />
         <HeadlessLabel
@@ -481,7 +523,7 @@ function TeamBoatMemberField(props: {
   });
 
   return (
-    <div className="grid gap-2 rounded-md border border-border bg-card p-4 text-sm text-mit-text sm:grid-cols-2">
+    <div className="grid gap-4 text-sm text-mit-text sm:grid-cols-2">
       <div className="flex min-w-0 flex-col gap-2">
         <label
           className="w-full px-0 font-semibold text-mit-text"
@@ -645,6 +687,7 @@ function TeamRegistrationFields(props: {
 function RegistrationQuestions(props: {
   event: PublicEventDetail;
   labels: EventRegistrationFormLabels;
+  onFieldInteraction: (name: string) => void;
   state: PublicEventRegistrationFormState;
 }) {
   if (props.event.registrationQuestions.length === 0) {
@@ -663,6 +706,7 @@ function RegistrationQuestions(props: {
           <QuestionField
             key={question.id}
             labels={props.labels}
+            onFieldInteraction={props.onFieldInteraction}
             question={question}
             state={props.state}
           />
@@ -697,7 +741,7 @@ function RegistrationFeeSummary(props: {
           invalid: true,
         })}
         aria-labelledby="event-registration-fees-heading"
-        className="rounded-lg border border-border bg-card p-4"
+        className="min-w-0"
       >
         <legend
           className="mb-3 font-mit-serif text-lg font-semibold tracking-tight text-mit-text"
@@ -736,10 +780,7 @@ function RegistrationFeeSummary(props: {
     );
   }
   return (
-    <section
-      aria-labelledby="event-registration-fees-heading"
-      className="rounded-lg border border-border bg-card p-4"
-    >
+    <section aria-labelledby="event-registration-fees-heading">
       <h3
         className="mb-3 font-mit-serif text-lg font-semibold tracking-tight text-mit-text"
         id="event-registration-fees-heading"
@@ -787,7 +828,7 @@ function LearnToSailRankingContext(props: {
   return (
     <section
       aria-label={props.labels.learnToSailRankingHeading}
-      className="rounded-lg border border-mit-red/20 bg-mit-red-highlight/60 px-4 py-3 motion-safe:animate-in motion-safe:duration-200 motion-safe:fade-in-0 motion-reduce:animate-none"
+      className="rounded-lg bg-mit-red-highlight/60 px-4 py-3 motion-safe:animate-in motion-safe:duration-200 motion-safe:fade-in-0 motion-reduce:animate-none"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-mit-serif text-base font-semibold tracking-tight text-mit-text">
@@ -816,7 +857,7 @@ function RegistrationNextStep(props: {
   return (
     <section
       aria-label={props.labels.nextStepHeading}
-      className="rounded-lg border border-mit-line bg-muted/30 px-4 py-3 motion-safe:animate-in motion-safe:duration-200 motion-safe:fade-in-0 motion-reduce:animate-none"
+      className="motion-safe:animate-in motion-safe:duration-200 motion-safe:fade-in-0 motion-reduce:animate-none"
     >
       <h3 className="font-mit-serif text-base font-semibold tracking-tight text-mit-text">
         {props.labels.nextStepHeading}
@@ -834,14 +875,43 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
     initialRegistrationFormState,
     props.formPermalink
   );
+  const [clientFieldErrors, setClientFieldErrors] = React.useState<
+    Record<string, EventRegistrationMutationCode>
+  >({});
+  const [dismissedFieldNames, setDismissedFieldNames] = React.useState(
+    () => new Set<string>()
+  );
   const formRef = React.useRef<HTMLFormElement>(null);
+  const displayState = registrationDisplayState({
+    clientFieldErrors,
+    dismissedFieldNames,
+    state,
+  });
   const submitLabel = props.event.requiresApproval
     ? props.labels.submitRequestButton
     : props.labels.confirmButton;
   const formError =
-    state.status === 'error' && Object.keys(state.fieldErrors).length === 0
+    state.status === 'error' &&
+    Object.keys(displayState.fieldErrors).length === 0
       ? props.labels.errorMessages[state.code ?? 'unknown']
       : null;
+
+  const dismissFieldError = (name: string) => {
+    setDismissedFieldNames((current) => {
+      if (current.has(name)) {
+        return current;
+      }
+      return new Set([...current, name]);
+    });
+    setClientFieldErrors((current) => {
+      if (!(name in current)) {
+        return current;
+      }
+      return Object.fromEntries(
+        Object.entries(current).filter(([fieldName]) => fieldName !== name)
+      );
+    });
+  };
 
   React.useEffect(() => {
     if (state.status !== 'error') {
@@ -852,6 +922,19 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
       return;
     }
     restoreFormValues(form, state.values);
+  }, [state]);
+
+  React.useEffect(() => {
+    const hasClientErrors = Object.keys(clientFieldErrors).length > 0;
+    const hasServerFieldErrors =
+      state.status === 'error' && Object.keys(state.fieldErrors).length > 0;
+    if (!hasClientErrors && !hasServerFieldErrors) {
+      return;
+    }
+    const form = formRef.current;
+    if (!form) {
+      return;
+    }
     const target = form.querySelector<HTMLElement>('[aria-invalid="true"]');
     if (!target) {
       return;
@@ -861,13 +944,40 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
       behavior: prefersReducedMotion() ? 'auto' : 'smooth',
       block: 'center',
     });
-  }, [state]);
+  }, [clientFieldErrors, state]);
 
   return (
     <form
       action={formAction}
       className="flex flex-col gap-4"
       noValidate
+      onChange={(event) => {
+        const name = controlNameFromEventTarget(event.target);
+        if (name) {
+          dismissFieldError(name);
+        }
+      }}
+      onInput={(event) => {
+        const name = controlNameFromEventTarget(event.target);
+        if (name) {
+          dismissFieldError(name);
+        }
+      }}
+      onSubmit={(event) => {
+        const formData = new FormData(event.currentTarget);
+        const nextClientErrors = collectEventRegistrationClientFieldErrors({
+          event: props.event,
+          formData,
+        });
+        if (Object.keys(nextClientErrors).length > 0) {
+          event.preventDefault();
+          setDismissedFieldNames(new Set());
+          setClientFieldErrors(nextClientErrors);
+          return;
+        }
+        setClientFieldErrors({});
+        setDismissedFieldNames(new Set());
+      }}
       ref={formRef}
     >
       {formError ? (
@@ -889,24 +999,29 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
         event={props.event}
         labels={props.labels}
         locale={props.locale}
-        state={state}
+        state={displayState}
       />
       <TeamRegistrationFields
         event={props.event}
         labels={props.labels}
-        state={state}
+        state={displayState}
       />
       <RegistrationQuestions
         event={props.event}
         labels={props.labels}
-        state={state}
+        onFieldInteraction={dismissFieldError}
+        state={displayState}
       />
       <PhoneField
         initialPhone={props.initialPhone ?? null}
         labels={props.labels}
-        state={state}
+        state={displayState}
       />
-      <SwimAgreementField labels={props.labels} state={state} />
+      <SwimAgreementField
+        labels={props.labels}
+        onFieldInteraction={dismissFieldError}
+        state={displayState}
+      />
       <RegistrationNextStep event={props.event} labels={props.labels} />
 
       <SubmitButton

@@ -1,5 +1,7 @@
 import { prisma } from '@/libs/DB';
 import { decodeBasicLegacyEntities } from '@/libs/legacy-sync/legacyHtmlEntities';
+import type { LegacyMysqlReader } from '@/libs/legacy-sync/legacyMysqlReader';
+import { legacyMysqlReaderFromEnv } from '@/libs/legacy-sync/legacyMysqlReader';
 import { logger } from '@/libs/Logger';
 import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
 import { pavilionReservationStoredSlotMinutesFromRaw } from '@/libs/mit-sailing/pavilionReservationSlotMinutes';
@@ -548,11 +550,9 @@ export async function importLegacyPavilionReservationRows(
   return { imported, skipped };
 }
 
-export async function importLegacyPavilionReservationsFromSchema(): Promise<LegacyPavilionReservationImportResult> {
-  const rows = await prisma.$queryRaw<LegacyReservationDbRow[]>`
-    SELECT *
-    FROM legacy.reservations
-    ORDER BY resid
-  `;
+export async function importLegacyPavilionReservations(
+  reader: LegacyMysqlReader = legacyMysqlReaderFromEnv()
+): Promise<LegacyPavilionReservationImportResult> {
+  const rows = await reader.fetchReservations();
   return importLegacyPavilionReservationRows(rows);
 }

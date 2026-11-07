@@ -12,6 +12,10 @@ vi.mock('@/libs/admin/events/eventAdminQueries', () => ({
     value === 'all' ? 'all' : 'my',
 }));
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 vi.mock('@/libs/I18nNavigation', () => ({
   Link: (props: React.ComponentProps<'a'>) => {
     const { children, ...anchorProps } = props;
@@ -26,7 +30,7 @@ const t = createTranslator({
 });
 
 describe('AdminEventsListView', () => {
-  it('preserves all-events scope when resetting filters', () => {
+  it('shows active filter chips and reset link when filters are applied', () => {
     render(
       <AdminEventsListView
         categories={[{ id: 'category-1', name: 'Clinic' }]}
@@ -37,7 +41,11 @@ describe('AdminEventsListView', () => {
       />
     );
 
-    expect(screen.getByRole('link', { name: 'Reset' })).toHaveAttribute(
+    expect(screen.getByText('Category: Clinic')).toBeVisible();
+    expect(
+      screen.getAllByRole('link', { name: 'Reset' }).length
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Reset' })[0]).toHaveAttribute(
       'href',
       '/admin/events?scope=all'
     );

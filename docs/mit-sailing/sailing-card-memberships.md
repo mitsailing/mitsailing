@@ -29,12 +29,13 @@ MIT Recreation publishes 12-month memberships as monthly dues and has many eligi
 
 ## Pricing model
 
-Pavilion racing uses the racing-card pricing model:
+Pavilion racing sells the full-year racing-card price year-round. Spring/before-July-15 racing prices are retired from new sales; historical spring price rows may remain inactive for payment history.
 
 | Timing | Other student | Non-student under 30 | Non-student 30-plus |
 |---|---:|---:|---:|
-| Spring, before July 15 | $25 | $70 | $100 |
-| Full year, July 15 or later | $40 | $125 | $175 |
+| Full year | $40 | $125 | $175 |
+
+Sailing-card pricing still resets each July 15 for renewals. Members complete onboarding and pay again before picking up a new card number for the next card year.
 
 Thursday team racing uses the summer-only team-racing pricing model:
 

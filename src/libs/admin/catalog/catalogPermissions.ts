@@ -17,7 +17,7 @@ const CATALOG_RESOURCE_PERMISSIONS = {
   sailing_classes: Permission.SAILING_CLASSES_MANAGE,
   sailing_rating_rules: Permission.SAILING_RATING_RULES_MANAGE,
   sailing_ratings: Permission.SAILING_RATINGS_MANAGE,
-  site_alerts: Permission.SITE_ALERTS_MANAGE,
+  news: Permission.NEWS_MANAGE,
 } as const satisfies Partial<Record<CatalogResourceId, Permission>>;
 const CATALOG_RESOURCE_PERMISSION_LOOKUP: Readonly<
   Record<string, Permission | undefined>
@@ -58,11 +58,4 @@ export function catalogPermissionForOperation(props: {
   throw new Error(
     `Missing catalog permission mapping for resource "${props.resourceId}" and operation "${props.operation}"`
   );
-}
-
-export function catalogPermissionsForOperation(props: {
-  operation: CatalogPermissionOperation;
-  resourceId: CatalogResourceId;
-}): readonly Permission[] {
-  return [catalogPermissionForOperation(props)];
 }

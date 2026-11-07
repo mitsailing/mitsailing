@@ -140,6 +140,79 @@ node scripts/sync-prod-media.mjs \
   --local-root local/cms-media
 ```
 
+## Legacy MySQL Import (Local)
+
+Use this when you need legacy users, events, ratings, news, Pavilion reservations,
+or payments from the Pavilion MySQL database.
+
+There is no HTTP URL for this job. Production uses the BullMQ worker cron (see
+below). Locally, tunnel through `sailing-dock.mit.edu` and override the host and
+port:
+
+```shell
+ssh -N -L 127.0.0.1:13306:sailing.pavilion.lan:3306 ak@sailing-dock.mit.edu
+```
+
+Add to `.env` (see `.env.example`):
+
+```dotenv
+LEGACY_MYSQL_PASSWORD=<dock_readonly password>
+LEGACY_MYSQL_HOST=127.0.0.1
+LEGACY_MYSQL_PORT=13306
+```
+
+Run with Postgres up (`npm run dev` or `npm run db:up`):
+
+```shell
+npm run legacy:import
+```
+
+That reads the needed legacy tables from MySQL and imports users, events,
+ratings, news, Pavilion reservations, and payments into app tables.
+
+Safety guards:
+
+- `LEGACY_MYSQL_SYNC_ENABLED=true` is rejected outside production, so the
+  worker never schedules production sync locally.
+- The import script aborts outside production unless `DATABASE_URL` targets
+  `dev_db` on `127.0.0.1` or `localhost`.
+
+App tables are upserted by legacy keys; event dates for legacy events are replaced.
+Passwords and Better Auth credential accounts are never overwritten.
+
+## Legacy MySQL Import (Production)
+
+The production image does not ship `npm run legacy:import`. Enable the worker
+cron on the host instead.
+
+1. Edit `apps/mitsailing/.env.production.worker` from
+   `.env.production.worker.example`:
+
+   ```dotenv
+   LEGACY_MYSQL_SYNC_ENABLED=true
+   LEGACY_MYSQL_PASSWORD=<dock_readonly password>
+   LEGACY_MYSQL_SYNC_CRON="0 0 6 * * *"
+   ```
+
+2. Leave host and port unset. The worker connects as `dock_readonly` to
+   `sailing.pavilion.lan:3306`, database `sailing`.
+
+3. Recreate the worker so it reloads that env file:
+
+   ```shell
+   cd apps/mitsailing
+   PRODUCTION_DATA_ROOT=/srv/mitsailing-data docker compose \
+     -f compose.yaml -f compose.prod.yaml --profile release \
+     --env-file .env.production --env-file .env.image \
+     up -d --force-recreate worker
+   ```
+
+4. Wait for the schedule. Default is 6:00am US Eastern
+   (`America/New_York`). The import does not run at container start.
+
+For a sooner one-off, temporarily set `LEGACY_MYSQL_SYNC_CRON` to a near
+six-field BullMQ time, recreate the worker, then restore `0 0 6 * * *`.
+
 ## Port Overrides
 
 If a default port is already in use, change the matching value in `.env`:

@@ -42,6 +42,21 @@ export function isRole(value: unknown): value is Role {
 }
 
 /**
+ * Returns the AdminUsers message key for a known app role.
+ *
+ * @param role - Stored app role
+ * @returns next-intl message key, or null when the role is unknown
+ */
+export function roleLabelKey(role: string) {
+  for (const definition of ROLE_DEFINITIONS) {
+    if (definition.key === role) {
+      return definition.labelKey;
+    }
+  }
+  return null;
+}
+
+/**
  * Maps persisted or API role strings onto a single {@link Role}, defaulting to user.
  *
  * @param role - Raw role from session or DB

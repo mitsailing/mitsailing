@@ -9,13 +9,13 @@ import {
 } from '@/libs/admin/catalog/cmsCatalogHandlers';
 import { donationFundsCatalogHandlers } from '@/libs/admin/catalog/donationFundsHandlers';
 import { fleetCatalogHandlers } from '@/libs/admin/catalog/fleetCatalogHandlers';
+import { newsCatalogHandlers } from '@/libs/admin/catalog/newsCatalogHandlers';
 import { pavilionSpacesCatalogHandlers } from '@/libs/admin/catalog/pavilionSpacesHandlers';
 import { sailingClassesCatalogHandlers } from '@/libs/admin/catalog/sailingClassesHandlers';
 import {
   sailingRatingRulesCatalogHandlers,
   sailingRatingsCatalogHandlers,
 } from '@/libs/admin/catalog/sailingRatingsHandlers';
-import { siteAlertsCatalogHandlers } from '@/libs/admin/catalog/siteAlertsCatalogHandlers';
 import type { CatalogServerHandlers } from '@/libs/admin/catalog/types';
 import { createZenStackCatalogHandlers } from '@/libs/admin/catalog/zenstackCatalogHandlers';
 
@@ -31,7 +31,7 @@ const catalogServerHandlers: Record<CatalogResourceId, CatalogServerHandlers> =
     sailing_ratings: sailingRatingsCatalogHandlers,
     sailing_rating_rules: sailingRatingRulesCatalogHandlers,
     fleet: fleetCatalogHandlers,
-    site_alerts: siteAlertsCatalogHandlers,
+    news: newsCatalogHandlers,
     pavilion_spaces: pavilionSpacesCatalogHandlers,
     cms_pages: cmsPagesCatalogHandlers,
     cms_page_blocks: cmsPageBlocksCatalogHandlers,

@@ -112,7 +112,7 @@ export function OnboardingFormFields(props: {
   readonly state: SailingCardOnboardingFormState;
 }) {
   return (
-    <>
+    <div className="flex flex-col gap-2">
       <AffiliationSelect
         affiliation={props.affiliation}
         clientErrors={props.clientErrors}
@@ -160,6 +160,6 @@ export function OnboardingFormFields(props: {
           state={props.state}
         />
       ) : null}
-    </>
+    </div>
   );
 }

@@ -99,7 +99,7 @@ describe('SiteHeader', () => {
 
     const banner = screen.getByRole('banner');
     expect(
-      within(banner).getByRole('link', { name: 'MITSailing' })
+      within(banner).getByRole('link', { name: 'MIT Sailing' })
     ).toHaveAttribute('href', '/');
 
     const primaryNav = within(banner).getByRole('navigation', {

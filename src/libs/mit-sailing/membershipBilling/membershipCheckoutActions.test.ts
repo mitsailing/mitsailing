@@ -97,14 +97,14 @@ type PaymentFindFirstResult =
 
 const dueTodayPrice = {
   active: true,
-  amountCents: 7000,
+  amountCents: 12_500,
   billingInterval: SailingCardMembershipBillingInterval.one_time,
   cardType: SailingCardType.racing,
   currency: 'usd',
   effectiveAt: new Date('2026-01-01T00:00:00.000Z'),
   id: 'price_initial',
   priceCategory: SailingCardMembershipPriceCategory.under_30,
-  priceKind: SailingCardMembershipPriceKind.spring,
+  priceKind: SailingCardMembershipPriceKind.full,
   stripePriceId: 'price_stripe_initial',
   stripeSyncError: null,
   stripeSyncedAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -218,10 +218,10 @@ describe('membershipCheckoutActions', () => {
     expect(paymentCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          amountCents: 7000,
+          amountCents: 12_500,
           cardType: SailingCardType.racing,
           membershipConsentSnapshot: expect.objectContaining({
-            amountDueTodayCents: 7000,
+            amountDueTodayCents: 12_500,
             paymentMethodDisclosureKey:
               'membership_checkout_wallet_payment_disclosure',
             termsVersion: '2026-06-06-payment-only',

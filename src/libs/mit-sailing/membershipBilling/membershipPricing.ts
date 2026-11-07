@@ -2,14 +2,11 @@ import {
   SailingAffiliation,
   SailingCardMembershipBillingInterval,
   SailingCardMembershipPriceCategory,
-} from '@/generated/prisma/enums';
-import type {
-  SailingCardType,
   SailingCardMembershipPriceKind,
 } from '@/generated/prisma/enums';
+import type { SailingCardType } from '@/generated/prisma/enums';
 import { nyYmd } from '@/lib/mit-sailing/nyTime';
 import { prisma } from '@/libs/DB';
-import { membershipPriceKindForDate } from '@/libs/mit-sailing/membershipBilling/membershipBillingDates';
 import { parseSailingCardDateOfBirth } from '@/libs/mit-sailing/sailingCardDateOfBirth';
 import { hasStudentPaidRacingPrice } from '@/libs/mit-sailing/sailingCardMembership';
 
@@ -266,7 +263,7 @@ export async function getCheckoutMembershipPrices(options: {
     billingInterval: SailingCardMembershipBillingInterval.one_time,
     effectiveAt: { lte: options.now },
     priceCategory: dueTodayCategory,
-    priceKind: membershipPriceKindForDate(options.now),
+    priceKind: SailingCardMembershipPriceKind.full,
   };
   const prices = await (
     options.client ?? prisma

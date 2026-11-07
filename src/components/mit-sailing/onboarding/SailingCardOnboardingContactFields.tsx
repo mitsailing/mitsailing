@@ -1,6 +1,9 @@
+'use client';
+
 import { useTranslations } from 'next-intl';
 import type * as React from 'react';
 import type { FieldErrors, UseFormRegister } from 'react-hook-form';
+import { useFormState } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -18,7 +21,10 @@ import {
   normalizeInternationalPhone,
   normalizeUsPhone,
 } from '@/utils/phoneValidation';
-import { FieldError } from './SailingCardOnboardingFieldError';
+import {
+  FieldError,
+  isOnboardingFieldInvalid,
+} from './SailingCardOnboardingFieldError';
 import { fieldErrorId } from './SailingCardOnboardingFormHelpers';
 
 function dateOfBirthDescribedBy(props: { readonly showError: boolean }) {
@@ -44,6 +50,7 @@ function DateOfBirthField(props: {
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
+  const { dirtyFields } = useFormState({ name: 'dateOfBirth' });
   const registration = props.register('dateOfBirth', {
     required: 'error_required',
     validate: validateDateOfBirth,
@@ -51,8 +58,11 @@ function DateOfBirthField(props: {
   const dateOfBirthError = props.state.fieldErrors.dateOfBirth;
   const dateOfBirthClientError = props.clientErrors.dateOfBirth;
   const dateOfBirthHelpId = 'sailing-card-onboarding-dateOfBirth-help';
-  const showError =
-    dateOfBirthError !== undefined || dateOfBirthClientError !== undefined;
+  const showError = isOnboardingFieldInvalid({
+    clientInvalid: dateOfBirthClientError !== undefined,
+    fieldIsDirty: dirtyFields.dateOfBirth === true,
+    serverInvalid: dateOfBirthError !== undefined,
+  });
   const dateOfBirthAriaDescribedBy = dateOfBirthDescribedBy({
     showError,
   });
@@ -112,10 +122,15 @@ function PhoneField(props: {
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
+  const { dirtyFields } = useFormState({ name: 'phone' });
   const phoneError = props.state.fieldErrors.phone;
   const phoneClientError = props.clientErrors.phone;
   const phoneHelpId = 'sailing-card-onboarding-phone-help';
-  const showError = phoneError !== undefined || phoneClientError !== undefined;
+  const showError = isOnboardingFieldInvalid({
+    clientInvalid: phoneClientError !== undefined,
+    fieldIsDirty: dirtyFields.phone === true,
+    serverInvalid: phoneError !== undefined,
+  });
   const registration = props.register('phone', {
     required: 'error_required',
     validate: (value) =>
@@ -170,9 +185,14 @@ function EmergencyContactNameField(props: {
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
+  const { dirtyFields } = useFormState({ name: 'emergencyContactName' });
   const nameError = props.state.fieldErrors.emergencyContactName;
   const nameClientError = props.clientErrors.emergencyContactName;
-  const showError = nameError !== undefined || nameClientError !== undefined;
+  const showError = isOnboardingFieldInvalid({
+    clientInvalid: nameClientError !== undefined,
+    fieldIsDirty: dirtyFields.emergencyContactName === true,
+    serverInvalid: nameError !== undefined,
+  });
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -208,9 +228,14 @@ function EmergencyContactPhoneField(props: {
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
+  const { dirtyFields } = useFormState({ name: 'emergencyContactPhone' });
   const phoneError = props.state.fieldErrors.emergencyContactPhone;
   const phoneClientError = props.clientErrors.emergencyContactPhone;
-  const showError = phoneError !== undefined || phoneClientError !== undefined;
+  const showError = isOnboardingFieldInvalid({
+    clientInvalid: phoneClientError !== undefined,
+    fieldIsDirty: dirtyFields.emergencyContactPhone === true,
+    serverInvalid: phoneError !== undefined,
+  });
   const registration = props.register('emergencyContactPhone', {
     required: 'error_required',
     validate: (value) =>
@@ -263,7 +288,7 @@ export function ContactAndSafetyFields(props: {
   const t = useTranslations('OnboardingPage');
 
   return (
-    <section className="flex flex-col gap-3 border-t border-border pt-5">
+    <section className="flex flex-col gap-3 pt-6">
       <h2 className="text-base font-semibold text-foreground">
         {t('contact_and_safety_heading')}
       </h2>

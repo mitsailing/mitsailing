@@ -10,11 +10,11 @@ import {
   SAILING_CLASSES,
 } from '../../src/data/mit-sailing/classesFleetSeed';
 import { DONATION_FUND_SEED_ROWS } from '../../src/data/mit-sailing/donationFundsSeed';
+import { NEWS_SEED_ROWS } from '../../src/data/mit-sailing/newsSeed';
 import {
   SAILING_RATING_RULES,
   SAILING_RATINGS,
 } from '../../src/data/mit-sailing/sailingRatingsSeed';
-import { SITE_ALERT_SEED_ROWS } from '../../src/data/mit-sailing/siteAlertsSeed';
 import type { Prisma, PrismaClient } from '../../src/generated/prisma/client';
 export { seedCmsContent } from './cmsSteps';
 export {
@@ -238,7 +238,7 @@ async function seedSailingRatingRows(
         guideUrl: rating.guideUrl,
         displayOrder: rating.displayOrder,
         isVisible: rating.isVisible,
-        isDeprecated: rating.isDeprecated,
+        legacyRatingType: rating.legacyRatingType ?? null,
       },
     });
   }
@@ -342,9 +342,9 @@ export async function seedDonationFunds(p: PrismaClient): Promise<void> {
 /**
  * @param p - Prisma client
  */
-export async function seedSiteAlerts(p: PrismaClient): Promise<void> {
-  for (const row of SITE_ALERT_SEED_ROWS) {
-    await p.siteAlert.upsert({
+export async function seedNews(p: PrismaClient): Promise<void> {
+  for (const row of NEWS_SEED_ROWS) {
+    await p.news.upsert({
       where: { id: row.id },
       create: {
         id: row.id,

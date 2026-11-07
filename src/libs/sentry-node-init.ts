@@ -8,7 +8,6 @@ import { sentryCaptureRates } from '@/libs/sentryCaptureRates';
  */
 export const sentryNodeOptions: Sentry.NodeOptions = {
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  spotlight: process.env.NODE_ENV === 'development',
   integrations: [Sentry.consoleLoggingIntegration()],
   sendDefaultPii: true,
   ...sentryCaptureRates,

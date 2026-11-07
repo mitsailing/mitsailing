@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { componentTestRouter } from '@/test/component';
@@ -160,10 +160,131 @@ describe('SignUpForm', () => {
     });
     await user.click(screen.getByRole('button', { name: 'Sign up' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Passwords do not match.'
-    );
+    const confirmation = screen.getByLabelText('Confirm password');
+    expect(confirmation).toHaveAttribute('aria-invalid', 'true');
+    expect(
+      await screen.findByText('Passwords do not match.')
+    ).toBeInTheDocument();
     expect(authClientMock.signUp.email).not.toHaveBeenCalled();
+  });
+
+  it('marks empty required fields invalid on submit without native bubbles', async () => {
+    render(<SignUpForm callbackUrl="/fleet" />);
+    const user = userEvent.setup();
+
+    const form = screen.getByLabelText('Email').closest('form');
+    expect(form).toHaveAttribute('novalidate');
+
+    await user.click(screen.getByRole('button', { name: 'Sign up' }));
+
+    const email = screen.getByLabelText('Email');
+    expect(email).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getAllByText('Required.').length).toBeGreaterThan(0);
+    expect(authClientMock.signUp.email).not.toHaveBeenCalled();
+  });
+
+  it('clears field errors after the user fixes email and password match', async () => {
+    render(<SignUpForm callbackUrl="/fleet" />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText('Email'), 'member@mit');
+    await user.type(screen.getByLabelText('Password'), 'correct-password');
+    await user.type(
+      screen.getByLabelText('Confirm password'),
+      'different-password'
+    );
+    await user.click(screen.getByRole('button', { name: 'Sign up' }));
+
+    expect(screen.getByLabelText('Email')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+
+    await user.clear(screen.getByLabelText('Email'));
+    await user.type(screen.getByLabelText('Email'), 'member@mit.edu');
+    await user.clear(screen.getByLabelText('Confirm password'));
+    await user.type(
+      screen.getByLabelText('Confirm password'),
+      'correct-password'
+    );
+    await user.tab();
+
+    expect(screen.getByLabelText('Email')).not.toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+    expect(screen.getByLabelText('Confirm password')).not.toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+  });
+
+  it('clear confirmation mismatch when password is edited to match', async () => {
+    render(<SignUpForm callbackUrl="/fleet" />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText('Password'), 'different-password');
+    await user.type(
+      screen.getByLabelText('Confirm password'),
+      'correct-password'
+    );
+    await user.tab();
+
+    expect(screen.getByText('Passwords do not match.')).toBeInTheDocument();
+
+    const password = screen.getByLabelText('Password');
+    await user.clear(password);
+    await user.type(password, 'correct-password');
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText('Passwords do not match.')
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.getByLabelText('Confirm password')).not.toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+  });
+
+  it('show confirmation mismatch when password is edited away from a match', async () => {
+    render(<SignUpForm callbackUrl="/fleet" />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText('Password'), 'correct-password');
+    await user.type(
+      screen.getByLabelText('Confirm password'),
+      'correct-password'
+    );
+    await user.tab();
+
+    expect(
+      screen.queryByText('Passwords do not match.')
+    ).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Password'), 'x');
+
+    expect(
+      await screen.findByText('Passwords do not match.')
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirm password')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+  });
+
+  it('keep empty confirmation valid while the password is entered', async () => {
+    render(<SignUpForm callbackUrl="/fleet" />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText('Password'), 'correct-password');
+    await user.tab();
+
+    expect(screen.getByLabelText('Confirm password')).not.toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+    expect(screen.queryByText('Required.')).not.toBeInTheDocument();
   });
 
   it('show safe error before submitting invalid sign-up email', async () => {
@@ -175,9 +296,13 @@ describe('SignUpForm', () => {
     });
     await user.click(screen.getByRole('button', { name: 'Sign up' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Enter a valid email address with a domain'
-    );
+    const email = screen.getByLabelText('Email');
+    expect(email).toHaveAttribute('aria-invalid', 'true');
+    expect(
+      await screen.findByText(
+        'Enter a valid email address with a domain (for example name@mit.edu).'
+      )
+    ).toBeInTheDocument();
     expect(authClientMock.signUp.email).not.toHaveBeenCalled();
   });
 

@@ -171,7 +171,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/ratings',
     '/fleet',
     '/pricing',
-    '/alerts',
+    '/news',
     '/contact',
     '/reserve',
     '/contact/mashnee-directions',

@@ -47,6 +47,14 @@ export function formatEasternDateTime(d: Date): string {
 }
 
 /**
+ * @param date - Instant
+ * @returns Eastern wall-clock time, e.g. `5:30 PM`
+ */
+export function formatEasternTimeOnly(date: Date): string {
+  return timeOnlyFormatter.format(date);
+}
+
+/**
  * Compact time line for home sidebar rows when start and end share a calendar day
  * in Eastern; otherwise the full `formatEasternEventRange` string.
  *
@@ -59,6 +67,16 @@ export function formatEasternSameDayTimeRange(start: Date, end: Date): string {
     return formatEasternEventRange(start, end);
   }
   return `${timeOnlyFormatter.format(start)} – ${timeOnlyFormatter.format(end)}`;
+}
+
+/**
+ * Compact Eastern weekday + date for marketing lists, e.g. `Tue, Sep 29`.
+ *
+ * @param date - Instant to format
+ * @returns Short weekday and month/day in America/New_York
+ */
+export function formatEasternWeekdayShortDate(date: Date): string {
+  return dateNoYearFormatter.format(date);
 }
 
 /**

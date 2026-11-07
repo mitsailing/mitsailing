@@ -49,21 +49,6 @@ const ageOnDate = (props: {
   return hasHadBirthday ? yearDifference : yearDifference - 1;
 };
 
-function isSpringOnly(now: Date) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: EVENTS_TIME_ZONE,
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-  }).formatToParts(now);
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(parts.find((p) => p.type === type)?.value ?? 0);
-  const month = get('month');
-  const day = get('day');
-
-  return month < 7 || (month === 7 && day < 15);
-}
-
 function nonStudentRacingPriceCents(props: {
   readonly dateOfBirth: string | undefined;
   readonly now: Date;
@@ -76,9 +61,6 @@ function nonStudentRacingPriceCents(props: {
   }
 
   const thirtyOrOlder = ageOnDate({ birthDate, onDate: props.now }) >= 30;
-  if (isSpringOnly(props.now)) {
-    return thirtyOrOlder ? 10_000 : 7000;
-  }
 
   return thirtyOrOlder ? 17_500 : 12_500;
 }
@@ -117,7 +99,7 @@ export const sailingCardMembershipPriceCents = (props: {
       : nonStudentTeamRacingPriceCents(props);
   }
   if (studentPaidRacingPrice) {
-    return isSpringOnly(props.now) ? 2500 : 4000;
+    return 4000;
   }
 
   return nonStudentRacingPriceCents(props);

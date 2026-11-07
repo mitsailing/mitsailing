@@ -7,7 +7,6 @@ to: $(echo $DATABASE_URL)
 
 schemas:
   - public
-  - legacy
 
 exclude:
   - _prisma_migrations

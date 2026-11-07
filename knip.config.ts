@@ -7,8 +7,6 @@ const config: KnipConfig = {
   ignore: [
     'src/libs/I18n.ts',
     'src/types/I18n.ts',
-    // Manual admin/developer utility for folding DB overrides back into en.json.
-    'scripts/export-i18n-overrides.ts',
     // Manual operator utility for the complete legacy data import.
     'scripts/import-legacy-data.ts',
     // Manual one-off importer for owned legacy Pavilion reservation CSV history.
@@ -21,6 +19,7 @@ const config: KnipConfig = {
     'src/worker/serverOnlyShim.ts',
     // Vite/Storybook alias target for Node Sentry packages in browser tests.
     '.storybook/sentryNextjsBrowserStub.ts',
+    '.storybook/newsBannerCollapseActionStub.ts',
     // Catalog + time helpers: partially consumed by prisma seed; getters/types fill in when UI is ported
     'src/data/mit-sailing/**',
     'src/lib/mit-sailing/**',
@@ -59,7 +58,6 @@ const config: KnipConfig = {
       'types',
     ],
     'src/libs/health/readiness.ts': ['types'],
-    'src/libs/legacy-sync/postgresMirrorSql.ts': ['types'],
     'src/libs/mit-sailing/catalogHistory.ts': ['types'],
     'src/libs/mit-sailing/classRelatedOccurrences.ts': ['types'],
     'src/libs/mit-sailing/cmsHistory.ts': ['types'],

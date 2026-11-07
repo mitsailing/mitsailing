@@ -1,7 +1,6 @@
 import { hasLocale } from 'next-intl';
 import { getRequestConfig } from 'next-intl/server';
 import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
-import { getMergedSiteTextMessages } from '@/libs/site-text/siteTextMessageLoader';
 import { routing } from './I18nRouting';
 
 // Default locale and message files live under `src/locales/` (next-intl).
@@ -14,9 +13,11 @@ export default getRequestConfig(async ({ requestLocale }) => {
     ? requested
     : routing.defaultLocale;
 
+  const localeMessages = await import(`../locales/${locale}.json`);
+
   return {
     locale,
-    messages: await getMergedSiteTextMessages(locale),
+    messages: localeMessages.default,
     // Venue clock: program times stay in US Eastern for every visitor (see `.cursor/rules/dates-us-eastern.mdc`).
     timeZone: EVENTS_TIME_ZONE,
   };

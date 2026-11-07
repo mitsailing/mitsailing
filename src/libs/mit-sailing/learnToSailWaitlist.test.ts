@@ -15,15 +15,18 @@ describe('learnToSailWaitlist', () => {
     ).toBe(true);
   });
 
-  it('uses the Eastern calendar year for the active season', () => {
+  it('uses April 1 Eastern as the season boundary', () => {
     expect(
       getLearnToSailSeasonYear(new Date('2026-03-31T23:59:59-04:00'))
-    ).toBe(2026);
+    ).toBe(2025);
     expect(
       getLearnToSailSeasonYear(new Date('2026-04-01T00:00:00-04:00'))
     ).toBe(2026);
     expect(
       getLearnToSailSeasonYear(new Date('2027-03-31T23:59:59-04:00'))
+    ).toBe(2026);
+    expect(
+      getLearnToSailSeasonYear(new Date('2027-04-01T00:00:00-04:00'))
     ).toBe(2027);
   });
 

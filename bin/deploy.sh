@@ -259,6 +259,13 @@ map \$http_x_forwarded_proto \$forwarded_proto {
   '' \$scheme;
 }
 
+# Cloudflare overwrites CF-Connecting-IP. Replace forwarded headers with that
+# single address so a client-supplied X-Forwarded-For chain cannot set keys.
+map \$http_cf_connecting_ip \$normalized_client_ip {
+  default \$http_cf_connecting_ip;
+  '' \$remote_addr;
+}
+
 upstream mitsailing_next {
   server ${upstream_service}:3000;
   keepalive 32;
@@ -294,8 +301,8 @@ server {
     proxy_next_upstream error timeout;
     proxy_next_upstream_tries 2;
     proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Real-IP \$normalized_client_ip;
+    proxy_set_header X-Forwarded-For \$normalized_client_ip;
     proxy_set_header X-Forwarded-Host \$host;
     proxy_set_header X-Forwarded-Proto \$forwarded_proto;
     proxy_set_header Upgrade \$http_upgrade;
@@ -312,8 +319,8 @@ server {
     proxy_read_timeout ${DEPLOY_DRAIN_SECONDS}s;
     proxy_next_upstream off;
     proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Real-IP \$normalized_client_ip;
+    proxy_set_header X-Forwarded-For \$normalized_client_ip;
     proxy_set_header X-Forwarded-Host \$host;
     proxy_set_header X-Forwarded-Proto \$forwarded_proto;
     proxy_set_header Upgrade \$http_upgrade;

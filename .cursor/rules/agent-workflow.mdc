@@ -10,7 +10,7 @@ alwaysApply: false
 
 **Workflow:** Inspect before edits with `rg`; match existing patterns; keep diffs small; preserve UI unless asked; end with files, tests, and assumptions.
 
-**Rule routing:** Playwright / claiming e2e → `e2e-verification.mdc`; PR style → `coderabbit-review.mdc`; SonarQube MCP → `sonarqube-review.mdc`; admin management screens → `admin-list-usability.mdc`; color/theme work → `ui-color-tokens.mdc`; time/date behavior → `dates-us-eastern.mdc`.
+**Rule routing:** Playwright / claiming e2e → `e2e-verification.mdc`; PR style → `coderabbit-review.mdc`; admin management screens → `admin-list-usability.mdc`; color/theme work → `ui-color-tokens.mdc`; time/date behavior → `dates-us-eastern.mdc`.
 
 **Anti-stale:** Check [`package.json`](../../package.json) when API/library behavior matters. This is App Router on Node, **`standalone`** — not Pages Router defaults (`getServerSideProps`, `next/head` for new code). **`params` / `searchParams`:** async per AGENTS locale pattern.
 

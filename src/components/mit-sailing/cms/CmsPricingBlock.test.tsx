@@ -97,6 +97,46 @@ describe('CmsPricingBlock', () => {
     );
   });
 
+  it('renders internal and external plan detail links', () => {
+    render(
+      <CmsPricingBlock
+        block={pricingBlock({
+          plans: [
+            {
+              detailLinkLabel: 'Compare plans',
+              detailLinkUrl: '/pricing',
+              features: ['Sailing card'],
+              price: '$10',
+              title: 'Member',
+            },
+            {
+              detailLinkLabel: 'Gym rates',
+              detailLinkUrl: 'https://sailing.mit.edu/gym',
+              features: ['Guest checkout'],
+              price: '$20',
+              title: 'Guest',
+            },
+          ],
+        })}
+      />
+    );
+
+    expect(screen.getByRole('link', { name: 'Compare plans' })).toHaveAttribute(
+      'href',
+      '/pricing'
+    );
+    expect(
+      screen.getByRole('link', { name: 'Compare plans' })
+    ).not.toHaveAttribute('target');
+
+    const externalDetail = screen.getByRole('link', { name: /Gym rates/ });
+    expect(externalDetail).toHaveAttribute(
+      'href',
+      'https://sailing.mit.edu/gym'
+    );
+    expect(externalDetail).toHaveAttribute('target', '_blank');
+  });
+
   it('renders fallback pricing data when a CMS body is empty', () => {
     const fallbackData: CmsPricingData = {
       plans: [

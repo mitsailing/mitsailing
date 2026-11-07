@@ -4,12 +4,14 @@ import {
   Container,
   Hr,
   Html,
+  Img,
   Link,
   Preview,
   Section,
   Text,
 } from 'react-email';
 import { tokens } from '@/lib/mit-sailing/tokens';
+import { getBaseUrl } from '@/utils/Helpers';
 
 export type EmailLayoutProps = Readonly<{
   previewText: string;
@@ -45,14 +47,14 @@ const container: React.CSSProperties = {
 
 const header: React.CSSProperties = {
   backgroundColor: tokens.colors.mitEmailRed,
-  padding: '20px 24px',
+  padding: '22px 24px',
 };
 
-const brand: React.CSSProperties = {
-  color: '#f8fafc',
-  fontSize: '18px',
-  fontWeight: 600,
+const brandLogo: React.CSSProperties = {
+  display: 'block',
+  height: '34px',
   margin: 0,
+  width: 'auto',
 };
 
 const footer: React.CSSProperties = {
@@ -76,6 +78,24 @@ const link: React.CSSProperties = {
 };
 
 /**
+ * On-dark lockup for the red email header (absolute URL for clients).
+ *
+ * @returns Brand image for transactional and marketing chrome
+ */
+function EmailBrandLogo() {
+  const src = `${getBaseUrl().replace(/\/$/, '')}/assets/images/logo-on-dark.png`;
+  return (
+    <Img
+      alt="MIT Sailing"
+      height={34}
+      src={src}
+      style={brandLogo}
+      width={148}
+    />
+  );
+}
+
+/**
  * Shared chrome (header, footer, container) for transactional templates.
  * @param props - Layout configuration.
  * @param props.previewText - Short inbox preview line.
@@ -89,7 +109,7 @@ export function EmailLayout(props: EmailLayoutProps) {
       <Body style={body}>
         <Container style={container}>
           <Section style={header}>
-            <Text style={brand}>MIT Sailing</Text>
+            <EmailBrandLogo />
           </Section>
           {props.children}
           <Hr style={hr} />
@@ -124,7 +144,7 @@ export function MarketingEmailLayout(props: MarketingEmailLayoutProps) {
       <Body style={body}>
         <Container style={container}>
           <Section style={header}>
-            <Text style={brand}>MIT Sailing</Text>
+            <EmailBrandLogo />
           </Section>
           {props.children}
           <Hr style={hr} />

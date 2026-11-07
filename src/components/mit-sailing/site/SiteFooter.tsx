@@ -87,21 +87,22 @@ export async function SiteFooter() {
 
         <div className="mb-16 grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
-            <div className="mb-6 font-mit-serif text-2xl font-bold tracking-tight">
-              {t('site_brand_mit')}
-              <span className="ml-1 font-medium">
-                {t('site_brand_sailing')}
-              </span>
-            </div>
             <p className="mb-6 max-w-sm text-sm leading-relaxed">
               {t('footer_tagline')}
             </p>
             <address className="text-xs leading-relaxed not-italic">
-              {pavilionShippingAddress.lines.map((line) => (
-                <span className="block" key={line}>
-                  {line}
-                </span>
-              ))}
+              <a
+                className={`text-inherit ${footerLinkClassName}`}
+                href={pavilionShippingAddress.mapsUrl}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                {pavilionShippingAddress.lines.map((line) => (
+                  <span className="block" key={line}>
+                    {line}
+                  </span>
+                ))}
+              </a>
             </address>
           </div>
 

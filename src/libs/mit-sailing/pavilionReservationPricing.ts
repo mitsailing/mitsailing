@@ -1,3 +1,4 @@
+import { isPavilionAfterHoursCatalogItem } from '@/libs/mit-sailing/pavilionReservationCatalogRoles';
 import type {
   PavilionPersonaPriceDisplay,
   PavilionPricingTypeValue,
@@ -67,6 +68,14 @@ export function estimatedSlotAmountCents(props: {
 
   switch (props.item.pricingType) {
     case 'flat': {
+      // After-hours bands attach once per hourly booking line, so every
+      // derived after-hours slot must charge. Other flats stay once per item.
+      if (
+        props.item.slug &&
+        isPavilionAfterHoursCatalogItem({ slug: props.item.slug })
+      ) {
+        return unitPriceCents;
+      }
       return props.slotIndexForItem === 0 ? unitPriceCents : 0;
     }
     case 'hourly': {

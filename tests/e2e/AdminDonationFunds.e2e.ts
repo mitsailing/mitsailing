@@ -16,8 +16,9 @@ test.describe('Admin donation funds', () => {
     await signInAsAdmin(page);
 
     await page.goto('/admin');
+    await expect(page).toHaveURL(/\/admin\/users\/?$/);
     await expect(
-      page.getByRole('heading', { name: 'Administration' })
+      page.getByRole('heading', { name: 'Users', exact: true })
     ).toBeVisible();
 
     await page.goto('/admin/donation_funds');

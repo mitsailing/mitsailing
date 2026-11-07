@@ -31,14 +31,13 @@ const findSeedPrice = (props: {
   billingInterval: SailingCardMembershipBillingInterval;
   cardType: SailingCardType;
   priceCategory: SailingCardMembershipPriceCategory;
-  priceKind: SailingCardMembershipPriceKind;
 }): SeedPriceRow => {
   const price = initialSailingCardMembershipPrices.find(
     (row) =>
       row.billingInterval === props.billingInterval &&
       row.cardType === props.cardType &&
       row.priceCategory === props.priceCategory &&
-      row.priceKind === props.priceKind
+      row.priceKind === SailingCardMembershipPriceKind.full
   );
   if (price === undefined) {
     throw new Error('Expected initial sailing card membership seed price.');
@@ -48,8 +47,8 @@ const findSeedPrice = (props: {
 };
 
 describe('initial sailing card membership prices', () => {
-  it('creates a stable row for each legacy price category', () => {
-    expect(initialSailingCardMembershipPrices).toHaveLength(12);
+  it('creates a stable full-year row for each paid price category', () => {
+    expect(initialSailingCardMembershipPrices).toHaveLength(6);
     expect(
       new Set(initialSailingCardMembershipPrices.map((row) => row.id)).size
     ).toBe(initialSailingCardMembershipPrices.length);
@@ -59,6 +58,7 @@ describe('initial sailing card membership prices', () => {
           row.active &&
           row.changeReason === INITIAL_MEMBERSHIP_PRICE_CHANGE_REASON &&
           row.currency === 'usd' &&
+          row.priceKind === SailingCardMembershipPriceKind.full &&
           row.stripePriceId === null &&
           row.stripeSyncError === null &&
           row.stripeSyncedAt === null
@@ -66,21 +66,12 @@ describe('initial sailing card membership prices', () => {
     ).toBe(true);
   });
 
-  it('matches legacy racing prices for student and age categories', () => {
+  it('matches full-year racing prices for student and age categories', () => {
     expect(
       findSeedPrice({
         billingInterval: SailingCardMembershipBillingInterval.one_time,
         cardType: SailingCardType.racing,
         priceCategory: SailingCardMembershipPriceCategory.student,
-        priceKind: SailingCardMembershipPriceKind.spring,
-      }).amountCents
-    ).toBe(2500);
-    expect(
-      findSeedPrice({
-        billingInterval: SailingCardMembershipBillingInterval.one_time,
-        cardType: SailingCardType.racing,
-        priceCategory: SailingCardMembershipPriceCategory.student,
-        priceKind: SailingCardMembershipPriceKind.full,
       }).amountCents
     ).toBe(4000);
     expect(
@@ -88,26 +79,23 @@ describe('initial sailing card membership prices', () => {
         billingInterval: SailingCardMembershipBillingInterval.one_time,
         cardType: SailingCardType.racing,
         priceCategory: SailingCardMembershipPriceCategory.under_30,
-        priceKind: SailingCardMembershipPriceKind.spring,
       }).amountCents
-    ).toBe(7000);
+    ).toBe(12_500);
     expect(
       findSeedPrice({
         billingInterval: SailingCardMembershipBillingInterval.one_time,
         cardType: SailingCardType.racing,
         priceCategory: SailingCardMembershipPriceCategory.thirty_or_over,
-        priceKind: SailingCardMembershipPriceKind.full,
       }).amountCents
     ).toBe(17_500);
   });
 
-  it('matches legacy team racing prices for student and age categories', () => {
+  it('matches team racing prices for student and age categories', () => {
     expect(
       findSeedPrice({
         billingInterval: SailingCardMembershipBillingInterval.one_time,
         cardType: SailingCardType.team_racing,
         priceCategory: SailingCardMembershipPriceCategory.student,
-        priceKind: SailingCardMembershipPriceKind.spring,
       }).amountCents
     ).toBe(2500);
     expect(
@@ -115,7 +103,6 @@ describe('initial sailing card membership prices', () => {
         billingInterval: SailingCardMembershipBillingInterval.one_time,
         cardType: SailingCardType.team_racing,
         priceCategory: SailingCardMembershipPriceCategory.under_30,
-        priceKind: SailingCardMembershipPriceKind.full,
       }).amountCents
     ).toBe(7000);
     expect(
@@ -123,14 +110,19 @@ describe('initial sailing card membership prices', () => {
         billingInterval: SailingCardMembershipBillingInterval.one_time,
         cardType: SailingCardType.team_racing,
         priceCategory: SailingCardMembershipPriceCategory.thirty_or_over,
-        priceKind: SailingCardMembershipPriceKind.full,
       }).amountCents
     ).toBe(10_000);
   });
 
   it.each(studentPaidAffiliations)(
-    'matches legacy non-MIT student paid prices for %s',
+    'matches non-MIT student paid prices for %s before and after July 15',
     (affiliation) => {
+      const expected = findSeedPrice({
+        billingInterval: SailingCardMembershipBillingInterval.one_time,
+        cardType: SailingCardType.racing,
+        priceCategory: SailingCardMembershipPriceCategory.student,
+      }).amountCents;
+
       expect(
         sailingCardMembershipPriceCents({
           affiliation,
@@ -138,14 +130,7 @@ describe('initial sailing card membership prices', () => {
           dateOfBirth: '01/02/1990',
           now: new Date('2026-06-01T12:00:00.000Z'),
         })
-      ).toBe(
-        findSeedPrice({
-          billingInterval: SailingCardMembershipBillingInterval.one_time,
-          cardType: SailingCardType.racing,
-          priceCategory: SailingCardMembershipPriceCategory.student,
-          priceKind: SailingCardMembershipPriceKind.spring,
-        }).amountCents
-      );
+      ).toBe(expected);
       expect(
         sailingCardMembershipPriceCents({
           affiliation,
@@ -153,19 +138,12 @@ describe('initial sailing card membership prices', () => {
           dateOfBirth: '01/02/1990',
           now: new Date('2026-07-15T12:00:00.000Z'),
         })
-      ).toBe(
-        findSeedPrice({
-          billingInterval: SailingCardMembershipBillingInterval.one_time,
-          cardType: SailingCardType.racing,
-          priceCategory: SailingCardMembershipPriceCategory.student,
-          priceKind: SailingCardMembershipPriceKind.full,
-        }).amountCents
-      );
+      ).toBe(expected);
     }
   );
 
   it.each(agePricedAffiliations)(
-    'matches legacy age-priced paid prices for %s',
+    'matches age-priced paid prices for %s before and after July 15',
     (affiliation) => {
       expect(
         sailingCardMembershipPriceCents({
@@ -179,7 +157,6 @@ describe('initial sailing card membership prices', () => {
           billingInterval: SailingCardMembershipBillingInterval.one_time,
           cardType: SailingCardType.racing,
           priceCategory: SailingCardMembershipPriceCategory.under_30,
-          priceKind: SailingCardMembershipPriceKind.spring,
         }).amountCents
       );
       expect(
@@ -194,7 +171,6 @@ describe('initial sailing card membership prices', () => {
           billingInterval: SailingCardMembershipBillingInterval.one_time,
           cardType: SailingCardType.racing,
           priceCategory: SailingCardMembershipPriceCategory.thirty_or_over,
-          priceKind: SailingCardMembershipPriceKind.full,
         }).amountCents
       );
     }

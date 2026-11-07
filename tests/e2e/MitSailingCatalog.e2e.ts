@@ -350,22 +350,29 @@ test.describe('MIT Sailing catalog', () => {
         })
       ).toBeVisible();
       await page.getByLabel('Email address').fill(requesterEmail);
+      await page.getByRole('button', { name: /MIT Student/u }).click();
+      await page
+        .getByRole('button', { name: 'Continue to your request' })
+        .click();
+
       await page
         .getByRole('article')
         .filter({ hasText: 'Casual party space' })
-        .getByRole('button', { name: 'Select this option' })
+        .getByRole('button', { name: /Select Casual party space/ })
         .click();
       await selectPavilionReservationPickerDate(page, isoDateDaysFromNow(14));
+      await page.getByRole('button', { name: 'Morning' }).click();
       await page.getByRole('button', { name: '10:00 AM' }).click();
       await page.getByRole('button', { name: '12:00 PM' }).click();
+      await page.getByRole('button', { name: 'Add to request' }).click();
       await page
-        .getByRole('button', { name: 'Next: contact information' })
+        .getByRole('button', { name: 'Continue to review and submit' })
+        .first()
         .click();
 
       await expect(page.getByLabel('Email address')).toHaveValue(
         requesterEmail
       );
-      await page.getByLabel('Group type').selectOption('mit_student');
       await page.getByLabel('First name').fill('Pavilion');
       await page.getByLabel('Last name').fill('Requester');
       await page.getByLabel('Phone').fill('617-555-0142');

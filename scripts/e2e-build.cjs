@@ -11,6 +11,7 @@
  * (see https://nextjs.org/docs/app/guides/environment-variables).
  */
 const esbuild = require('esbuild');
+const { config: loadEnv } = require('dotenv');
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -21,11 +22,25 @@ const e2eReadyPath = path.join(repoRoot, '.next', 'e2e.ready');
 /**
  * Resolves the public app URL this e2e run expects (Playwright `baseURL` / `webServer.url`).
  *
- * @returns {string} - Resolved `NEXT_PUBLIC_APP_URL` or default `http://localhost:<port>`.
+ * Port matches Playwright: process env, then `.env`, then `3008`. Uses dotenv
+ * `processEnv` so `.env` is not copied into `process.env` (buildEnv spreads it).
+ * Never reuses `.env` `NEXT_PUBLIC_APP_URL` (often `:3000` for `npm run dev`).
+ *
+ * @returns {string} - Playwright origin (`http://localhost:<port>`).
  */
 function getExpectedE2eAppUrl() {
-  const e2ePort = process.env.PLAYWRIGHT_E2E_PORT ?? '3008';
-  return process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${e2ePort}`;
+  let e2ePort = process.env.PLAYWRIGHT_E2E_PORT;
+  if (!e2ePort) {
+    const fromEnvFile = {};
+    loadEnv({
+      path: path.join(repoRoot, '.env'),
+      override: false,
+      quiet: true,
+      processEnv: fromEnvFile,
+    });
+    e2ePort = fromEnvFile.PLAYWRIGHT_E2E_PORT ?? '3008';
+  }
+  return `http://localhost:${e2ePort}`;
 }
 
 /**
@@ -140,10 +155,26 @@ if (process.argv.includes('--write-e2e-ready-marker')) {
     );
     process.exit(1);
   }
-  const appUrl = getExpectedE2eAppUrl();
-  writeE2eReadyMarker(appUrl);
+  // Record the origin inlined by the preceding `next build` (not Playwright's default).
+  const buildAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!buildAppUrl) {
+    console.error(
+      '[e2e-build] --write-e2e-ready-marker requires NEXT_PUBLIC_APP_URL to match the preceding next build (e.g. http://localhost:3008).'
+    );
+    process.exit(1);
+  }
+  let markerOrigin;
+  try {
+    markerOrigin = canonicalPublicAppUrl(buildAppUrl);
+  } catch {
+    console.error(
+      `[e2e-build] NEXT_PUBLIC_APP_URL must be a valid absolute URL (got ${JSON.stringify(buildAppUrl)}).`
+    );
+    process.exit(1);
+  }
+  writeE2eReadyMarker(buildAppUrl);
   console.log(
-    `[e2e-build] Wrote ${path.relative(repoRoot, e2eReadyPath)} for NEXT_PUBLIC_APP_URL=${canonicalPublicAppUrl(appUrl)}.`
+    `[e2e-build] Wrote ${path.relative(repoRoot, e2eReadyPath)} for NEXT_PUBLIC_APP_URL=${markerOrigin}.`
   );
   process.exit(0);
 }

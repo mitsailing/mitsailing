@@ -51,7 +51,7 @@ describe('applyLegacyMysqlSyncScheduler', () => {
     expect(queue.removeJobScheduler).not.toHaveBeenCalled();
     expect(queue.upsertJobScheduler).toHaveBeenCalledWith(
       LEGACY_MYSQL_SYNC_SCHEDULER_ID,
-      { pattern: '0 15 * * * *' },
+      { pattern: '0 15 * * * *', tz: 'America/New_York' },
       expect.objectContaining({ name: LEGACY_MYSQL_SYNC_JOB_NAME })
     );
   });

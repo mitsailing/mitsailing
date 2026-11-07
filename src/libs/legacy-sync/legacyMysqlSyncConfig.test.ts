@@ -11,7 +11,7 @@ describe('legacyMysqlSyncConfigFromEnv', () => {
     ).toEqual({ enabled: false });
   });
 
-  it('uses hourly cron by default when enabled', () => {
+  it('uses six-am eastern cron by default when enabled', () => {
     const config = legacyMysqlSyncConfigFromEnv({
       LEGACY_MYSQL_PASSWORD: 'secret',
       LEGACY_MYSQL_SYNC_ENABLED: 'true',
@@ -32,6 +32,18 @@ describe('legacyMysqlSyncConfigFromEnv', () => {
       database: 'sailing',
       mysqlPassword: 'secret',
       sourceHost: 'sailing.pavilion.lan',
+    });
+  });
+
+  it('uses host override for ssh tunnel local imports', () => {
+    expect(
+      legacyMysqlSyncConfigFromEnv({
+        LEGACY_MYSQL_HOST: '127.0.0.1',
+        LEGACY_MYSQL_PASSWORD: 'secret',
+        LEGACY_MYSQL_SYNC_ENABLED: 'true',
+      })
+    ).toMatchObject({
+      sourceHost: '127.0.0.1',
     });
   });
 

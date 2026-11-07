@@ -8,6 +8,11 @@ const adminEmail =
 
 const pool = new Pool({ connectionString: e2ePgConnectionString() });
 
+type EventRegistrationWindowSnapshot = {
+  registration_end: Date | null;
+  registration_start: Date | null;
+};
+
 async function resetAdminEventRegistration(slug: string): Promise<void> {
   await pool.query(
     `
@@ -35,6 +40,53 @@ async function resetAdminEventRegistration(slug: string): Promise<void> {
   );
 }
 
+async function openEventRegistrationWindow(
+  slug: string
+): Promise<EventRegistrationWindowSnapshot> {
+  const selectResult = await pool.query<EventRegistrationWindowSnapshot>(
+    `
+      SELECT "registration_start", "registration_end"
+      FROM "events"
+      WHERE "slug" = $1
+    `,
+    [slug]
+  );
+  const [original] = selectResult.rows;
+  if (!original) {
+    throw new Error(
+      `openEventRegistrationWindow: no event row for slug=${slug}.`
+    );
+  }
+  await pool.query(
+    `
+      UPDATE "events"
+      SET "registration_start" = now() - interval '1 day',
+          "registration_end" = now() + interval '30 days'
+      WHERE "slug" = $1
+    `,
+    [slug]
+  );
+  return {
+    registration_start: original.registration_start,
+    registration_end: original.registration_end,
+  };
+}
+
+async function restoreEventRegistrationWindow(
+  slug: string,
+  window: EventRegistrationWindowSnapshot
+): Promise<void> {
+  await pool.query(
+    `
+      UPDATE "events"
+      SET "registration_start" = $2,
+          "registration_end" = $3
+      WHERE "slug" = $1
+    `,
+    [slug, window.registration_start, window.registration_end]
+  );
+}
+
 test.afterAll(async () => {
   await pool.end();
 });
@@ -45,10 +97,12 @@ test.describe('Event registration switches', () => {
   }) => {
     const slug = 'learn-to-sail-all-in-one';
     await resetAdminEventRegistration(slug);
+    const registrationWindow = await openEventRegistrationWindow(slug);
 
     try {
       await signInAsAdmin(page);
       await page.goto(`/events/${slug}/register`);
+      await expect(page).toHaveURL(new RegExp(`/events/${slug}/register$`));
 
       await expect(
         page.getByRole('heading', {
@@ -84,6 +138,7 @@ test.describe('Event registration switches', () => {
         .click();
       await expect(photoSwitch).not.toBeChecked();
     } finally {
+      await restoreEventRegistrationWindow(slug, registrationWindow);
       await resetAdminEventRegistration(slug);
     }
   });

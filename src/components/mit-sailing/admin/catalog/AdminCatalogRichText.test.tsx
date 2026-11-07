@@ -442,28 +442,6 @@ describe('AdminCatalogForm rich text fields', () => {
     expect(boldButton).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('keeps other text fields as plain textareas', () => {
-    const view = render(
-      <AdminCatalogForm
-        definition={catalogResourceDefinitions.site_alerts}
-        formAction={formAction}
-        headingKey="edit_heading"
-        row={{
-          body: 'Plain alert',
-          id: 'alert-1',
-          isPublished: true,
-          lastDate: '2026-05-10',
-          startDate: '2026-05-09',
-        }}
-      />
-    );
-
-    expect(screen.queryByLabelText('Block style')).toBeNull();
-    expect(
-      view.container.querySelector('textarea[name="body"]')
-    ).not.toBeNull();
-  });
-
   it('renders class descriptions as rich text with image lists', () => {
     const view = render(
       <AdminCatalogForm

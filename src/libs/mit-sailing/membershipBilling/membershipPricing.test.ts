@@ -99,12 +99,6 @@ function pricingClientForRows(
 
 const baseRows: readonly SailingCardMembershipPriceRow[] = [
   priceRow({
-    amountCents: 7000,
-    billingInterval: SailingCardMembershipBillingInterval.one_time,
-    priceCategory: SailingCardMembershipPriceCategory.under_30,
-    priceKind: SailingCardMembershipPriceKind.spring,
-  }),
-  priceRow({
     amountCents: 12_500,
     billingInterval: SailingCardMembershipBillingInterval.one_time,
     priceCategory: SailingCardMembershipPriceCategory.under_30,
@@ -115,12 +109,6 @@ const baseRows: readonly SailingCardMembershipPriceRow[] = [
     billingInterval: SailingCardMembershipBillingInterval.one_time,
     priceCategory: SailingCardMembershipPriceCategory.thirty_or_over,
     priceKind: SailingCardMembershipPriceKind.full,
-  }),
-  priceRow({
-    amountCents: 2500,
-    billingInterval: SailingCardMembershipBillingInterval.one_time,
-    priceCategory: SailingCardMembershipPriceCategory.student,
-    priceKind: SailingCardMembershipPriceKind.spring,
   }),
   priceRow({
     amountCents: 4000,
@@ -144,7 +132,7 @@ describe('membership pricing', () => {
     ).resolves.toMatchObject({ amountCents: 12_500 });
   });
 
-  it('selects active spring racing prices before July 15', async () => {
+  it('selects active full racing prices before July 15', async () => {
     await expect(
       getActiveMembershipPrice({
         billingInterval: SailingCardMembershipBillingInterval.one_time,
@@ -152,9 +140,9 @@ describe('membership pricing', () => {
         client: pricingClientForRows(baseRows),
         now: new Date('2026-06-01T12:00:00.000Z'),
         priceCategory: SailingCardMembershipPriceCategory.under_30,
-        priceKind: SailingCardMembershipPriceKind.spring,
+        priceKind: SailingCardMembershipPriceKind.full,
       })
-    ).resolves.toMatchObject({ amountCents: 7000 });
+    ).resolves.toMatchObject({ amountCents: 12_500 });
   });
 
   it('returns only the due-today one-time checkout price', async () => {
@@ -171,7 +159,7 @@ describe('membership pricing', () => {
       })
     ).resolves.toMatchObject({
       status: 'ready',
-      dueTodayPrice: { amountCents: 7000 },
+      dueTodayPrice: { amountCents: 12_500 },
     });
     expect(fixture.findMany).toHaveBeenCalledTimes(1);
   });
@@ -274,21 +262,21 @@ describe('membership pricing', () => {
           active: false,
           billingInterval: SailingCardMembershipBillingInterval.one_time,
           priceCategory: SailingCardMembershipPriceCategory.under_30,
-          priceKind: SailingCardMembershipPriceKind.spring,
+          priceKind: SailingCardMembershipPriceKind.full,
         }),
         priceRow({
           amountCents: 7500,
           billingInterval: SailingCardMembershipBillingInterval.one_time,
           effectiveAt: new Date('2026-06-01T04:00:00.000Z'),
           priceCategory: SailingCardMembershipPriceCategory.under_30,
-          priceKind: SailingCardMembershipPriceKind.spring,
+          priceKind: SailingCardMembershipPriceKind.full,
         }),
         priceRow({
           amountCents: 8000,
           billingInterval: SailingCardMembershipBillingInterval.one_time,
           effectiveAt: new Date('2026-07-01T04:00:00.000Z'),
           priceCategory: SailingCardMembershipPriceCategory.under_30,
-          priceKind: SailingCardMembershipPriceKind.spring,
+          priceKind: SailingCardMembershipPriceKind.full,
         }),
       ],
       { now: new Date('2026-06-15T12:00:00.000Z') }
@@ -305,7 +293,7 @@ describe('membership pricing', () => {
           billingInterval: SailingCardMembershipBillingInterval.one_time,
           effectiveAt: new Date('2026-06-10T04:00:00.000Z'),
           priceCategory: SailingCardMembershipPriceCategory.under_30,
-          priceKind: SailingCardMembershipPriceKind.spring,
+          priceKind: SailingCardMembershipPriceKind.full,
           stripePriceId: 'price_failed_sync',
           stripeSyncError: 'Stripe unavailable',
           stripeSyncedAt: new Date('2026-06-10T04:30:00.000Z'),
@@ -315,7 +303,7 @@ describe('membership pricing', () => {
           billingInterval: SailingCardMembershipBillingInterval.one_time,
           effectiveAt: new Date('2026-06-01T04:00:00.000Z'),
           priceCategory: SailingCardMembershipPriceCategory.under_30,
-          priceKind: SailingCardMembershipPriceKind.spring,
+          priceKind: SailingCardMembershipPriceKind.full,
           stripePriceId: 'price_unsynced',
         }),
         priceRow({
@@ -324,7 +312,7 @@ describe('membership pricing', () => {
           billingInterval: SailingCardMembershipBillingInterval.one_time,
           effectiveAt: new Date('2026-07-01T04:00:00.000Z'),
           priceCategory: SailingCardMembershipPriceCategory.under_30,
-          priceKind: SailingCardMembershipPriceKind.spring,
+          priceKind: SailingCardMembershipPriceKind.full,
           stripePriceId: 'price_inactive',
           stripeSyncedAt: new Date('2026-06-01T04:30:00.000Z'),
         }),
@@ -333,7 +321,7 @@ describe('membership pricing', () => {
           billingInterval: SailingCardMembershipBillingInterval.one_time,
           effectiveAt: new Date('2026-05-01T04:00:00.000Z'),
           priceCategory: SailingCardMembershipPriceCategory.under_30,
-          priceKind: SailingCardMembershipPriceKind.spring,
+          priceKind: SailingCardMembershipPriceKind.full,
           stripePriceId: 'price_synced',
           stripeSyncedAt: new Date('2026-05-01T04:30:00.000Z'),
         }),

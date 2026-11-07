@@ -4,6 +4,7 @@ import {
   Role,
   ROLE_DEFINITIONS,
   ROLE_VALUES,
+  roleLabelKey,
 } from '@/libs/auth/roles';
 
 describe('normalizeRole', () => {
@@ -41,5 +42,7 @@ describe('ROLE_DEFINITIONS', () => {
       key: Role.DOCK_STAFF,
       labelKey: 'role_dock_staff',
     });
+    expect(roleLabelKey(Role.DOCK_STAFF)).toBe('role_dock_staff');
+    expect(roleLabelKey('super-admin')).toBeNull();
   });
 });

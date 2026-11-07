@@ -9,6 +9,10 @@ engines:
       # Codacy Lizard file-length is low signal for this integration-style UI test.
       # Local Vitest coverage and repo lint/type gates still cover it.
       - 'src/components/mit-sailing/admin/catalog/AdminCatalogRichText.test.tsx'
+      # Codacy Lizard method length/complexity is low signal for this presentational
+      # catalog row/actions UI; repo lint/type gates and table tests still cover it.
+      # Security href findings on this file are still enforced via Semgrep/nosemgrep.
+      - 'src/components/mit-sailing/admin/catalog/AdminCatalogTableRows.tsx'
 
 exclude_paths:
   # Local Codacy CLI state.

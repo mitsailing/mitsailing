@@ -26,8 +26,10 @@ type PavilionReservationWizardDraftContact = Readonly<{
   mitAccount: string;
 }>;
 
+export type PavilionReservationWizardStep = 'identity' | 'request' | 'review';
+
 export type PavilionReservationWizardDraft = Readonly<{
-  step: 'contact' | 'spaces';
+  step: PavilionReservationWizardStep;
   persona: PavilionReservationPersonaValue;
   requesterEmail: string;
   slots: PavilionReservationWizardDraftSlot[];
@@ -43,12 +45,30 @@ export type UpsertPavilionReservationDraftInput = Readonly<{
   resumeToken?: string | null;
   selectedServiceIds: readonly string[];
   slots: readonly PavilionReservationWizardDraftSlot[];
-  step: 'contact' | 'spaces';
+  step: PavilionReservationWizardStep;
 }>;
 
 export type UpsertPavilionReservationDraftResult =
   | { ok: true; requestId: string; resumeToken: string }
   | { ok: false };
+
+/**
+ * Maps legacy two-step draft values onto the three-step reserve wizard.
+ *
+ * @param step - Stored draft step (legacy or current)
+ * @returns Normalized three-step wizard step
+ */
+export function normalizePavilionReservationWizardStep(
+  step: PavilionReservationWizardStep | 'contact' | 'spaces'
+): PavilionReservationWizardStep {
+  if (step === 'spaces') {
+    return 'request';
+  }
+  if (step === 'contact') {
+    return 'review';
+  }
+  return step;
+}
 
 /**
  * Infers wizard step from saved draft contact fields.
@@ -71,7 +91,7 @@ export function pavilionReservationDraftWizardStepFromContact(
     phone: string;
     projectTitle: string | null;
   }>
-): 'contact' | 'spaces' {
+): PavilionReservationWizardStep {
   const hasContactProgress = [
     contact.firstName,
     contact.lastName,
@@ -87,5 +107,5 @@ export function pavilionReservationDraftWizardStepFromContact(
     contact.mitAccount,
   ].some((value) => (value?.trim() ?? '') !== '');
 
-  return hasContactProgress ? 'contact' : 'spaces';
+  return hasContactProgress ? 'review' : 'request';
 }

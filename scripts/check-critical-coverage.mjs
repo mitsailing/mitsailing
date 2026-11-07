@@ -55,7 +55,6 @@ const authCoverageFiles = [
   'src/app/[locale]/(auth)/profile/payments/page.tsx',
   'src/app/[locale]/(auth)/profile/ProfileEmailSection.tsx',
   'src/app/[locale]/(auth)/profile/ProfileMemberInformationSection.tsx',
-  'src/app/[locale]/(auth)/profile/ProfileOverview.tsx',
   'src/app/[locale]/(auth)/profile/ProfileSailingCardSection.tsx',
   'src/app/[locale]/(auth)/profile/membership/page.tsx',
   'src/app/[locale]/(auth)/profile/ProfileAccountClient.tsx',
@@ -68,6 +67,7 @@ const authCoverageFiles = [
   'src/components/auth/StopImpersonationButton.tsx',
   'src/components/auth/profile/ProfileAppearanceSection.tsx',
   'src/components/auth/profile/ProfilePaymentsView.tsx',
+  'src/components/auth/profile/ProfileRatingsView.tsx',
   'src/components/auth/profile/ProfileSettingsChrome.tsx',
   'src/components/auth/profile/ProfileSideNav.tsx',
   'src/components/auth/profile/profileAuthErrorMaps.ts',
@@ -85,6 +85,7 @@ const authCoverageFiles = [
   'src/libs/auth/password-compromise.ts',
   'src/libs/auth/passwordResetSupportActions.ts',
   'src/libs/auth/profileIdentityActions.ts',
+  'src/libs/auth/profileIdentityPersistence.ts',
   'src/libs/auth/reportAuthClientError.ts',
   'src/libs/auth/roles.ts',
   'src/libs/auth/server-admin.ts',
@@ -106,6 +107,12 @@ const authCoverageExcludedFiles = [
     reason:
       'Profile payment receipt and manual-handled behavior is covered through the event payments e2e flow',
     e2eProof: ['tests/e2e/EventPayments.e2e.ts'],
+  },
+  {
+    path: 'src/components/auth/profile/ProfileRatingsView.tsx',
+    reason:
+      'Profile ratings list and empty state are covered by the dedicated view tests',
+    e2eProof: ['src/components/auth/profile/ProfileRatingsView.test.tsx'],
   },
   {
     path: 'src/app/[locale]/(auth)/profile/page.tsx',
@@ -156,6 +163,12 @@ const authCoverageExcludedFiles = [
       'src/libs/auth/profileIdentityActions.test.ts',
       'src/app/[locale]/(auth)/profile/ProfileAccountClient.test.tsx',
     ],
+  },
+  {
+    path: 'src/libs/auth/profileIdentityPersistence.ts',
+    reason:
+      'Profile identity persistence is exercised through the profile identity action tests',
+    e2eProof: ['src/libs/auth/profileIdentityActions.test.ts'],
   },
 ];
 

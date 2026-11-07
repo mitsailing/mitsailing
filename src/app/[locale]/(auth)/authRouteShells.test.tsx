@@ -43,7 +43,7 @@ import ProfileSecurityPage, {
 
 type ListUserRatingAssignmentRowsFn = (
   userId: string,
-  options?: { includeDeprecated?: boolean; client?: unknown }
+  options?: { client?: unknown }
 ) => Promise<UserRatingAssignmentRow[]>;
 
 /**
@@ -66,8 +66,8 @@ function userRatingAssignmentRowFixture(
     windCondition: row.windCondition ?? null,
     guideUrl: row.guideUrl ?? null,
     grantableClasses: row.grantableClasses ?? [],
+    requiredRatings: row.requiredRatings ?? [],
     unlockedBoats: row.unlockedBoats ?? [],
-    isDeprecated: row.isDeprecated ?? false,
     issuedAt: row.issuedAt ?? null,
     issuedByName: row.issuedByName ?? null,
     eligibility: row.eligibility ?? { eligible: true },
@@ -86,6 +86,7 @@ const routeMocks = vi.hoisted(() => ({
   listUserRatingAssignmentRows:
     vi.fn() as MockedFunction<ListUserRatingAssignmentRowsFn>,
   loggerError: vi.fn(),
+  loggerWarn: vi.fn(),
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
@@ -135,6 +136,7 @@ vi.mock('@/libs/DB', () => ({
 vi.mock('@/libs/Logger', () => ({
   logger: {
     error: routeMocks.loggerError,
+    warn: routeMocks.loggerWarn,
   },
 }));
 
@@ -251,7 +253,6 @@ vi.mock('./profile/ProfileAccountClient', () => ({
     initialMitClassYear: string | null;
     initialMitId: string | null;
     initialMitIdentityLocked: boolean;
-    initialName: string | null;
     initialPhone: string;
     initialSailingAffiliation: string | null;
     initialSailingCardSummary: { status: string };
@@ -271,7 +272,6 @@ vi.mock('./profile/ProfileAccountClient', () => ({
       data-locked-identity={String(props.initialMitIdentityLocked)}
       data-mit-class-year={props.initialMitClassYear ?? ''}
       data-mit-id={props.initialMitId ?? ''}
-      data-name={props.initialName ?? ''}
       data-phone={props.initialPhone}
       data-sailing-affiliation={props.initialSailingAffiliation ?? ''}
       data-sailing-card-status={props.initialSailingCardSummary.status}
@@ -1059,7 +1059,7 @@ describe('auth route shells', () => {
         unlockedBoats: [
           {
             id: 'boat-tech-dinghy',
-            name: 'Tech dinghy',
+            name: 'Dinghy One',
             slug: 'tech-dinghy',
           },
         ],
@@ -1090,14 +1090,14 @@ describe('auth route shells', () => {
       routeMocks.listUserRatingAssignmentRows
     );
     expect(vi.mocked(listUserRatingAssignmentRows)).toHaveBeenCalledWith(
-      'user-1',
-      { includeDeprecated: false }
+      'user-1'
     );
     expect(
       screen.getByRole('heading', {
         name: 'UserProfilePage.ratings_page_heading',
       })
     ).toBeVisible();
+    expect(screen.getByText('UserProfilePage.ratings_summary')).toBeVisible();
 
     const ratingsTable = screen.getByRole('table');
     const inTable = within(ratingsTable);
@@ -1108,13 +1108,31 @@ describe('auth route shells', () => {
     ).toBeVisible();
     expect(
       inTable.getByRole('columnheader', {
-        name: 'UserProfilePage.ratings_column_assignment',
+        name: 'UserProfilePage.ratings_column_status',
       })
     ).toBeVisible();
-    expect(inTable.getByRole('rowheader', { name: 'Keelboat' })).toBeVisible();
-    expect(inTable.getByRole('rowheader', { name: 'Club 420' })).toBeVisible();
     expect(
-      inTable.getByRole('rowheader', { name: 'Tech dinghy' })
+      inTable.getByRole('columnheader', {
+        name: 'UserProfilePage.ratings_column_issued',
+      })
+    ).toBeVisible();
+    expect(inTable.getByRole('link', { name: 'Keelboat' })).toHaveAttribute(
+      'href',
+      '/ratings#keelboat'
+    );
+    expect(inTable.getByRole('link', { name: 'Club 420' })).toHaveAttribute(
+      'href',
+      '/ratings#club-420'
+    );
+    expect(inTable.getByRole('link', { name: 'Tech dinghy' })).toHaveAttribute(
+      'href',
+      '/ratings#tech'
+    );
+    expect(
+      inTable.getAllByText('UserProfilePage.ratings_status_earned')
+    ).toHaveLength(2);
+    expect(
+      inTable.getByText('UserProfilePage.ratings_status_not_earned')
     ).toBeVisible();
     expect(
       inTable.getByText('UserProfilePage.ratings_issued_by')
@@ -1122,10 +1140,7 @@ describe('auth route shells', () => {
     expect(
       inTable.getByText('UserProfilePage.ratings_issued_on')
     ).toBeVisible();
-    expect(
-      inTable.getByText('UserProfilePage.ratings_no_issue_date')
-    ).toBeVisible();
-    expect(inTable.getByRole('link', { name: 'Tech dinghy' })).toHaveAttribute(
+    expect(inTable.getByRole('link', { name: 'Dinghy One' })).toHaveAttribute(
       'href',
       '/fleet/tech-dinghy'
     );
@@ -1138,10 +1153,10 @@ describe('auth route shells', () => {
       })
     );
 
-    const ratingsTable = screen.getByRole('table');
     expect(
-      within(ratingsTable).getByText('UserProfilePage.ratings_empty_state')
+      screen.getByText('UserProfilePage.ratings_empty_state')
     ).toBeVisible();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('profile security metadata uses localized copy', async () => {
