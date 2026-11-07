@@ -69,6 +69,113 @@ function NewsBannerExpandedList(props: {
   );
 }
 
+function NewsBannerLink(props: {
+  collapsed: boolean;
+  collapsedCountLabel: string;
+  headingId: string;
+  linkAriaLabel: string;
+  rows: NewsBannerRow[];
+  seeAllLabel: string;
+  viewAllLabel: string;
+}) {
+  return (
+    <Link aria-label={props.linkAriaLabel} className={linkClass} href="/news">
+      {props.collapsed ? (
+        <NewsBannerCollapsedSummary
+          collapsedCountLabel={props.collapsedCountLabel}
+          seeAllLabel={props.seeAllLabel}
+        />
+      ) : (
+        <NewsBannerExpandedList
+          headingId={props.headingId}
+          rows={props.rows}
+          viewAllLabel={props.viewAllLabel}
+        />
+      )}
+    </Link>
+  );
+}
+
+function NewsBannerToggle(props: {
+  collapsed: boolean;
+  disclosureId: string;
+  onToggle: () => void;
+  showLessLabel: string;
+  showMoreLabel: string;
+  toggleAriaLabel: string;
+}) {
+  return (
+    <button
+      aria-controls={props.disclosureId}
+      aria-expanded={!props.collapsed}
+      aria-label={props.toggleAriaLabel}
+      className="flex shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border border-transparent px-3 py-1.5 text-xs leading-tight font-semibold text-foreground! transition-colors hover:bg-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:min-w-[4.5rem]"
+      data-expanded={(!props.collapsed).toString()}
+      type="button"
+      onClick={props.onToggle}
+    >
+      <span
+        aria-hidden
+        className={`flex items-center justify-center text-foreground transition-transform duration-200 ease-out ${props.collapsed ? '' : 'rotate-180'}`}
+      >
+        <ChevronDown aria-hidden className="size-[1.125rem]" strokeWidth={2} />
+      </span>
+      <span aria-hidden className="leading-tight text-foreground!">
+        {props.collapsed ? props.showMoreLabel : props.showLessLabel}
+      </span>
+    </button>
+  );
+}
+
+function NewsBannerBar(props: {
+  collapsed: boolean;
+  collapsedCountLabel: string;
+  disclosureId: string;
+  headingId: string;
+  headingLabel: string;
+  linkAriaLabel: string;
+  onToggle: () => void;
+  rows: NewsBannerRow[];
+  seeAllLabel: string;
+  showLessLabel: string;
+  showMoreLabel: string;
+  toggleAriaLabel: string;
+  viewAllLabel: string;
+}) {
+  return (
+    <section
+      aria-labelledby={props.headingId}
+      className="bg-muted text-foreground"
+      data-news-banner
+    >
+      <h2 className="sr-only" id={props.headingId}>
+        {props.headingLabel}
+      </h2>
+      <div className="mx-auto flex max-w-7xl items-stretch">
+        <div className="min-w-0 flex-1" id={props.disclosureId}>
+          <NewsBannerLink
+            collapsed={props.collapsed}
+            collapsedCountLabel={props.collapsedCountLabel}
+            headingId={props.headingId}
+            linkAriaLabel={props.linkAriaLabel}
+            rows={props.rows}
+            seeAllLabel={props.seeAllLabel}
+            viewAllLabel={props.viewAllLabel}
+          />
+        </div>
+        <NewsBannerToggle
+          collapsed={props.collapsed}
+          disclosureId={props.disclosureId}
+          showLessLabel={props.showLessLabel}
+          showMoreLabel={props.showMoreLabel}
+          toggleAriaLabel={props.toggleAriaLabel}
+          onToggle={props.onToggle}
+        />
+      </div>
+    </section>
+  );
+}
+
 /**
  * Site strip listing active banner news (collapsible).
  * The message area is one link to `/news`; body anchors are unwrapped server-side.
@@ -98,67 +205,28 @@ export function NewsBanner(props: {
       : t('news_collapsed_count_many', { count: total });
 
   return (
-    <section
-      aria-labelledby={headingId}
-      className="bg-muted text-foreground"
-      data-news-banner
-    >
-      <h2 className="sr-only" id={headingId}>
-        {t('news_banner_heading')}
-      </h2>
-      <div className="mx-auto flex max-w-7xl items-stretch">
-        <div className="min-w-0 flex-1" id={disclosureId}>
-          <Link
-            aria-label={
-              collapsed
-                ? `${t('news_banner_aria_prefix')}: ${collapsedCountLabel} ${t('news_see_all')}.`
-                : t('news_banner_link_expanded_aria')
-            }
-            className={linkClass}
-            href="/news"
-          >
-            {collapsed ? (
-              <NewsBannerCollapsedSummary
-                collapsedCountLabel={collapsedCountLabel}
-                seeAllLabel={t('news_see_all')}
-              />
-            ) : (
-              <NewsBannerExpandedList
-                headingId={headingId}
-                rows={props.rows}
-                viewAllLabel={t('news_view_all')}
-              />
-            )}
-          </Link>
-        </div>
-        <button
-          aria-controls={disclosureId}
-          aria-expanded={!collapsed}
-          aria-label={
-            collapsed
-              ? t('news_toggle_expand_aria')
-              : t('news_toggle_collapse_aria')
-          }
-          className="flex shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border border-transparent px-3 py-1.5 text-xs leading-tight font-semibold text-foreground! transition-colors hover:bg-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:min-w-[4.5rem]"
-          data-expanded={(!collapsed).toString()}
-          type="button"
-          onClick={toggleCollapsed}
-        >
-          <span
-            aria-hidden
-            className={`flex items-center justify-center text-foreground transition-transform duration-200 ease-out ${collapsed ? '' : 'rotate-180'}`}
-          >
-            <ChevronDown
-              aria-hidden
-              className="size-[1.125rem]"
-              strokeWidth={2}
-            />
-          </span>
-          <span aria-hidden className="leading-tight text-foreground!">
-            {collapsed ? t('news_show_more') : t('news_show_less')}
-          </span>
-        </button>
-      </div>
-    </section>
+    <NewsBannerBar
+      collapsed={collapsed}
+      collapsedCountLabel={collapsedCountLabel}
+      disclosureId={disclosureId}
+      headingId={headingId}
+      headingLabel={t('news_banner_heading')}
+      linkAriaLabel={
+        collapsed
+          ? `${t('news_banner_aria_prefix')}: ${collapsedCountLabel} ${t('news_see_all')}.`
+          : t('news_banner_link_expanded_aria')
+      }
+      rows={props.rows}
+      seeAllLabel={t('news_see_all')}
+      showLessLabel={t('news_show_less')}
+      showMoreLabel={t('news_show_more')}
+      toggleAriaLabel={
+        collapsed
+          ? t('news_toggle_expand_aria')
+          : t('news_toggle_collapse_aria')
+      }
+      viewAllLabel={t('news_view_all')}
+      onToggle={toggleCollapsed}
+    />
   );
 }
