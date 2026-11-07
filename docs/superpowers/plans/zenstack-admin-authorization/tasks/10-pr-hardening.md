@@ -21,7 +21,6 @@ comments and CI/test failures.
 - `.cursor/rules/package-first-simple.mdc`
 - `.cursor/rules/coderabbit-review.mdc`
 - `.cursor/rules/pr-agent-reviews-loop.mdc`
-- `.cursor/rules/sonarqube-review.mdc`
 - `.cursor/rules/e2e-verification.mdc`
 - `.agents/skills/zenstack-pr-hardening/SKILL.md`
 - GitHub skill
