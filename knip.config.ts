@@ -19,6 +19,7 @@ const config: KnipConfig = {
     'src/worker/serverOnlyShim.ts',
     // Vite/Storybook alias target for Node Sentry packages in browser tests.
     '.storybook/sentryNextjsBrowserStub.ts',
+    '.storybook/newsBannerCollapseActionStub.ts',
     // Catalog + time helpers: partially consumed by prisma seed; getters/types fill in when UI is ported
     'src/data/mit-sailing/**',
     'src/lib/mit-sailing/**',

@@ -153,6 +153,7 @@ describe('AdminRichTextEditor helpers', () => {
     expect(isAllowedEditorHref('vbscript:msgbox(1)')).toBe(false);
     expect(isAllowedEditorHref('data:text/html,bad')).toBe(false);
     expect(isAllowedEditorHref('//example.com')).toBe(false);
+    expect(isAllowedEditorHref('/\\evil.test')).toBe(false);
   });
 
   it('normalizes cms media values from unknown data', () => {

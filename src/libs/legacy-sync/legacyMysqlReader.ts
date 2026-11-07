@@ -15,7 +15,6 @@ import {
   normalizeLegacyMysqlCellValue,
   normalizeLegacyMysqlStringRow,
 } from '@/libs/legacy-sync/legacyMysqlRowNormalization';
-import type { LegacyNewsRow } from '@/libs/legacy-sync/legacyNewsImport';
 import type { LegacyReservationDbRow } from '@/libs/legacy-sync/legacyPavilionReservationImport';
 import type { LegacyPaymentRow } from '@/libs/legacy-sync/legacyPaymentImport';
 import type {
@@ -38,7 +37,6 @@ export type LegacyMysqlReaderFixtures = {
   readonly eventRegs: readonly LegacyEventRegistrationRow[];
   readonly eventTypes: readonly LegacyEventTypeRow[];
   readonly events: readonly LegacyEventRow[];
-  readonly news: readonly LegacyNewsRow[];
   readonly payments: readonly LegacyPaymentRow[];
   readonly ratingTypes: readonly LegacyRatingTypeRow[];
   readonly ratings: readonly LegacyRatingRow[];
@@ -55,7 +53,6 @@ export type LegacyMysqlReader = {
   fetchEventRegs: () => Promise<readonly LegacyEventRegistrationRow[]>;
   fetchEventTypes: () => Promise<readonly LegacyEventTypeRow[]>;
   fetchEvents: () => Promise<readonly LegacyEventRow[]>;
-  fetchNews: () => Promise<readonly LegacyNewsRow[]>;
   fetchPayments: () => Promise<readonly LegacyPaymentRow[]>;
   fetchRatingTypes: () => Promise<readonly LegacyRatingTypeRow[]>;
   fetchRatings: () => Promise<readonly LegacyRatingRow[]>;
@@ -202,13 +199,6 @@ export function createLegacyMysqlReader(props: {
       );
       return rows;
     },
-    fetchNews: async () => {
-      const rows = await queryLegacyStringRows<LegacyNewsRow>(
-        connection,
-        `SELECT * FROM ${quoteMysqlIdentifier('news')} ORDER BY id`
-      );
-      return rows;
-    },
     fetchReservations: async () => {
       const rows = await queryLegacyReservationRows(
         connection,
@@ -277,10 +267,6 @@ export function createFixtureLegacyMysqlReader(
     },
     fetchRatings: async () => {
       const rows = await Promise.resolve(fixtures.ratings ?? []);
-      return rows;
-    },
-    fetchNews: async () => {
-      const rows = await Promise.resolve(fixtures.news ?? []);
       return rows;
     },
     fetchReservations: async () => {

@@ -189,19 +189,6 @@ jobs:
           api-token: ${{ secrets.CODACY_API_TOKEN }}
           coverage-reports: coverage/lcov.info
 
-      - name: Upload coverage report artifact
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: coverage
-          path: |
-            coverage/lcov.info
-            coverage/coverage-final.json
-            coverage/coverage-summary.json
-            test-report.junit.xml
-          if-no-files-found: warn
-          retention-days: 14
-
   integration:
     strategy:
       matrix:

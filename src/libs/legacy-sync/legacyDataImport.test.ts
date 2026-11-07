@@ -3,7 +3,6 @@ import { importLegacyData } from '@/libs/legacy-sync/legacyDataImport';
 
 const mocks = vi.hoisted(() => ({
   importEvents: vi.fn(),
-  importNews: vi.fn(),
   importPavilionReservations: vi.fn(),
   importPayments: vi.fn(),
   importRatings: vi.fn(),
@@ -13,10 +12,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/libs/legacy-sync/legacyEventImport', () => ({
   importLegacyEvents: mocks.importEvents,
-}));
-
-vi.mock('@/libs/legacy-sync/legacyNewsImport', () => ({
-  importLegacyNews: mocks.importNews,
 }));
 
 vi.mock('@/libs/legacy-sync/legacyPavilionReservationImport', () => ({
@@ -64,7 +59,6 @@ describe('importLegacyData', () => {
       userRatingsImported: 0,
       userRatingsSkipped: 0,
     });
-    mocks.importNews.mockResolvedValue({ imported: 0, skipped: 0 });
     mocks.importPavilionReservations.mockResolvedValue({
       imported: 0,
       skipped: 0,
@@ -96,7 +90,6 @@ describe('importLegacyData', () => {
       fetchEventRegs: vi.fn(),
       fetchEventTypes: vi.fn(),
       fetchEvents: vi.fn(),
-      fetchNews: vi.fn(),
       fetchPayments: vi.fn(),
       fetchRatingTypes: vi.fn(),
       fetchRatings: vi.fn(),
@@ -111,8 +104,7 @@ describe('importLegacyData', () => {
     expect(mocks.runLegacyImportWithAudit).toHaveBeenCalledOnce();
     expect(mocks.importUsers).toHaveBeenCalledBefore(mocks.importEvents);
     expect(mocks.importEvents).toHaveBeenCalledBefore(mocks.importRatings);
-    expect(mocks.importRatings).toHaveBeenCalledBefore(mocks.importNews);
-    expect(mocks.importNews).toHaveBeenCalledBefore(
+    expect(mocks.importRatings).toHaveBeenCalledBefore(
       mocks.importPavilionReservations
     );
     expect(mocks.importPavilionReservations).toHaveBeenCalledBefore(

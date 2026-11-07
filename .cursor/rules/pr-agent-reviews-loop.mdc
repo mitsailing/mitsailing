@@ -81,4 +81,4 @@ Return only JSON:
 
 ## Repo commands (workers)
 
-Only `npm run` scripts from [AGENTS.md](../../AGENTS.md). App rules win over generic bot suggestions — see `pavilion-reservation-pricing.mdc`, `sonarqube-review.mdc`, etc.
+Only `npm run` scripts from [AGENTS.md](../../AGENTS.md). App rules win over generic bot suggestions — see `pavilion-reservation-pricing.mdc`, etc.

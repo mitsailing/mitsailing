@@ -16,7 +16,7 @@ export const Permission = {
   SAILING_CLASSES_MANAGE: 'sailingClasses.manage',
   SAILING_RATINGS_MANAGE: 'sailingRatings.manage',
   SAILING_RATING_RULES_MANAGE: 'sailingRatingRules.manage',
-  SITE_ALERTS_MANAGE: 'siteAlerts.manage',
+  NEWS_MANAGE: 'news.manage',
   CMS_VIEW: 'cms.view',
   CMS_EDIT: 'cms.edit',
   CMS_DELETE: 'cms.delete',

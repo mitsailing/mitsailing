@@ -4,11 +4,11 @@ import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 
 /**
  * @param props - Layout props
- * @param props.children - Alerts page content
+ * @param props.children - News page content
  * @param props.params - `[locale]` params
  * @returns Breadcrumb shell and catalog-width main column
  */
-export default async function AlertsSectionLayout(props: {
+export default async function NewsSectionLayout(props: {
   children: React.ReactNode;
   params: Promise<{ locale: string }>;
 }) {
@@ -18,10 +18,7 @@ export default async function AlertsSectionLayout(props: {
     namespace: 'MitSailingRoutes',
   });
   return (
-    <SiteSectionShell
-      locale={locale}
-      segments={[{ label: t('section_alerts') }]}
-    >
+    <SiteSectionShell locale={locale} segments={[{ label: t('section_news') }]}>
       <SiteSectionMain variant="catalog">{props.children}</SiteSectionMain>
     </SiteSectionShell>
   );

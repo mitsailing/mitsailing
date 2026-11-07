@@ -9,7 +9,7 @@ import {
   seedSailingClassRelatedEventsFromSeed,
   seedSailingClassesAndBoats,
   seedSailingRatings,
-  seedSiteAlerts,
+  seedNews,
   seedStaff,
   seedStubUsers,
 } from './steps';
@@ -50,7 +50,7 @@ export async function seedMitSailing(prisma: PrismaClient): Promise<void> {
   await seedSailingClassRelatedEventsFromSeed(prisma);
   await seedEventRelatedRows(prisma);
   await seedDonationFunds(prisma);
-  await seedSiteAlerts(prisma);
+  await seedNews(prisma);
   await seedCmsContent(prisma);
   await seedDevOnlyLegacyPaymentFixtures(prisma);
 }

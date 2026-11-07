@@ -14,7 +14,7 @@ describe('catalogFieldUsesRichText', () => {
     expect(catalogFieldUsesRichText('donation_funds', 'description')).toBe(
       false
     );
-    expect(catalogFieldUsesRichText('site_alerts', 'body')).toBe(false);
+    expect(catalogFieldUsesRichText('news', 'body')).toBe(false);
   });
 
   it('returns false for unknown field names', () => {

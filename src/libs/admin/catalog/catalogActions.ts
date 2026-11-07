@@ -37,7 +37,7 @@ import {
   restoreCatalogRevision,
 } from '@/libs/mit-sailing/catalogHistory';
 import { restoreCmsPageRevision } from '@/libs/mit-sailing/cmsHistory';
-import { SITE_ALERTS_CACHE_TAG } from '@/libs/mit-sailing/siteAlertQueries';
+import { NEWS_CACHE_TAG } from '@/libs/mit-sailing/newsQueries';
 import { sitemapCatalogCacheTag } from '@/libs/mit-sailing/sitemapCache';
 import {
   siteNavClassesCacheTag,
@@ -75,7 +75,7 @@ const CATALOG_EXTRA_PUBLIC_PATHS: Partial<
   sailing_rating_rules: ['/ratings', '/classes', '/fleet'],
   fleet: ['/fleet'],
   pavilion_spaces: ['/reserve', '/spaces'],
-  site_alerts: ['/', '/alerts'],
+  news: ['/', '/news'],
   cms_pages: ['/', '/about'],
   cms_page_blocks: ['/', '/about'],
   cms_menus: ['/'],
@@ -93,8 +93,8 @@ function revalidateAfterCatalogMutation(
       revalidatePath(getI18nPath(path, locale));
     }
   }
-  if (resourceId === 'site_alerts') {
-    updateTag(SITE_ALERTS_CACHE_TAG);
+  if (resourceId === 'news') {
+    updateTag(NEWS_CACHE_TAG);
   }
   if (resourceId === 'class_categories') {
     updateTag(siteNavClassesCacheTag);

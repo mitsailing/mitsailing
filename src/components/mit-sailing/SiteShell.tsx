@@ -10,8 +10,8 @@ import {
   WeatherConditionsBar,
   WeatherConditionsBarSkeleton,
 } from './site/WeatherConditionsBar';
-import { SiteShellAlertsTopBar } from './SiteShellAlertsTopBar';
 import { SiteShellHeaderNav } from './SiteShellHeaderNav';
+import { SiteShellNewsTopBar } from './SiteShellNewsTopBar';
 
 type SiteShellProps = {
   children: React.ReactNode;
@@ -65,7 +65,7 @@ export async function SiteShell(props: SiteShellProps) {
         <WeatherConditionsBar tMitSite={tMitSite} />
       </Suspense>
       <Suspense fallback={null}>
-        <SiteShellAlertsTopBar />
+        <SiteShellNewsTopBar />
       </Suspense>
       <Suspense
         fallback={

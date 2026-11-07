@@ -2,16 +2,16 @@ import * as z from 'zod';
 import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
 
 /**
- * Validates site alert create/update payloads parsed from admin forms.
+ * Validates news create/update payloads parsed from admin forms.
  */
-export const siteAlertFormSchema = z.object({
+export const newsFormSchema = z.object({
   body: z.coerce.string(),
   startDate: z.coerce.string().trim().min(1),
   lastDate: z.coerce.string().trim().min(1),
   isPublished: z.boolean(),
 });
 
-export type SiteAlertFormValues = z.infer<typeof siteAlertFormSchema>;
+export type NewsFormValues = z.infer<typeof newsFormSchema>;
 
 /**
  * Parses date-only fields into Prisma `@db.Date` values.
@@ -19,7 +19,7 @@ export type SiteAlertFormValues = z.infer<typeof siteAlertFormSchema>;
  * @param data - Validated form values
  * @returns Dates or `null` when strings are invalid or last precedes start
  */
-export function parseSiteAlertDates(data: SiteAlertFormValues): {
+export function parseNewsDates(data: NewsFormValues): {
   startDate: Date;
   lastDate: Date;
 } | null {
@@ -43,12 +43,12 @@ function formDataTextField(formData: FormData, key: string): string {
 }
 
 /**
- * Parses {@link FormData} from the site alert admin form for Zod validation.
+ * Parses {@link FormData} from the news admin form for Zod validation.
  *
  * @param formData - Submitted form body
  * @returns Parsed object before schema refinement
  */
-export function rawSiteAlertFromFormData(
+export function rawNewsFromFormData(
   formData: FormData
 ): Record<string, unknown> {
   const visibilityFlags = formData.getAll('isPublished');

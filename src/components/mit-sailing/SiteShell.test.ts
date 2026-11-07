@@ -39,9 +39,9 @@ vi.mock('@/components/mit-sailing/site/WeatherConditionsBar', () => ({
     React.createElement('div', { 'data-testid': 'weather-skeleton' }),
 }));
 
-vi.mock('@/components/mit-sailing/SiteShellAlertsTopBar', () => ({
-  SiteShellAlertsTopBar: () =>
-    React.createElement('div', { 'data-testid': 'alerts-top' }),
+vi.mock('@/components/mit-sailing/SiteShellNewsTopBar', () => ({
+  SiteShellNewsTopBar: () =>
+    React.createElement('div', { 'data-testid': 'news-top' }),
 }));
 
 vi.mock('@/components/mit-sailing/SiteShellHeaderNav', () => ({

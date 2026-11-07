@@ -55,8 +55,8 @@ vi.mock('@/libs/mit-sailing/cmsHistory', () => ({
   restoreCmsPageRevision,
 }));
 
-vi.mock('@/libs/mit-sailing/siteAlertQueries', () => ({
-  SITE_ALERTS_CACHE_TAG: 'site-alerts',
+vi.mock('@/libs/mit-sailing/newsQueries', () => ({
+  NEWS_CACHE_TAG: 'news',
 }));
 
 const handlers: CatalogServerHandlers = {
@@ -111,28 +111,6 @@ describe('createCatalogResourceAction', () => {
       Permission.SAILING_CLASSES_MANAGE,
       'en'
     );
-  });
-
-  it('expires site alerts cache after creating site alerts', async () => {
-    const { createCatalogResourceAction } =
-      await import('@/libs/admin/catalog/catalogActions');
-
-    await expect(
-      createCatalogResourceAction('en', 'site_alerts', new FormData())
-    ).rejects.toThrow('NEXT_REDIRECT');
-
-    expect(updateTag).toHaveBeenCalledWith('site-alerts');
-  });
-
-  it('skips site alerts cache after creating other resources', async () => {
-    const { createCatalogResourceAction } =
-      await import('@/libs/admin/catalog/catalogActions');
-
-    await expect(
-      createCatalogResourceAction('en', 'donation_funds', new FormData())
-    ).rejects.toThrow('NEXT_REDIRECT');
-
-    expect(updateTag).not.toHaveBeenCalled();
   });
 
   it('invalidates sitemap catalog cache after creating sailing_classes', async () => {

@@ -11,6 +11,7 @@ import {
   AdminImageField,
   AdminImageListField,
 } from '@/components/mit-sailing/admin/catalog/AdminCmsMediaControls';
+import { AdminNewsBodyEditor } from '@/components/mit-sailing/admin/catalog/AdminNewsBodyEditor';
 import { AdminRichTextEditor } from '@/components/mit-sailing/admin/catalog/AdminRichTextEditor';
 import { CmsPageBlockPreview } from '@/components/mit-sailing/cms/CmsPageBlocks';
 import { Button } from '@/components/ui/button';
@@ -636,7 +637,7 @@ function CatalogTextareaField(props: {
   defaultValue: string;
   fieldKey: string;
   required: boolean | undefined;
-  linksHint: string | undefined;
+  linksHint?: string;
   onChange?: (value: string) => void;
 }) {
   const linksHintId = props.linksHint ? `${props.fieldId}-hint` : undefined;
@@ -2215,10 +2216,6 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
     }
 
     if (field.kind === 'text') {
-      const linksHint =
-        props.definition.id === 'site_alerts' && key === 'body'
-          ? tCatalog('field_site_alert_message_links_hint')
-          : undefined;
       return (
         <CatalogTextareaField
           key={key}
@@ -2228,8 +2225,22 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
           fieldId={fieldId}
           fieldKey={key}
           label={label}
-          linksHint={linksHint}
           onChange={cmsPreviewTextChange(key)}
+          required={field.required}
+        />
+      );
+    }
+
+    if (field.kind === 'newsBody') {
+      return (
+        <AdminNewsBodyEditor
+          key={key}
+          defaultValue={defaultValue}
+          errorId={errorId}
+          errorMessage={fieldErrorMessage}
+          fieldId={fieldId}
+          fieldKey={key}
+          label={label}
           required={field.required}
         />
       );
@@ -2389,7 +2400,7 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
   const formElement = (
     <form
       action={props.formAction}
-      autoComplete={props.definition.id === 'site_alerts' ? 'off' : undefined}
+      autoComplete={props.definition.id === 'news' ? 'off' : undefined}
       className={`flex ${formMaxWidth} flex-col gap-4`}
       onSubmit={(event) => {
         if (!isCmsBlockForm) {

@@ -1,10 +1,10 @@
 import 'server-only';
 import { Prisma } from '@/generated/prisma/client';
 import {
-  parseSiteAlertDates,
-  rawSiteAlertFromFormData,
-  siteAlertFormSchema,
-} from '@/libs/admin/catalog/siteAlertSchemas';
+  newsFormSchema,
+  parseNewsDates,
+  rawNewsFromFormData,
+} from '@/libs/admin/catalog/newsSchemas';
 import type {
   CatalogCreateResult,
   CatalogListOptions,
@@ -16,16 +16,17 @@ import type {
 import { prisma } from '@/libs/DB';
 import { formatEasternShortDateFromIsoCalendar } from '@/libs/mit-sailing/easternTimeFormat';
 import { isoCalendarDateFromPrismaDate } from '@/libs/mit-sailing/isoCalendarDate';
-import { sanitizeSiteAlertBodyHtml } from '@/libs/mit-sailing/sanitizeSiteAlertHtml';
-import { plainTextFromSiteAlertHtmlish } from '@/libs/mit-sailing/siteAlertPlainText';
+import { plainTextFromNewsHtmlish } from '@/libs/mit-sailing/newsPlainText';
+import { newsListOrderBy } from '@/libs/mit-sailing/newsQueries';
+import { sanitizeNewsBodyHtml } from '@/libs/mit-sailing/sanitizeNewsHtml';
 
 /**
- * Prisma-backed handlers for site alerts (home banner + `/alerts`).
+ * Prisma-backed handlers for news (home banner + `/news`).
  */
-export const siteAlertsCatalogHandlers: CatalogServerHandlers = {
+export const newsCatalogHandlers: CatalogServerHandlers = {
   async list(_options?: CatalogListOptions): Promise<CatalogRow[]> {
-    const rows = await prisma.siteAlert.findMany({
-      orderBy: { startDate: 'desc' },
+    const rows = await prisma.news.findMany({
+      orderBy: [...newsListOrderBy],
       select: {
         id: true,
         body: true,
@@ -36,7 +37,7 @@ export const siteAlertsCatalogHandlers: CatalogServerHandlers = {
     });
     return rows.map((row) => ({
       id: row.id,
-      bodyPlainText: plainTextFromSiteAlertHtmlish(row.body),
+      bodyPlainText: plainTextFromNewsHtmlish(row.body),
       isPublished: row.isPublished,
       startDateLabel: formatEasternShortDateFromIsoCalendar(
         isoCalendarDateFromPrismaDate(row.startDate)
@@ -48,7 +49,7 @@ export const siteAlertsCatalogHandlers: CatalogServerHandlers = {
   },
 
   async getById(id: string): Promise<CatalogRow | null> {
-    const row = await prisma.siteAlert.findUnique({
+    const row = await prisma.news.findUnique({
       where: { id },
       select: {
         id: true,
@@ -75,21 +76,19 @@ export const siteAlertsCatalogHandlers: CatalogServerHandlers = {
   },
 
   async createFromForm(formData: FormData): Promise<CatalogCreateResult> {
-    const parsed = siteAlertFormSchema.safeParse(
-      rawSiteAlertFromFormData(formData)
-    );
+    const parsed = newsFormSchema.safeParse(rawNewsFromFormData(formData));
     if (!parsed.success) {
       return { ok: false, code: 'validation_failed' };
     }
     const { data } = parsed;
-    const dates = parseSiteAlertDates(data);
+    const dates = parseNewsDates(data);
     if (!dates) {
       return { ok: false, code: 'validation_failed' };
     }
     try {
-      const created = await prisma.siteAlert.create({
+      const created = await prisma.news.create({
         data: {
-          body: sanitizeSiteAlertBodyHtml(data.body),
+          body: sanitizeNewsBodyHtml(data.body),
           isPublished: data.isPublished,
           startDate: dates.startDate,
           lastDate: dates.lastDate,
@@ -106,22 +105,20 @@ export const siteAlertsCatalogHandlers: CatalogServerHandlers = {
     id: string,
     formData: FormData
   ): Promise<CatalogMutationOk | CatalogMutationErr> {
-    const parsed = siteAlertFormSchema.safeParse(
-      rawSiteAlertFromFormData(formData)
-    );
+    const parsed = newsFormSchema.safeParse(rawNewsFromFormData(formData));
     if (!parsed.success) {
       return { ok: false, code: 'validation_failed' };
     }
     const { data } = parsed;
-    const dates = parseSiteAlertDates(data);
+    const dates = parseNewsDates(data);
     if (!dates) {
       return { ok: false, code: 'validation_failed' };
     }
     try {
-      await prisma.siteAlert.update({
+      await prisma.news.update({
         where: { id },
         data: {
-          body: sanitizeSiteAlertBodyHtml(data.body),
+          body: sanitizeNewsBodyHtml(data.body),
           isPublished: data.isPublished,
           startDate: dates.startDate,
           lastDate: dates.lastDate,
@@ -141,7 +138,7 @@ export const siteAlertsCatalogHandlers: CatalogServerHandlers = {
 
   async delete(id: string): Promise<CatalogMutationOk | CatalogMutationErr> {
     try {
-      await prisma.siteAlert.delete({ where: { id } });
+      await prisma.news.delete({ where: { id } });
       return { ok: true };
     } catch (error: unknown) {
       if (

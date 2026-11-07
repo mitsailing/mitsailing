@@ -1646,9 +1646,8 @@ model FleetBoat {
   @@map("fleet_boats")
 }
 
-model SiteAlert {
+model News {
   id          String   @id @default(cuid())
-  legacyNewsId String? @unique @map("legacy_news_id")
   body        String   @db.Text
   isPublished Boolean  @default(false) @map("is_published")
   startDate   DateTime @map("start_date") @db.Date
@@ -1657,7 +1656,7 @@ model SiteAlert {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@index([isPublished, startDate])
-  @@map("site_alerts")
+  @@map("news")
 }
 
 enum CmsMediaStatus {

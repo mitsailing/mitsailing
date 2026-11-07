@@ -63,7 +63,7 @@ export type UserSailingRating = $ModelResult<$Schema, "UserSailingRating">;
  */
 export type SailingRatingRule = $ModelResult<$Schema, "SailingRatingRule">;
 export type FleetBoat = $ModelResult<$Schema, "FleetBoat">;
-export type SiteAlert = $ModelResult<$Schema, "SiteAlert">;
+export type News = $ModelResult<$Schema, "News">;
 export type CmsPage = $ModelResult<$Schema, "CmsPage">;
 export type CmsPageBlock = $ModelResult<$Schema, "CmsPageBlock">;
 export type CmsMediaAsset = $ModelResult<$Schema, "CmsMediaAsset">;

@@ -25,9 +25,6 @@ async function main(): Promise<void> {
     `Imported legacy ratings: catalog grants moved ${ratings.catalogGrantsMoved}, duplicates removed ${ratings.catalogDuplicatesRemoved}, legacy rows hidden ${ratings.legacyCatalogRowsHidden}, rating types ${ratings.ratingTypesImported}, tech ratings implied ${ratings.techRatingsImplied}, user ratings ${ratings.userRatingsImported}, skipped user ratings ${ratings.userRatingsSkipped}.`
   );
 
-  const { news } = result;
-  console.log(`Imported legacy news: imported ${news.imported}.`);
-
   const { pavilionReservations: pavilion } = result;
   console.log(
     `Imported legacy Pavilion reservations: imported ${pavilion.imported}, skipped ${pavilion.skipped}.`

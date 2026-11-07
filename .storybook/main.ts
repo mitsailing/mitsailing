@@ -1,9 +1,16 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { StorybookConfig } from '@storybook/nextjs-vite';
 import { mergeConfig } from 'vite';
 import {
   sentryNextjsBrowserAlias,
   storybookSentryBrowserPlugin,
 } from './sentryNextjsBrowserAlias';
+
+const newsBannerCollapseActionStub = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  'newsBannerCollapseActionStub.ts'
+);
 
 const config: StorybookConfig = {
   stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|mjs|ts|tsx)'],
@@ -27,7 +34,13 @@ const config: StorybookConfig = {
     return mergeConfig(viteConfig, {
       plugins: [storybookSentryBrowserPlugin()],
       resolve: {
-        alias: sentryNextjsBrowserAlias,
+        alias: [
+          {
+            find: '@/libs/mit-sailing/newsBannerCollapseAction',
+            replacement: newsBannerCollapseActionStub,
+          },
+          ...sentryNextjsBrowserAlias,
+        ],
       },
     });
   },
