@@ -7,7 +7,7 @@ import type { CatalogRow } from '@/libs/admin/catalog/types';
  * @param fromInstant - Reference instant
  * @returns Eastern civil date key (`YYYY-MM-DD`) for the following calendar day
  */
-export function easternNextCalendarDayIso(fromInstant: Date): string {
+function easternNextCalendarDayIso(fromInstant: Date): string {
   return nextNyCalendarDay(nyYmd(fromInstant));
 }
 

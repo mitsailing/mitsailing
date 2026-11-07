@@ -24,8 +24,10 @@ const e2eReadyPath = path.join(repoRoot, '.next', 'e2e.ready');
  * @returns {string} - Resolved `NEXT_PUBLIC_APP_URL` or default `http://localhost:<port>`.
  */
 function getExpectedE2eAppUrl() {
+  // Always bake Playwright's e2e origin — never reuse `.env` NEXT_PUBLIC_APP_URL
+  // (often `:3000` for `npm run dev`), or Better Auth posts fail with INVALID_ORIGIN.
   const e2ePort = process.env.PLAYWRIGHT_E2E_PORT ?? '3008';
-  return process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${e2ePort}`;
+  return `http://localhost:${e2ePort}`;
 }
 
 /**

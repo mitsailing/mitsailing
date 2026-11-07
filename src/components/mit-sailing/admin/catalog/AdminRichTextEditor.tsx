@@ -3,7 +3,7 @@
 import { Image as TiptapImage } from '@tiptap/extension-image';
 import { Link as TiptapLink } from '@tiptap/extension-link';
 import { NodeSelection } from '@tiptap/pm/state';
-import { EditorContent, useEditor } from '@tiptap/react';
+import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import { StarterKit } from '@tiptap/starter-kit';
 import {
   AlignCenter,
@@ -80,6 +80,35 @@ const CmsEditorImage = TiptapImage.extend({
     };
   },
 });
+
+/** Module-scope so useEditor keeps a stable extensions identity across renders. */
+const richTextExtensions = [
+  StarterKit.configure({
+    blockquote: false,
+    code: false,
+    codeBlock: false,
+    heading: { levels: [2, 3, 4] },
+    horizontalRule: false,
+    link: false,
+    strike: false,
+  }),
+  TiptapLink.configure({
+    autolink: false,
+    openOnClick: false,
+    protocols: ['http', 'https', 'mailto'],
+  }),
+  CmsEditorImage.configure({
+    allowBase64: false,
+    inline: false,
+    resize: {
+      alwaysPreserveAspectRatio: true,
+      directions: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+      enabled: true,
+      minHeight: 80,
+      minWidth: 120,
+    },
+  }),
+];
 
 export function isAllowedEditorHref(href: string): boolean {
   const trimmed = href.trim();
@@ -332,11 +361,20 @@ function AdminRichTextFormatControls(props: {
 }) {
   const t = useTranslations('AdminCatalogResource');
   const handleOpenLinkEditor = props.onOpenLinkEditor;
+  const markState = useEditorState({
+    editor: props.editor,
+    selector: (ctx) => ({
+      isBold: ctx.editor?.isActive('bold') ?? false,
+      isBulletList: ctx.editor?.isActive('bulletList') ?? false,
+      isItalic: ctx.editor?.isActive('italic') ?? false,
+      isOrderedList: ctx.editor?.isActive('orderedList') ?? false,
+    }),
+  });
 
   return (
     <>
       <AdminRichTextMarkButton
-        active={props.editor?.isActive('bold') ?? false}
+        active={markState?.isBold ?? false}
         disabled={props.disabled}
         Icon={Bold}
         label={t('rich_text_bold')}
@@ -351,7 +389,7 @@ function AdminRichTextFormatControls(props: {
         }}
       />
       <AdminRichTextMarkButton
-        active={props.editor?.isActive('italic') ?? false}
+        active={markState?.isItalic ?? false}
         disabled={props.disabled}
         Icon={Italic}
         label={t('rich_text_italic')}
@@ -366,7 +404,7 @@ function AdminRichTextFormatControls(props: {
         }}
       />
       <AdminRichTextMarkButton
-        active={props.editor?.isActive('bulletList') ?? false}
+        active={markState?.isBulletList ?? false}
         disabled={props.disabled}
         Icon={List}
         label={t('rich_text_bullet_list')}
@@ -381,7 +419,7 @@ function AdminRichTextFormatControls(props: {
         }}
       />
       <AdminRichTextMarkButton
-        active={props.editor?.isActive('orderedList') ?? false}
+        active={markState?.isOrderedList ?? false}
         disabled={props.disabled}
         Icon={ListOrdered}
         label={t('rich_text_ordered_list')}
@@ -409,7 +447,12 @@ function AdminRichTextFormatControls(props: {
           mutateEditor({
             editor: props.editor,
             mutate: (currentEditor) => {
-              currentEditor.chain().focus().unsetLink().run();
+              currentEditor
+                .chain()
+                .focus()
+                .extendMarkRange('link')
+                .unsetLink()
+                .run();
             },
             syncEditorState: props.syncEditorState,
           });
@@ -439,6 +482,12 @@ function AdminRichTextToolbar(props: {
   uploadImage: (file: File) => Promise<void>;
 }) {
   const t = useTranslations('AdminCatalogResource');
+  const blockKind =
+    useEditorState({
+      editor: props.editor,
+      selector: (ctx) =>
+        ctx.editor ? activeBlockKind(ctx.editor) : 'paragraph',
+    }) ?? 'paragraph';
 
   return (
     <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted/50 p-1.5 dark:bg-muted/30">
@@ -449,7 +498,7 @@ function AdminRichTextToolbar(props: {
         onChange={(event) => {
           selectEditorBlockStyle(props.editor, event.target.value);
         }}
-        value={props.editor ? activeBlockKind(props.editor) : 'paragraph'}
+        value={blockKind}
       >
         <option value="paragraph">{t('rich_text_paragraph')}</option>
         <option value="h2">{t('rich_text_heading_2')}</option>
@@ -585,6 +634,9 @@ export function AdminRichTextEditor(props: {
   const t = useTranslations('AdminCatalogResource');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorShellRef = useRef<HTMLDivElement>(null);
+  const editorPropsRef = useRef({
+    attributes: {} as Record<string, string>,
+  });
   const [html, setHtml] = useState(props.defaultValue);
   const [assets, setAssets] = useState<CmsMediaAsset[]>([]);
   const [lastImagePos, setLastImagePos] = useState<number | null>(null);
@@ -596,13 +648,13 @@ export function AdminRichTextEditor(props: {
   const [uploadingFilename, setUploadingFilename] = useState<string | null>(
     null
   );
-  const [, setToolbarRevision] = useState(0);
   const attributes = editorAttributes({
     describedById: props.hint ? `${props.fieldId}-hint` : undefined,
     errorId: props.errorId,
     errorMessage: props.errorMessage,
     label: props.label,
   });
+  editorPropsRef.current.attributes = attributes;
 
   function syncEditorState(
     currentEditor: NonNullable<ReturnType<typeof useEditor>>
@@ -610,48 +662,21 @@ export function AdminRichTextEditor(props: {
     const nextHtml = currentEditor.getHTML();
     setHtml(nextHtml);
     props.onChange?.(nextHtml);
-    setToolbarRevision((revision) => revision + 1);
   }
 
   const editor = useEditor({
     content: props.defaultValue || '<p></p>',
-    editorProps: {
-      attributes,
-    },
-    extensions: [
-      StarterKit.configure({
-        blockquote: false,
-        code: false,
-        codeBlock: false,
-        heading: { levels: [2, 3, 4] },
-        horizontalRule: false,
-        link: false,
-        strike: false,
-      }),
-      TiptapLink.configure({
-        autolink: false,
-        openOnClick: false,
-        protocols: ['http', 'https', 'mailto'],
-      }),
-      CmsEditorImage.configure({
-        allowBase64: false,
-        inline: false,
-        resize: {
-          alwaysPreserveAspectRatio: true,
-          directions: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
-          enabled: true,
-          minHeight: 80,
-          minWidth: 120,
-        },
-      }),
-    ],
+    editorProps: editorPropsRef.current,
+    extensions: richTextExtensions,
+    // Next.js SSR: avoid hydration mismatch (TipTap React / Next.js install guides)
     immediatelyRender: false,
+    // TipTap v3 default; toolbar actives come from useEditorState
+    shouldRerenderOnTransaction: false,
     onSelectionUpdate: ({ editor: currentEditor }) => {
       const imagePos = selectedImagePosition(currentEditor);
       if (imagePos !== null) {
         setLastImagePos(imagePos);
       }
-      setToolbarRevision((revision) => revision + 1);
     },
     onUpdate: ({ editor: currentEditor }) => {
       syncEditorState(currentEditor);
@@ -749,7 +774,7 @@ export function AdminRichTextEditor(props: {
     }
     const trimmed = linkHref.trim();
     if (!isAllowedEditorHref(trimmed)) {
-      editor.chain().focus().unsetLink().run();
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
       syncEditorState(editor);
       setLinkEditorOpen(false);
       return;

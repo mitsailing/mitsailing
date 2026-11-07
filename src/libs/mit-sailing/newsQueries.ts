@@ -21,6 +21,18 @@ export const NEWS_CACHE_TAG = 'news';
 
 const NEWS_BANNER_REVALIDATE_SECONDS = 60 * 60;
 
+/** Latest start date first; same-day ties put the most recently created row first. */
+export const newsListOrderBy = [
+  { startDate: 'desc' },
+  { createdAt: 'desc' },
+] as const satisfies Prisma.NewsOrderByWithRelationInput[];
+
+const NEWS_PUBLIC_SELECT = {
+  id: true,
+  body: true,
+  startDate: true,
+} as const satisfies Prisma.NewsSelect;
+
 /**
  * Prisma `where` for banner eligibility on one Eastern calendar day.
  *
@@ -30,7 +42,7 @@ const NEWS_BANNER_REVALIDATE_SECONDS = 60 * 60;
  * @param todayIso - Eastern “today” key `YYYY-MM-DD` (same basis as {@link nyYmd})
  * @returns Clause or `null` when `todayIso` is not a valid calendar date
  */
-export function prismaWhereNewsBannerForCalendarDay(
+function prismaWhereNewsBannerForCalendarDay(
   todayIso: string
 ): Prisma.NewsWhereInput | null {
   const todayDate = prismaDateFromIsoCalendar(todayIso);
@@ -56,23 +68,24 @@ function toPublicItem(row: {
   };
 }
 
+async function findPublicNewsItems(
+  where: Prisma.NewsWhereInput
+): Promise<NewsPublicItem[]> {
+  const rows = await prisma.news.findMany({
+    where,
+    orderBy: [...newsListOrderBy],
+    select: NEWS_PUBLIC_SELECT,
+  });
+  return rows.map(toPublicItem);
+}
+
 const listNewsForBannerByDay = unstable_cache(
   async (todayIso: string): Promise<NewsPublicItem[]> => {
     const where = prismaWhereNewsBannerForCalendarDay(todayIso);
     if (!where) {
       return [];
     }
-
-    const rows = await prisma.news.findMany({
-      where,
-      orderBy: { startDate: 'desc' },
-      select: {
-        body: true,
-        id: true,
-        startDate: true,
-      },
-    });
-    return rows.map(toPublicItem);
+    return findPublicNewsItems(where);
   },
   ['news-banner-by-day'],
   {
@@ -85,7 +98,7 @@ const listNewsForBannerByDay = unstable_cache(
  * Lists news eligible for the home banner strip at `now`.
  *
  * @param now - Evaluation instant (typically server request time)
- * @returns Ordering by newest {@link startDate} first
+ * @returns Latest {@link startDate} first; same-day ties put newest `createdAt` first
  */
 export async function listNewsForBannerAt(
   now: Date
@@ -100,7 +113,7 @@ export async function listNewsForBannerAt(
  * including rows past `lastDate`.
  *
  * @param now - Evaluation instant (typically server request time)
- * @returns Same ordering as the banner query subset would use for active rows
+ * @returns Latest {@link startDate} first; same-day ties put newest `createdAt` first
  */
 export async function listPublishedNews(
   now: Date = new Date()
@@ -111,19 +124,10 @@ export async function listPublishedNews(
     return [];
   }
 
-  const rows = await prisma.news.findMany({
-    where: {
-      isPublished: true,
-      startDate: { lte: todayDate },
-    },
-    orderBy: { startDate: 'desc' },
-    select: {
-      id: true,
-      body: true,
-      startDate: true,
-    },
+  return findPublicNewsItems({
+    isPublished: true,
+    startDate: { lte: todayDate },
   });
-  return rows.map(toPublicItem);
 }
 
 /**

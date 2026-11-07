@@ -81,8 +81,3 @@ export function useNewsBannerCollapsed(
 
   return { collapsed, toggleCollapsed };
 }
-
-/** Resets in-memory collapse override (tests only). */
-export function resetNewsBannerCollapseStateForTests() {
-  storageFault = null;
-}

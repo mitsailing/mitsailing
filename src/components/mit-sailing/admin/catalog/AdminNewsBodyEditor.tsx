@@ -1,16 +1,36 @@
 'use client';
 
 import { Link as TiptapLink } from '@tiptap/extension-link';
-import { EditorContent, useEditor } from '@tiptap/react';
+import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import { StarterKit } from '@tiptap/starter-kit';
 import { Bold, Italic, Link, Unlink } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { isAllowedEditorHref } from '@/components/mit-sailing/admin/catalog/AdminRichTextEditor';
 import { AdminRichTextMarkButton } from '@/components/mit-sailing/admin/catalog/AdminRichTextMarkButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
+/** Module-scope so useEditor keeps a stable extensions identity across renders. */
+const newsBodyExtensions = [
+  StarterKit.configure({
+    blockquote: false,
+    bulletList: false,
+    code: false,
+    codeBlock: false,
+    heading: false,
+    horizontalRule: false,
+    link: false,
+    orderedList: false,
+    strike: false,
+  }),
+  TiptapLink.configure({
+    autolink: false,
+    openOnClick: false,
+    protocols: ['http', 'https', 'mailto'],
+  }),
+];
 
 type NewsBodyEditorInstance = NonNullable<ReturnType<typeof useEditor>>;
 
@@ -20,11 +40,19 @@ function AdminNewsBodyToolbar(props: {
   onOpenLinkEditor: () => void;
 }) {
   const t = useTranslations('AdminCatalogResource');
+  const markState = useEditorState({
+    editor: props.editor,
+    selector: (ctx) => ({
+      isBold: ctx.editor?.isActive('bold') ?? false,
+      isItalic: ctx.editor?.isActive('italic') ?? false,
+      isLink: ctx.editor?.isActive('link') ?? false,
+    }),
+  });
 
   return (
     <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted/40 p-1.5">
       <AdminRichTextMarkButton
-        active={props.editor?.isActive('bold') ?? false}
+        active={markState?.isBold ?? false}
         disabled={props.disabled}
         Icon={Bold}
         label={t('rich_text_bold')}
@@ -33,7 +61,7 @@ function AdminNewsBodyToolbar(props: {
         }}
       />
       <AdminRichTextMarkButton
-        active={props.editor?.isActive('italic') ?? false}
+        active={markState?.isItalic ?? false}
         disabled={props.disabled}
         Icon={Italic}
         label={t('rich_text_italic')}
@@ -48,11 +76,16 @@ function AdminNewsBodyToolbar(props: {
         onClick={props.onOpenLinkEditor}
       />
       <AdminRichTextMarkButton
-        disabled={props.disabled || !props.editor?.isActive('link')}
+        disabled={props.disabled || !(markState?.isLink ?? false)}
         Icon={Unlink}
         label={t('rich_text_unlink')}
         onClick={() => {
-          props.editor?.chain().focus().unsetLink().run();
+          props.editor
+            ?.chain()
+            .focus()
+            .extendMarkRange('link')
+            .unsetLink()
+            .run();
         }}
       />
     </div>
@@ -116,6 +149,9 @@ export function AdminNewsBodyEditor(props: {
   const [html, setHtml] = useState(props.defaultValue);
   const [linkEditorOpen, setLinkEditorOpen] = useState(false);
   const [linkHref, setLinkHref] = useState('');
+  const editorPropsRef = useRef({
+    attributes: {} as Record<string, string>,
+  });
 
   const editorAttributes: Record<string, string> = {
     'aria-label': props.label,
@@ -128,32 +164,16 @@ export function AdminNewsBodyEditor(props: {
     editorAttributes['aria-describedby'] = props.errorId;
     editorAttributes['aria-invalid'] = 'true';
   }
+  editorPropsRef.current.attributes = editorAttributes;
 
   const editor = useEditor({
     content: props.defaultValue || '<p></p>',
-    editorProps: {
-      attributes: editorAttributes,
-    },
-    extensions: [
-      StarterKit.configure({
-        blockquote: false,
-        bulletList: false,
-        code: false,
-        codeBlock: false,
-        heading: false,
-        horizontalRule: false,
-        link: false,
-        orderedList: false,
-        strike: false,
-      }),
-      TiptapLink.configure({
-        autolink: false,
-        openOnClick: false,
-        protocols: ['http', 'https', 'mailto'],
-      }),
-    ],
-    // Next.js SSR: avoid hydration mismatch (TipTap React install guide)
+    editorProps: editorPropsRef.current,
+    extensions: newsBodyExtensions,
+    // Next.js SSR: avoid hydration mismatch (TipTap React / Next.js install guides)
     immediatelyRender: false,
+    // TipTap v3 default; keep explicit so toolbar uses useEditorState instead of host re-renders
+    shouldRerenderOnTransaction: false,
     onUpdate: ({ editor: currentEditor }) => {
       const nextHtml = currentEditor.getHTML();
       setHtml(nextHtml);
@@ -176,7 +196,8 @@ export function AdminNewsBodyEditor(props: {
     }
     const trimmed = linkHref.trim();
     if (!isAllowedEditorHref(trimmed)) {
-      editor.chain().focus().unsetLink().run();
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      setHtml(editor.getHTML());
       setLinkEditorOpen(false);
       return;
     }

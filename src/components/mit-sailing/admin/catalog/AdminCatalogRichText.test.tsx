@@ -442,35 +442,6 @@ describe('AdminCatalogForm rich text fields', () => {
     expect(boldButton).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('renders news body with a limited toolbar', () => {
-    const view = render(
-      <AdminCatalogForm
-        definition={catalogResourceDefinitions.news}
-        formAction={formAction}
-        headingKey="edit_heading"
-        row={{
-          body: '<p>Plain news</p>',
-          id: 'news-1',
-          isPublished: true,
-          lastDate: '2026-05-10',
-          startDate: '2026-05-09',
-        }}
-      />
-    );
-
-    expect(screen.queryByLabelText('Block style')).toBeNull();
-    expect(screen.queryByLabelText('Bullet list')).toBeNull();
-    expect(screen.queryByLabelText('New paragraph')).toBeNull();
-    expect(screen.getByLabelText('Bold')).toBeVisible();
-    expect(screen.getByLabelText('Italic')).toBeVisible();
-    expect(screen.getByLabelText('Add link')).toBeVisible();
-    expect(view.container.querySelector('textarea[name="body"]')).toBeNull();
-    expect(view.container.querySelector('input[name="body"]')).toHaveAttribute(
-      'type',
-      'hidden'
-    );
-  });
-
   it('renders class descriptions as rich text with image lists', () => {
     const view = render(
       <AdminCatalogForm

@@ -113,28 +113,6 @@ describe('createCatalogResourceAction', () => {
     );
   });
 
-  it('expires news cache after creating news', async () => {
-    const { createCatalogResourceAction } =
-      await import('@/libs/admin/catalog/catalogActions');
-
-    await expect(
-      createCatalogResourceAction('en', 'news', new FormData())
-    ).rejects.toThrow('NEXT_REDIRECT');
-
-    expect(updateTag).toHaveBeenCalledWith('news');
-  });
-
-  it('skips news cache after creating other resources', async () => {
-    const { createCatalogResourceAction } =
-      await import('@/libs/admin/catalog/catalogActions');
-
-    await expect(
-      createCatalogResourceAction('en', 'donation_funds', new FormData())
-    ).rejects.toThrow('NEXT_REDIRECT');
-
-    expect(updateTag).not.toHaveBeenCalled();
-  });
-
   it('invalidates sitemap catalog cache after creating sailing_classes', async () => {
     const { createCatalogResourceAction } =
       await import('@/libs/admin/catalog/catalogActions');

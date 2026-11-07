@@ -1,5 +1,6 @@
 -- Start news empty. Existing site alert rows are not kept.
-DROP TABLE "site_alerts";
+DROP TABLE IF EXISTS "site_alerts";
+DROP TABLE IF EXISTS "news";
 
 CREATE TABLE "news" (
     "id" TEXT NOT NULL,
