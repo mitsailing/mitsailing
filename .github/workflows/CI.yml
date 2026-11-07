@@ -202,6 +202,35 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  # SonarQube Cloud CI scan (not Automatic Analysis). Uses sonar-project.properties
+  # so co-located Vitest files are test scope. Needs SONAR_TOKEN; turn Automatic
+  # Analysis off in SonarQube Cloud Administration > Analysis Method (see AGENTS.md).
+  sonar:
+    name: SonarQube Cloud
+    needs: [unit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Full history so Sonar can compute new-code against the PR base.
+          fetch-depth: 0
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
   integration:
     strategy:
       matrix:

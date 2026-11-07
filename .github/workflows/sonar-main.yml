@@ -1,0 +1,55 @@
+name: SonarQube Cloud (main)
+
+# Slim post-merge scan so Sonar’s new-code baseline stays current. Full CI.yml
+# stays pull-request-only on purpose; this workflow only runs unit coverage plus
+# the scanner. Requires repository secret SONAR_TOKEN and Automatic Analysis
+# turned off for project `mitsailing` (AGENTS.md Sonar Setup Top 10).
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: sonar-main-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  BETTER_AUTH_SECRET: ci-placeholder-auth-secret-min-32-chars-long!!
+  DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/dev_db?sslmode=disable
+  TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/test_db?sslmode=disable
+  MAIL_TRANSPORT: smtp
+  SMTP_URL: smtp://127.0.0.1:1025
+  MAILPIT_API_URL: http://127.0.0.1:8025
+  EMAIL_FROM: ci@example.com
+  SUPPORT_EMAIL: support@example.com
+  NEXT_PUBLIC_APP_URL: http://localhost:3008
+  ADMIN_EMAIL: e2e-admin@example.com
+  ADMIN_PASSWORD: 'Correct-Horse-Battery-Staple-E2E-32!!'
+  NODE_VERSION: 24.x
+
+jobs:
+  sonar:
+    name: SonarQube Cloud (main)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js environment
+        uses: ./.github/actions/setup-project
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run unit tests (with coverage)
+        run: npm run test:coverage
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

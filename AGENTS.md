@@ -51,13 +51,13 @@ Only these `npm run` scripts: `build-local`, `lint`, `check:types`, `check:deps`
 
 ### Sonar Setup Top 10
 
-1. Keep local project identity in `.sonarlint/connectedMode.json` and scanner defaults in `sonar-project.properties`.
-2. Use Sonar way quality gate/profile and Clean as You Code: gate new code first, not historical debt.
-3. PR analysis belongs in CI with the PR branch checked out, target branch fetched, intact `.git` metadata, and no synthetic merge-preview edits before scanning.
+1. Keep local project identity in `.sonarlint/connectedMode.json` and scanner defaults in `sonar-project.properties` (includes `sonar.organization`). Do not use `.sonarcloud.properties` or Automatic Analysis for this project.
+2. Use Sonar way quality gate/profile and Clean as You Code: gate new code first, not historical debt. Coverage is reported via LCOV for visibility; it is not a quality-gate condition.
+3. PR analysis runs in [`.github/workflows/CI.yml`](.github/workflows/CI.yml) (`sonar` job after unit coverage, `fetch-depth: 0`). Main-branch baseline runs in [`.github/workflows/sonar-main.yml`](.github/workflows/sonar-main.yml) on `push` to `main` (unit coverage + scan only). Do not enable scanner autoconfig (`sonar.scanner.autoconfig.enabled`); it ignores manual `sonar.sources` / `sonar.tests` / `sonar.test.inclusions`.
 4. Keep `sonar.sources`, `sonar.tests`, and `sonar.test.inclusions` explicit unless Sonar changes the property contract; a file must be source or test, never both.
 5. Import JS/TS coverage from `coverage/lcov.info`; Sonar does not generate coverage.
 6. Exclude build outputs, dependency folders, reports, generated artifacts, migrations, and tests from metrics where they are low signal.
-7. Keep Sonar tokens and host URLs in CI secrets/variables, never in repo files.
+7. Keep Sonar tokens and host URLs in CI secrets/variables, never in repo files. Repository secret `SONAR_TOKEN` (analyze permission on project `mitsailing`) is required for both workflows. In SonarQube Cloud: **Administration > Analysis Method**, turn Automatic Analysis **off** for this project only before treating the CI check as the gate (otherwise Automatic Analysis and CI both post).
 8. Treat quality-gate failures as blocking; treat low-severity code smells as cleanup only when they improve clarity.
 9. Do not tune Sonar to override app UX, accessibility, i18n, or React conventions.
 10. After fixes, run targeted tests plus `npm run lint` and `npm run check:types`, then wait for CI/Sonar re-analysis before claiming the remote gate is clean.
@@ -138,7 +138,7 @@ Tailwind v4 utility classes. Reuse shared components. Responsive. No unnecessary
 
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
