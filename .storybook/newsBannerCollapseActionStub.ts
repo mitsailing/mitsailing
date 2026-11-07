@@ -5,6 +5,6 @@
  * @param _signature Current banner signature when collapsing, or null when opening
  * @returns Resolved promise with no side effects
  */
- async export function setNewsBannerCollapsed(_signature: string | null) {
-  return Promise.resolve();
+export async function setNewsBannerCollapsed(_signature: string | null) {
+  await Promise.resolve();
 }
