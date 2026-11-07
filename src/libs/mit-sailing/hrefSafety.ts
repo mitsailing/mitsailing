@@ -1,6 +1,12 @@
 /** Remote schemes allowed for news and CMS rich-text absolute links. */
 export const REMOTE_HREF_PREFIXES = ['http://', 'https://', 'mailto:'] as const;
 
+/** Two bases so `/\this-host` cannot match the only sentinel. */
+const HREF_RESOLUTION_BASES = [
+  new URL('https://href-safety-a.invalid'),
+  new URL('https://href-safety-b.invalid'),
+] as const;
+
 function isControlOrWhitespace(char: string): boolean {
   const codePoint = char.codePointAt(0);
   if (codePoint === undefined) {
@@ -43,8 +49,14 @@ export function isAllowedNewsHref(href: string): boolean {
   if (startsWithDangerousScheme(lower)) {
     return false;
   }
-  if (h.startsWith('/') && !h.startsWith('//')) {
-    return true;
+  if (!h.startsWith('/')) {
+    return REMOTE_HREF_PREFIXES.some((p) => lower.startsWith(p));
   }
-  return REMOTE_HREF_PREFIXES.some((p) => lower.startsWith(p));
+  try {
+    return HREF_RESOLUTION_BASES.every(
+      (base) => new URL(h, base).origin === base.origin
+    );
+  } catch {
+    return false;
+  }
 }

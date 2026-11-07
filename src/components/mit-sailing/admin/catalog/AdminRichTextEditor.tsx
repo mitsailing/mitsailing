@@ -35,10 +35,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
-import {
-  REMOTE_HREF_PREFIXES,
-  startsWithDangerousScheme,
-} from '@/libs/mit-sailing/hrefSafety';
+import { isAllowedNewsHref } from '@/libs/mit-sailing/hrefSafety';
 
 export {
   cmsMediaAssetFromUnknown,
@@ -112,20 +109,10 @@ const richTextExtensions = [
 
 export function isAllowedEditorHref(href: string): boolean {
   const trimmed = href.trim();
-  if (!trimmed) {
-    return false;
-  }
-  const lower = trimmed.toLowerCase();
-  if (startsWithDangerousScheme(lower)) {
-    return false;
-  }
   if (trimmed === '#') {
     return true;
   }
-  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
-    return true;
-  }
-  return REMOTE_HREF_PREFIXES.some((prefix) => lower.startsWith(prefix));
+  return isAllowedNewsHref(trimmed);
 }
 
 export function nodeStringAttribute(
