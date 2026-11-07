@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { NewsBanner } from '@/components/mit-sailing/site/NewsBanner';
-import { buildNewsBannerCollapseAlerts } from '@/libs/mit-sailing/newsBannerCollapse';
 import type { NewsBannerRow } from '@/libs/mit-sailing/newsTypes';
 
 const rows: NewsBannerRow[] = [
@@ -38,7 +37,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'Home news strip: one link to /news; collapse applies until reload or client navigation.',
+          'Home news strip: one link to /news. A collapse is remembered until the news changes.',
       },
     },
   },
@@ -50,21 +49,24 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: {
-    collapseAlerts: buildNewsBannerCollapseAlerts(rows),
+    collapsed: false,
     rows,
+    signature: 'story',
   },
 };
 
 export const SingleItem: Story = {
   args: {
-    collapseAlerts: buildNewsBannerCollapseAlerts(rows.slice(0, 1)),
+    collapsed: false,
     rows: rows.slice(0, 1),
+    signature: 'story',
   },
 };
 
 export const Empty: Story = {
   args: {
-    collapseAlerts: buildNewsBannerCollapseAlerts([]),
+    collapsed: false,
     rows: [],
+    signature: 'story',
   },
 };

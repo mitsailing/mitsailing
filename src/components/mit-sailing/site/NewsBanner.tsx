@@ -2,11 +2,10 @@
 
 import { ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useId } from 'react';
+import { useId, useRef, useState } from 'react';
 import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
-import { useNewsBannerCollapsed } from '@/components/mit-sailing/site/useNewsBannerCollapsed';
 import { Link } from '@/libs/I18nNavigation';
-import type { NewsBannerCollapseAlert } from '@/libs/mit-sailing/newsBannerCollapse';
+import { setNewsBannerCollapsed } from '@/libs/mit-sailing/newsBannerCollapseAction';
 import type { NewsBannerRow } from '@/libs/mit-sailing/newsTypes';
 
 const linkClass =
@@ -184,15 +183,36 @@ function NewsBannerBar(props: {
  * @returns Banner markup or `null` when there are no rows
  */
 export function NewsBanner(props: {
-  collapseAlerts: NewsBannerCollapseAlert[];
+  collapsed: boolean;
   rows: NewsBannerRow[];
+  signature: string;
 }) {
   const t = useTranslations('MitSailingSite');
   const disclosureId = useId();
   const headingId = `${disclosureId}-heading`;
-  const { collapsed, toggleCollapsed } = useNewsBannerCollapsed(
-    props.collapseAlerts
-  );
+  const [choice, setChoice] = useState<{
+    collapsed: boolean;
+    signature: string;
+  } | null>(null);
+  const collapsed =
+    choice?.signature === props.signature ? choice.collapsed : props.collapsed;
+  const saving = useRef(false);
+
+  async function toggleCollapsed() {
+    if (saving.current) {
+      return;
+    }
+    saving.current = true;
+    const next = !collapsed;
+    setChoice({ collapsed: next, signature: props.signature });
+    try {
+      await setNewsBannerCollapsed(next ? props.signature : null);
+    } catch {
+      setChoice(null);
+    } finally {
+      saving.current = false;
+    }
+  }
 
   if (props.rows.length === 0) {
     return null;

@@ -30,9 +30,6 @@ test.describe('Admin news', () => {
 
     await page.goto('/');
     const banner = page.locator('[data-news-banner]');
-    await banner
-      .getByRole('button', { name: 'Expand news to show messages' })
-      .click();
     await expect(banner.getByText(marker)).toBeVisible();
 
     await page.goto('/admin/news');

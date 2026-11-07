@@ -15,8 +15,6 @@ import type {
 } from '@/libs/mit-sailing/newsTypes';
 import { sanitizeNewsBodyHtmlForBanner } from '@/libs/mit-sailing/sanitizeNewsHtml';
 
-export { buildNewsBannerCollapseAlerts } from '@/libs/mit-sailing/newsBannerCollapse';
-
 export const NEWS_CACHE_TAG = 'news';
 
 const NEWS_BANNER_REVALIDATE_SECONDS = 60 * 60;
