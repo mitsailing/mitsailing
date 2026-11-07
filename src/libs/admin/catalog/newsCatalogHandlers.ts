@@ -17,6 +17,7 @@ import { prisma } from '@/libs/DB';
 import { formatEasternShortDateFromIsoCalendar } from '@/libs/mit-sailing/easternTimeFormat';
 import { isoCalendarDateFromPrismaDate } from '@/libs/mit-sailing/isoCalendarDate';
 import { plainTextFromNewsHtmlish } from '@/libs/mit-sailing/newsPlainText';
+import { newsListOrderBy } from '@/libs/mit-sailing/newsQueries';
 import { sanitizeNewsBodyHtml } from '@/libs/mit-sailing/sanitizeNewsHtml';
 
 /**
@@ -25,7 +26,7 @@ import { sanitizeNewsBodyHtml } from '@/libs/mit-sailing/sanitizeNewsHtml';
 export const newsCatalogHandlers: CatalogServerHandlers = {
   async list(_options?: CatalogListOptions): Promise<CatalogRow[]> {
     const rows = await prisma.news.findMany({
-      orderBy: { startDate: 'desc' },
+      orderBy: [...newsListOrderBy],
       select: {
         id: true,
         body: true,

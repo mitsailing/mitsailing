@@ -85,7 +85,8 @@ const listNewsForBannerByDay = unstable_cache(
     if (!where) {
       return [];
     }
-    return findPublicNewsItems(where);
+    const items = await findPublicNewsItems(where);
+    return items;
   },
   ['news-banner-by-day'],
   {
@@ -124,10 +125,11 @@ export async function listPublishedNews(
     return [];
   }
 
-  return findPublicNewsItems({
+  const items = await findPublicNewsItems({
     isPublished: true,
     startDate: { lte: todayDate },
   });
+  return items;
 }
 
 /**
