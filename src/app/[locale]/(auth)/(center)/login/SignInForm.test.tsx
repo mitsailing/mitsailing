@@ -124,27 +124,15 @@ describe('SignInForm', () => {
     expect(authClientMock.signIn.email).not.toHaveBeenCalled();
   });
 
-  it('Legacy sailor sees check-email copy when a new password is required', async () => {
+  it('Legacy sailor sees must-set-password copy when no credential password exists', async () => {
     authClientMock.signIn.email.mockResolvedValue({
-      error: { code: 'PASSWORD_RESET_REQUIRED' },
+      error: { code: 'MUST_SET_PASSWORD' },
     });
 
     await expectSignInAlert({
-      alertText: 'Check your email for a reset code',
+      alertText: 'Your old password does not work on this site',
       email: 'legacy@mit.edu',
-      password: 'any-password',
-    });
-  });
-
-  it('Legacy sailor sees reset failure when the create-password email cannot be sent', async () => {
-    authClientMock.signIn.email.mockResolvedValue({
-      error: { code: 'PASSWORD_RESET_FAILED' },
-    });
-
-    await expectSignInAlert({
-      alertText: 'We could not send a reset code.',
-      email: 'legacy@mit.edu',
-      password: 'any-password',
+      password: 'old',
     });
   });
 

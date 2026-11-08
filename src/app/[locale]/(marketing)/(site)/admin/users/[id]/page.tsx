@@ -66,6 +66,11 @@ import {
   listAdminUserPaymentHistoryPage,
 } from '@/libs/admin/users/adminUserPaymentHistory';
 import type { AdminUserPaymentHistoryRow } from '@/libs/admin/users/adminUserPaymentHistory';
+import {
+  ADMIN_USER_SECURITY_ACTIVITY_PAGE_SIZE,
+  listAdminUserSecurityActivityPage,
+} from '@/libs/admin/users/adminUserSecurityActivity';
+import type { AdminUserSecurityActivityRow } from '@/libs/admin/users/adminUserSecurityActivity';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
 import {
   getAppRolePermissions,
@@ -96,6 +101,7 @@ type AdminUserShowPageProps = Readonly<{
     error?: string | string[];
     paymentsPage?: string | string[];
     ratingsPage?: string | string[];
+    securityActivityPage?: string | string[];
     tab?: string | string[];
   }>;
 }>;
@@ -380,6 +386,14 @@ type AdminUserPaymentDetails = {
   readonly total: number;
 };
 
+type AdminUserSecurityActivityDetails = {
+  readonly loadError: boolean;
+  readonly page: number;
+  readonly pageSize: number;
+  readonly rows: AdminUserSecurityActivityRow[];
+  readonly total: number;
+};
+
 async function loadAdminUserSailingCardDetails(
   userId: string
 ): Promise<AdminUserSailingCardDetails> {
@@ -482,6 +496,38 @@ async function loadAdminUserPaymentDetails(props: {
       loadError: true,
       page: 1,
       pageSize: ADMIN_USER_PAYMENT_HISTORY_PAGE_SIZE,
+      rows: [],
+      total: 0,
+    };
+  }
+}
+
+async function loadAdminUserSecurityActivityDetails(props: {
+  readonly page: number;
+  readonly userId: string;
+}): Promise<AdminUserSecurityActivityDetails> {
+  try {
+    const activityPage = await listAdminUserSecurityActivityPage({
+      page: props.page,
+      pageSize: ADMIN_USER_SECURITY_ACTIVITY_PAGE_SIZE,
+      userId: props.userId,
+    });
+    return {
+      loadError: false,
+      page: activityPage.page,
+      pageSize: activityPage.pageSize,
+      rows: activityPage.rows,
+      total: activityPage.total,
+    };
+  } catch (error) {
+    logger.error('Failed to load admin user security activity rows: {error}', {
+      error,
+      userId: props.userId,
+    });
+    return {
+      loadError: true,
+      page: 1,
+      pageSize: ADMIN_USER_SECURITY_ACTIVITY_PAGE_SIZE,
       rows: [],
       total: 0,
     };
@@ -832,6 +878,64 @@ function AdminUserSailingCardSection(props: {
         <AdminSailingCardHistory rows={props.history} />
       )}
     </>
+  );
+}
+
+function AdminUserSecurityActivityPanel(props: {
+  readonly loadFailed: boolean;
+  readonly locale: string;
+  readonly rows: readonly AdminUserSecurityActivityRow[];
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-lg font-semibold">
+        {props.t('security_activity_heading')}
+      </h2>
+      {props.loadFailed ? (
+        <output className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+          {props.t('security_activity_load_failed')}
+        </output>
+      ) : null}
+      <AdminTableContainer>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>
+                {props.t('security_activity_column_action')}
+              </TableHead>
+              <TableHead>
+                {props.t('security_activity_column_status')}
+              </TableHead>
+              <TableHead>
+                {props.t('security_activity_column_severity')}
+              </TableHead>
+              <TableHead>{props.t('security_activity_column_time')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {props.rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4}>
+                  {props.t('security_activity_empty')}
+                </TableCell>
+              </TableRow>
+            ) : (
+              props.rows.map((entry) => (
+                <TableRow key={entry.id}>
+                  <TableCell className="font-medium">{entry.action}</TableCell>
+                  <TableCell>{entry.status}</TableCell>
+                  <TableCell>{entry.severity}</TableCell>
+                  <TableCell>
+                    {formatAdminDate(entry.createdAt, props.locale)}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </AdminTableContainer>
+    </section>
   );
 }
 
@@ -1322,6 +1426,7 @@ function AdminUserShowTabPanels(props: {
     typeof paginatedRows<UserRatingAssignmentRow>
   >;
   readonly sailingCardDetails: AdminUserSailingCardDetails;
+  readonly securityActivityDetails: AdminUserSecurityActivityDetails;
   readonly suggestedCardNumber: number;
   readonly t: Awaited<ReturnType<typeof getTranslations>>;
   readonly tAffiliation: (
@@ -1406,6 +1511,19 @@ function AdminUserShowTabPanels(props: {
           basePath={props.userShowPath}
           pageParamName="ratingsPage"
           pagination={props.ratingsPage}
+          params={props.paginationParams}
+          t={props.t}
+        />
+        <AdminUserSecurityActivityPanel
+          loadFailed={props.securityActivityDetails.loadError}
+          locale={props.locale}
+          rows={props.securityActivityDetails.rows}
+          t={props.t}
+        />
+        <AdminUserPanelPagination
+          basePath={props.userShowPath}
+          pageParamName="securityActivityPage"
+          pagination={props.securityActivityDetails}
           params={props.paginationParams}
           t={props.t}
         />
@@ -1500,23 +1618,35 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
   const requestedRatingsPage = adminPaginationPage(
     searchParamString(searchParams.ratingsPage)
   );
-  const [sailingCardDetails, ratingDetails, emailDetails, paymentDetails] =
-    await Promise.all([
-      loadAdminUserSailingCardDetails(id),
-      loadAdminUserRatingDetails(id),
-      access.canViewEmails
-        ? loadAdminUserEmailDetails({
-            email: userEmail,
-            page: requestedEmailsPage,
-            userId: id,
-          })
-        : Promise.resolve(emptyAdminUserEmailDetails()),
-      loadAdminUserPaymentDetails({
-        cardYear,
-        page: requestedPaymentsPage,
-        userId: id,
-      }),
-    ]);
+  const requestedSecurityActivityPage = adminPaginationPage(
+    searchParamString(searchParams.securityActivityPage)
+  );
+  const [
+    sailingCardDetails,
+    ratingDetails,
+    emailDetails,
+    paymentDetails,
+    securityActivityDetails,
+  ] = await Promise.all([
+    loadAdminUserSailingCardDetails(id),
+    loadAdminUserRatingDetails(id),
+    access.canViewEmails
+      ? loadAdminUserEmailDetails({
+          email: userEmail,
+          page: requestedEmailsPage,
+          userId: id,
+        })
+      : Promise.resolve(emptyAdminUserEmailDetails()),
+    loadAdminUserPaymentDetails({
+      cardYear,
+      page: requestedPaymentsPage,
+      userId: id,
+    }),
+    loadAdminUserSecurityActivityDetails({
+      page: requestedSecurityActivityPage,
+      userId: id,
+    }),
+  ]);
   const ratingsPage = paginatedRows({
     page: requestedRatingsPage,
     pageSize: ADMIN_USER_RATINGS_PAGE_SIZE,
@@ -1583,6 +1713,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     error: errorCode,
     paymentsPage: pageParamValue(paymentDetails.page),
     ratingsPage: pageParamValue(ratingsPage.page),
+    securityActivityPage: pageParamValue(securityActivityDetails.page),
     tab: activeTab === 'account' ? undefined : activeTab,
   };
 
@@ -1628,6 +1759,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
         ratingDetails={ratingDetails}
         ratingsPage={ratingsPage}
         sailingCardDetails={sailingCardDetails}
+        securityActivityDetails={securityActivityDetails}
         suggestedCardNumber={suggestedCardNumber}
         t={t}
         tAffiliation={tAffiliation}

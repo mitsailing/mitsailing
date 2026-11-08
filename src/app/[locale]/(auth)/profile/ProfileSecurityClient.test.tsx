@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProfileSecurityClient } from './ProfileSecurityClient';
 
 const authClientMock = vi.hoisted(() => ({
+  auditLog: {
+    list: vi.fn(),
+  },
   revokeOtherSessions: vi.fn(),
 }));
 
@@ -14,6 +17,20 @@ vi.mock('@/libs/auth-client', () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   authClientMock.revokeOtherSessions.mockResolvedValue({});
+  authClientMock.auditLog.list.mockResolvedValue({
+    data: {
+      entries: [
+        {
+          action: 'sign-in:email',
+          createdAt: '2026-05-08T16:30:00.000Z',
+          id: 'log-1',
+          severity: 'medium',
+          status: 'success',
+        },
+      ],
+      total: 1,
+    },
+  });
 });
 
 describe('ProfileSecurityClient', () => {
@@ -83,5 +100,38 @@ describe('ProfileSecurityClient', () => {
       'Could not revoke other sessions. Try again.'
     );
     expect(button).toBeEnabled();
+  });
+
+  it('profile owner sees their own security activity from auditLog.list', async () => {
+    render(<ProfileSecurityClient />);
+
+    expect(authClientMock.auditLog.list).toHaveBeenCalledWith({
+      query: { limit: 25, offset: 0 },
+    });
+    expect(await screen.findByText('sign-in:email')).toBeVisible();
+    expect(screen.getByText('success')).toBeVisible();
+    expect(screen.getByText('medium')).toBeVisible();
+  });
+
+  it('profile owner sees an empty state when there is no security activity', async () => {
+    authClientMock.auditLog.list.mockResolvedValue({
+      data: { entries: [], total: 0 },
+    });
+
+    render(<ProfileSecurityClient />);
+
+    expect(await screen.findByText('No security activity yet.')).toBeVisible();
+  });
+
+  it('profile owner sees a recovery message when security activity fails to load', async () => {
+    authClientMock.auditLog.list.mockResolvedValue({
+      error: { message: 'forbidden' },
+    });
+
+    render(<ProfileSecurityClient />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not load security activity.'
+    );
   });
 });

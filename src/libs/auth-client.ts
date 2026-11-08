@@ -1,3 +1,4 @@
+import { auditLogClient } from 'better-auth-audit-logs/client';
 import {
   adminClient,
   customSessionClient,
@@ -10,11 +11,13 @@ import type { auth } from '@/libs/auth';
  * Better Auth React client. The `adminClient` plugin mirrors the server's
  * admin plugin so `authClient.admin.*` helpers are type-safe without a
  * manual declaration. Server-only error codes translate via the `@better-auth/i18n`
- * plugin registered on the server instance.
+ * plugin registered on the server instance. `auditLogClient` exposes the
+ * sailor self-scoped `/audit-log/list` helper.
  */
 export const authClient = createAuthClient({
   plugins: [
     adminClient(),
+    auditLogClient(),
     customSessionClient<typeof auth>(),
     emailOTPClient(),
   ],

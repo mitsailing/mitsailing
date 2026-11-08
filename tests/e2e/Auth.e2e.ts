@@ -672,7 +672,7 @@ test.describe('Auth', () => {
     await cleanupByEmail(email);
   });
 
-  test('legacy sailor without a new-site password gets a create-password reset from sign-in', async ({
+  test('legacy sailor without a credential password is told to use Forgot password', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -700,13 +700,10 @@ test.describe('Auth', () => {
     });
 
     await expect(formAlert(page)).toContainText(
-      'Check your email for a reset code'
+      'Your old password does not work on this site'
     );
 
-    const resetCode = await findLatestPasswordResetCode(email);
-    await page.goto(
-      `/reset-password?email=${encodeURIComponent(email)}&codeSent=1&mode=create-password`
-    );
+    const resetCode = await requestPasswordReset({ email, page });
     await completeResetCodeStep(page, resetCode);
     await submitNewPassword({
       page,
@@ -715,12 +712,6 @@ test.describe('Auth', () => {
     });
 
     await expect.poll(() => new URL(page.url()).pathname).toBe('/');
-
-    const { rows } = await pool.query<{ new_password_set_at: Date | null }>(
-      `SELECT "new_password_set_at" FROM "user" WHERE "email" = $1`,
-      [email]
-    );
-    expect(rows[0]?.new_password_set_at).not.toBeNull();
 
     await page.context().clearCookies();
     await submitEmailPasswordSignIn({ email, page, password });

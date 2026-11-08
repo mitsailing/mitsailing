@@ -31,8 +31,7 @@ type SignInKnownErrorMessages = {
   ACCOUNT_LOCKED: string;
   BANNED_USER: string;
   INVALID_EMAIL_OR_PASSWORD: string;
-  PASSWORD_RESET_FAILED: string;
-  PASSWORD_RESET_REQUIRED: string;
+  MUST_SET_PASSWORD: string;
   TOO_MANY_REQUESTS: string;
 };
 
@@ -52,11 +51,8 @@ function mappedSignInErrorMessage(
   if (code === 'BANNED_USER') {
     return messages.BANNED_USER;
   }
-  if (code === 'PASSWORD_RESET_REQUIRED') {
-    return messages.PASSWORD_RESET_REQUIRED;
-  }
-  if (code === 'PASSWORD_RESET_FAILED') {
-    return messages.PASSWORD_RESET_FAILED;
+  if (code === 'MUST_SET_PASSWORD') {
+    return messages.MUST_SET_PASSWORD;
   }
   return undefined;
 }
@@ -74,8 +70,8 @@ function reportUnmappedSignInAuthError(options: {
 
 // Email and password always show together. Better Auth still maps known error
 // codes to translated page copy so raw backend text never renders. Sailors
-// without a first new-site password get PASSWORD_RESET_REQUIRED from the
-// server hook and see check-email copy here.
+// without a credential password get MUST_SET_PASSWORD from the server hook and
+// are pointed at Forgot password.
 export function SignInForm(props: SignInFormProps) {
   const t = useTranslations('SignInPage');
   const tCommon = useTranslations('Common');
@@ -103,8 +99,7 @@ export function SignInForm(props: SignInFormProps) {
       ACCOUNT_LOCKED: t('error_locked'),
       TOO_MANY_REQUESTS: t('error_rate_limited'),
       BANNED_USER: t('error_banned'),
-      PASSWORD_RESET_REQUIRED: t('error_password_reset_required'),
-      PASSWORD_RESET_FAILED: t('error_reset_failed'),
+      MUST_SET_PASSWORD: t('error_must_set_password'),
     });
     if (mappedMessage) {
       return { kind: 'generic', message: mappedMessage };
@@ -300,7 +295,6 @@ export function SignInForm(props: SignInFormProps) {
           <Input
             autoComplete="current-password"
             id="password"
-            minLength={8}
             name="password"
             onChange={(e) => {
               setPassword(e.target.value);
