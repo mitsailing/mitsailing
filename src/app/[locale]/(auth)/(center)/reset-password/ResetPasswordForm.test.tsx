@@ -10,9 +10,14 @@ const authClientMock = vi.hoisted(() => ({
     email: vi.fn(),
   },
 }));
+const reportUnknownAuthClientErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
+}));
+
+vi.mock('@/libs/auth/reportAuthClientError', () => ({
+  reportUnknownAuthClientError: reportUnknownAuthClientErrorMock,
 }));
 
 beforeEach(() => {
@@ -165,6 +170,15 @@ describe('ResetPasswordForm', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent(expected);
       expect(authClientMock.signIn.email).not.toHaveBeenCalled();
       expect(componentTestRouter().push).not.toHaveBeenCalled();
+      if (code === 'UNKNOWN') {
+        expect(reportUnknownAuthClientErrorMock).toHaveBeenCalledWith({
+          action: 'reset-password.update-password',
+          code: 'UNKNOWN',
+          message: undefined,
+        });
+      } else {
+        expect(reportUnknownAuthClientErrorMock).not.toHaveBeenCalled();
+      }
     }
   );
 
@@ -194,7 +208,14 @@ describe('ResetPasswordForm', () => {
         /Your password was reset\. Please sign in manually\./
       )
     ).toBeInTheDocument();
+    expect(authClientMock.resetPassword).toHaveBeenCalled();
+    expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
     expect(componentTestRouter().push).not.toHaveBeenCalled();
+    expect(reportUnknownAuthClientErrorMock).toHaveBeenCalledWith({
+      action: 'reset-password.auto-sign-in',
+      code: undefined,
+      message: 'network',
+    });
   });
 
   it('ask the sailor to sign in when auto sign-in throws a non-Error', async () => {
@@ -208,7 +229,14 @@ describe('ResetPasswordForm', () => {
         /Your password was reset\. Please sign in manually\./
       )
     ).toBeInTheDocument();
+    expect(authClientMock.resetPassword).toHaveBeenCalled();
+    expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
     expect(componentTestRouter().push).not.toHaveBeenCalled();
+    expect(reportUnknownAuthClientErrorMock).toHaveBeenCalledWith({
+      action: 'reset-password.auto-sign-in',
+      code: undefined,
+      message: undefined,
+    });
   });
 
   it('show a request failure when resetPassword throws', async () => {
@@ -221,5 +249,10 @@ describe('ResetPasswordForm', () => {
       'We could not complete that request right now.'
     );
     expect(authClientMock.signIn.email).not.toHaveBeenCalled();
+    expect(reportUnknownAuthClientErrorMock).toHaveBeenCalledWith({
+      action: 'reset-password.update-password.thrown',
+      code: undefined,
+      message: 'network',
+    });
   });
 });
