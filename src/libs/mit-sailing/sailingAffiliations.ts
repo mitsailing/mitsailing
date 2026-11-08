@@ -51,9 +51,9 @@ const sailingAffiliationRules = [
   {
     value: SailingAffiliation.MIT_AFFILIATE,
     translationKey: 'affiliations.mit_affiliate',
-    mitIdMode: 'optional',
-    allowManualName: true,
-    manualNameMode: 'optional',
+    mitIdMode: 'required',
+    allowManualName: false,
+    manualNameMode: 'forbidden',
   },
   {
     value: SailingAffiliation.WELLESLEY,

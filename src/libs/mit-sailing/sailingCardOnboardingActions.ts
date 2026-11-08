@@ -22,10 +22,7 @@ import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 import { createMembershipCheckoutUrlForOnboarding } from '@/libs/mit-sailing/membershipBilling/membershipCheckoutActions';
-import {
-  lookupMitDataWarehouseIdentity,
-  verifiedKerberosFromEmail,
-} from '@/libs/mit-sailing/mitDataWarehouse';
+import { lookupMitDataWarehouseIdentity } from '@/libs/mit-sailing/mitDataWarehouse';
 import { normalizeVerifiedMitDataWarehousePersonName } from '@/libs/mit-sailing/personName';
 import {
   sailingCardAgreement,
@@ -269,7 +266,6 @@ export async function verifySailingCardOnboardingMitIdentityAction(props: {
   readonly affiliation: string;
   readonly mitId: string;
 }): Promise<VerifySailingCardOnboardingMitIdentityResult> {
-  const session = await getSession();
   const affiliation = parseAffiliation(props.affiliation);
   if (affiliation === null) {
     return { fieldError: 'affiliation_mismatch', ok: false };
@@ -280,11 +276,6 @@ export async function verifySailingCardOnboardingMitIdentityAction(props: {
 
   const identity = await lookupMitDataWarehouseIdentity({
     mitId: props.mitId,
-    verifiedKerberos: verifiedKerberosFromEmail({
-      email:
-        typeof session?.user?.email === 'string' ? session.user.email : null,
-      emailVerified: session?.user?.emailVerified === true,
-    }),
   });
   if (identity === null) {
     return { fieldError: 'invalid_dw_identity', ok: false };
@@ -620,16 +611,11 @@ export const submitSailingCardOnboardingAction = async (
   }
 
   const input = parseSailingCardOnboardingFormData(formData);
-  const verifiedKerberos = verifiedKerberosFromEmail({
-    email: typeof session.user.email === 'string' ? session.user.email : null,
-    emailVerified: session.user.emailVerified,
-  });
   const dataWarehouseIdentity =
     input.mitId.trim() === ''
       ? null
       : await lookupMitDataWarehouseIdentity({
           mitId: input.mitId,
-          verifiedKerberos,
         });
   let update: ReturnType<typeof buildSailingCardOnboardingUpdate>;
   try {

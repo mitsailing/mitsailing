@@ -36,24 +36,15 @@ export const normalizeMitId = (mitId: string) => {
   return normalized.length === 9 ? normalized : null;
 };
 
-const doesVerifiedKerberosMatch = (
-  dataWarehouseKerberos: string | null,
-  verifiedKerberos: string | null
-) => {
-  if (dataWarehouseKerberos === null || verifiedKerberos === null) {
-    return false;
-  }
-
-  return (
-    dataWarehouseKerberos.trim().toLowerCase() ===
-    verifiedKerberos.trim().toLowerCase()
-  );
-};
-
+/**
+ * Looks up a warehouse identity by MIT ID.
+ *
+ * @param props - MIT ID and optional Prisma client override
+ * @returns Matching warehouse identity, or null when the ID is invalid or missing
+ */
 export const lookupMitDataWarehouseIdentity = async (props: {
   readonly db?: MitDataWarehouseDb;
   readonly mitId: string;
-  readonly verifiedKerberos: string | null;
 }) => {
   const normalizedMitId = normalizeMitId(props.mitId);
 
@@ -63,7 +54,7 @@ export const lookupMitDataWarehouseIdentity = async (props: {
 
   const db = props.db ?? prisma;
 
-  const identity = await db.mitDataWarehousePerson.findUnique({
+  return  db.mitDataWarehousePerson.findUnique({
     where: { mitId: normalizedMitId },
     select: {
       mitId: true,
@@ -74,36 +65,4 @@ export const lookupMitDataWarehouseIdentity = async (props: {
       personType: true,
     },
   });
-
-  if (identity === null) {
-    return null;
-  }
-
-  if (!doesVerifiedKerberosMatch(identity.kerberos, props.verifiedKerberos)) {
-    return null;
-  }
-
-  return identity;
-};
-
-export const verifiedKerberosFromEmail = (props: {
-  readonly email: string | null;
-  readonly emailVerified: boolean;
-}) => {
-  if (!props.emailVerified || props.email === null) {
-    return null;
-  }
-
-  const emailParts = props.email.split('@');
-  if (emailParts.length !== 2) {
-    return null;
-  }
-
-  const [localPart = '', domain = ''] = emailParts;
-  if (domain.trim().toLowerCase() !== 'mit.edu') {
-    return null;
-  }
-
-  const kerberos = localPart.trim().toLowerCase();
-  return kerberos === '' ? null : kerberos;
 };

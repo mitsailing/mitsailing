@@ -30,29 +30,26 @@ describe('sailingAffiliations', () => {
     ]);
   });
 
-  it('requires mit id for current mit people', () => {
-    expect(isMitIdRequired(SailingAffiliation.MIT_STUDENT)).toBe(true);
-    expect(isMitIdRequired(SailingAffiliation.MIT_FACULTY)).toBe(true);
-    expect(isMitIdRequired(SailingAffiliation.MIT_STAFF)).toBe(true);
-    expect(isManualNameAllowed(SailingAffiliation.MIT_STUDENT)).toBe(false);
-    expect(isManualNameAllowed(SailingAffiliation.MIT_FACULTY)).toBe(false);
-    expect(isManualNameAllowed(SailingAffiliation.MIT_STAFF)).toBe(false);
-    expect(
-      getSailingAffiliationRule(SailingAffiliation.MIT_STUDENT).manualNameMode
-    ).toBe('forbidden');
-    expect(
-      getSailingAffiliationRule(SailingAffiliation.MIT_FACULTY).manualNameMode
-    ).toBe('forbidden');
-    expect(
-      getSailingAffiliationRule(SailingAffiliation.MIT_STAFF).manualNameMode
-    ).toBe('forbidden');
+  it('requires mit id for current mit people and affiliates', () => {
+    for (const affiliation of [
+      SailingAffiliation.MIT_STUDENT,
+      SailingAffiliation.MIT_FACULTY,
+      SailingAffiliation.MIT_STAFF,
+      SailingAffiliation.MIT_AFFILIATE,
+    ]) {
+      expect(isMitIdAsked(affiliation)).toBe(true);
+      expect(isMitIdRequired(affiliation)).toBe(true);
+      expect(isManualNameAllowed(affiliation)).toBe(false);
+      expect(getSailingAffiliationRule(affiliation).manualNameMode).toBe(
+        'forbidden'
+      );
+    }
   });
 
-  it('allows optional mit id and manual names for mit community affiliations', () => {
+  it('allows optional mit id and manual names for mit alum and family', () => {
     for (const affiliation of [
       SailingAffiliation.MIT_ALUM,
       SailingAffiliation.MIT_FAMILY,
-      SailingAffiliation.MIT_AFFILIATE,
     ]) {
       expect(isMitIdAsked(affiliation)).toBe(true);
       expect(isMitIdRequired(affiliation)).toBe(false);

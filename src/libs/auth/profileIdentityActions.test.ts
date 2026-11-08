@@ -86,8 +86,6 @@ beforeEach(() => {
   getI18nPath.mockImplementation((url: string) => url);
   getSession.mockResolvedValue({ user: { id: 'user-1' } });
   userFindUnique.mockResolvedValue({
-    email: 'sailor@example.com',
-    emailVerified: true,
     mitDataWarehouseVerifiedAt: null,
     mitId: null,
     sailingAffiliation: null,
@@ -274,8 +272,6 @@ describe('updateProfileIdentityAction', () => {
     const { updateProfileIdentityAction } =
       await import('@/libs/auth/profileIdentityActions');
     userFindUnique.mockResolvedValue({
-      email: 'ada@mit.edu',
-      emailVerified: true,
       mitDataWarehouseVerifiedAt: null,
       mitId: null,
       sailingAffiliation: null,
@@ -328,8 +324,6 @@ describe('updateProfileIdentityAction', () => {
     const { updateProfileIdentityAction } =
       await import('@/libs/auth/profileIdentityActions');
     userFindUnique.mockResolvedValue({
-      email: 'ada@mit.edu',
-      emailVerified: true,
       mitDataWarehouseVerifiedAt: new Date('2026-05-31T12:00:00Z'),
       mitId: '123456789',
       sailingAffiliation: SailingAffiliation.MIT_STUDENT,

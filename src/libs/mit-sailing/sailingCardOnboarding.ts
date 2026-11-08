@@ -289,15 +289,21 @@ const validateRequiredMitAffiliation = (props: {
   readonly affiliation: SailingAffiliation;
   readonly identity: MitDataWarehouseIdentity;
 }) => {
-  const validStudent =
-    props.affiliation === SailingAffiliation.MIT_STUDENT &&
-    props.identity.personType === MitDataWarehousePersonType.CURRENT_STUDENT;
-  const validStaff =
+  if (props.affiliation === SailingAffiliation.MIT_STUDENT) {
+    if (
+      props.identity.personType !== MitDataWarehousePersonType.CURRENT_STUDENT
+    ) {
+      throw new SailingCardOnboardingValidationError({
+        mitId: 'affiliation_mismatch',
+      });
+    }
+    return;
+  }
+  if (
     (props.affiliation === SailingAffiliation.MIT_FACULTY ||
       props.affiliation === SailingAffiliation.MIT_STAFF) &&
-    props.identity.personType === MitDataWarehousePersonType.CURRENT_STAFF;
-
-  if (!validStudent && !validStaff) {
+    props.identity.personType !== MitDataWarehousePersonType.CURRENT_STAFF
+  ) {
     throw new SailingCardOnboardingValidationError({
       mitId: 'affiliation_mismatch',
     });

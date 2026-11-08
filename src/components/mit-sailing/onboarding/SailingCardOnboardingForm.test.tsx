@@ -117,7 +117,7 @@ describe('SailingCardOnboardingForm', () => {
 
     expect(screen.getByLabelText('MIT ID')).toBeRequired();
     expect(screen.getByLabelText('MIT ID')).toHaveAccessibleDescription(
-      'Required for current MIT students, faculty, and staff. We use it to verify your name with MIT records.'
+      'Required for current MIT students, faculty, staff, and affiliates. We use it to verify your name with MIT records.'
     );
     expect(screen.queryByLabelText('First name')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Last name')).not.toBeInTheDocument();
@@ -184,9 +184,7 @@ describe('SailingCardOnboardingForm', () => {
     await user.type(screen.getByLabelText('MIT ID'), '123456789');
     await user.click(screen.getByRole('button', { name: 'Validate MIT ID' }));
 
-    expect(
-      await screen.findByText('Enter an MIT ID that matches your account.')
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Enter your MIT ID.')).toBeInTheDocument();
     expectDetailsHidden();
     expect(screen.queryByLabelText('First name')).not.toBeInTheDocument();
   });
@@ -201,6 +199,44 @@ describe('SailingCardOnboardingForm', () => {
     expect(screen.getByLabelText('Last name')).toBeRequired();
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
     expectDetailsHidden();
+  });
+
+  it('requires mit id and hides manual name for mit affiliate', async () => {
+    renderForm();
+
+    await selectAffiliation(SailingAffiliation.MIT_AFFILIATE);
+
+    expect(screen.getByLabelText('MIT ID')).toBeRequired();
+    expect(screen.queryByLabelText('First name')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Last name')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Validate MIT ID' })
+    ).toBeDisabled();
+    expectDetailsHidden();
+  });
+
+  it('continues a school affiliation when a leftover mit id is hidden', async () => {
+    renderForm({
+      initialValues: {
+        ...emptyValues,
+        affiliation: SailingAffiliation.BRANDEIS,
+        mitId: '123456789',
+      },
+    });
+    const user = userEvent.setup();
+
+    expect(screen.queryByLabelText('MIT ID')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+
+    await user.type(screen.getByLabelText('First name'), 'Grace');
+    await user.type(screen.getByLabelText('Last name'), 'Hopper');
+
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(
+      screen.getByRole('heading', { name: 'Contact and safety' })
+    ).toBeInTheDocument();
   });
 
   it('keeps final details hidden until manual identity continues', async () => {
