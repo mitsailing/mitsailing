@@ -223,7 +223,9 @@ describe('SailingCardOnboardingForm submission and errors', () => {
 
     renderForm();
 
-    expect(screen.getByText('Enter your MIT ID.')).toBeInTheDocument();
+    expect(
+      screen.getByText('That MIT ID is not in MIT records.')
+    ).toBeInTheDocument();
   });
 
   it('falls back to the blank affiliation when the saved value is hidden', () => {

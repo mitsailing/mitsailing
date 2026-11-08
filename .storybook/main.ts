@@ -32,6 +32,9 @@ const config: StorybookConfig = {
   },
   viteFinal(viteConfig) {
     return mergeConfig(viteConfig, {
+      optimizeDeps: {
+        include: ['better-auth-audit-logs/client'],
+      },
       plugins: [storybookSentryBrowserPlugin()],
       resolve: {
         alias: [
