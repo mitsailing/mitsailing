@@ -177,6 +177,7 @@ describe('SignInForm', () => {
       email: 'banned@mit.edu',
       password: 'correct-password',
     });
+    expect(authClientMock.requestPasswordReset).not.toHaveBeenCalled();
   });
 
   it('Visitor sees credentials message after a failed sign-in', async () => {

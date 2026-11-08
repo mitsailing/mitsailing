@@ -81,16 +81,38 @@ async function notifyPasswordChange(ctx: {
 }
 
 /**
- * True when this email belongs to a user who has never set a credential
- * password on this site (legacy imports have a User row only).
+ * True when the admin ban is active (permanent, or still before banExpires).
+ *
+ * @param user - Ban fields from the user row
+ * @returns Whether Better Auth would treat the account as banned
+ */
+function isActiveBan(user: {
+  banExpires: Date | null;
+  banned: boolean | null;
+}) {
+  if (user.banned !== true) {
+    return false;
+  }
+  if (user.banExpires === null) {
+    return true;
+  }
+  return user.banExpires.getTime() > Date.now();
+}
+
+/**
+ * Gate for known users who have never set a credential password on this site.
+ * Active bans win so the login form does not send a reset link to a disabled
+ * account. Users with a credential password fall through to Better Auth.
  *
  * @param email - Normalized account email
- * @returns Whether sign-in should require Forgot password first
+ * @returns Forbidden message for credential-less users, or null to continue
  */
-async function userNeedsNewSitePassword(email: string) {
+async function credentialLessSignInGate(email: string) {
   const user = await prisma.user.findUnique({
     where: { email },
     select: {
+      banExpires: true,
+      banned: true,
       accounts: {
         select: { id: true },
         take: 1,
@@ -98,7 +120,13 @@ async function userNeedsNewSitePassword(email: string) {
       },
     },
   });
-  return Boolean(user && user.accounts.length === 0);
+  if (!user || user.accounts.length > 0) {
+    return null;
+  }
+  if (isActiveBan(user)) {
+    return 'BANNED_USER';
+  }
+  return 'MUST_SET_PASSWORD';
 }
 
 /**
@@ -108,7 +136,8 @@ async function userNeedsNewSitePassword(email: string) {
  * for the remainder of the window. Better Auth 1.7 hides duplicate emails when
  * `requireEmailVerification` is on; we still throw EMAIL_EXISTS on purpose so
  * sign-up can show "that email is already in the system." Known users without
- * a credential password get MUST_SET_PASSWORD before the password check runs.
+ * a credential password get MUST_SET_PASSWORD before the password check runs,
+ * unless an active ban applies first.
  */
 export const signInEmailHooks = {
   before: createAuthMiddleware(async (ctx) => {
@@ -121,8 +150,11 @@ export const signInEmailHooks = {
       if (email && (await countRecentFailures(email)) >= MAX_FAILED_ATTEMPTS) {
         throw new APIError('FORBIDDEN', { message: 'ACCOUNT_LOCKED' });
       }
-      if (email && (await userNeedsNewSitePassword(email))) {
-        throw new APIError('FORBIDDEN', { message: 'MUST_SET_PASSWORD' });
+      if (email) {
+        const gate = await credentialLessSignInGate(email);
+        if (gate) {
+          throw new APIError('FORBIDDEN', { message: gate });
+        }
       }
     }
 

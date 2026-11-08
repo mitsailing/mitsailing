@@ -306,7 +306,11 @@ describe('signInEmailHooks before', () => {
   });
 
   it('reject sign-in when the user has no credential password', async () => {
-    findUnique.mockResolvedValue({ accounts: [] });
+    findUnique.mockResolvedValue({
+      accounts: [],
+      banExpires: null,
+      banned: false,
+    });
 
     await expect(
       hooks.before(
@@ -328,14 +332,60 @@ describe('signInEmailHooks before', () => {
           take: 1,
           where: { password: { not: null }, providerId: 'credential' },
         },
+        banExpires: true,
+        banned: true,
       },
       where: { email: 'legacy.user@example.com' },
     });
     expect(create).not.toHaveBeenCalled();
   });
 
+  it('reject banned credential-less sign-in before must-set-password', async () => {
+    findUnique.mockResolvedValue({
+      accounts: [],
+      banExpires: null,
+      banned: true,
+    });
+
+    await expect(
+      hooks.before(
+        authContext({
+          body: { email: 'banned@example.com' },
+          path: '/sign-in/email',
+        })
+      )
+    ).rejects.toMatchObject({
+      body: { message: 'BANNED_USER' },
+      status: 'FORBIDDEN',
+    });
+  });
+
+  it('require must-set-password when a credential-less ban has expired', async () => {
+    findUnique.mockResolvedValue({
+      accounts: [],
+      banExpires: new Date(Date.now() - 60_000),
+      banned: true,
+    });
+
+    await expect(
+      hooks.before(
+        authContext({
+          body: { email: 'expired-ban@example.com' },
+          path: '/sign-in/email',
+        })
+      )
+    ).rejects.toMatchObject({
+      body: { message: 'MUST_SET_PASSWORD' },
+      status: 'FORBIDDEN',
+    });
+  });
+
   it('allow sign-in when a credential password already exists', async () => {
-    findUnique.mockResolvedValue({ accounts: [{ id: 'account-1' }] });
+    findUnique.mockResolvedValue({
+      accounts: [{ id: 'account-1' }],
+      banExpires: null,
+      banned: true,
+    });
 
     await expect(
       hooks.before(
@@ -362,7 +412,11 @@ describe('signInEmailHooks before', () => {
 
   it('prefer lockout over must-set-password', async () => {
     count.mockResolvedValue(5);
-    findUnique.mockResolvedValue({ accounts: [] });
+    findUnique.mockResolvedValue({
+      accounts: [],
+      banExpires: null,
+      banned: false,
+    });
 
     await expect(
       hooks.before(

@@ -42,10 +42,10 @@ export const normalizeMitId = (mitId: string) => {
  * @param props - MIT ID and optional Prisma client override
  * @returns Matching warehouse identity, or null when the ID is invalid or missing
  */
-export const lookupMitDataWarehouseIdentity = async (props: {
+export async function lookupMitDataWarehouseIdentity(props: {
   readonly db?: MitDataWarehouseDb;
   readonly mitId: string;
-}) => {
+}) {
   const normalizedMitId = normalizeMitId(props.mitId);
 
   if (normalizedMitId === null) {
@@ -54,7 +54,7 @@ export const lookupMitDataWarehouseIdentity = async (props: {
 
   const db = props.db ?? prisma;
 
-  return  db.mitDataWarehousePerson.findUnique({
+  const identity = await db.mitDataWarehousePerson.findUnique({
     where: { mitId: normalizedMitId },
     select: {
       mitId: true,
@@ -65,4 +65,5 @@ export const lookupMitDataWarehouseIdentity = async (props: {
       personType: true,
     },
   });
-};
+  return identity;
+}

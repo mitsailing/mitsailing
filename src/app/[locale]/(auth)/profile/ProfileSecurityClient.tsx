@@ -27,10 +27,13 @@ type SecurityActivityRow = {
 
 const PROFILE_SECURITY_ACTIVITY_LIMIT = 25;
 
-function formatSecurityActivityTime(value: Date | string) {
+function formatSecurityActivityTime(
+  value: Date | string,
+  unknownTimeLabel: string
+) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return '';
+    return unknownTimeLabel;
   }
   return new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium',
@@ -217,7 +220,8 @@ export function ProfileSecurityClient() {
           <p className="mt-4 text-sm text-mit-text">
             {t('security_activity_loading')}
           </p>
-        ) : (
+        ) : null}
+        {!activityLoading && !activityError ? (
           <div className="mt-4 overflow-x-auto">
             <Table>
               <TableHeader>
@@ -246,7 +250,10 @@ export function ProfileSecurityClient() {
                       <TableCell>{entry.status}</TableCell>
                       <TableCell>{entry.severity}</TableCell>
                       <TableCell>
-                        {formatSecurityActivityTime(entry.createdAt)}
+                        {formatSecurityActivityTime(
+                          entry.createdAt,
+                          t('security_activity_unknown_time')
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -254,7 +261,7 @@ export function ProfileSecurityClient() {
               </TableBody>
             </Table>
           </div>
-        )}
+        ) : null}
       </section>
     </div>
   );

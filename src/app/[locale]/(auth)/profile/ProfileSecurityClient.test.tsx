@@ -133,5 +133,30 @@ describe('ProfileSecurityClient', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Could not load security activity.'
     );
+    expect(
+      screen.queryByText('No security activity yet.')
+    ).not.toBeInTheDocument();
+  });
+
+  it('profile owner sees unknown time for an unparseable activity timestamp', async () => {
+    authClientMock.auditLog.list.mockResolvedValue({
+      data: {
+        entries: [
+          {
+            action: 'sign-in:email',
+            createdAt: 'not-a-date',
+            id: 'log-bad-time',
+            severity: 'medium',
+            status: 'success',
+          },
+        ],
+        total: 1,
+      },
+    });
+
+    render(<ProfileSecurityClient />);
+
+    expect(await screen.findByText('sign-in:email')).toBeVisible();
+    expect(screen.getByText('Unknown time')).toBeVisible();
   });
 });

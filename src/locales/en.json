@@ -842,6 +842,7 @@
     "security_activity_loading": "Loading activity…",
     "security_activity_empty": "No security activity yet.",
     "security_activity_load_error": "Could not load security activity.",
+    "security_activity_unknown_time": "Unknown time",
     "security_activity_column_action": "Action",
     "security_activity_column_status": "Status",
     "security_activity_column_severity": "Severity",
