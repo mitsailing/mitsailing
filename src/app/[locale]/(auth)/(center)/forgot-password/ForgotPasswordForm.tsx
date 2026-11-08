@@ -1,14 +1,13 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
 import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
-import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
+import { absolutePasswordResetRedirectTo } from '@/libs/auth/callbackUrl';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import {
   isValidEmailAddress,
@@ -27,10 +26,10 @@ type ForgotPasswordFormProps = {
 export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
   const t = useTranslations('ForgotPasswordPage');
   const tCommon = useTranslations('Common');
-  const router = useRouter();
   const [email, setEmail] = useState(normalizeEmailAddress(props.initialEmail));
   const [submitting, setSubmitting] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
 
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,13 +41,13 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
       return;
     }
     setSubmitting(true);
-    const resetHref = authHrefWithCallback(
-      `/reset-password?email=${encodeURIComponent(normalizedEmail)}&codeSent=1`,
-      props.callbackUrl
-    );
     try {
-      await authClient.emailOtp.requestPasswordReset({
+      await authClient.requestPasswordReset({
         email: normalizedEmail,
+        redirectTo: absolutePasswordResetRedirectTo({
+          callbackUrl: props.callbackUrl,
+          email: normalizedEmail,
+        }),
       });
     } catch (caughtError) {
       reportUnknownAuthClientError({
@@ -58,7 +57,7 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
       });
       // Keep the same client-visible result for known and unknown addresses.
     } finally {
-      router.replace(resetHref);
+      setSent(true);
       setSubmitting(false);
     }
   }
@@ -77,6 +76,14 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
           role="alert"
         >
           {emailError}
+        </p>
+      ) : null}
+      {sent ? (
+        <p
+          className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800"
+          role="status"
+        >
+          {t('sent_banner')}
         </p>
       ) : null}
       <div className="flex flex-col gap-1.5">

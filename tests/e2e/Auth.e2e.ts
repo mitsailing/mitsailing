@@ -165,7 +165,7 @@ async function createVerifiedUser(props: {
   await markOnboardingCompleteByEmail(props.email);
 }
 
-async function findLatestPasswordResetCode(email: string) {
+async function findLatestPasswordResetLink(email: string) {
   const resetMessage = await findLatestMessageToMatching({
     description: 'password reset message',
     email,
@@ -174,7 +174,14 @@ async function findLatestPasswordResetCode(email: string) {
       /password reset/i.test(`${message.Text}\n${message.HTML}`),
   });
 
-  return extractCodeFromMessage(resetMessage);
+  const body = `${resetMessage.Text}\n${resetMessage.HTML}`;
+  const match = /https?:\/\/[^\s"'<>]+reset-password[^\s"'<>]*/i.exec(body);
+  const resetUrl = match?.[0];
+  expect(resetUrl).toBeTruthy();
+  if (!resetUrl) {
+    throw new Error('Expected a password reset link in the email body');
+  }
+  return resetUrl;
 }
 
 async function requestPasswordReset(props: {
@@ -186,21 +193,21 @@ async function requestPasswordReset(props: {
     `/forgot-password?callbackUrl=${encodeURIComponent(props.callbackUrl ?? '/')}`
   );
   await props.page.getByLabel('Email').fill(props.email);
-  await props.page.getByRole('button', { name: 'Send reset code' }).click();
-  await expect(props.page).toHaveURL(/\/reset-password\?/);
+  await props.page.getByRole('button', { name: 'Send reset link' }).click();
   await expect(
     props.page.getByText(
-      'If an account exists for this email, you will receive a reset code shortly.'
+      'If an account exists for this email, you will receive a reset link shortly.'
     )
-  ).toHaveCount(0);
+  ).toBeVisible();
 
-  return findLatestPasswordResetCode(props.email);
+  return findLatestPasswordResetLink(props.email);
 }
 
-async function completeResetCodeStep(page: Page, resetCode: string) {
-  await page.getByLabel('Reset code').fill(resetCode);
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page.getByLabel('New password', { exact: true })).toBeVisible();
+async function openPasswordResetLink(props: { page: Page; resetUrl: string }) {
+  await props.page.goto(props.resetUrl);
+  await expect(
+    props.page.getByLabel('New password', { exact: true })
+  ).toBeVisible();
 }
 
 async function submitNewPassword(props: {
@@ -217,16 +224,6 @@ async function submitNewPassword(props: {
   await props.page.getByRole('button', { name: 'Update password' }).click();
 }
 
-async function expirePasswordResetCode(email: string) {
-  const result = await pool.query(
-    `UPDATE "verification"
-     SET "expires_at" = NOW() - INTERVAL '1 minute'
-     WHERE "identifier" = $1`,
-    [`forget-password-otp-${email}`]
-  );
-  expect(result.rowCount).toBeGreaterThan(0);
-}
-
 async function signInWithEmailAndPassword(props: {
   email: string;
   page: Page;
@@ -234,10 +231,6 @@ async function signInWithEmailAndPassword(props: {
 }) {
   await submitEmailPasswordSignIn(props);
   await expect.poll(() => new URL(props.page.url()).pathname).toBe('/');
-}
-
-function differentResetCode(code: string) {
-  return code === '000000' ? '111111' : '000000';
 }
 
 test.describe('Auth', () => {
@@ -447,7 +440,7 @@ test.describe('Auth', () => {
     }
   });
 
-  test('visitor returns to the callback after OTP password reset', async ({
+  test('visitor returns to the callback after password reset link', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -457,91 +450,21 @@ test.describe('Auth', () => {
     await createVerifiedUser({ email, page, password });
 
     await page.context().clearCookies();
-    const resetCode = await requestPasswordReset({
+    const resetUrl = await requestPasswordReset({
       callbackUrl: '/fleet',
       email,
       page,
     });
-
-    await page.getByLabel('Reset code').fill(differentResetCode(resetCode));
-    await page.getByRole('button', { name: 'Continue' }).click();
-
-    await expect(formAlert(page)).toHaveText('That code is invalid.');
-    await expect(page.getByLabel('New password', { exact: true })).toBeHidden();
-
-    await page.getByLabel('Reset code').fill(resetCode);
-    await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByLabel('New password', { exact: true }).fill(resetPassword);
-    await page.getByLabel('Confirm new password').fill(resetPassword);
-    await page.getByRole('button', { name: 'Update password' }).click();
+    await openPasswordResetLink({ page, resetUrl });
+    await submitNewPassword({
+      page,
+      password: resetPassword,
+      passwordConfirmation: resetPassword,
+    });
 
     await expect
       .poll(() => new URL(page.url()).pathname)
       .toMatch(/^\/fleet\/?$/);
-
-    await cleanupByEmail(email);
-  });
-
-  test('visitor keeps a valid password reset code after a password mismatch', async ({
-    page,
-  }) => {
-    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
-    const password = 'Correct-Horse-Battery-Staple';
-    const resetPassword = 'Correct-Horse-Battery-Staple-2';
-
-    await createVerifiedUser({ email, page, password });
-    await page.context().clearCookies();
-    const resetCode = await requestPasswordReset({ email, page });
-
-    await completeResetCodeStep(page, resetCode);
-    await submitNewPassword({
-      page,
-      password: resetPassword,
-      passwordConfirmation: `${resetPassword}-mismatch`,
-    });
-
-    await expect(formAlert(page)).toHaveText('Passwords do not match.');
-    await expect(
-      page.getByLabel('New password', { exact: true })
-    ).toBeVisible();
-    await expect(page.getByLabel('Reset code')).toBeHidden();
-
-    await submitNewPassword({
-      page,
-      password: resetPassword,
-      passwordConfirmation: resetPassword,
-    });
-
-    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
-
-    await cleanupByEmail(email);
-  });
-
-  test('visitor sees expired message when a reset code expires before password submit', async ({
-    page,
-  }) => {
-    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
-    const password = 'Correct-Horse-Battery-Staple';
-    const resetPassword = 'Correct-Horse-Battery-Staple-2';
-
-    await createVerifiedUser({ email, page, password });
-    await page.context().clearCookies();
-    const resetCode = await requestPasswordReset({ email, page });
-
-    await completeResetCodeStep(page, resetCode);
-    await expirePasswordResetCode(email);
-    await submitNewPassword({
-      page,
-      password: resetPassword,
-      passwordConfirmation: resetPassword,
-    });
-
-    await expect(formAlert(page)).toHaveText(
-      'That code expired. Request a new reset code.'
-    );
-    await expect(formAlert(page)).not.toHaveText('That code is invalid.');
-    await expect(page.getByLabel('Reset code')).toBeVisible();
-    await expect(page.getByLabel('New password', { exact: true })).toBeHidden();
 
     await cleanupByEmail(email);
   });
@@ -595,11 +518,11 @@ test.describe('Auth', () => {
         password,
       });
 
-      const resetCode = await requestPasswordReset({
+      const resetUrl = await requestPasswordReset({
         email,
         page: resetPage,
       });
-      await completeResetCodeStep(resetPage, resetCode);
+      await openPasswordResetLink({ page: resetPage, resetUrl });
       await submitNewPassword({
         page: resetPage,
         password: resetPassword,
@@ -672,7 +595,7 @@ test.describe('Auth', () => {
     await cleanupByEmail(email);
   });
 
-  test('legacy sailor without a credential password is told to use Forgot password', async ({
+  test('legacy sailor without a credential password receives a reset link email', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -700,11 +623,11 @@ test.describe('Auth', () => {
     });
 
     await expect(formAlert(page)).toContainText(
-      'Your old password does not work on this site'
+      'MIT Sailing has updated its security. A password reset email has been sent to you. This link is valid for 1 hour.'
     );
 
-    const resetCode = await requestPasswordReset({ email, page });
-    await completeResetCodeStep(page, resetCode);
+    const resetUrl = await findLatestPasswordResetLink(email);
+    await openPasswordResetLink({ page, resetUrl });
     await submitNewPassword({
       page,
       password,

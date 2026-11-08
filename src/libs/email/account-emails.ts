@@ -58,14 +58,8 @@ function assertNonEmptyValue(value: string, message: string): void {
 function verificationCodeText(params: {
   code: string;
   copy: AuthEmailMessages;
-  purpose: 'verify-email' | 'reset-password' | 'change-email';
+  purpose: 'verify-email' | 'change-email';
 }): string {
-  if (params.purpose === 'reset-password') {
-    return replaceAuthEmailValues(params.copy.reset_password_text, {
-      code: params.code,
-    });
-  }
-
   if (params.purpose === 'change-email') {
     return [
       replaceAuthEmailValues(params.copy.change_email_text, {
@@ -82,7 +76,7 @@ function verificationCodeText(params: {
 }
 
 /**
- * Sends an email OTP for verification, password reset, or email change.
+ * Sends an email OTP for verification or email change.
  *
  * @param params - OTP email parameters.
  * @param params.email - Recipient address.
@@ -92,30 +86,13 @@ function verificationCodeText(params: {
 export async function sendEmailOtpCode(params: {
   email: string;
   otp: string;
-  type: 'email-verification' | 'forget-password' | 'change-email' | 'sign-in';
+  type: 'email-verification' | 'change-email' | 'sign-in';
 }) {
   const email = normalizeAuthEmail(params.email);
   assertEmailOtpCode(params.otp);
   const copy = authEmailMessages;
 
   switch (params.type) {
-    case 'forget-password': {
-      const html = await render(
-        PasswordResetEmailTemplate({ code: params.otp, copy })
-      );
-      await sendTransactionalEmail({
-        category: 'password_reset',
-        to: email,
-        subject: copy.reset_password_subject,
-        html,
-        text: verificationCodeText({
-          code: params.otp,
-          copy,
-          purpose: 'reset-password',
-        }),
-      });
-      return;
-    }
     case 'change-email': {
       const html = await render(
         ConfirmEmailChangeTemplate({
@@ -254,6 +231,27 @@ export async function sendEmailChangeRequestedNotice(params: {
       bodyMessage: copy.change_email_notice_body,
       contactMessage: copy.change_email_notice_contact,
     }),
+  });
+}
+
+/**
+ * Sends the Better Auth password-reset link email.
+ * @param email - Recipient (login email).
+ * @param url - Absolute HTTPS URL that opens the reset form with a token.
+ */
+export async function sendPasswordResetLinkEmail(email: string, url: string) {
+  const copy = authEmailMessages;
+  const normalizedEmail = normalizeAuthEmail(email);
+  assertNonEmptyValue(url, 'Expected a password-reset URL.');
+  const html = await render(
+    PasswordResetEmailTemplate({ copy, resetUrl: url })
+  );
+  await sendTransactionalEmail({
+    category: 'password_reset',
+    to: normalizedEmail,
+    subject: copy.reset_password_subject,
+    html,
+    text: replaceAuthEmailValues(copy.reset_password_text, { url }),
   });
 }
 

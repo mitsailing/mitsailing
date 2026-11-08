@@ -10,7 +10,10 @@ import { SubmitButton } from '@/components/ui/submit-button';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
-import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
+import {
+  absolutePasswordResetRedirectTo,
+  authHrefWithCallback,
+} from '@/libs/auth/callbackUrl';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import {
   isValidEmailAddress,
@@ -71,7 +74,7 @@ function reportUnmappedSignInAuthError(options: {
 // Email and password always show together. Better Auth still maps known error
 // codes to translated page copy so raw backend text never renders. Sailors
 // without a credential password get MUST_SET_PASSWORD from the server hook and
-// are pointed at Forgot password.
+// a password-reset link email.
 export function SignInForm(props: SignInFormProps) {
   const t = useTranslations('SignInPage');
   const tCommon = useTranslations('Common');
@@ -99,7 +102,7 @@ export function SignInForm(props: SignInFormProps) {
       ACCOUNT_LOCKED: t('error_locked'),
       TOO_MANY_REQUESTS: t('error_rate_limited'),
       BANNED_USER: t('error_banned'),
-      MUST_SET_PASSWORD: t('error_must_set_password'),
+      MUST_SET_PASSWORD: t('error_must_set_password_sent'),
     });
     if (mappedMessage) {
       return { kind: 'generic', message: mappedMessage };
@@ -147,6 +150,24 @@ export function SignInForm(props: SignInFormProps) {
       });
 
       if (res.error) {
+        const lookupCode = res.error.code ?? res.error.message;
+        if (lookupCode === 'MUST_SET_PASSWORD') {
+          try {
+            await authClient.requestPasswordReset({
+              email: normalizedEmail,
+              redirectTo: absolutePasswordResetRedirectTo({
+                callbackUrl: props.callbackUrl,
+                email: normalizedEmail,
+              }),
+            });
+          } catch (caughtError) {
+            reportUnknownAuthClientError({
+              action: 'sign_in.must_set_password.request-reset.thrown',
+              code: undefined,
+              message: authClientThrownMessage(caughtError),
+            });
+          }
+        }
         setError(
           mapError({
             action: 'sign_in.email',

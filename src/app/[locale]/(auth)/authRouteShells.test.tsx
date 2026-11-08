@@ -202,17 +202,15 @@ vi.mock('./(center)/reset-password/ResetPasswordForm', () => ({
   ResetPasswordForm: (props: {
     callbackUrl: string;
     initialEmail: string;
-    initialResendLocked: boolean;
-    mode: 'create-password' | 'reset-password';
-    passwordHeading: string;
+    invalidToken: boolean;
+    token: string;
   }) => (
     <form
       aria-label="reset-password-form"
       data-callback-url={props.callbackUrl}
       data-initial-email={props.initialEmail}
-      data-initial-resend-locked={String(props.initialResendLocked)}
-      data-mode={props.mode}
-      data-password-heading={props.passwordHeading}
+      data-invalid-token={String(props.invalidToken)}
+      data-token={props.token}
     />
   ),
 }));
@@ -645,41 +643,24 @@ describe('auth route shells', () => {
     });
   });
 
-  it('reset-password page forwards resend lock state', async () => {
+  it('reset-password page forwards token and invalid token state', async () => {
     render(
       await ResetPasswordPage(
         routeProps({
           callbackUrl: '/profile',
-          codeSent: '1',
           email: 'sailor@example.com',
+          error: 'INVALID_TOKEN',
+          token: 'reset-token',
         })
       )
     );
 
     expect(
       screen.getByRole('form', { name: 'reset-password-form' })
-    ).toHaveAttribute('data-initial-resend-locked', 'true');
+    ).toHaveAttribute('data-invalid-token', 'true');
     expect(
       screen.getByRole('form', { name: 'reset-password-form' })
-    ).toHaveAttribute(
-      'data-password-heading',
-      'ResetPasswordPage.password_heading'
-    );
-  });
-
-  it('reset-password page forwards create-password mode', async () => {
-    render(
-      await ResetPasswordPage(
-        routeProps({
-          email: 'legacy@example.com',
-          mode: 'create-password',
-        })
-      )
-    );
-
-    expect(
-      screen.getByRole('form', { name: 'reset-password-form' })
-    ).toHaveAttribute('data-mode', 'create-password');
+    ).toHaveAttribute('data-token', 'reset-token');
   });
 
   it('reset-password page defaults missing search params', async () => {
@@ -690,10 +671,10 @@ describe('auth route shells', () => {
     ).toHaveAttribute('data-initial-email', '');
     expect(
       screen.getByRole('form', { name: 'reset-password-form' })
-    ).toHaveAttribute('data-initial-resend-locked', 'false');
+    ).toHaveAttribute('data-invalid-token', 'false');
     expect(
       screen.getByRole('form', { name: 'reset-password-form' })
-    ).toHaveAttribute('data-mode', 'reset-password');
+    ).toHaveAttribute('data-token', '');
   });
 
   it('verify-email page forwards resend lock state', async () => {

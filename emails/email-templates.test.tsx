@@ -187,25 +187,19 @@ describe('email templates', () => {
     expect(html).toContain('not-an-email');
   });
 
-  it('renders password reset code content', async () => {
+  it('renders password reset link content', async () => {
     const html = await render(
-      <PasswordResetEmailTemplate code="654321" copy={enMessages.AuthEmails} />
+      <PasswordResetEmailTemplate
+        copy={enMessages.AuthEmails}
+        resetUrl="https://example.test/reset-password?token=abc"
+      />
     );
 
     expect(html).toContain('Reset your password');
-    expect(html).toContain('654321');
-    expect(html).toContain('choose a new password');
+    expect(html).toContain('https://example.test/reset-password?token=abc');
+    expect(html).toContain('choose a new MIT Sailing password');
+    expect(html).toContain('This link expires in 1 hour');
     expect(html).toContain('If you did not request this');
-    expect(html).toContain('@mitsailing.com #654321');
-  });
-
-  it('rejects malformed password reset codes', () => {
-    expect(() =>
-      PasswordResetEmailTemplate({
-        code: '65432',
-        copy: enMessages.AuthEmails,
-      })
-    ).toThrow('PasswordResetEmailTemplate requires a six-digit code.');
   });
 
   it('renders email change confirmation content for the new address', async () => {

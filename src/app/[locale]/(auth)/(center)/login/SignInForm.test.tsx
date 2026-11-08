@@ -1,14 +1,15 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as CallbackUrlModule from '@/libs/auth/callbackUrl';
 import { componentTestRouter } from '@/test/component';
 import { SignInForm } from './SignInForm';
 
 const authClientMock = vi.hoisted(() => ({
   emailOtp: {
-    requestPasswordReset: vi.fn(),
     sendVerificationOtp: vi.fn(),
   },
+  requestPasswordReset: vi.fn(),
   signIn: {
     email: vi.fn(),
   },
@@ -23,9 +24,22 @@ vi.mock('@/libs/auth/reportAuthClientError', () => ({
   reportUnknownAuthClientError: reportUnknownAuthClientErrorMock,
 }));
 
+vi.mock('@/libs/auth/callbackUrl', async () => {
+  const actual = await vi.importActual<typeof CallbackUrlModule>(
+    '@/libs/auth/callbackUrl'
+  );
+  return {
+    ...actual,
+    absolutePasswordResetRedirectTo: vi.fn(
+      (options: { callbackUrl?: string | null; email: string }) =>
+        `https://example.test/reset-password?email=${encodeURIComponent(options.email)}&callbackUrl=${encodeURIComponent(options.callbackUrl ?? '/')}`
+    ),
+  };
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
-  authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({});
+  authClientMock.requestPasswordReset.mockResolvedValue({});
   authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({});
   authClientMock.signIn.email.mockResolvedValue({});
 });
@@ -130,9 +144,15 @@ describe('SignInForm', () => {
     });
 
     await expectSignInAlert({
-      alertText: 'Your old password does not work on this site',
+      alertText:
+        'MIT Sailing has updated its security. A password reset email has been sent to you. This link is valid for 1 hour.',
       email: 'legacy@mit.edu',
       password: 'old',
+    });
+    expect(authClientMock.requestPasswordReset).toHaveBeenCalledWith({
+      email: 'legacy@mit.edu',
+      redirectTo:
+        'https://example.test/reset-password?email=legacy%40mit.edu&callbackUrl=%2Ffleet',
     });
   });
 
@@ -345,7 +365,7 @@ describe('SignInForm', () => {
 
     await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
 
-    expect(authClientMock.emailOtp.requestPasswordReset).not.toHaveBeenCalled();
+    expect(authClientMock.requestPasswordReset).not.toHaveBeenCalled();
   });
 
   it('Visitor follows forgot-password link without malformed email', async () => {
@@ -357,19 +377,5 @@ describe('SignInForm', () => {
     expect(
       screen.getByRole('link', { name: 'Forgot password?' })
     ).toHaveAttribute('href', '/forgot-password?callbackUrl=%2Ffleet');
-  });
-
-  it('Visitor does not request reset from the login page', async () => {
-    const user = userEvent.setup();
-
-    render(<SignInForm callbackUrl="/fleet" />);
-
-    await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
-    await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
-
-    expect(authClientMock.emailOtp.requestPasswordReset).not.toHaveBeenCalled();
-    expect(componentTestRouter().push).not.toHaveBeenCalledWith(
-      '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
-    );
   });
 });

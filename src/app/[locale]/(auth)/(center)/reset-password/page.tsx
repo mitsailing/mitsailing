@@ -10,8 +10,8 @@ type ResetPasswordPageProps = {
   searchParams: Promise<{
     callbackUrl?: string;
     email?: string;
-    codeSent?: string;
-    mode?: string;
+    error?: string;
+    token?: string;
   }>;
 };
 
@@ -37,19 +37,12 @@ export default async function ResetPasswordPage(props: ResetPasswordPageProps) {
   );
   await redirectIfAuthenticated(locale, callbackUrl);
 
-  const t = await getTranslations({ locale, namespace: 'ResetPasswordPage' });
-
   return (
     <ResetPasswordForm
       callbackUrl={callbackUrl}
       initialEmail={searchParams.email ?? ''}
-      initialResendLocked={searchParams.codeSent === '1'}
-      mode={
-        searchParams.mode === 'create-password'
-          ? 'create-password'
-          : 'reset-password'
-      }
-      passwordHeading={t('password_heading')}
+      invalidToken={searchParams.error === 'INVALID_TOKEN'}
+      token={searchParams.token ?? ''}
     />
   );
 }

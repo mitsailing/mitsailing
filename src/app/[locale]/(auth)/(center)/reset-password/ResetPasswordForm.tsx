@@ -2,9 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
-import { OtpCodeField } from '@/components/auth/OtpCodeField';
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
@@ -15,374 +13,82 @@ import {
   authHrefWithCallback,
   safeAuthCallbackUrl,
 } from '@/libs/auth/callbackUrl';
-import { reportPasswordResetIssueAction } from '@/libs/auth/passwordResetSupportActions';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
-import {
-  isValidEmailAddress,
-  normalizeEmailAddress,
-} from '@/utils/emailValidation';
+import { normalizeEmailAddress } from '@/utils/emailValidation';
 
 type ResetPasswordFormProps = {
   callbackUrl: string;
   initialEmail: string;
-  initialResendLocked?: boolean;
-  mode?: 'create-password' | 'reset-password';
-  passwordHeading: string;
+  invalidToken: boolean;
+  token: string;
 };
-
-type ResendTimerRef = {
-  current: number | null;
-};
-
-type ResendLockTimers = {
-  resendIntervalRef: ResendTimerRef;
-  resendTimeoutRef: ResendTimerRef;
-};
-
-type ResendLockControls = ResendLockTimers & {
-  setResendLocked: (locked: boolean) => void;
-  setResendSecondsLeft: (
-    value: number | ((previousSecondsLeft: number) => number)
-  ) => void;
-};
-
-function clearResendLockTimers(options: ResendLockTimers) {
-  clearTimeout(options.resendTimeoutRef.current ?? undefined);
-  clearInterval(options.resendIntervalRef.current ?? undefined);
-  options.resendTimeoutRef.current = null;
-  options.resendIntervalRef.current = null;
-}
-
-function startResendLock(options: ResendLockControls) {
-  clearResendLockTimers(options);
-  options.setResendLocked(true);
-  options.setResendSecondsLeft(30);
-  options.resendIntervalRef.current = window.setInterval(() => {
-    options.setResendSecondsLeft((prev) => {
-      if (prev <= 1) {
-        clearInterval(options.resendIntervalRef.current ?? undefined);
-        options.resendIntervalRef.current = null;
-        return 0;
-      }
-      return prev - 1;
-    });
-  }, 1000);
-  options.resendTimeoutRef.current = window.setTimeout(() => {
-    options.setResendLocked(false);
-    options.resendTimeoutRef.current = null;
-    clearInterval(options.resendIntervalRef.current ?? undefined);
-    options.resendIntervalRef.current = null;
-  }, 30_000);
-}
-
-function ResetPasswordCodeStepHeader(props: {
-  readonly email: string;
-  readonly hasInitialEmail: boolean;
-  readonly mode: ResetPasswordFormProps['mode'];
-}) {
-  const t = useTranslations('ResetPasswordPage');
-  let body: string;
-  if (props.hasInitialEmail) {
-    body =
-      props.mode === 'create-password'
-        ? t('pending_body_create_password', { email: props.email })
-        : t('pending_body', { email: props.email });
-  } else {
-    body =
-      props.mode === 'create-password'
-        ? t('pending_body_create_password_fallback')
-        : t('pending_body_fallback');
-  }
-
-  return (
-    <div className="flex flex-col items-center gap-4">
-      <h1 className="text-center text-4xl font-normal tracking-normal text-foreground sm:text-5xl">
-        {t('heading')}
-      </h1>
-      <p className="max-w-md text-xl leading-relaxed text-pretty text-muted-foreground">
-        {body}
-      </p>
-    </div>
-  );
-}
-
-function shouldReturnToCodeStep(code: string | undefined): boolean {
-  return (
-    code === 'INVALID_OTP' ||
-    code === 'OTP_EXPIRED' ||
-    code === 'TOO_MANY_ATTEMPTS'
-  );
-}
 
 export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const tCommon = useTranslations('Common');
   const t = useTranslations('ResetPasswordPage');
   const router = useRouter();
-  const safeCallbackUrl = safeAuthCallbackUrl(props.callbackUrl, '/');
-  const normalizedInitialEmail = normalizeEmailAddress(props.initialEmail);
-  const hasInitialEmail = isValidEmailAddress(normalizedInitialEmail);
-  const [email, setEmail] = useState(normalizedInitialEmail);
-  const [resetCode, setResetCode] = useState('');
-  const [step, setStep] = useState<'code' | 'password'>('code');
+  const safeCallbackUrl = safeAuthCallbackUrl(props.callbackUrl);
+  const email = normalizeEmailAddress(props.initialEmail);
+  const showPasswordForm = !props.invalidToken && Boolean(props.token);
+
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    showPasswordForm ? null : t('error_invalid_token')
+  );
   const [submitting, setSubmitting] = useState(false);
   const [autoSignInFailed, setAutoSignInFailed] = useState(false);
-  const [resending, setResending] = useState(false);
-  const [reportingIssue, setReportingIssue] = useState(false);
-  const [resendLocked, setResendLocked] = useState(
-    props.initialResendLocked ?? false
-  );
-  const [resendSecondsLeft, setResendSecondsLeft] = useState(30);
-  const resendTimeoutRef = useRef<number | null>(null);
-  const resendIntervalRef = useRef<number | null>(null);
-  const resendInFlightRef = useRef(false);
 
   function mapError(options: {
     action: string;
     code: string | undefined;
-    message?: string;
-    passwordStep?: boolean;
+    message: string | undefined;
   }): string {
-    if (options.code === 'PASSWORD_TOO_SHORT') {
-      return t('error_password_too_short');
-    }
-    if (options.code === 'PASSWORD_TOO_LONG') {
-      return t('error_password_too_long');
-    }
-    if (options.code === 'PASSWORD_COMPROMISED') {
+    const lookupCode = options.code ?? options.message;
+    if (lookupCode === 'PASSWORD_COMPROMISED') {
       return t('error_pwned');
     }
-    if (options.code === 'OTP_EXPIRED') {
-      return options.passwordStep
-        ? t('error_expired_password_step')
-        : t('error_expired');
+    if (lookupCode === 'PASSWORD_TOO_SHORT') {
+      return t('error_password_too_short');
     }
-    if (options.code === 'INVALID_OTP') {
-      return t('error_invalid_code');
+    if (lookupCode === 'PASSWORD_TOO_LONG') {
+      return t('error_password_too_long');
     }
-    if (options.code === 'TOO_MANY_ATTEMPTS') {
-      return t('error_too_many_attempts');
-    }
-    if (options.code === 'TOO_MANY_REQUESTS') {
+    if (lookupCode === 'TOO_MANY_REQUESTS') {
       return t('error_rate_limited');
+    }
+    if (lookupCode === 'INVALID_TOKEN') {
+      return t('error_invalid_token');
     }
     reportUnknownAuthClientError({
       action: options.action,
       code: options.code,
       message: options.message,
     });
-    return options.passwordStep
-      ? t('error_validation')
-      : t('error_code_validation');
-  }
-
-  useEffect(() => {
-    if (props.initialResendLocked) {
-      startResendLock({
-        resendIntervalRef,
-        resendTimeoutRef,
-        setResendLocked,
-        setResendSecondsLeft,
-      });
-    }
-
-    return () => {
-      clearResendLockTimers({ resendIntervalRef, resendTimeoutRef });
-    };
-  }, [props.initialResendLocked]);
-
-  async function onCodeSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setStatus(null);
-    const normalizedEmail = normalizeEmailAddress(email);
-    setEmail(normalizedEmail);
-    if (!isValidEmailAddress(normalizedEmail)) {
-      setError(t('error_invalid_email'));
-      return;
-    }
-    setSubmitting(true);
-    setAutoSignInFailed(false);
-    try {
-      const res = await authClient.emailOtp.checkVerificationOtp({
-        email: normalizedEmail,
-        otp: resetCode,
-        type: 'forget-password',
-      });
-      if (res.error) {
-        setError(
-          mapError({
-            action: 'reset-password.check-code',
-            code: res.error.code,
-            message: res.error.message,
-          })
-        );
-        return;
-      }
-    } catch (caughtError) {
-      reportUnknownAuthClientError({
-        action: 'reset-password.check-code.thrown',
-        code: undefined,
-        message: authClientThrownMessage(caughtError),
-      });
-      setError(t('error_request_failed'));
-      return;
-    } finally {
-      setSubmitting(false);
-    }
-    setStep('password');
-  }
-
-  async function onResendCode() {
-    if (resendInFlightRef.current || resendLocked) {
-      return;
-    }
-    setError(null);
-    setStatus(null);
-    const normalizedEmail = normalizeEmailAddress(email);
-    setEmail(normalizedEmail);
-    if (!isValidEmailAddress(normalizedEmail)) {
-      setError(t('error_invalid_email'));
-      return;
-    }
-    resendInFlightRef.current = true;
-    setResending(true);
-    try {
-      const res = await authClient.emailOtp.requestPasswordReset({
-        email: normalizedEmail,
-      });
-      if (res.error) {
-        setError(
-          mapError({
-            action: 'reset-password.resend-code',
-            code: res.error.code,
-            message: res.error.message,
-          })
-        );
-        return;
-      }
-      setStatus(t('resent_banner'));
-      setResetCode('');
-      startResendLock({
-        resendIntervalRef,
-        resendTimeoutRef,
-        setResendLocked,
-        setResendSecondsLeft,
-      });
-    } catch (caughtError) {
-      reportUnknownAuthClientError({
-        action: 'reset-password.resend-code.thrown',
-        code: undefined,
-        message: authClientThrownMessage(caughtError),
-      });
-      setError(t('error_resend_failed'));
-    } finally {
-      resendInFlightRef.current = false;
-      setResending(false);
-    }
-  }
-
-  async function onReportIssue() {
-    setError(null);
-    setStatus(null);
-    const normalizedEmail = normalizeEmailAddress(email);
-    setEmail(normalizedEmail);
-    if (!isValidEmailAddress(normalizedEmail)) {
-      setError(t('error_invalid_email'));
-      return;
-    }
-
-    setReportingIssue(true);
-    try {
-      const result = await reportPasswordResetIssueAction({
-        action:
-          props.mode === 'create-password'
-            ? 'create_password_email_not_received'
-            : 'password_reset_email_not_received',
-        email: normalizedEmail,
-      });
-      if (!result.ok) {
-        setError(t('error_invalid_email'));
-        return;
-      }
-      setStatus(t('support_sent'));
-    } catch (caughtError) {
-      reportUnknownAuthClientError({
-        action: 'reset-password.report-issue.thrown',
-        code: undefined,
-        message: authClientThrownMessage(caughtError),
-      });
-      setError(t('error_support_failed'));
-    } finally {
-      setReportingIssue(false);
-    }
-  }
-
-  async function signInAfterPasswordReset(options: {
-    readonly email: string;
-    readonly password: string;
-  }): Promise<boolean> {
-    try {
-      const signInRes = await authClient.signIn.email({
-        email: options.email,
-        password: options.password,
-        callbackURL: safeCallbackUrl,
-      });
-      if (signInRes.error) {
-        reportUnknownAuthClientError({
-          code: signInRes.error.code,
-          message: signInRes.error.message,
-          action: 'reset-password.auto-sign-in',
-        });
-        setAutoSignInFailed(true);
-        return false;
-      }
-      return true;
-    } catch (signInError) {
-      reportUnknownAuthClientError({
-        action: 'reset-password.auto-sign-in',
-        code: undefined,
-        message: signInError instanceof Error ? signInError.message : undefined,
-      });
-      setAutoSignInFailed(true);
-      return false;
-    }
+    return t('error_validation');
   }
 
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setStatus(null);
-    const normalizedEmail = normalizeEmailAddress(email);
-    setEmail(normalizedEmail);
+    setAutoSignInFailed(false);
     if (password !== passwordConfirmation) {
       setError(t('error_password_mismatch'));
       return;
     }
     setSubmitting(true);
     try {
-      const res = await authClient.emailOtp.resetPassword({
-        email: normalizedEmail,
-        otp: resetCode,
-        password,
+      const res = await authClient.resetPassword({
+        newPassword: password,
+        token: props.token,
       });
       if (res.error) {
-        if (shouldReturnToCodeStep(res.error.code)) {
-          if (res.error.code === 'OTP_EXPIRED') {
-            setResetCode('');
-          }
-          setStep('code');
-        }
         setError(
           mapError({
+            action: 'reset-password.update-password',
             code: res.error.code,
             message: res.error.message,
-            action: 'reset-password.update-password',
-            passwordStep: true,
           })
         );
         return;
@@ -390,11 +96,33 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       const passwordForSignIn = password;
       setPassword('');
       setPasswordConfirmation('');
-      const signedIn = await signInAfterPasswordReset({
-        email: normalizedEmail,
-        password: passwordForSignIn,
-      });
-      if (!signedIn) {
+      if (!email) {
+        setAutoSignInFailed(true);
+        return;
+      }
+      try {
+        const signInRes = await authClient.signIn.email({
+          email,
+          password: passwordForSignIn,
+          callbackURL: safeCallbackUrl,
+        });
+        if (signInRes.error) {
+          reportUnknownAuthClientError({
+            code: signInRes.error.code,
+            message: signInRes.error.message,
+            action: 'reset-password.auto-sign-in',
+          });
+          setAutoSignInFailed(true);
+          return;
+        }
+      } catch (signInError) {
+        reportUnknownAuthClientError({
+          action: 'reset-password.auto-sign-in',
+          code: undefined,
+          message:
+            signInError instanceof Error ? signInError.message : undefined,
+        });
+        setAutoSignInFailed(true);
         return;
       }
       router.push(safeCallbackUrl);
@@ -422,178 +150,77 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
         </p>
       ) : null}
 
-      {status ? (
-        <p
-          className="w-full rounded-2xl bg-green-50 px-4 py-3 text-sm text-green-800"
-          role="status"
-        >
-          {status}
-        </p>
-      ) : null}
-
-      {step === 'code' ? (
-        <ResetPasswordCodeStepHeader
-          email={email}
-          hasInitialEmail={hasInitialEmail}
-          mode={props.mode}
-        />
-      ) : (
-        <div className="flex flex-col items-center gap-4">
-          <h1 className="text-center text-3xl font-normal tracking-normal text-foreground sm:text-4xl">
-            {props.passwordHeading}
-          </h1>
-        </div>
-      )}
-
-      {step === 'code' ? (
+      {showPasswordForm && !autoSignInFailed ? (
         <>
+          <h1 className="text-center text-3xl font-normal tracking-normal text-foreground sm:text-4xl">
+            {t('password_heading')}
+          </h1>
+
           <form
-            className="flex w-full flex-col gap-6"
+            className="flex w-full flex-col gap-4"
             onSubmit={(event) => {
-              // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the code form promise.
-              void onCodeSubmit(event);
+              // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the password form promise.
+              void onSubmit(event);
             }}
           >
-            {hasInitialEmail ? null : (
-              <div>
-                <Label className="sr-only" htmlFor="email">
-                  {t('email_label')}
-                </Label>
-                <Input
-                  autoComplete="email"
-                  className="h-14 rounded-full px-8 text-xl md:text-xl"
-                  id="email"
-                  inputMode="email"
-                  name="email"
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                  }}
-                  placeholder={t('email_placeholder')}
-                  required
-                  type="email"
-                  value={email}
-                />
-              </div>
-            )}
+            <div className="flex flex-col gap-1.5 text-left">
+              <Label className="text-foreground" htmlFor="password">
+                {t('password_label')}
+              </Label>
+              <Input
+                autoComplete="new-password"
+                className="h-12 rounded-2xl px-5 text-base md:text-base"
+                id="password"
+                maxLength={128}
+                minLength={8}
+                name="password"
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                }}
+                required
+                type="password"
+                value={password}
+              />
+              <span className="text-xs text-muted-foreground">
+                {t('password_hint')}
+              </span>
+            </div>
 
-            <OtpCodeField
-              id="code"
-              inputClassName="h-14 rounded-full px-8 text-xl md:text-xl"
-              label={t('code_label')}
-              name="code"
-              onValueChange={setResetCode}
-              placeholder={t('code_placeholder')}
-              value={resetCode}
-            />
+            <div className="flex flex-col gap-1.5 text-left">
+              <Label className="text-foreground" htmlFor="passwordConfirmation">
+                {t('password_confirmation_label')}
+              </Label>
+              <Input
+                autoComplete="new-password"
+                className="h-12 rounded-2xl px-5 text-base md:text-base"
+                id="passwordConfirmation"
+                maxLength={128}
+                minLength={8}
+                name="passwordConfirmation"
+                onChange={(e) => {
+                  setPasswordConfirmation(e.target.value);
+                }}
+                required
+                type="password"
+                value={passwordConfirmation}
+              />
+            </div>
 
             <SubmitButton
-              className="h-14 w-full rounded-full bg-foreground text-lg font-normal text-background hover:bg-foreground/90"
-              disabled={submitting || resetCode.length !== 6}
+              className="h-12 w-full rounded-full"
               pending={submitting}
               pendingLabel={tCommon('pending_submitting')}
+              variant="mit"
             >
-              {t('continue')}
+              {t('submit')}
             </SubmitButton>
           </form>
-
-          <Button
-            className="h-auto min-h-0 px-0 py-0 text-lg font-normal text-foreground no-underline shadow-none hover:bg-transparent hover:text-foreground/70 hover:no-underline disabled:opacity-60"
-            disabled={resending || resendLocked}
-            onClick={() => {
-              // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the resend promise.
-              void onResendCode();
-            }}
-            type="button"
-            variant="link"
-          >
-            {resendLocked
-              ? tCommon('resend_wait', {
-                  seconds:
-                    resendSecondsLeft === 1
-                      ? '1 second'
-                      : `${resendSecondsLeft} seconds`,
-                })
-              : t('resend_email')}
-          </Button>
-
-          <Button
-            className="h-auto min-h-0 px-0 py-0 text-sm font-normal text-muted-foreground underline shadow-none hover:bg-transparent hover:text-foreground hover:underline disabled:opacity-60"
-            disabled={reportingIssue}
-            onClick={() => {
-              // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the support-report promise.
-              void onReportIssue();
-            }}
-            type="button"
-            variant="link"
-          >
-            {t('support_button')}
-          </Button>
         </>
-      ) : (
-        <form
-          className="flex w-full flex-col gap-4"
-          onSubmit={(event) => {
-            // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the password form promise.
-            void onSubmit(event);
-          }}
-        >
-          <div className="flex flex-col gap-1.5 text-left">
-            <Label className="text-foreground" htmlFor="password">
-              {t('password_label')}
-            </Label>
-            <Input
-              autoComplete="new-password"
-              className="h-12 rounded-2xl px-5 text-base md:text-base"
-              id="password"
-              maxLength={128}
-              minLength={8}
-              name="password"
-              onChange={(e) => {
-                setPassword(e.target.value);
-              }}
-              required
-              type="password"
-              value={password}
-            />
-            <span className="text-xs text-muted-foreground">
-              {t('password_hint')}
-            </span>
-          </div>
+      ) : null}
 
-          <div className="flex flex-col gap-1.5 text-left">
-            <Label className="text-foreground" htmlFor="passwordConfirmation">
-              {t('password_confirmation_label')}
-            </Label>
-            <Input
-              autoComplete="new-password"
-              className="h-12 rounded-2xl px-5 text-base md:text-base"
-              id="passwordConfirmation"
-              maxLength={128}
-              minLength={8}
-              name="passwordConfirmation"
-              onChange={(e) => {
-                setPasswordConfirmation(e.target.value);
-              }}
-              required
-              type="password"
-              value={passwordConfirmation}
-            />
-          </div>
-
-          <SubmitButton
-            className="h-12 w-full rounded-full"
-            pending={submitting}
-            pendingLabel={tCommon('pending_submitting')}
-            variant="mit"
-          >
-            {t('submit')}
-          </SubmitButton>
-        </form>
-      )}
-
-      {autoSignInFailed ? (
+      {autoSignInFailed || !showPasswordForm ? (
         <p className="text-center text-sm text-mit-text">
-          {t('auto_sign_in_failed')}{' '}
+          {autoSignInFailed ? `${t('auto_sign_in_failed')} ` : null}
           <I18nLink
             className={authInlineLinkClassName}
             href={authHrefWithCallback('/login', props.callbackUrl)}

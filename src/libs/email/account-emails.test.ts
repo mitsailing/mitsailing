@@ -88,23 +88,27 @@ describe('account email notices', () => {
     expect(payload?.html).not.toContain('activate your account');
   });
 
-  it('security-notice persona receives a password reset code email', async () => {
+  it('security-notice persona receives a password reset link email', async () => {
     const { sendTransactionalEmail } =
       await import('@/libs/email/sendTransactional');
-    const { sendEmailOtpCode } = await import('@/libs/email/account-emails');
+    const { sendPasswordResetLinkEmail } =
+      await import('@/libs/email/account-emails');
 
-    await sendEmailOtpCode({
-      email: 'reset@example.com',
-      otp: '654321',
-      type: 'forget-password',
-    });
+    await sendPasswordResetLinkEmail(
+      'reset@example.com',
+      'https://example.test/reset-password?token=abc'
+    );
 
     const [payload] = vi.mocked(sendTransactionalEmail).mock.calls[0] ?? [];
 
     expect(payload?.to).toBe('reset@example.com');
     expect(payload?.subject).toMatch(/reset/i);
-    expect(payload?.text).toContain('password reset code is 654321');
-    expect(payload?.text).not.toContain('@mitsailing.com #654321');
+    expect(payload?.text).toContain(
+      'https://example.test/reset-password?token=abc'
+    );
+    expect(payload?.html).toContain(
+      'https://example.test/reset-password?token=abc'
+    );
   });
 
   it('email-change persona receives a confirmation code at the new email', async () => {

@@ -24,6 +24,7 @@ import {
   sendEmailChangeRequestedNotice,
   sendEmailOtpCode,
   sendPasswordChangedNotice,
+  sendPasswordResetLinkEmail,
 } from '@/libs/email/account-emails';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
@@ -125,6 +126,7 @@ export const auth = betterAuth({
     requireEmailVerification: true,
     // autoSignIn: false,
     revokeSessionsOnPasswordReset: true,
+    resetPasswordTokenExpiresIn: 3600,
     minPasswordLength: 8,
     password: {
       hash: async (password) => {
@@ -136,7 +138,22 @@ export const auth = betterAuth({
         return ok;
       },
     },
+    sendResetPassword: async ({ user, url }) => {
+      try {
+        await sendPasswordResetLinkEmail(user.email, url);
+      } catch (error: unknown) {
+        logger.error('Failed to send password-reset link email: {error}', {
+          error,
+          operation: 'sendPasswordResetLinkEmail',
+        });
+      }
+    },
     onPasswordReset: async ({ user }) => {
+      // The reset link was delivered to this mailbox.
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: true },
+      });
       await sendPasswordChangedNotice(user.email);
     },
   },
@@ -234,6 +251,13 @@ export const auth = betterAuth({
       rateLimit: { window: 60, max: 3 },
       storeOTP: 'hashed',
       async sendVerificationOTP({ email, otp, type }, ctx) {
+        // Password reset uses emailAndPassword.sendResetPassword (link).
+        // Keep email OTP for verify / change-email / sign-in only.
+        if (type === 'forget-password') {
+          throw new Error(
+            'Password reset OTP is disabled; use the reset link email.'
+          );
+        }
         await sendEmailOtpCode({ email, otp, type });
 
         if (type === 'change-email') {
@@ -288,11 +312,10 @@ export const auth = betterAuth({
         '/sign-in/email',
         '/sign-out',
         '/change-password',
+        '/request-password-reset',
+        '/reset-password',
         '/email-otp/send-verification-otp',
         '/email-otp/verify-email',
-        '/email-otp/request-password-reset',
-        '/email-otp/reset-password',
-        '/email-otp/check-verification-otp',
         '/email-otp/request-email-change',
         '/email-otp/change-email',
         '/delete-user',
@@ -319,7 +342,7 @@ export const auth = betterAuth({
             enMessages.AuthErrors.INVALID_EMAIL_OR_PASSWORD,
           EMAIL_NOT_VERIFIED: enMessages.AuthErrors.EMAIL_NOT_VERIFIED,
           PASSWORD_COMPROMISED: enMessages.AuthErrors.PASSWORD_COMPROMISED,
-          MUST_SET_PASSWORD: enMessages.SignInPage.error_must_set_password,
+          MUST_SET_PASSWORD: enMessages.SignInPage.error_must_set_password_sent,
         },
       },
     }),

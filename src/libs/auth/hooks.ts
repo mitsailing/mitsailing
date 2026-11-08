@@ -13,7 +13,7 @@ import { normalizeEmailAddress } from '@/utils/emailValidation';
 const MAX_FAILED_ATTEMPTS = 5;
 /** Rolling window (15 minutes, Devise Lockable parity). */
 const LOCKOUT_WINDOW_MS = 15 * 60 * 1000;
-const RESET_PASSWORD_EMAIL_OTP_PATH = '/email-otp/reset-password';
+const RESET_PASSWORD_PATH = '/reset-password';
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
 
@@ -30,7 +30,7 @@ async function countRecentFailures(email: string): Promise<number> {
 }
 
 /**
- * Validates email OTP reset-password input before Better Auth updates password.
+ * Validates link reset-password input before Better Auth updates password.
  * Enforces MIN_PASSWORD_LENGTH and MAX_PASSWORD_LENGTH and maps failures to
  * stable BAD_REQUEST APIError codes.
  *
@@ -38,7 +38,7 @@ async function countRecentFailures(email: string): Promise<number> {
  * @returns Resolves when password preflight passes.
  * @throws APIError for missing, short, long, or compromised passwords.
  */
-async function preflightEmailOtpResetPassword(password: unknown) {
+async function preflightResetPassword(password: unknown) {
   if (typeof password !== 'string') {
     throw APIError.from('BAD_REQUEST', {
       code: 'PASSWORD_REQUIRED',
@@ -112,8 +112,8 @@ async function userNeedsNewSitePassword(email: string) {
  */
 export const signInEmailHooks = {
   before: createAuthMiddleware(async (ctx) => {
-    if (ctx.path === RESET_PASSWORD_EMAIL_OTP_PATH) {
-      await preflightEmailOtpResetPassword(ctx.body?.password);
+    if (ctx.path === RESET_PASSWORD_PATH) {
+      await preflightResetPassword(ctx.body?.newPassword);
     }
 
     if (ctx.path === '/sign-in/email') {

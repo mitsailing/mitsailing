@@ -16,11 +16,18 @@ type AuthPlugin = {
 type AuthConfig = {
   database: unknown;
   emailAndPassword: {
-    onPasswordReset: (props: { user: { email: string } }) => Promise<void>;
+    onPasswordReset: (props: {
+      user: { email: string; id: string };
+    }) => Promise<void>;
     password: {
       hash: (password: string) => Promise<string>;
       verify: (props: { hash: string; password: string }) => Promise<boolean>;
     };
+    resetPasswordTokenExpiresIn: number;
+    sendResetPassword: (props: {
+      url: string;
+      user: { email: string };
+    }) => Promise<void>;
   };
   emailVerification: {
     afterEmailVerification: (user: { id: string }) => Promise<void>;
@@ -103,6 +110,7 @@ const authMocks = vi.hoisted(() => ({
   passwordCompromiseCheckEnabled: true,
   prisma: {
     user: {
+      update: vi.fn(),
       updateMany: vi.fn(),
     },
   },
@@ -110,6 +118,7 @@ const authMocks = vi.hoisted(() => ({
   sendEmailChangeRequestedNotice: vi.fn(),
   sendEmailOtpCode: vi.fn(),
   sendPasswordChangedNotice: vi.fn(),
+  sendPasswordResetLinkEmail: vi.fn(),
   signInEmailHooks: {
     after: vi.fn(),
     before: vi.fn(),
@@ -173,6 +182,7 @@ vi.mock('@/libs/email/account-emails', () => ({
   sendEmailChangeRequestedNotice: authMocks.sendEmailChangeRequestedNotice,
   sendEmailOtpCode: authMocks.sendEmailOtpCode,
   sendPasswordChangedNotice: authMocks.sendPasswordChangedNotice,
+  sendPasswordResetLinkEmail: authMocks.sendPasswordResetLinkEmail,
 }));
 
 vi.mock('@/libs/Env', () => ({
@@ -214,6 +224,8 @@ function isAuthConfig(value: unknown): value is AuthConfig {
     isRecord(value.emailAndPassword) &&
     isRecord(value.emailAndPassword.password) &&
     typeof value.emailAndPassword.onPasswordReset === 'function' &&
+    typeof value.emailAndPassword.sendResetPassword === 'function' &&
+    typeof value.emailAndPassword.resetPasswordTokenExpiresIn === 'number' &&
     typeof value.emailAndPassword.password.hash === 'function' &&
     typeof value.emailAndPassword.password.verify === 'function' &&
     isRecord(value.emailVerification) &&
@@ -301,6 +313,7 @@ beforeEach(() => {
   authMocks.hash.mockResolvedValue('hashed-password');
   authMocks.verify.mockResolvedValue(true);
   authMocks.markPendingEmailChange.mockResolvedValue(true);
+  authMocks.prisma.user.update.mockResolvedValue({});
   authMocks.prisma.user.updateMany.mockResolvedValue({ count: 1 });
   authMocks.sendDeleteAccountVerificationEmail.mockImplementation(
     async () => {}
@@ -308,6 +321,7 @@ beforeEach(() => {
   authMocks.sendEmailChangeRequestedNotice.mockImplementation(async () => {});
   authMocks.sendEmailOtpCode.mockImplementation(async () => {});
   authMocks.sendPasswordChangedNotice.mockImplementation(async () => {});
+  authMocks.sendPasswordResetLinkEmail.mockImplementation(async () => {});
   authMocks.getBetterAuthZenStackAdapter.mockReturnValue(
     authMocks.betterAuthZenStackAdapter
   );
@@ -353,6 +367,15 @@ describe('auth', () => {
     }
 
     expect(auditLogOptions.paths).toContain('/sign-in/email');
+    expect(auditLogOptions.paths).toContain('/request-password-reset');
+    expect(auditLogOptions.paths).toContain('/reset-password');
+    expect(auditLogOptions.paths).not.toContain(
+      '/email-otp/request-password-reset'
+    );
+    expect(auditLogOptions.paths).not.toContain('/email-otp/reset-password');
+    expect(auditLogOptions.paths).not.toContain(
+      '/email-otp/check-verification-otp'
+    );
     expect(auditLogOptions.paths).not.toContain('/get-session');
   });
 
@@ -506,6 +529,7 @@ describe('auth', () => {
   it('delegates password hashing and password reset email', async () => {
     const { config } = await importAuthConfig();
 
+    expect(config.emailAndPassword.resetPasswordTokenExpiresIn).toBe(3600);
     await expect(
       config.emailAndPassword.password.hash('secret-password')
     ).resolves.toBe('hashed-password');
@@ -515,8 +539,12 @@ describe('auth', () => {
         password: 'secret-password',
       })
     ).resolves.toBe(true);
-    await config.emailAndPassword.onPasswordReset({
+    await config.emailAndPassword.sendResetPassword({
+      url: 'https://example.test/reset-password?token=abc',
       user: { email: 'sailor@example.com' },
+    });
+    await config.emailAndPassword.onPasswordReset({
+      user: { email: 'sailor@example.com', id: 'user-1' },
     });
 
     expect(authMocks.hash).toHaveBeenCalledWith('secret-password', {
@@ -537,6 +565,14 @@ describe('auth', () => {
         timeCost: 3,
       }
     );
+    expect(authMocks.sendPasswordResetLinkEmail).toHaveBeenCalledWith(
+      'sailor@example.com',
+      'https://example.test/reset-password?token=abc'
+    );
+    expect(authMocks.prisma.user.update).toHaveBeenCalledWith({
+      data: { emailVerified: true },
+      where: { id: 'user-1' },
+    });
     expect(authMocks.sendPasswordChangedNotice).toHaveBeenCalledWith(
       'sailor@example.com'
     );

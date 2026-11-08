@@ -75,6 +75,7 @@ type UnknownFunction = (...args: unknown[]) => unknown;
 type TestAuthContext = {
   body?: {
     email?: unknown;
+    newPassword?: unknown;
     password?: unknown;
   };
   context: {
@@ -244,8 +245,8 @@ describe('signInEmailHooks before', () => {
     await expect(
       hooks.before(
         authContext({
-          body: { password: null },
-          path: '/email-otp/reset-password',
+          body: { newPassword: null },
+          path: '/reset-password',
         })
       )
     ).rejects.toMatchObject(passwordRequiredError);
@@ -257,8 +258,8 @@ describe('signInEmailHooks before', () => {
     await expect(
       hooks.before(
         authContext({
-          body: { password: 'short' },
-          path: '/email-otp/reset-password',
+          body: { newPassword: 'short' },
+          path: '/reset-password',
         })
       )
     ).rejects.toMatchObject(passwordTooShortError);
@@ -270,8 +271,8 @@ describe('signInEmailHooks before', () => {
     await expect(
       hooks.before(
         authContext({
-          body: { password: 'x'.repeat(129) },
-          path: '/email-otp/reset-password',
+          body: { newPassword: 'x'.repeat(129) },
+          path: '/reset-password',
         })
       )
     ).rejects.toMatchObject(passwordTooLongError);
@@ -282,8 +283,8 @@ describe('signInEmailHooks before', () => {
   it('check reset password breach risk for valid length', async () => {
     await hooks.before(
       authContext({
-        body: { password: 'valid-password' },
-        path: '/email-otp/reset-password',
+        body: { newPassword: 'valid-password' },
+        path: '/reset-password',
       })
     );
 
@@ -297,8 +298,8 @@ describe('signInEmailHooks before', () => {
     await expect(
       hooks.before(
         authContext({
-          body: { password: 'compromised-password' },
-          path: '/email-otp/reset-password',
+          body: { newPassword: 'compromised-password' },
+          path: '/reset-password',
         })
       )
     ).rejects.toBe(compromisedError);
