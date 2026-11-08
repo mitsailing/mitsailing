@@ -69,7 +69,7 @@ describe('SignUpForm', () => {
     });
     const status = await screen.findByRole('status');
     expect(status).toHaveTextContent(
-      'Check your email for a verification code.'
+      'Check your email for a verification link.'
     );
     expect(status).toHaveAttribute('aria-live', 'polite');
     expect(status).toHaveClass(
@@ -77,9 +77,7 @@ describe('SignUpForm', () => {
       'text-green-900',
       'motion-reduce:animate-none'
     );
-    expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/verify-email?email=new-sailor%40mit.edu&codeSent=1&callbackUrl=%2Fonboarding'
-    );
+    expect(componentTestRouter().push).not.toHaveBeenCalled();
   });
 
   it('creates account with email local part as temporary display name', async () => {
@@ -99,7 +97,7 @@ describe('SignUpForm', () => {
     });
   });
 
-  it('submit trimmed lowercase email for sign-up and verify-email redirect', async () => {
+  it('submit trimmed lowercase email for sign-up and stay for verification link', async () => {
     render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
@@ -115,11 +113,9 @@ describe('SignUpForm', () => {
       password: 'correct-password',
     });
     expect(
-      await screen.findByText('Check your email for a verification code.')
+      await screen.findByText('Check your email for a verification link.')
     ).toBeVisible();
-    expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/verify-email?email=sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
-    );
+    expect(componentTestRouter().push).not.toHaveBeenCalled();
   });
 
   it('show sign-in recovery links for existing email', async () => {

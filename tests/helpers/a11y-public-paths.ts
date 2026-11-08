@@ -9,7 +9,6 @@ const EXTRA_PATHS: string[] = [
   '/login',
   '/signup',
   '/forgot-password',
-  '/verify-email',
   '/unlock-account',
   ...staff.map((s) => staffProfilePath(s.slug)),
 ];

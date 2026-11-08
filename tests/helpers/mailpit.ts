@@ -167,21 +167,3 @@ export function extractLinkFromMessage(
   }
   return match[0];
 }
-
-/**
- * Pull the first 6-digit OTP out of a Mailpit message body.
- * Prefers Text to avoid HTML markup and encoded characters, then falls back to HTML.
- *
- * @param message - Message returned by `findLatestMessageTo`.
- * @returns The first 6-digit verification code in the message body.
- */
-export function extractCodeFromMessage(message: MailpitMessage): string {
-  const match =
-    message.Text.match(/\b\d{6}\b/) ?? message.HTML.match(/\b\d{6}\b/);
-  if (!match) {
-    throw new Error(
-      `No 6-digit code found in message ${message.ID} (subject: "${message.Subject}")`
-    );
-  }
-  return match[0];
-}

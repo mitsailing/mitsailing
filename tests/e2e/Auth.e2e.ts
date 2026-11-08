@@ -7,11 +7,8 @@ import { formAlert } from '../helpers/e2e-alert';
 import { e2ePgConnectionString } from '../helpers/e2e-database-url';
 import { insertCurrentSailingCardOnboardingAcceptance } from '../helpers/e2e-sailing-card-onboarding';
 import { submitEmailPasswordSignIn } from '../helpers/e2e-sign-in';
-import {
-  extractCodeFromMessage,
-  findLatestMessageTo,
-  findLatestMessageToMatching,
-} from '../helpers/mailpit';
+import { verifyEmailWithLatestLink } from '../helpers/e2e-verify-email';
+import { findLatestMessageToMatching } from '../helpers/mailpit';
 
 /**
  * Do not import `prisma` from the app `DB` module here. Prisma 7’s client
@@ -74,22 +71,9 @@ async function signUpWithEmailAndPassword(props: {
   await props.page.getByLabel('Password', { exact: true }).fill(props.password);
   await props.page.getByLabel('Confirm password').fill(props.password);
   await props.page.getByRole('button', { name: 'Sign up' }).click();
-  await expect(props.page).toHaveURL(/\/verify-email\?/);
   await expect(
-    props.page.getByText(
-      `Enter the verification code we just sent to ${props.email}.`
-    )
+    props.page.getByText('Check your email for a verification link.')
   ).toBeVisible();
-}
-
-async function verifyEmailWithLatestCode(page: Page, email: string) {
-  const message = await findLatestMessageTo(email);
-  expect(message.Subject).toMatch(/confirm/i);
-
-  await page
-    .getByLabel('Verification code')
-    .fill(extractCodeFromMessage(message));
-  await page.getByRole('button', { name: 'Continue' }).click();
 }
 
 async function markOnboardingCompleteByEmail(email: string) {
@@ -158,7 +142,7 @@ async function createVerifiedUser(props: {
 }) {
   await props.page.goto('/signup');
   await signUpWithEmailAndPassword(props);
-  await verifyEmailWithLatestCode(props.page, props.email);
+  await verifyEmailWithLatestLink(props.page, props.email);
   await expect
     .poll(() => new URL(props.page.url()).pathname)
     .toBe('/onboarding');
@@ -246,7 +230,6 @@ test.describe('Auth', () => {
       '/signup',
       '/forgot-password',
       '/reset-password',
-      '/verify-email',
     ] as const;
 
     try {
@@ -307,7 +290,7 @@ test.describe('Auth', () => {
       const storedPassword = credentialRows[0]?.password;
       expect(storedPassword?.startsWith('$argon2id$')).toBe(true);
 
-      await verifyEmailWithLatestCode(page, email);
+      await verifyEmailWithLatestLink(page, email);
       await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
 
       await page.goto('/profile');
@@ -331,7 +314,7 @@ test.describe('Auth', () => {
     try {
       await page.goto('/signup');
       await signUpWithEmailAndPassword({ email, page, password: credential });
-      await verifyEmailWithLatestCode(page, email);
+      await verifyEmailWithLatestLink(page, email);
       await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
 
       await page.context().clearCookies();
@@ -392,14 +375,14 @@ test.describe('Auth', () => {
     await expect(page).toHaveURL(/\/signup\/?\?.*callbackUrl=/);
 
     await signUpWithEmailAndPassword({ email, page, password });
-    await verifyEmailWithLatestCode(page, email);
+    await verifyEmailWithLatestLink(page, email);
 
     await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
 
     await cleanupByEmail(email);
   });
 
-  test('email-change persona changes the signed-in email after OTP confirmation', async ({
+  test('email-change persona changes the signed-in email after link confirmation', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -412,27 +395,18 @@ test.describe('Auth', () => {
       await page.goto('/profile');
       await page.getByLabel('New email').fill(newEmail);
       await page
-        .getByRole('button', { name: 'Send confirmation code' })
+        .getByRole('button', { name: 'Send confirmation link' })
         .click();
       await expect(
         page.getByText(
-          'Confirmation code sent. Enter it below to finish changing your email.'
+          'Confirmation link sent. Open it from the new address to finish changing your email.'
         )
       ).toBeVisible();
 
-      const message = await findLatestMessageTo(newEmail);
-      expect(message.Subject).toMatch(/confirm/i);
-
-      await page
-        .getByLabel('Confirmation code')
-        .fill(extractCodeFromMessage(message));
-      await page.getByRole('button', { name: 'Confirm email' }).click();
-
+      await verifyEmailWithLatestLink(page, newEmail);
+      await page.goto('/profile');
       await expect(
-        page.getByText('Your email address has been updated.')
-      ).toBeVisible();
-      await expect(
-        page.getByLabel('Change email').getByText(newEmail, { exact: true })
+        page.getByText(newEmail, { exact: true }).first()
       ).toBeVisible();
     } finally {
       await cleanupByEmail(email);

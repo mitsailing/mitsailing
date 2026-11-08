@@ -6,12 +6,7 @@ import { betterAuth } from 'better-auth';
 import { auditLog } from 'better-auth-audit-logs';
 import { createAuthMiddleware } from 'better-auth/api';
 import { nextCookies } from 'better-auth/next-js';
-import {
-  admin,
-  customSession,
-  emailOTP,
-  haveIBeenPwned,
-} from 'better-auth/plugins';
+import { admin, customSession, haveIBeenPwned } from 'better-auth/plugins';
 import { createAccessControl } from 'better-auth/plugins/access';
 import { signInEmailHooks } from '@/libs/auth/hooks';
 import { passwordCompromiseCheckEnabled } from '@/libs/auth/password-compromise';
@@ -19,10 +14,8 @@ import { selectPasswordHashingOptions } from '@/libs/auth/passwordHashing';
 import { Role, ROLE_VALUES } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import {
-  markPendingEmailChange,
   sendDeleteAccountVerificationEmail,
-  sendEmailChangeRequestedNotice,
-  sendEmailOtpCode,
+  sendEmailVerificationLink,
   sendPasswordChangedNotice,
   sendPasswordResetLinkEmail,
 } from '@/libs/email/account-emails';
@@ -158,17 +151,25 @@ export const auth = betterAuth({
     },
   },
   emailVerification: {
+    expiresIn: 3600,
+    sendOnSignUp: true,
     sendOnSignIn: true,
     autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      try {
+        await sendEmailVerificationLink({
+          email: user.email,
+          purpose: user.emailVerified ? 'change-email' : 'verify-email',
+          url,
+        });
+      } catch (error: unknown) {
+        logger.error('Failed to send email verification link: {error}', {
+          error,
+          operation: 'sendEmailVerificationLink',
+        });
+      }
+    },
     afterEmailVerification: async (user) => {
-      // Devise-parity: once the verification flow completes (sign-up or
-      // change-email), make sure no stale pending address lingers on the
-      // profile. `updateMany` with a predicate makes this idempotent so the
-      // sign-up path (where `unconfirmedEmail` is already null) is a no-op.
-      await prisma.user.updateMany({
-        where: { id: user.id, unconfirmedEmail: { not: null } },
-        data: { unconfirmedEmail: null },
-      });
       try {
         await ensureNewsletterSubscriberForUser(user.id);
       } catch (error) {
@@ -192,18 +193,9 @@ export const auth = betterAuth({
         defaultValue: Role.USER,
         input: false,
       },
-      // Devise-style pending-email column. `input: false` keeps it out of the
-      // sign-up/update payload surface — it is only written via the
-      // change-email flow below and the verification hook above.
-      unconfirmedEmail: {
-        type: 'string',
-        required: false,
-        input: false,
-        fieldName: 'unconfirmed_email',
-      },
     },
     changeEmail: {
-      enabled: false,
+      enabled: true,
     },
     deleteUser: {
       enabled: true,
@@ -242,69 +234,6 @@ export const auth = betterAuth({
         enMessages.AuthErrors.PASSWORD_COMPROMISED,
       paths: ['/sign-up/email', '/change-password'],
     }),
-    emailOTP({
-      allowedAttempts: 3,
-      changeEmail: { enabled: true },
-      expiresIn: 5 * 60,
-      otpLength: 6,
-      overrideDefaultEmailVerification: true,
-      rateLimit: { window: 60, max: 3 },
-      storeOTP: 'hashed',
-      async sendVerificationOTP({ email, otp, type }, ctx) {
-        // Password reset uses emailAndPassword.sendResetPassword (link).
-        // Keep email OTP for verify / change-email / sign-in only.
-        if (type === 'forget-password') {
-          throw new Error(
-            'Password reset OTP is disabled; use the reset link email.'
-          );
-        }
-        await sendEmailOtpCode({ email, otp, type });
-
-        if (type === 'change-email') {
-          const sessionUser = ctx?.context.session?.user;
-          if (sessionUser?.id) {
-            let pendingEmailChanged = false;
-            try {
-              pendingEmailChanged = await markPendingEmailChange({
-                userId: sessionUser.id,
-                newEmail: email,
-              });
-            } catch (error) {
-              logger.error('Failed to mark pending email change: {error}', {
-                currentEmail: sessionUser.email,
-                error,
-                newEmail: email,
-                operation: 'markPendingEmailChange',
-                userId: sessionUser.id,
-              });
-            }
-            if (
-              pendingEmailChanged &&
-              sessionUser.email &&
-              sessionUser.email !== email
-            ) {
-              try {
-                await sendEmailChangeRequestedNotice({
-                  currentEmail: sessionUser.email,
-                  newEmail: email,
-                });
-              } catch (error) {
-                logger.error(
-                  'Failed to send email change requested notice: {error}',
-                  {
-                    currentEmail: sessionUser.email,
-                    error,
-                    newEmail: email,
-                    operation: 'sendEmailChangeRequestedNotice',
-                    userId: sessionUser.id,
-                  }
-                );
-              }
-            }
-          }
-        }
-      },
-    }),
     auditLog({
       nonBlocking: true,
       paths: [
@@ -314,10 +243,8 @@ export const auth = betterAuth({
         '/change-password',
         '/request-password-reset',
         '/reset-password',
-        '/email-otp/send-verification-otp',
-        '/email-otp/verify-email',
-        '/email-otp/request-email-change',
-        '/email-otp/change-email',
+        '/send-verification-email',
+        '/change-email',
         '/delete-user',
         '/delete-user/callback',
         '/revoke-other-sessions',

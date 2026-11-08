@@ -9,10 +9,7 @@ import {
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
 import { e2ePgConnectionString } from '../helpers/e2e-database-url';
 import { insertCurrentSailingCardOnboardingAcceptance } from '../helpers/e2e-sailing-card-onboarding';
-import {
-  extractCodeFromMessage,
-  findLatestMessageTo,
-} from '../helpers/mailpit';
+import { verifyEmailWithLatestLink } from '../helpers/e2e-verify-email';
 
 const pool = new Pool({ connectionString: e2ePgConnectionString() });
 const fixtureEmailPrefix = 'e2e-membership-payments-';
@@ -244,13 +241,11 @@ async function signUpVerifiedSailor(props: {
   await props.page.getByLabel('Password', { exact: true }).fill(props.password);
   await props.page.getByLabel('Confirm password').fill(props.password);
   await props.page.getByRole('button', { name: 'Sign up' }).click();
-  await expect(props.page).toHaveURL(/\/verify-email\?/);
+  await expect(
+    props.page.getByText('Check your email for a verification link.')
+  ).toBeVisible();
 
-  const message = await findLatestMessageTo(props.email);
-  await props.page
-    .getByLabel('Verification code')
-    .fill(extractCodeFromMessage(message));
-  await props.page.getByRole('button', { name: 'Continue' }).click();
+  await verifyEmailWithLatestLink(props.page, props.email);
   await expect
     .poll(() => new URL(props.page.url()).pathname)
     .toBe('/onboarding');

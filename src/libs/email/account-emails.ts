@@ -1,6 +1,5 @@
 import { render } from 'react-email';
 import { createUnlockAccountToken } from '@/libs/auth/unlock-token';
-import { prisma } from '@/libs/DB';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 import { Env } from '@/libs/Env';
 import enMessages from '@/locales/en.json';
@@ -10,22 +9,10 @@ import {
 } from '@/utils/emailValidation';
 import { getBaseUrl } from '@/utils/Helpers';
 import { AccountUnlockEmailTemplate } from '../../../emails/account-unlock';
-import { ConfirmEmailChangeTemplate } from '../../../emails/confirm-email-change';
 import { DeleteAccountEmailTemplate } from '../../../emails/delete-account';
-import {
-  EmailChangeRequestedNoticePlaintext,
-  EmailChangeRequestedNoticeTemplate,
-} from '../../../emails/email-change-requested';
-import {
-  otpPlainTextAutofillBlock,
-  replaceAuthEmailValues,
-} from '../../../emails/email-styles';
+import { replaceAuthEmailValues } from '../../../emails/email-styles';
 import { PasswordChangedNoticeTemplate } from '../../../emails/password-changed';
 import { PasswordResetEmailTemplate } from '../../../emails/password-reset';
-import {
-  SignInOtpEmailPlaintext,
-  SignInOtpEmailTemplate,
-} from '../../../emails/sign-in-otp';
 import { VerifyEmailTemplate } from '../../../emails/verify-email';
 
 /** Support mailbox surfaced in transactional copy (env-configurable). */
@@ -43,194 +30,75 @@ function normalizeAuthEmail(value: string): string {
   return email;
 }
 
-function assertEmailOtpCode(otp: string): void {
-  if (!/^\d{6}$/.test(otp)) {
-    throw new Error('Expected a six-digit email OTP code.');
-  }
-}
-
 function assertNonEmptyValue(value: string, message: string): void {
   if (value.trim().length === 0) {
     throw new Error(message);
   }
 }
 
-function verificationCodeText(params: {
-  code: string;
-  copy: AuthEmailMessages;
-  purpose: 'verify-email' | 'change-email';
-}): string {
-  if (params.purpose === 'change-email') {
-    return [
-      replaceAuthEmailValues(params.copy.change_email_text, {
-        code: params.code,
-      }),
-      otpPlainTextAutofillBlock(params.code),
-    ].join('\n\n');
+type VerificationLinkCopy = {
+  verify_body: string;
+  verify_button: string;
+  verify_expiry: string;
+  verify_paste: string;
+  verify_subject: string;
+  verify_text: string;
+};
+
+function verificationLinkCopy(
+  copy: AuthEmailMessages,
+  purpose: 'verify-email' | 'change-email'
+): VerificationLinkCopy {
+  if (purpose === 'change-email') {
+    return {
+      verify_body: copy.change_email_body,
+      verify_button: copy.change_email_button,
+      verify_expiry: copy.change_email_expiry,
+      verify_paste: copy.change_email_paste,
+      verify_subject: copy.change_email_subject,
+      verify_text: copy.change_email_text,
+    };
   }
 
-  return [
-    replaceAuthEmailValues(params.copy.verify_text, { code: params.code }),
-    otpPlainTextAutofillBlock(params.code),
-  ].join('\n\n');
+  return {
+    verify_body: copy.verify_body,
+    verify_button: copy.verify_button,
+    verify_expiry: copy.verify_expiry,
+    verify_paste: copy.verify_paste,
+    verify_subject: copy.verify_subject,
+    verify_text: copy.verify_text,
+  };
 }
 
 /**
- * Sends an email OTP for verification or email change.
+ * Sends the Better Auth email verification / change-email link.
  *
- * @param params - OTP email parameters.
- * @param params.email - Recipient address.
- * @param params.otp - Numeric one-time code.
- * @param params.type - Better Auth OTP purpose.
+ * @param params - Link email parameters.
+ * @param params.email - Recipient address (new address for email change).
+ * @param params.purpose - Sign-up verification vs login-email change.
+ * @param params.url - Absolute HTTPS verification URL with token.
  */
-export async function sendEmailOtpCode(params: {
+export async function sendEmailVerificationLink(params: {
   email: string;
-  otp: string;
-  type: 'email-verification' | 'change-email' | 'sign-in';
+  purpose: 'verify-email' | 'change-email';
+  url: string;
 }) {
   const email = normalizeAuthEmail(params.email);
-  assertEmailOtpCode(params.otp);
-  const copy = authEmailMessages;
-
-  switch (params.type) {
-    case 'change-email': {
-      const html = await render(
-        ConfirmEmailChangeTemplate({
-          code: params.otp,
-          supportEmail: SUPPORT_EMAIL,
-        })
-      );
-      await sendTransactionalEmail({
-        category: 'email_change',
-        to: email,
-        subject: copy.change_email_subject,
-        html,
-        text: verificationCodeText({
-          code: params.otp,
-          copy,
-          purpose: 'change-email',
-        }),
-      });
-      return;
-    }
-    case 'sign-in': {
-      const html = await render(
-        SignInOtpEmailTemplate({
-          code: params.otp,
-          copy,
-          supportEmail: SUPPORT_EMAIL,
-        })
-      );
-      await sendTransactionalEmail({
-        category: 'sign_in_otp',
-        to: email,
-        subject: copy.sign_in_otp_subject,
-        html,
-        text: SignInOtpEmailPlaintext({
-          code: params.otp,
-          copy,
-          supportEmail: SUPPORT_EMAIL,
-        }),
-      });
-      return;
-    }
-    case 'email-verification': {
-      const html = await render(
-        VerifyEmailTemplate({
-          code: params.otp,
-          copy,
-          supportEmail: SUPPORT_EMAIL,
-        })
-      );
-      await sendTransactionalEmail({
-        category: 'verify_email',
-        to: email,
-        subject: copy.verify_subject,
-        html,
-        text: verificationCodeText({
-          code: params.otp,
-          copy,
-          purpose: 'verify-email',
-        }),
-      });
-      return;
-    }
-    default: {
-      const exhaustive: never = params.type;
-      throw new Error(`Unsupported email OTP type: ${String(exhaustive)}`);
-    }
-  }
-}
-
-/**
- * Records the proposed email address while the OTP is pending.
- *
- * @param params - Pending email details.
- * @param params.userId - Current user ID.
- * @param params.newEmail - Proposed login email.
- * @returns True when the pending address changed.
- */
-export async function markPendingEmailChange(params: {
-  userId: string;
-  newEmail: string;
-}): Promise<boolean> {
-  const newEmail = normalizeAuthEmail(params.newEmail);
-  const user = await prisma.user.findUnique({
-    where: { id: params.userId },
-    select: { email: true },
-  });
-
-  if (!user || normalizeEmailAddress(user.email) === newEmail) {
-    return false;
-  }
-
-  const result = await prisma.user.updateMany({
-    where: {
-      id: params.userId,
-      OR: [{ unconfirmedEmail: null }, { unconfirmedEmail: { not: newEmail } }],
-    },
-    data: { unconfirmedEmail: newEmail },
-  });
-  return result.count > 0;
-}
-
-/**
- * Notifies the current login email that a change was requested.
- *
- * @param params - Notice details.
- * @param params.currentEmail - Current verified login email.
- * @param params.newEmail - Proposed replacement login email.
- */
-export async function sendEmailChangeRequestedNotice(params: {
-  currentEmail: string;
-  newEmail: string;
-}) {
-  const copy = authEmailMessages;
-  const currentEmail = normalizeAuthEmail(params.currentEmail);
-  const newEmail = normalizeAuthEmail(params.newEmail);
+  assertNonEmptyValue(params.url, 'Expected a verification URL.');
+  const linkCopy = verificationLinkCopy(authEmailMessages, params.purpose);
   const html = await render(
-    EmailChangeRequestedNoticeTemplate({
-      newEmail,
-      supportEmail: SUPPORT_EMAIL,
-      previewText: copy.change_email_notice_preview,
-      heading: copy.change_email_notice_subject,
-      bodyMessage: copy.change_email_notice_body,
-      contactMessage: copy.change_email_notice_contact,
+    VerifyEmailTemplate({
+      copy: linkCopy,
+      verifyUrl: params.url,
     })
   );
   await sendTransactionalEmail({
-    category: 'email_change',
-    to: currentEmail,
-    subject: copy.change_email_notice_subject,
+    category:
+      params.purpose === 'change-email' ? 'email_change' : 'verify_email',
+    to: email,
+    subject: linkCopy.verify_subject,
     html,
-    text: EmailChangeRequestedNoticePlaintext({
-      newEmail,
-      supportEmail: SUPPORT_EMAIL,
-      previewText: copy.change_email_notice_preview,
-      heading: copy.change_email_notice_subject,
-      bodyMessage: copy.change_email_notice_body,
-      contactMessage: copy.change_email_notice_contact,
-    }),
+    text: replaceAuthEmailValues(linkCopy.verify_text, { url: params.url }),
   });
 }
 

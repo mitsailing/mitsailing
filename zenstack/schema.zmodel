@@ -112,7 +112,6 @@ model User {
   name             String
   email            String          @unique
   emailVerified    Boolean         @default(false) @map("email_verified")
-  unconfirmedEmail String?         @map("unconfirmed_email")
   emailBouncedAt   DateTime?       @map("email_bounced_at")
   emailSuppressedAt DateTime?      @map("email_suppressed_at")
   emailSuppressionReason String?   @map("email_suppression_reason")

@@ -1,9 +1,5 @@
 import { auditLogClient } from 'better-auth-audit-logs/client';
-import {
-  adminClient,
-  customSessionClient,
-  emailOTPClient,
-} from 'better-auth/client/plugins';
+import { adminClient, customSessionClient } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
 import type { auth } from '@/libs/auth';
 
@@ -19,6 +15,5 @@ export const authClient = createAuthClient({
     adminClient(),
     auditLogClient(),
     customSessionClient<typeof auth>(),
-    emailOTPClient(),
   ],
 });

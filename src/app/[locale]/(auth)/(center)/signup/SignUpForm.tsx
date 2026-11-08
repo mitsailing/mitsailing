@@ -1,7 +1,6 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
@@ -55,7 +54,6 @@ const isSignUpFieldErrorKey = (value: unknown): value is SignUpFieldErrorKey =>
 export function SignUpForm(props: SignUpFormProps) {
   const t = useTranslations('SignUpPage');
   const tCommon = useTranslations('Common');
-  const router = useRouter();
   const [formError, setFormError] = useState<ErrorState>(null);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -115,7 +113,6 @@ export function SignUpForm(props: SignUpFormProps) {
     });
     setSubmitting(true);
     const displayName = normalizedEmail.slice(0, normalizedEmail.indexOf('@'));
-    let keepSubmitting = false;
     try {
       const res = await authClient.signUp.email({
         email: normalizedEmail,
@@ -128,13 +125,6 @@ export function SignUpForm(props: SignUpFormProps) {
         return;
       }
       setSubmitted(true);
-      keepSubmitting = true;
-      router.push(
-        authHrefWithCallback(
-          `/verify-email?email=${encodeURIComponent(normalizedEmail)}&codeSent=1`,
-          props.callbackUrl
-        )
-      );
     } catch (caughtError) {
       reportUnknownAuthClientError({
         action: 'signup.email.thrown',
@@ -146,9 +136,7 @@ export function SignUpForm(props: SignUpFormProps) {
         showSignInLinks: false,
       });
     } finally {
-      if (!keepSubmitting) {
-        setSubmitting(false);
-      }
+      setSubmitting(false);
     }
   }
 

@@ -221,7 +221,6 @@ beforeEach(() => {
       id: 'user-1',
       name: 'User One',
       role: Role.USER,
-      unconfirmedEmail: null,
     },
   };
   mocks.verifySession.mockResolvedValue(session);
@@ -234,7 +233,6 @@ beforeEach(() => {
     id: 'user-1',
     name: 'User One',
     role: Role.USER,
-    unconfirmedEmail: null,
   });
   mocks.eventFindFirst.mockResolvedValue({
     entryFees: [],
@@ -401,7 +399,6 @@ describe('createPublicEventRegistrationAction', () => {
         id: 'admin-1',
         name: 'Admin One',
         role: Role.ADMIN,
-        unconfirmedEmail: null,
       },
     });
     mocks.appAuthContextFromSession.mockReturnValue({
@@ -1767,7 +1764,6 @@ describe('cancelPublicEventRegistrationAction', () => {
         id: 'admin-1',
         name: 'Admin One',
         role: Role.ADMIN,
-        unconfirmedEmail: null,
       },
     });
     mocks.appAuthContextFromSession.mockReturnValue({

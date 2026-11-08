@@ -6,10 +6,8 @@ import { componentTestRouter } from '@/test/component';
 import { SignInForm } from './SignInForm';
 
 const authClientMock = vi.hoisted(() => ({
-  emailOtp: {
-    sendVerificationOtp: vi.fn(),
-  },
   requestPasswordReset: vi.fn(),
+  sendVerificationEmail: vi.fn(),
   signIn: {
     email: vi.fn(),
   },
@@ -40,7 +38,7 @@ vi.mock('@/libs/auth/callbackUrl', async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   authClientMock.requestPasswordReset.mockResolvedValue({});
-  authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({});
+  authClientMock.sendVerificationEmail.mockResolvedValue({});
   authClientMock.signIn.email.mockResolvedValue({});
 });
 
@@ -85,7 +83,7 @@ async function submitUnverifiedResend() {
     user,
   });
   await user.click(
-    await screen.findByRole('button', { name: 'Send verification code' })
+    await screen.findByRole('button', { name: 'Send verification link' })
   );
 }
 
@@ -250,7 +248,7 @@ describe('SignInForm', () => {
     expect(screen.getByRole('button', { name: 'Sign in' })).not.toBeDisabled();
   });
 
-  it('Unverified sailor uses normalized email for OTP and verify-email redirect', async () => {
+  it('Unverified sailor uses normalized email for verification link resend', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'EMAIL_NOT_VERIFIED' },
@@ -264,32 +262,33 @@ describe('SignInForm', () => {
       user,
     });
     await user.click(
-      await screen.findByRole('button', { name: 'Send verification code' })
+      await screen.findByRole('button', { name: 'Send verification link' })
     );
 
-    expect(authClientMock.emailOtp.sendVerificationOtp).toHaveBeenCalledWith({
+    expect(authClientMock.sendVerificationEmail).toHaveBeenCalledWith({
+      callbackURL: '/login/continue?callbackUrl=%2Ffleet',
       email: 'sailor@mit.edu',
-      type: 'email-verification',
     });
-    expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/verify-email?email=sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
-    );
+    expect(
+      await screen.findByText('We sent a verification link to that email.')
+    ).toBeVisible();
+    expect(componentTestRouter().push).not.toHaveBeenCalled();
   });
 
-  it('Unverified sailor requests a verification code from sign-in', async () => {
+  it('Unverified sailor requests a verification link from sign-in', async () => {
     await submitUnverifiedResend();
 
-    expect(authClientMock.emailOtp.sendVerificationOtp).toHaveBeenCalledWith({
+    expect(authClientMock.sendVerificationEmail).toHaveBeenCalledWith({
+      callbackURL: '/login/continue?callbackUrl=%2Ffleet',
       email: 'new-sailor@mit.edu',
-      type: 'email-verification',
     });
-    expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/verify-email?email=new-sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
-    );
+    expect(
+      await screen.findByText('We sent a verification link to that email.')
+    ).toBeVisible();
   });
 
   it('Unverified sailor sees delivery message when verification resend is blocked', async () => {
-    authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({
+    authClientMock.sendVerificationEmail.mockResolvedValue({
       error: { code: 'TOO_MANY_REQUESTS' },
     });
 
@@ -301,7 +300,7 @@ describe('SignInForm', () => {
   });
 
   it('Unverified sailor sees delivery message when verification resend fails', async () => {
-    authClientMock.emailOtp.sendVerificationOtp.mockRejectedValue(
+    authClientMock.sendVerificationEmail.mockRejectedValue(
       new Error('network')
     );
 
@@ -311,14 +310,14 @@ describe('SignInForm', () => {
       'We could not complete that request right now.'
     );
     expect(reportUnknownAuthClientErrorMock).toHaveBeenCalledWith({
-      action: 'sign_in.send_verification_otp.thrown',
+      action: 'sign_in.send_verification_email.thrown',
       code: undefined,
       message: 'network',
     });
   });
 
   it('Unverified sailor sees fallback message when verification resend has no details', async () => {
-    authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({
+    authClientMock.sendVerificationEmail.mockResolvedValue({
       error: { code: 'EMAIL_NOT_VERIFIED' },
     });
 
@@ -330,7 +329,7 @@ describe('SignInForm', () => {
   });
 
   it('Unverified sailor does not see backend text when resend returns EMAIL_NOT_VERIFIED', async () => {
-    authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({
+    authClientMock.sendVerificationEmail.mockResolvedValue({
       error: {
         code: 'EMAIL_NOT_VERIFIED',
         message: 'DO_NOT_SHOW_RAW_BACKEND_COPY',

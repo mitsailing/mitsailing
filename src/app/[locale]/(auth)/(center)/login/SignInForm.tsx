@@ -192,18 +192,18 @@ export function SignInForm(props: SignInFormProps) {
     }
   }
 
-  async function onSendVerificationCode(unverifiedEmail: string) {
+  async function onSendVerificationLink(unverifiedEmail: string) {
     setResending(true);
     try {
-      const res = await authClient.emailOtp.sendVerificationOtp({
+      const res = await authClient.sendVerificationEmail({
         email: unverifiedEmail,
-        type: 'email-verification',
+        callbackURL: authHrefWithCallback('/login/continue', props.callbackUrl),
       });
       if (res.error) {
         setError({
           kind: 'generic',
           message: mapGenericMessage(
-            'sign_in.send_verification_otp',
+            'sign_in.send_verification_email',
             res.error.code,
             res.error.message
           ),
@@ -211,17 +211,9 @@ export function SignInForm(props: SignInFormProps) {
         return;
       }
       setResent(true);
-      router.push(
-        authHrefWithCallback(
-          `/verify-email?email=${encodeURIComponent(
-            unverifiedEmail
-          )}&codeSent=1`,
-          props.callbackUrl
-        )
-      );
     } catch (caughtError) {
       reportUnknownAuthClientError({
-        action: 'sign_in.send_verification_otp.thrown',
+        action: 'sign_in.send_verification_email.thrown',
         code: undefined,
         message: authClientThrownMessage(caughtError),
       });
@@ -265,7 +257,7 @@ export function SignInForm(props: SignInFormProps) {
               disabled={resending}
               onClick={() => {
                 // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the resend promise.
-                void onSendVerificationCode(error.email);
+                void onSendVerificationLink(error.email);
               }}
               type="button"
               variant="link"

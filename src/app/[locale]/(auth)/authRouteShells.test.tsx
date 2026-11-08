@@ -19,7 +19,6 @@ import SignUpPage, {
   generateMetadata as generateSignUpMetadata,
 } from './(center)/signup/page';
 import UnlockAccountPage from './(center)/unlock-account/page';
-import VerifyEmailPage from './(center)/verify-email/page';
 import AuthLayout from './layout';
 import ProfileDeletePage, {
   generateMetadata as generateProfileDeleteMetadata,
@@ -225,21 +224,6 @@ vi.mock('./(center)/signup/SignUpForm', () => ({
   ),
 }));
 
-vi.mock('./(center)/verify-email/VerifyEmailForm', () => ({
-  VerifyEmailForm: (props: {
-    callbackUrl: string;
-    initialEmail: string;
-    initialResendLocked: boolean;
-  }) => (
-    <form
-      aria-label="verify-email-form"
-      data-callback-url={props.callbackUrl}
-      data-initial-email={props.initialEmail}
-      data-initial-resend-locked={String(props.initialResendLocked)}
-    />
-  ),
-}));
-
 vi.mock('./profile/ProfileAccountClient', () => ({
   ProfileAccountClient: (props: {
     initialEmail: string;
@@ -255,7 +239,6 @@ vi.mock('./profile/ProfileAccountClient', () => ({
     initialSailingAffiliation: string | null;
     initialSailingCardSummary: { status: string };
     initialThemePreference: string;
-    initialUnconfirmedEmail: string | null;
     locale: string;
   }) => (
     <section
@@ -274,7 +257,6 @@ vi.mock('./profile/ProfileAccountClient', () => ({
       data-sailing-affiliation={props.initialSailingAffiliation ?? ''}
       data-sailing-card-status={props.initialSailingCardSummary.status}
       data-theme={props.initialThemePreference}
-      data-unconfirmed-email={props.initialUnconfirmedEmail ?? ''}
     />
   ),
 }));
@@ -390,7 +372,6 @@ beforeEach(() => {
     sailingCardSwimAgreementInitials: null,
     sailingCardYear: null,
     themePreference: 'DARK',
-    unconfirmedEmail: 'pending@example.com',
   });
   vi.mocked(listUserRatingAssignmentRows).mockResolvedValue(
     [] satisfies UserRatingAssignmentRow[]
@@ -677,36 +658,6 @@ describe('auth route shells', () => {
     ).toHaveAttribute('data-token', '');
   });
 
-  it('verify-email page forwards resend lock state', async () => {
-    render(
-      await VerifyEmailPage(
-        routeProps({
-          callbackUrl: '/profile',
-          codeSent: '1',
-          email: 'sailor@example.com',
-        })
-      )
-    );
-
-    expect(
-      screen.getByRole('form', { name: 'verify-email-form' })
-    ).toHaveAttribute('data-initial-email', 'sailor@example.com');
-    expect(
-      screen.getByRole('form', { name: 'verify-email-form' })
-    ).toHaveAttribute('data-initial-resend-locked', 'true');
-  });
-
-  it('verify-email page defaults missing search params', async () => {
-    render(await VerifyEmailPage(routeProps()));
-
-    expect(
-      screen.getByRole('form', { name: 'verify-email-form' })
-    ).toHaveAttribute('data-initial-email', '');
-    expect(
-      screen.getByRole('form', { name: 'verify-email-form' })
-    ).toHaveAttribute('data-initial-resend-locked', 'false');
-  });
-
   it('unlock-account page renders localized guidance', async () => {
     render(
       await UnlockAccountPage({
@@ -786,7 +737,6 @@ describe('auth route shells', () => {
         take: 1,
       },
       themePreference: true,
-      unconfirmedEmail: true,
     },
     where: { id: 'user-1' },
   } as const;
@@ -811,9 +761,6 @@ describe('auth route shells', () => {
     expect(
       screen.getByRole('region', { name: 'profile-account-client' })
     ).toHaveAttribute('data-email-deliverability', 'bounced');
-    expect(
-      screen.getByRole('region', { name: 'profile-account-client' })
-    ).toHaveAttribute('data-unconfirmed-email', 'pending@example.com');
   });
 
   it('profile page defaults nullable account fields', async () => {
@@ -844,7 +791,6 @@ describe('auth route shells', () => {
       sailingCardSwimAgreementInitials: null,
       sailingCardYear: null,
       themePreference: null,
-      unconfirmedEmail: null,
     });
 
     render(
@@ -884,7 +830,6 @@ describe('auth route shells', () => {
       sailingCardSwimAgreementInitials: null,
       sailingCardYear: null,
       themePreference: 'DARK',
-      unconfirmedEmail: null,
     });
 
     render(

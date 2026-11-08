@@ -30,7 +30,15 @@ type AuthConfig = {
     }) => Promise<void>;
   };
   emailVerification: {
-    afterEmailVerification: (user: { id: string }) => Promise<void>;
+    afterEmailVerification: (user: {
+      email: string;
+      id: string;
+    }) => Promise<void>;
+    expiresIn: number;
+    sendVerificationEmail: (props: {
+      url: string;
+      user: { email: string; emailVerified: boolean; id: string };
+    }) => Promise<void>;
   };
   plugins: AuthPlugin[];
   rateLimit: {
@@ -47,6 +55,9 @@ type AuthConfig = {
         type?: unknown;
       }
     >;
+    changeEmail: {
+      enabled: boolean;
+    };
     deleteUser: {
       sendDeleteAccountVerification: (props: {
         url: string;
@@ -54,22 +65,6 @@ type AuthConfig = {
       }) => Promise<void>;
     };
   };
-};
-
-type EmailOtpConfig = {
-  sendVerificationOTP: (
-    props: { email: string; otp: string; type: string },
-    ctx?: {
-      context: {
-        session?: {
-          user?: {
-            email?: string;
-            id?: string;
-          };
-        };
-      };
-    }
-  ) => Promise<void>;
 };
 
 type AuthRoleConfig = {
@@ -97,7 +92,7 @@ const authMocks = vi.hoisted(() => ({
     config,
     id: 'custom-session',
   })),
-  emailOTP: vi.fn((config: unknown) => ({ config, id: 'emailOTP' })),
+  ensureNewsletterSubscriberForUser: vi.fn(),
   hash: vi.fn(),
   haveIBeenPwned: vi.fn((config: unknown) => ({
     config,
@@ -105,18 +100,15 @@ const authMocks = vi.hoisted(() => ({
   })),
   i18n: vi.fn((config: unknown) => ({ config, id: 'i18n' })),
   loggerError: vi.fn(),
-  markPendingEmailChange: vi.fn(),
   nextCookies: vi.fn(() => ({ id: 'nextCookies' })),
   passwordCompromiseCheckEnabled: true,
   prisma: {
     user: {
       update: vi.fn(),
-      updateMany: vi.fn(),
     },
   },
   sendDeleteAccountVerificationEmail: vi.fn(),
-  sendEmailChangeRequestedNotice: vi.fn(),
-  sendEmailOtpCode: vi.fn(),
+  sendEmailVerificationLink: vi.fn(),
   sendPasswordChangedNotice: vi.fn(),
   sendPasswordResetLinkEmail: vi.fn(),
   signInEmailHooks: {
@@ -159,7 +151,6 @@ vi.mock('better-auth/next-js', () => ({
 vi.mock('better-auth/plugins', () => ({
   admin: authMocks.admin,
   customSession: authMocks.customSession,
-  emailOTP: authMocks.emailOTP,
   haveIBeenPwned: authMocks.haveIBeenPwned,
 }));
 
@@ -176,13 +167,16 @@ vi.mock('@/libs/DB', () => ({
 }));
 
 vi.mock('@/libs/email/account-emails', () => ({
-  markPendingEmailChange: authMocks.markPendingEmailChange,
   sendDeleteAccountVerificationEmail:
     authMocks.sendDeleteAccountVerificationEmail,
-  sendEmailChangeRequestedNotice: authMocks.sendEmailChangeRequestedNotice,
-  sendEmailOtpCode: authMocks.sendEmailOtpCode,
+  sendEmailVerificationLink: authMocks.sendEmailVerificationLink,
   sendPasswordChangedNotice: authMocks.sendPasswordChangedNotice,
   sendPasswordResetLinkEmail: authMocks.sendPasswordResetLinkEmail,
+}));
+
+vi.mock('@/libs/newsletter/newsletterSubscriptions', () => ({
+  ensureNewsletterSubscriberForUser:
+    authMocks.ensureNewsletterSubscriberForUser,
 }));
 
 vi.mock('@/libs/Env', () => ({
@@ -215,35 +209,57 @@ function isAuthPlugin(value: unknown): value is AuthPlugin {
   return isRecord(value) && typeof value.id === 'string';
 }
 
+function isEmailAndPasswordConfig(
+  value: unknown
+): value is AuthConfig['emailAndPassword'] {
+  return (
+    isRecord(value) &&
+    isRecord(value.password) &&
+    typeof value.onPasswordReset === 'function' &&
+    typeof value.sendResetPassword === 'function' &&
+    typeof value.resetPasswordTokenExpiresIn === 'number' &&
+    typeof value.password.hash === 'function' &&
+    typeof value.password.verify === 'function'
+  );
+}
+
+function isEmailVerificationConfig(
+  value: unknown
+): value is AuthConfig['emailVerification'] {
+  return (
+    isRecord(value) &&
+    typeof value.afterEmailVerification === 'function' &&
+    typeof value.sendVerificationEmail === 'function' &&
+    typeof value.expiresIn === 'number'
+  );
+}
+
+function isUserConfig(value: unknown): value is AuthConfig['user'] {
+  return (
+    isRecord(value) &&
+    isRecord(value.additionalFields) &&
+    isRecord(value.changeEmail) &&
+    typeof value.changeEmail.enabled === 'boolean' &&
+    isRecord(value.deleteUser) &&
+    typeof value.deleteUser.sendDeleteAccountVerification === 'function'
+  );
+}
+
 function isAuthConfig(value: unknown): value is AuthConfig {
   if (!isRecord(value)) {
     return false;
   }
 
   return (
-    isRecord(value.emailAndPassword) &&
-    isRecord(value.emailAndPassword.password) &&
-    typeof value.emailAndPassword.onPasswordReset === 'function' &&
-    typeof value.emailAndPassword.sendResetPassword === 'function' &&
-    typeof value.emailAndPassword.resetPasswordTokenExpiresIn === 'number' &&
-    typeof value.emailAndPassword.password.hash === 'function' &&
-    typeof value.emailAndPassword.password.verify === 'function' &&
-    isRecord(value.emailVerification) &&
-    typeof value.emailVerification.afterEmailVerification === 'function' &&
+    isEmailAndPasswordConfig(value.emailAndPassword) &&
+    isEmailVerificationConfig(value.emailVerification) &&
     'database' in value &&
     Array.isArray(value.plugins) &&
     value.plugins.every(isAuthPlugin) &&
     isRecord(value.rateLimit) &&
     typeof value.rateLimit.enabled === 'boolean' &&
-    isRecord(value.user) &&
-    isRecord(value.user.additionalFields) &&
-    isRecord(value.user.deleteUser) &&
-    typeof value.user.deleteUser.sendDeleteAccountVerification === 'function'
+    isUserConfig(value.user)
   );
-}
-
-function isEmailOtpConfig(value: unknown): value is EmailOtpConfig {
-  return isRecord(value) && typeof value.sendVerificationOTP === 'function';
 }
 
 function isAuthRoleConfig(value: unknown): value is AuthRoleConfig {
@@ -281,22 +297,6 @@ function latestAuthConfig(): AuthConfig {
   return config;
 }
 
-function emailOtpConfig(config: AuthConfig): EmailOtpConfig {
-  const plugin = config.plugins.find(
-    (candidate) => candidate.id === 'emailOTP'
-  );
-
-  if (!plugin) {
-    throw new Error('emailOTP plugin was not registered');
-  }
-
-  if (!isEmailOtpConfig(plugin.config)) {
-    throw new TypeError('emailOTP config did not match the expected shape');
-  }
-
-  return plugin.config;
-}
-
 async function importAuthConfig() {
   const { auth } = await import('@/libs/auth');
   return { auth, config: latestAuthConfig() };
@@ -312,14 +312,12 @@ beforeEach(() => {
   );
   authMocks.hash.mockResolvedValue('hashed-password');
   authMocks.verify.mockResolvedValue(true);
-  authMocks.markPendingEmailChange.mockResolvedValue(true);
+  authMocks.ensureNewsletterSubscriberForUser.mockResolvedValue(null);
   authMocks.prisma.user.update.mockResolvedValue({});
-  authMocks.prisma.user.updateMany.mockResolvedValue({ count: 1 });
   authMocks.sendDeleteAccountVerificationEmail.mockImplementation(
     async () => {}
   );
-  authMocks.sendEmailChangeRequestedNotice.mockImplementation(async () => {});
-  authMocks.sendEmailOtpCode.mockImplementation(async () => {});
+  authMocks.sendEmailVerificationLink.mockImplementation(async () => {});
   authMocks.sendPasswordChangedNotice.mockImplementation(async () => {});
   authMocks.sendPasswordResetLinkEmail.mockImplementation(async () => {});
   authMocks.getBetterAuthZenStackAdapter.mockReturnValue(
@@ -351,11 +349,12 @@ describe('auth', () => {
       'custom-session',
       'admin',
       'haveIBeenPwned',
-      'emailOTP',
       'auditLog',
       'i18n',
       'nextCookies',
     ]);
+    expect(config.emailVerification.expiresIn).toBe(3600);
+    expect(config.user.changeEmail.enabled).toBe(true);
   });
 
   it('limits audit log capture to auth-state mutation paths', async () => {
@@ -369,12 +368,10 @@ describe('auth', () => {
     expect(auditLogOptions.paths).toContain('/sign-in/email');
     expect(auditLogOptions.paths).toContain('/request-password-reset');
     expect(auditLogOptions.paths).toContain('/reset-password');
+    expect(auditLogOptions.paths).toContain('/send-verification-email');
+    expect(auditLogOptions.paths).toContain('/change-email');
     expect(auditLogOptions.paths).not.toContain(
-      '/email-otp/request-password-reset'
-    );
-    expect(auditLogOptions.paths).not.toContain('/email-otp/reset-password');
-    expect(auditLogOptions.paths).not.toContain(
-      '/email-otp/check-verification-otp'
+      '/email-otp/send-verification-otp'
     );
     expect(auditLogOptions.paths).not.toContain('/get-session');
   });
@@ -578,15 +575,39 @@ describe('auth', () => {
     );
   });
 
-  it('clears pending email after verification', async () => {
+  it('creates the newsletter preference after email verification', async () => {
     const { config } = await importAuthConfig();
 
-    await config.emailVerification.afterEmailVerification({ id: 'user-1' });
-
-    expect(authMocks.prisma.user.updateMany).toHaveBeenCalledWith({
-      data: { unconfirmedEmail: null },
-      where: { id: 'user-1', unconfirmedEmail: { not: null } },
+    await config.emailVerification.afterEmailVerification({
+      email: 'sailor@example.com',
+      id: 'user-1',
     });
+
+    expect(authMocks.ensureNewsletterSubscriberForUser).toHaveBeenCalledWith(
+      'user-1'
+    );
+  });
+
+  it('logs newsletter preference failures after email verification', async () => {
+    authMocks.ensureNewsletterSubscriberForUser.mockRejectedValue(
+      new Error('newsletter down')
+    );
+    const { config } = await importAuthConfig();
+
+    await config.emailVerification.afterEmailVerification({
+      email: 'sailor@example.com',
+      id: 'user-1',
+    });
+
+    expect(authMocks.loggerError).toHaveBeenCalledWith(
+      'Failed to create default newsletter preference: {error}',
+      expect.objectContaining({
+        email: 'sailor@example.com',
+        error: expect.any(Error),
+        operation: 'ensureNewsletterSubscriberForUser',
+        userId: 'user-1',
+      })
+    );
   });
 
   it('sends delete-account verification email', async () => {
@@ -603,268 +624,65 @@ describe('auth', () => {
     );
   });
 
-  it('sends OTP code without pending email change for sign-in', async () => {
+  it('sends a verification link for unverified sign-up addresses', async () => {
     const { config } = await importAuthConfig();
 
-    await emailOtpConfig(config).sendVerificationOTP({
-      email: 'sailor@example.com',
-      otp: '123456',
-      type: 'sign-in',
-    });
-
-    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
-      email: 'sailor@example.com',
-      otp: '123456',
-      type: 'sign-in',
-    });
-    expect(authMocks.markPendingEmailChange).not.toHaveBeenCalled();
-  });
-
-  it('records pending email changes and sends current-address notice', async () => {
-    const { config } = await importAuthConfig();
-
-    await emailOtpConfig(config).sendVerificationOTP(
-      {
-        email: 'next@example.com',
-        otp: '123456',
-        type: 'change-email',
-      },
-      {
-        context: {
-          session: {
-            user: {
-              email: 'sailor@example.com',
-              id: 'user-1',
-            },
-          },
-        },
-      }
-    );
-
-    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
-      email: 'next@example.com',
-      otp: '123456',
-      type: 'change-email',
-    });
-    expect(authMocks.markPendingEmailChange).toHaveBeenCalledWith({
-      newEmail: 'next@example.com',
-      userId: 'user-1',
-    });
-    expect(authMocks.sendEmailChangeRequestedNotice).toHaveBeenCalledWith({
-      currentEmail: 'sailor@example.com',
-      newEmail: 'next@example.com',
-    });
-  });
-
-  it('skips current-address notice when pending email is unchanged', async () => {
-    authMocks.markPendingEmailChange.mockResolvedValue(false);
-    const { config } = await importAuthConfig();
-
-    await emailOtpConfig(config).sendVerificationOTP(
-      {
-        email: 'next@example.com',
-        otp: '123456',
-        type: 'change-email',
-      },
-      {
-        context: {
-          session: {
-            user: {
-              email: 'sailor@example.com',
-              id: 'user-1',
-            },
-          },
-        },
-      }
-    );
-
-    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
-      email: 'next@example.com',
-      otp: '123456',
-      type: 'change-email',
-    });
-    expect(authMocks.sendEmailChangeRequestedNotice).not.toHaveBeenCalled();
-  });
-
-  it('skips pending email changes without a session user id', async () => {
-    const { config } = await importAuthConfig();
-
-    await emailOtpConfig(config).sendVerificationOTP(
-      {
-        email: 'next@example.com',
-        otp: '123456',
-        type: 'change-email',
-      },
-      {
-        context: {
-          session: {
-            user: {
-              email: 'sailor@example.com',
-            },
-          },
-        },
-      }
-    );
-
-    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
-      email: 'next@example.com',
-      otp: '123456',
-      type: 'change-email',
-    });
-    expect(authMocks.markPendingEmailChange).not.toHaveBeenCalled();
-    expect(authMocks.sendEmailChangeRequestedNotice).not.toHaveBeenCalled();
-  });
-
-  it('skips current-address notice when the session email already matches', async () => {
-    const { config } = await importAuthConfig();
-
-    await emailOtpConfig(config).sendVerificationOTP(
-      {
+    await config.emailVerification.sendVerificationEmail({
+      url: 'https://example.test/api/auth/verify-email?token=abc',
+      user: {
         email: 'sailor@example.com',
-        otp: '123456',
-        type: 'change-email',
+        emailVerified: false,
+        id: 'user-1',
       },
-      {
-        context: {
-          session: {
-            user: {
-              email: 'sailor@example.com',
-              id: 'user-1',
-            },
-          },
-        },
-      }
-    );
+    });
 
-    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
+    expect(authMocks.sendEmailVerificationLink).toHaveBeenCalledWith({
       email: 'sailor@example.com',
-      otp: '123456',
-      type: 'change-email',
+      purpose: 'verify-email',
+      url: 'https://example.test/api/auth/verify-email?token=abc',
     });
-    expect(authMocks.markPendingEmailChange).toHaveBeenCalledWith({
-      newEmail: 'sailor@example.com',
-      userId: 'user-1',
-    });
-    expect(authMocks.sendEmailChangeRequestedNotice).not.toHaveBeenCalled();
   });
 
-  it('logs current-address notice failures', async () => {
-    authMocks.sendEmailChangeRequestedNotice.mockRejectedValue(
+  it('sends a change-email link when the account is already verified', async () => {
+    const { config } = await importAuthConfig();
+
+    await config.emailVerification.sendVerificationEmail({
+      url: 'https://example.test/api/auth/verify-email?token=def',
+      user: {
+        email: 'next@example.com',
+        emailVerified: true,
+        id: 'user-1',
+      },
+    });
+
+    expect(authMocks.sendEmailVerificationLink).toHaveBeenCalledWith({
+      email: 'next@example.com',
+      purpose: 'change-email',
+      url: 'https://example.test/api/auth/verify-email?token=def',
+    });
+  });
+
+  it('logs verification link send failures', async () => {
+    authMocks.sendEmailVerificationLink.mockRejectedValue(
       new Error('mail down')
     );
     const { config } = await importAuthConfig();
 
-    await emailOtpConfig(config).sendVerificationOTP(
-      {
-        email: 'next@example.com',
-        otp: '123456',
-        type: 'change-email',
+    await config.emailVerification.sendVerificationEmail({
+      url: 'https://example.test/api/auth/verify-email?token=abc',
+      user: {
+        email: 'sailor@example.com',
+        emailVerified: false,
+        id: 'user-1',
       },
-      {
-        context: {
-          session: {
-            user: {
-              email: 'sailor@example.com',
-              id: 'user-1',
-            },
-          },
-        },
-      }
-    );
-
-    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
-      email: 'next@example.com',
-      otp: '123456',
-      type: 'change-email',
     });
+
     expect(authMocks.loggerError).toHaveBeenCalledWith(
-      'Failed to send email change requested notice: {error}',
+      'Failed to send email verification link: {error}',
       expect.objectContaining({
-        currentEmail: 'sailor@example.com',
         error: expect.any(Error),
-        newEmail: 'next@example.com',
-        operation: 'sendEmailChangeRequestedNotice',
-        userId: 'user-1',
+        operation: 'sendEmailVerificationLink',
       })
     );
-  });
-
-  it('logs non-error current-address notice failures', async () => {
-    authMocks.sendEmailChangeRequestedNotice.mockRejectedValue('mail down');
-    const { config } = await importAuthConfig();
-
-    await emailOtpConfig(config).sendVerificationOTP(
-      {
-        email: 'next@example.com',
-        otp: '123456',
-        type: 'change-email',
-      },
-      {
-        context: {
-          session: {
-            user: {
-              email: 'sailor@example.com',
-              id: 'user-1',
-            },
-          },
-        },
-      }
-    );
-
-    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
-      email: 'next@example.com',
-      otp: '123456',
-      type: 'change-email',
-    });
-    expect(authMocks.loggerError).toHaveBeenCalledWith(
-      'Failed to send email change requested notice: {error}',
-      expect.objectContaining({
-        currentEmail: 'sailor@example.com',
-        error: 'mail down',
-        newEmail: 'next@example.com',
-        operation: 'sendEmailChangeRequestedNotice',
-        userId: 'user-1',
-      })
-    );
-  });
-
-  it('logs pending email change failures', async () => {
-    authMocks.markPendingEmailChange.mockRejectedValue(new Error('db'));
-    const { config } = await importAuthConfig();
-
-    await emailOtpConfig(config).sendVerificationOTP(
-      {
-        email: 'next@example.com',
-        otp: '123456',
-        type: 'change-email',
-      },
-      {
-        context: {
-          session: {
-            user: {
-              email: 'sailor@example.com',
-              id: 'user-1',
-            },
-          },
-        },
-      }
-    );
-
-    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
-      email: 'next@example.com',
-      otp: '123456',
-      type: 'change-email',
-    });
-    expect(authMocks.loggerError).toHaveBeenCalledWith(
-      'Failed to mark pending email change: {error}',
-      expect.objectContaining({
-        currentEmail: 'sailor@example.com',
-        error: expect.any(Error),
-        newEmail: 'next@example.com',
-        operation: 'markPendingEmailChange',
-        userId: 'user-1',
-      })
-    );
-    expect(authMocks.sendEmailChangeRequestedNotice).not.toHaveBeenCalled();
   });
 });

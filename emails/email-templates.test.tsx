@@ -2,14 +2,11 @@ import { render } from 'react-email';
 import { describe, expect, it } from 'vitest';
 import enMessages from '@/locales/en.json';
 import { AccountUnlockEmailTemplate } from './account-unlock';
-import { ConfirmEmailChangeTemplate } from './confirm-email-change';
 import { DeleteAccountEmailTemplate } from './delete-account';
-import { EmailChangeRequestedNoticeTemplate } from './email-change-requested';
 import { EmailLayout, MarketingEmailLayout } from './email-layout';
 import { NewsletterBroadcastTemplate } from './newsletter-broadcast';
 import { PasswordChangedNoticeTemplate } from './password-changed';
 import { PasswordResetEmailTemplate } from './password-reset';
-import { SignInOtpEmailPlaintext, SignInOtpEmailTemplate } from './sign-in-otp';
 import { VerifyEmailTemplate } from './verify-email';
 
 const SUPPORT_EMAIL = 'support@example.com';
@@ -78,113 +75,20 @@ describe('email templates', () => {
     expect(html).toContain('MIT Sailing Pavilion, Cambridge, MA');
   });
 
-  it('renders verification code content for new sailors', async () => {
+  it('renders verification link content for new sailors', async () => {
     const html = await render(
       <VerifyEmailTemplate
-        code="123456"
         copy={enMessages.AuthEmails}
-        supportEmail={SUPPORT_EMAIL}
+        verifyUrl="https://example.test/api/auth/verify-email?token=abc"
       />
     );
 
     expect(html).toContain('Confirm your email');
-    expect(html).toContain('123456');
-    expect(html).toContain('This code expires in 5 minutes');
-    expect(html).toContain(`mailto:${SUPPORT_EMAIL}`);
+    expect(html).toContain(
+      'https://example.test/api/auth/verify-email?token=abc'
+    );
+    expect(html).toContain('This link expires in 1 hour');
     expect(html).toContain('Thanks for signing up');
-    expect(html).toContain('@mitsailing.com #123456');
-  });
-
-  it('rejects malformed verification codes', () => {
-    expect(() =>
-      VerifyEmailTemplate({
-        code: '12345',
-        copy: enMessages.AuthEmails,
-        supportEmail: SUPPORT_EMAIL,
-      })
-    ).toThrow('VerifyEmailTemplate requires a six-digit code.');
-  });
-
-  it('renders sign-in OTP content without sign-up wording', async () => {
-    const html = await render(
-      <SignInOtpEmailTemplate
-        code="111222"
-        copy={enMessages.AuthEmails}
-        supportEmail={SUPPORT_EMAIL}
-      />
-    );
-
-    expect(html).toContain('Sign in with your code');
-    expect(html).toContain('111222');
-    expect(html).toContain('sign-in screen');
-    expect(html).not.toContain('Thanks for signing up');
-    expect(html).toContain(`mailto:${SUPPORT_EMAIL}`);
-    expect(html).toContain('@mitsailing.com #111222');
-  });
-
-  it('rejects malformed sign-in OTP codes', () => {
-    expect(() =>
-      SignInOtpEmailTemplate({
-        code: 'abc123',
-        copy: enMessages.AuthEmails,
-        supportEmail: SUPPORT_EMAIL,
-      })
-    ).toThrow('SignInOtpEmailTemplate requires a six-digit code.');
-  });
-
-  it('rejects malformed sign-in OTP plaintext codes', () => {
-    expect(() =>
-      SignInOtpEmailPlaintext({
-        code: 'abc123',
-        copy: enMessages.AuthEmails,
-        supportEmail: SUPPORT_EMAIL,
-      })
-    ).toThrow('SignInOtpEmailPlaintext requires a six-digit code.');
-  });
-
-  it('renders every sign-in OTP code token', async () => {
-    const html = await render(
-      <SignInOtpEmailTemplate
-        code="111222"
-        copy={{
-          ...enMessages.AuthEmails,
-          sign_in_otp_body: 'Use {code}, then enter {code}.',
-        }}
-        supportEmail={SUPPORT_EMAIL}
-      />
-    );
-
-    expect(html).toContain('Use 111222, then enter 111222.');
-    expect(html).not.toContain('{code}');
-  });
-
-  it('renders sign-in OTP fallback support copy', async () => {
-    const html = await render(
-      <SignInOtpEmailTemplate
-        code="111222"
-        copy={{
-          ...enMessages.AuthEmails,
-          sign_in_otp_expiry: 'Contact {email} if this was not you.',
-        }}
-        supportEmail={SUPPORT_EMAIL}
-      />
-    );
-
-    expect(html).toContain(`Contact ${SUPPORT_EMAIL}`);
-    expect(html).not.toContain(`mailto:${SUPPORT_EMAIL}`);
-  });
-
-  it('renders sign-in OTP support copy without unsafe mailto links', async () => {
-    const html = await render(
-      <SignInOtpEmailTemplate
-        code="111222"
-        copy={enMessages.AuthEmails}
-        supportEmail="not-an-email"
-      />
-    );
-
-    expect(html).not.toContain('mailto:not-an-email');
-    expect(html).toContain('not-an-email');
   });
 
   it('renders password reset link content', async () => {
@@ -202,78 +106,25 @@ describe('email templates', () => {
     expect(html).toContain('If you did not request this');
   });
 
-  it('renders email change confirmation content for the new address', async () => {
+  it('renders email change confirmation link for the new address', async () => {
     const html = await render(
-      <ConfirmEmailChangeTemplate code="987654" supportEmail={SUPPORT_EMAIL} />
-    );
-
-    expect(html).toContain('Confirm your new email');
-    expect(html).toContain('987654');
-    expect(html).toContain('new login email');
-    expect(html).toContain(`mailto:${SUPPORT_EMAIL}`);
-    expect(html).toContain('@mitsailing.com #987654');
-  });
-
-  it('rejects malformed email change confirmation codes', () => {
-    expect(() =>
-      ConfirmEmailChangeTemplate({
-        code: '98765a',
-        supportEmail: SUPPORT_EMAIL,
-      })
-    ).toThrow('ConfirmEmailChangeTemplate requires a six-digit code.');
-  });
-
-  it('renders email change requested notice for the current address', async () => {
-    const authEmails = enMessages.AuthEmails;
-    const html = await render(
-      <EmailChangeRequestedNoticeTemplate
-        newEmail="next@example.com"
-        supportEmail={SUPPORT_EMAIL}
-        previewText={authEmails.change_email_notice_preview}
-        heading={authEmails.change_email_notice_subject}
-        bodyMessage={authEmails.change_email_notice_body}
-        contactMessage={authEmails.change_email_notice_contact}
+      <VerifyEmailTemplate
+        copy={{
+          verify_body: enMessages.AuthEmails.change_email_body,
+          verify_button: enMessages.AuthEmails.change_email_button,
+          verify_expiry: enMessages.AuthEmails.change_email_expiry,
+          verify_paste: enMessages.AuthEmails.change_email_paste,
+          verify_subject: enMessages.AuthEmails.change_email_subject,
+        }}
+        verifyUrl="https://example.test/api/auth/verify-email?token=def"
       />
     );
 
-    expect(html).toContain(authEmails.change_email_notice_subject);
-    expect(html).toContain('next@example.com');
-    expect(html).toContain('will not take effect');
-    expect(html).toContain(`mailto:${SUPPORT_EMAIL}`);
-  });
-
-  it('renders email change requested fallback support copy', async () => {
-    const authEmails = enMessages.AuthEmails;
-    const html = await render(
-      <EmailChangeRequestedNoticeTemplate
-        newEmail="next@example.com"
-        supportEmail={SUPPORT_EMAIL}
-        previewText={authEmails.change_email_notice_preview}
-        heading={authEmails.change_email_notice_subject}
-        bodyMessage={authEmails.change_email_notice_body}
-        contactMessage="Contact {email} right away."
-      />
+    expect(html).toContain('Confirm your new email address');
+    expect(html).toContain(
+      'https://example.test/api/auth/verify-email?token=def'
     );
-
-    expect(html).toContain(`Contact ${SUPPORT_EMAIL}`);
-    expect(html).not.toContain(`mailto:${SUPPORT_EMAIL}`);
-  });
-
-  it('renders email change requested fallback body copy', async () => {
-    const authEmails = enMessages.AuthEmails;
-    const html = await render(
-      <EmailChangeRequestedNoticeTemplate
-        newEmail="next@example.com"
-        supportEmail={SUPPORT_EMAIL}
-        previewText={authEmails.change_email_notice_preview}
-        heading={authEmails.change_email_notice_subject}
-        bodyMessage="A login email change was requested."
-        contactMessage={authEmails.change_email_notice_contact}
-      />
-    );
-
-    expect(html).toContain('A login email change was requested.');
-    expect(html).not.toContain('undefined');
+    expect(html).toContain('Confirm new email');
   });
 
   it('renders delete account confirmation with the signed link', async () => {
