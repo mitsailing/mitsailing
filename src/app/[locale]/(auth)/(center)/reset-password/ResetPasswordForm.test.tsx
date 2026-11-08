@@ -39,6 +39,19 @@ function renderResetPasswordForm(
   );
 }
 
+async function submitMatchingPasswords() {
+  const user = userEvent.setup();
+  await user.type(
+    screen.getByLabelText('New password'),
+    'Correct-Horse-Battery'
+  );
+  await user.type(
+    screen.getByLabelText('Confirm new password'),
+    'Correct-Horse-Battery'
+  );
+  await user.click(screen.getByRole('button', { name: 'Update password' }));
+}
+
 describe('ResetPasswordForm', () => {
   it('shows invalid token message without password fields', () => {
     renderResetPasswordForm({ invalidToken: true, token: '' });
@@ -125,5 +138,88 @@ describe('ResetPasswordForm', () => {
     ).toBeInTheDocument();
     expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
     expect(componentTestRouter().push).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'PASSWORD_COMPROMISED',
+      undefined,
+      'That password has appeared in a known data breach. Choose a different one.',
+    ],
+    ['PASSWORD_TOO_SHORT', undefined, 'Use at least 8 characters.'],
+    ['PASSWORD_TOO_LONG', undefined, 'Use 128 characters or fewer.'],
+    ['TOO_MANY_REQUESTS', undefined, 'Too many requests. Wait a few minutes.'],
+    ['INVALID_TOKEN', undefined, 'That reset link is invalid or has expired.'],
+    ['UNKNOWN', undefined, 'Check your password.'],
+    [undefined, 'PASSWORD_TOO_SHORT', 'Use at least 8 characters.'],
+  ] as const)(
+    'map reset error code %s message %s to visible copy',
+    async (code, message, expected) => {
+      authClientMock.resetPassword.mockResolvedValue({
+        error: { code, message },
+      });
+      renderResetPasswordForm();
+
+      await submitMatchingPasswords();
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(expected);
+      expect(authClientMock.signIn.email).not.toHaveBeenCalled();
+      expect(componentTestRouter().push).not.toHaveBeenCalled();
+    }
+  );
+
+  it('ask the sailor to sign in when the reset email is blank', async () => {
+    renderResetPasswordForm({ initialEmail: '   ' });
+
+    await submitMatchingPasswords();
+
+    expect(
+      await screen.findByText(
+        /Your password was reset\. Please sign in manually\./
+      )
+    ).toBeInTheDocument();
+    expect(authClientMock.resetPassword).toHaveBeenCalled();
+    expect(authClientMock.signIn.email).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
+  });
+
+  it('ask the sailor to sign in when auto sign-in throws an Error', async () => {
+    authClientMock.signIn.email.mockRejectedValue(new Error('network'));
+    renderResetPasswordForm();
+
+    await submitMatchingPasswords();
+
+    expect(
+      await screen.findByText(
+        /Your password was reset\. Please sign in manually\./
+      )
+    ).toBeInTheDocument();
+    expect(componentTestRouter().push).not.toHaveBeenCalled();
+  });
+
+  it('ask the sailor to sign in when auto sign-in throws a non-Error', async () => {
+    authClientMock.signIn.email.mockRejectedValue('offline');
+    renderResetPasswordForm();
+
+    await submitMatchingPasswords();
+
+    expect(
+      await screen.findByText(
+        /Your password was reset\. Please sign in manually\./
+      )
+    ).toBeInTheDocument();
+    expect(componentTestRouter().push).not.toHaveBeenCalled();
+  });
+
+  it('show a request failure when resetPassword throws', async () => {
+    authClientMock.resetPassword.mockRejectedValue(new Error('network'));
+    renderResetPasswordForm();
+
+    await submitMatchingPasswords();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not complete that request right now.'
+    );
+    expect(authClientMock.signIn.email).not.toHaveBeenCalled();
   });
 });
