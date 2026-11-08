@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
@@ -54,8 +55,8 @@ const isSignUpFieldErrorKey = (value: unknown): value is SignUpFieldErrorKey =>
 export function SignUpForm(props: SignUpFormProps) {
   const t = useTranslations('SignUpPage');
   const tCommon = useTranslations('Common');
+  const router = useRouter();
   const [formError, setFormError] = useState<ErrorState>(null);
-  const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const {
     formState: { errors },
@@ -124,7 +125,8 @@ export function SignUpForm(props: SignUpFormProps) {
         setFormError(mapError(res.error.code, res.error.message));
         return;
       }
-      setSubmitted(true);
+      const checkEmailPath = `/check-email?email=${encodeURIComponent(normalizedEmail)}`;
+      router.push(authHrefWithCallback(checkEmailPath, props.callbackUrl));
     } catch (caughtError) {
       reportUnknownAuthClientError({
         action: 'signup.email.thrown',
@@ -142,15 +144,6 @@ export function SignUpForm(props: SignUpFormProps) {
 
   return (
     <>
-      {submitted ? (
-        <p
-          aria-live="polite"
-          className="rounded-md border border-green-700/30 bg-green-50 px-3 py-2 text-sm font-medium text-green-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:bg-green-950/30 dark:text-green-100"
-          role="status"
-        >
-          {t('registered_banner')}
-        </p>
-      ) : null}
       {formError ? (
         <p
           className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm font-medium text-red-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:text-red-100"

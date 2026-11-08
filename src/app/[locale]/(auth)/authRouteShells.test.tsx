@@ -4,6 +4,9 @@ import type { MockedFunction } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
 import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
+import CheckEmailPage, {
+  generateMetadata as generateCheckEmailMetadata,
+} from './(center)/check-email/page';
 import ForgotPasswordPage, {
   generateMetadata as generateForgotPasswordMetadata,
 } from './(center)/forgot-password/page';
@@ -220,6 +223,17 @@ vi.mock('./(center)/signup/SignUpForm', () => ({
       aria-label="sign-up-form"
       data-callback-url={props.callbackUrl}
       data-initial-email={props.initialEmail ?? ''}
+    />
+  ),
+}));
+
+vi.mock('./(center)/check-email/CheckEmailNotice', () => ({
+  CheckEmailNotice: (props: { callbackUrl: string; email: string }) => (
+    <div
+      aria-label="check-email-notice"
+      data-callback-url={props.callbackUrl}
+      data-email={props.email}
+      role="region"
     />
   ),
 }));
@@ -579,6 +593,71 @@ describe('auth route shells', () => {
     expect(
       screen.getByRole('link', { name: 'SignUpPage.sign_in_link' })
     ).toHaveAttribute('href', '/login?callbackUrl=%2Fonboarding');
+  });
+
+  it('check-email metadata uses localized copy', async () => {
+    await expect(generateCheckEmailMetadata(routeProps())).resolves.toEqual({
+      description: 'CheckEmailPage.meta_description',
+      title: 'CheckEmailPage.meta_title',
+    });
+  });
+
+  it('check-email page passes email and callback', async () => {
+    render(
+      await CheckEmailPage(
+        routeProps({
+          callbackUrl: '/onboarding',
+          email: 'sailor@example.com',
+        })
+      )
+    );
+
+    expect(routeMocks.redirectIfAuthenticated).toHaveBeenCalledWith(
+      'en',
+      '/onboarding'
+    );
+    expect(
+      screen.getByRole('heading', { name: 'CheckEmailPage.heading' })
+    ).toBeVisible();
+    expect(
+      screen.getByRole('region', { name: 'check-email-notice' })
+    ).toHaveAttribute('data-email', 'sailor@example.com');
+    expect(
+      screen.getByRole('region', { name: 'check-email-notice' })
+    ).toHaveAttribute('data-callback-url', '/onboarding');
+  });
+
+  it('check-email page uses the first duplicate inbound values', async () => {
+    render(
+      await CheckEmailPage(
+        routeProps({
+          callbackUrl: ['/fleet', '/events'],
+          email: ['first@example.com', 'second@example.com'],
+        })
+      )
+    );
+
+    expect(
+      screen.getByRole('region', { name: 'check-email-notice' })
+    ).toHaveAttribute('data-email', 'first@example.com');
+    expect(
+      screen.getByRole('region', { name: 'check-email-notice' })
+    ).toHaveAttribute('data-callback-url', '/fleet');
+  });
+
+  it('check-email page defaults missing email and callback', async () => {
+    render(await CheckEmailPage(routeProps()));
+
+    expect(routeMocks.redirectIfAuthenticated).toHaveBeenCalledWith(
+      'en',
+      '/onboarding'
+    );
+    expect(
+      screen.getByRole('region', { name: 'check-email-notice' })
+    ).toHaveAttribute('data-email', '');
+    expect(
+      screen.getByRole('region', { name: 'check-email-notice' })
+    ).toHaveAttribute('data-callback-url', '/onboarding');
   });
 
   it('forgot-password metadata uses localized copy', async () => {

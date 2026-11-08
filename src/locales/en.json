@@ -225,7 +225,6 @@
     "have_account": "Already have an account?",
     "sign_in_link": "Sign in",
     "forgot_password_link": "Reset password",
-    "registered_banner": "Check your email for a verification link.",
     "error_generic": "Something went wrong.",
     "error_exists": "That email is already in the system.",
     "error_pwned": "That password has appeared in a known data breach. Choose a different one.",
@@ -234,6 +233,19 @@
     "error_required": "Required.",
     "error_rate_limited": "Too many sign-up attempts. Wait a few minutes.",
     "error_invalid_email": "Enter a valid email address with a domain (for example name@mit.edu)."
+  },
+  "CheckEmailPage": {
+    "meta_title": "Check your email",
+    "meta_description": "Confirm your email address to finish creating your account.",
+    "heading": "Check your email",
+    "sent_status": "We sent a verification link to {email}.",
+    "spam_instruction": "Check your inbox and spam or junk folder.",
+    "resend_email": "Resend verification link",
+    "resent_banner": "We sent a new verification link.",
+    "missing_email_body": "Enter your email on the sign-up page to request a verification link.",
+    "back_sign_up": "Back to sign up",
+    "error_rate_limited": "Too many attempts. Wait a few minutes.",
+    "error_request_failed": "We could not complete that request right now."
   },
   "OnboardingPage": {
     "meta_title": "Sailing card onboarding",

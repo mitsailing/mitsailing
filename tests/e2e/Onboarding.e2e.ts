@@ -108,8 +108,9 @@ async function signUpVerifiedSailor(props: {
   await props.page.getByLabel('Password', { exact: true }).fill(props.password);
   await props.page.getByLabel('Confirm password').fill(props.password);
   await props.page.getByRole('button', { name: 'Sign up' }).click();
+  await expect(props.page).toHaveURL(/\/check-email/);
   await expect(
-    props.page.getByText('Check your email for a verification link.')
+    props.page.getByRole('heading', { name: 'Check your email' })
   ).toBeVisible();
 
   await verifyEmailWithLatestLink(props.page, props.email);

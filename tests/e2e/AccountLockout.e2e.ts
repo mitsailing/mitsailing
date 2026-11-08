@@ -106,8 +106,9 @@ test.describe('Account lockout', () => {
       await page.getByLabel('Confirm password').fill(password);
       await page.getByRole('button', { name: 'Sign up' }).click();
 
+      await expect(page).toHaveURL(/\/check-email/);
       await expect(
-        page.getByText('Check your email for a verification link.')
+        page.getByRole('heading', { name: 'Check your email' })
       ).toBeVisible();
 
       await markEmailVerified(email);
