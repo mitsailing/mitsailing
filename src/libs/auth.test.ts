@@ -344,6 +344,18 @@ describe('auth', () => {
     ]);
   });
 
+  it('limits audit log capture to auth-state mutation paths', async () => {
+    await importAuthConfig();
+
+    const [auditLogOptions] = authMocks.auditLog.mock.calls.at(-1) ?? [];
+    if (!isRecord(auditLogOptions) || !Array.isArray(auditLogOptions.paths)) {
+      throw new TypeError('auditLog options did not match the expected shape');
+    }
+
+    expect(auditLogOptions.paths).toContain('/sign-in/email');
+    expect(auditLogOptions.paths).not.toContain('/get-session');
+  });
+
   it('uses app auth session data for Better Auth sessions', async () => {
     await importAuthConfig();
 
