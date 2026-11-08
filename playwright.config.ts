@@ -29,6 +29,7 @@ const e2eEnvDefaults: Record<string, string> = {
   MAIL_TRANSPORT: 'smtp',
   NEXT_PUBLIC_APP_URL: baseURL,
   NEXT_PUBLIC_SENTRY_DISABLED: 'true',
+  PAYLOAD_SECRET: 'e2e-payload-secret-placeholder-with-thirty-two',
   SMTP_URL: 'smtp://127.0.0.1:1025',
 };
 

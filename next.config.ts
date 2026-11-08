@@ -1,4 +1,5 @@
 import withBundleAnalyzer from '@next/bundle-analyzer';
+import { withPayload } from '@payloadcms/next/withPayload';
 import { withSentryConfig } from '@sentry/nextjs/config';
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
@@ -94,7 +95,7 @@ if (process.env.ANALYZE === 'true') {
 const nextConfig: NextConfig = configWithPlugins;
 
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/sourcemaps/
-export default process.env.NEXT_PUBLIC_SENTRY_DISABLED
+const configWithSentry = process.env.NEXT_PUBLIC_SENTRY_DISABLED
   ? nextConfig
   : withSentryConfig(nextConfig, {
       org: 'mit-sailing',
@@ -126,3 +127,6 @@ export default process.env.NEXT_PUBLIC_SENTRY_DISABLED
         },
       },
     });
+
+// Payload docs: wrap Next config with withPayload; keep output: 'standalone'.
+export default withPayload(configWithSentry);

@@ -7,6 +7,7 @@ function stubRequiredBaseEnv(): void {
       'DATABASE_URL',
       'postgresql://postgres:postgres@localhost:5432/dev_db?sslmode=disable',
     ],
+    ['PAYLOAD_SECRET', 'test-payload-secret-that-is-at-least-thirty-two'],
     ['NEXT_PUBLIC_APP_URL', 'http://localhost:3000'],
   ];
   for (const [key, value] of envVars) {

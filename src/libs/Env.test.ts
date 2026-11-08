@@ -10,6 +10,10 @@ function stubRequiredBaseEnv(): void {
     'DATABASE_URL',
     'postgresql://postgres:postgres@localhost:5432/dev_db?sslmode=disable'
   );
+  vi.stubEnv(
+    'PAYLOAD_SECRET',
+    'test-payload-secret-that-is-at-least-thirty-two'
+  );
   vi.stubEnv('LEGACY_MYSQL_SYNC_CRON', LEGACY_MYSQL_SYNC_DEFAULT_CRON);
   vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000');
 }

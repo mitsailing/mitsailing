@@ -30,5 +30,6 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next|_vercel|monitoring|.*\\..*).*)'],
+  // Exclude Payload admin + REST (`/cms`, `/cms-api`) from next-intl proxy.
+  matcher: ['/((?!api|cms|cms-api|_next|_vercel|monitoring|.*\\..*).*)'],
 };

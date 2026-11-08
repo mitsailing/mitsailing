@@ -5,6 +5,10 @@ const config: KnipConfig = {
   entry: ['checkly.config.ts'],
   // Files to exclude from Knip analysis
   ignore: [
+    // Payload admin loads Env via payload.config; knip runs without secrets.
+    'payload.config.ts',
+    'src/app/(payload)/**',
+    'src/payload/**',
     'src/libs/I18n.ts',
     'src/types/I18n.ts',
     // Manual operator utility for the complete legacy data import.
@@ -31,6 +35,8 @@ const config: KnipConfig = {
   // Dependencies to ignore during analysis
   ignoreDependencies: [
     '@commitlint/types',
+    // Payload admin UI peer; imported through @payloadcms/next runtime, not app source.
+    '@payloadcms/ui',
     '@swc/helpers', // Avoid error in CI: "`npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync."
     '@zenstackhq/cli',
     'oxfmt',

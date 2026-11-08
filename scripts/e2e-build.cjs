@@ -269,6 +269,9 @@ const buildEnv = {
   BETTER_AUTH_SECRET:
     process.env.BETTER_AUTH_SECRET ??
     'e2e-auth-secret-placeholder-with-thirty-two-chars',
+  PAYLOAD_SECRET:
+    process.env.PAYLOAD_SECRET ??
+    'e2e-payload-secret-placeholder-with-thirty-two',
   DATABASE_URL: e2eDb,
   TEST_DATABASE_URL: '',
   IS_E2E: '1',
