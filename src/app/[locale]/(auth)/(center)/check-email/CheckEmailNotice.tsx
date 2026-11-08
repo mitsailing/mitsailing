@@ -37,9 +37,6 @@ export function CheckEmailNotice(props: CheckEmailNoticeProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function onResend() {
-    if (!hasEmail) {
-      return;
-    }
     setResending(true);
     setErrorMessage(null);
     setResent(false);

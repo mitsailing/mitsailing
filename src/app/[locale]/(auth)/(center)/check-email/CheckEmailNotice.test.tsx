@@ -97,6 +97,36 @@ describe('CheckEmailNotice', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('show request message when verification resend returns an unknown error', async () => {
+    const user = userEvent.setup();
+    authClientMock.sendVerificationEmail.mockResolvedValue({
+      error: { message: 'USER_ALREADY_EXISTS' },
+    });
+
+    render(
+      <CheckEmailNotice callbackUrl="/onboarding" email="sailor@mit.edu" />
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Resend verification link' })
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not complete that request right now.'
+    );
+    expect(sentryMock.captureMessage).toHaveBeenCalledWith(
+      'Unknown auth client error',
+      expect.objectContaining({
+        tags: expect.objectContaining({
+          authAction: 'check_email.send_verification_email',
+        }),
+      })
+    );
+    expect(
+      screen.queryByText('We sent a new verification link.')
+    ).not.toBeInTheDocument();
+  });
+
   it('show request message when verification resend fails', async () => {
     const user = userEvent.setup();
     authClientMock.sendVerificationEmail.mockRejectedValue(
