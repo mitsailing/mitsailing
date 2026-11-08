@@ -60,6 +60,30 @@ describe('account email notices', () => {
     expect(payload?.html).toContain('Confirm new email');
   });
 
+  it('email-change persona receives approval at the current address', async () => {
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+    const { sendChangeEmailConfirmationEmail } =
+      await import('@/libs/email/account-emails');
+
+    await sendChangeEmailConfirmationEmail({
+      email: 'current@example.com',
+      newEmail: 'next@example.com',
+      url: 'https://example.test/api/auth/verify-email?token=confirm&callbackURL=%2Fprofile',
+    });
+
+    const [payload] = vi.mocked(sendTransactionalEmail).mock.calls[0] ?? [];
+
+    expect(payload?.to).toBe('current@example.com');
+    expect(payload?.category).toBe('email_change');
+    expect(payload?.subject).toMatch(/confirm your email change/i);
+    expect(payload?.text).toContain('next@example.com');
+    expect(payload?.text).toContain(
+      'https://example.test/api/auth/verify-email?token=confirm&callbackURL=%2Fprofile'
+    );
+    expect(payload?.html).toContain('Approve email change');
+  });
+
   it('rejects invalid verification recipients before sending mail', async () => {
     const { sendTransactionalEmail } =
       await import('@/libs/email/sendTransactional');

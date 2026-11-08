@@ -57,6 +57,11 @@ type AuthConfig = {
     >;
     changeEmail: {
       enabled: boolean;
+      sendChangeEmailConfirmation?: (props: {
+        newEmail: string;
+        url: string;
+        user: { email: string };
+      }) => Promise<void>;
     };
     deleteUser: {
       sendDeleteAccountVerification: (props: {
@@ -107,6 +112,7 @@ const authMocks = vi.hoisted(() => ({
       update: vi.fn(),
     },
   },
+  sendChangeEmailConfirmationEmail: vi.fn(),
   sendDeleteAccountVerificationEmail: vi.fn(),
   sendEmailVerificationLink: vi.fn(),
   sendPasswordChangedNotice: vi.fn(),
@@ -167,6 +173,7 @@ vi.mock('@/libs/DB', () => ({
 }));
 
 vi.mock('@/libs/email/account-emails', () => ({
+  sendChangeEmailConfirmationEmail: authMocks.sendChangeEmailConfirmationEmail,
   sendDeleteAccountVerificationEmail:
     authMocks.sendDeleteAccountVerificationEmail,
   sendEmailVerificationLink: authMocks.sendEmailVerificationLink,
@@ -314,6 +321,7 @@ beforeEach(() => {
   authMocks.verify.mockResolvedValue(true);
   authMocks.ensureNewsletterSubscriberForUser.mockResolvedValue(null);
   authMocks.prisma.user.update.mockResolvedValue({});
+  authMocks.sendChangeEmailConfirmationEmail.mockImplementation(async () => {});
   authMocks.sendDeleteAccountVerificationEmail.mockImplementation(
     async () => {}
   );
@@ -640,6 +648,27 @@ describe('auth', () => {
       email: 'sailor@example.com',
       purpose: 'verify-email',
       url: 'https://example.test/api/auth/verify-email?token=abc',
+    });
+  });
+
+  it('sends change-email approval to the current address', async () => {
+    const { config } = await importAuthConfig();
+    const sendConfirmation =
+      config.user.changeEmail.sendChangeEmailConfirmation;
+    if (!sendConfirmation) {
+      throw new TypeError('sendChangeEmailConfirmation was not configured');
+    }
+
+    await sendConfirmation({
+      newEmail: 'next@example.com',
+      url: 'https://example.test/api/auth/verify-email?token=confirm',
+      user: { email: 'current@example.com' },
+    });
+
+    expect(authMocks.sendChangeEmailConfirmationEmail).toHaveBeenCalledWith({
+      email: 'current@example.com',
+      newEmail: 'next@example.com',
+      url: 'https://example.test/api/auth/verify-email?token=confirm',
     });
   });
 

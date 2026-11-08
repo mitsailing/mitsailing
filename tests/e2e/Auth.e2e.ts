@@ -400,10 +400,11 @@ test.describe('Auth', () => {
         .click();
       await expect(
         page.getByText(
-          'Confirmation link sent. Open it from the new address to finish changing your email.'
+          'Confirmation link sent. Open it from your current address to approve the change.'
         )
       ).toBeVisible();
 
+      await verifyEmailWithLatestLink(page, email);
       await verifyEmailWithLatestLink(page, newEmail);
       await page.goto('/profile');
       await expect(

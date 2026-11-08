@@ -146,6 +146,32 @@ export async function findLatestMessageTo(
   return message;
 }
 
+const HTML_ENTITY_REPLACEMENTS: Readonly<Record<string, string>> = {
+  '#39': "'",
+  '#x26': '&',
+  '#38': '&',
+  amp: '&',
+  apos: "'",
+  gt: '>',
+  lt: '<',
+  quot: '"',
+};
+
+/**
+ * Turns HTML character references in a Mailpit href back into a navigable URL.
+ * React Email encodes `&` as `&amp;`, which otherwise hides `callbackURL`.
+ *
+ * @param value - Raw URL text matched from an HTML or plain-text body.
+ * @returns The URL with one level of HTML entities decoded.
+ */
+export function decodeHtmlEntities(value: string): string {
+  return value.replaceAll(
+    /&(#x26|#38|#39|amp|apos|gt|lt|quot);/gi,
+    (entity, body: string) =>
+      HTML_ENTITY_REPLACEMENTS[body.toLowerCase()] ?? entity
+  );
+}
+
 /**
  * Pull the first link that matches `pattern` out of a Mailpit message body.
  * Uses the HTML body first, falls back to Text so plain-text tests still
@@ -165,5 +191,5 @@ export function extractLinkFromMessage(
       `No link matching ${pattern} found in message ${message.ID} (subject: "${message.Subject}")`
     );
   }
-  return match[0];
+  return decodeHtmlEntities(match[0]);
 }

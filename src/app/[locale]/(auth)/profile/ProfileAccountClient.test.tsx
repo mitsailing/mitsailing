@@ -485,7 +485,7 @@ describe('ProfileAccountClient', () => {
     });
     expect(
       await screen.findByText(
-        'Confirmation link sent. Open it from the new address to finish changing your email.'
+        'Confirmation link sent. Open it from your current address to approve the change.'
       )
     ).toBeVisible();
   });

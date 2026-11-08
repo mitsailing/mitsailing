@@ -103,6 +103,48 @@ export async function sendEmailVerificationLink(params: {
 }
 
 /**
+ * Sends the current-address approval link for an email change.
+ * Better Auth emails the new address only after this link is opened.
+ *
+ * @param params - Approval email parameters.
+ * @param params.email - Current login address that must approve the change.
+ * @param params.newEmail - Requested login address.
+ * @param params.url - Absolute HTTPS approval URL with token.
+ */
+export async function sendChangeEmailConfirmationEmail(params: {
+  email: string;
+  newEmail: string;
+  url: string;
+}) {
+  const email = normalizeAuthEmail(params.email);
+  const newEmail = normalizeAuthEmail(params.newEmail);
+  assertNonEmptyValue(params.url, 'Expected a change-email confirmation URL.');
+  const copy = authEmailMessages;
+  const values = { newEmail, url: params.url };
+  const linkCopy = {
+    verify_body: replaceAuthEmailValues(copy.change_email_confirm_body, values),
+    verify_button: copy.change_email_confirm_button,
+    verify_expiry: copy.change_email_confirm_expiry,
+    verify_paste: copy.change_email_confirm_paste,
+    verify_subject: copy.change_email_confirm_subject,
+    verify_text: copy.change_email_confirm_text,
+  };
+  const html = await render(
+    VerifyEmailTemplate({
+      copy: linkCopy,
+      verifyUrl: params.url,
+    })
+  );
+  await sendTransactionalEmail({
+    category: 'email_change',
+    to: email,
+    subject: linkCopy.verify_subject,
+    html,
+    text: replaceAuthEmailValues(linkCopy.verify_text, values),
+  });
+}
+
+/**
  * Sends the Better Auth password-reset link email.
  * @param email - Recipient (login email).
  * @param url - Absolute HTTPS URL that opens the reset form with a token.

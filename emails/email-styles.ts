@@ -34,15 +34,16 @@ export const supportFooter: React.CSSProperties = {
 /**
  * Replaces auth email placeholders in localized copy.
  *
- * @param message - Template string containing `{email}` or `{url}` tokens.
+ * @param message - Template string containing `{email}`, `{newEmail}`, or `{url}` tokens.
  * @param values - Optional replacement values for the supported tokens.
  * @returns The message with supported placeholders replaced.
  */
 export function replaceAuthEmailValues(
   message: string,
-  values: { email?: string; url?: string }
+  values: { email?: string; newEmail?: string; url?: string }
 ): string {
   return message
     .replaceAll('{email}', values.email ?? '')
+    .replaceAll('{newEmail}', values.newEmail ?? '')
     .replaceAll('{url}', values.url ?? '');
 }

@@ -154,6 +154,44 @@ describe('SignInForm', () => {
     });
   });
 
+  it('Legacy sailor sees a rate-limit message when the reset request is limited', async () => {
+    authClientMock.signIn.email.mockResolvedValue({
+      error: { code: 'MUST_SET_PASSWORD' },
+    });
+    authClientMock.requestPasswordReset.mockResolvedValue({
+      error: { code: 'TOO_MANY_REQUESTS' },
+    });
+
+    await expectSignInAlert({
+      alertText: 'Too many attempts.',
+      email: 'legacy@mit.edu',
+      password: 'old',
+    });
+    expect(
+      screen.queryByText(/password reset email has been sent/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('Legacy sailor sees a request-failed message when the reset request errors', async () => {
+    authClientMock.signIn.email.mockResolvedValue({
+      error: { code: 'MUST_SET_PASSWORD' },
+    });
+    authClientMock.requestPasswordReset.mockResolvedValue({
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'mail down' },
+    });
+
+    await expectSignInAlert({
+      alertText: 'We could not complete that request right now.',
+      email: 'legacy@mit.edu',
+      password: 'old',
+    });
+    expect(reportUnknownAuthClientErrorMock).toHaveBeenCalledWith({
+      action: 'sign_in.must_set_password.request-reset',
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'mail down',
+    });
+  });
+
   it('Locked-out sailor sees the lockout recovery message', async () => {
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'ACCOUNT_LOCKED' },

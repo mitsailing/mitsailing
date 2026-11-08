@@ -153,19 +153,49 @@ export function SignInForm(props: SignInFormProps) {
         const lookupCode = res.error.code ?? res.error.message;
         if (lookupCode === 'MUST_SET_PASSWORD') {
           try {
-            await authClient.requestPasswordReset({
+            const resetResult = await authClient.requestPasswordReset({
               email: normalizedEmail,
               redirectTo: absolutePasswordResetRedirectTo({
                 callbackUrl: props.callbackUrl,
                 email: normalizedEmail,
               }),
             });
+            if (resetResult.error) {
+              const resetCode =
+                resetResult.error.code ?? resetResult.error.message;
+              if (resetCode === 'TOO_MANY_REQUESTS') {
+                setError(
+                  mapError({
+                    action: 'sign_in.must_set_password.request-reset',
+                    code: resetResult.error.code,
+                    message: resetResult.error.message,
+                    signInEmail: normalizedEmail,
+                  })
+                );
+                return;
+              }
+              reportUnmappedSignInAuthError({
+                action: 'sign_in.must_set_password.request-reset',
+                code: resetResult.error.code,
+                message: resetResult.error.message,
+              });
+              setError({
+                kind: 'generic',
+                message: t('error_request_failed'),
+              });
+              return;
+            }
           } catch (caughtError) {
             reportUnknownAuthClientError({
               action: 'sign_in.must_set_password.request-reset.thrown',
               code: undefined,
               message: authClientThrownMessage(caughtError),
             });
+            setError({
+              kind: 'generic',
+              message: t('error_request_failed'),
+            });
+            return;
           }
         }
         setError(

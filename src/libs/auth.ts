@@ -14,6 +14,7 @@ import { selectPasswordHashingOptions } from '@/libs/auth/passwordHashing';
 import { Role, ROLE_VALUES } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import {
+  sendChangeEmailConfirmationEmail,
   sendDeleteAccountVerificationEmail,
   sendEmailVerificationLink,
   sendPasswordChangedNotice,
@@ -197,6 +198,15 @@ export const auth = betterAuth({
     },
     changeEmail: {
       enabled: true,
+      // Better Auth 1.7 sends this to the current address and only then
+      // calls sendVerificationEmail for the new address.
+      sendChangeEmailConfirmation: async ({ newEmail, url, user }) => {
+        await sendChangeEmailConfirmationEmail({
+          email: user.email,
+          newEmail,
+          url,
+        });
+      },
     },
     deleteUser: {
       enabled: true,
