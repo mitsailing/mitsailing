@@ -159,4 +159,49 @@ describe('ProfileSecurityClient', () => {
     expect(await screen.findByText('sign-in:email')).toBeVisible();
     expect(screen.getByText('Unknown time')).toBeVisible();
   });
+
+  it('skip a malformed activity row and format a Date timestamp', async () => {
+    authClientMock.auditLog.list.mockResolvedValue({
+      data: {
+        entries: [
+          'not-a-row',
+          {
+            action: 'sign-in:email',
+            createdAt: new Date('2026-05-08T16:30:00.000Z'),
+            id: 'log-date',
+            severity: 'medium',
+            status: 'success',
+          },
+        ],
+        total: 2,
+      },
+    });
+
+    render(<ProfileSecurityClient />);
+
+    expect(await screen.findByText('sign-in:email')).toBeVisible();
+    expect(screen.getByText('May 8, 2026, 12:30 PM')).toBeVisible();
+    expect(screen.queryByText('not-a-row')).not.toBeInTheDocument();
+  });
+
+  it('show an empty state when the activity payload has no entries', async () => {
+    authClientMock.auditLog.list.mockResolvedValue({ data: {} });
+
+    render(<ProfileSecurityClient />);
+
+    expect(await screen.findByText('No security activity yet.')).toBeVisible();
+  });
+
+  it('show a recovery message when security activity throws', async () => {
+    authClientMock.auditLog.list.mockRejectedValue(new Error('network'));
+
+    render(<ProfileSecurityClient />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not load security activity.'
+    );
+    expect(
+      screen.queryByText('No security activity yet.')
+    ).not.toBeInTheDocument();
+  });
 });
