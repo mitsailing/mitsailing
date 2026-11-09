@@ -71,9 +71,10 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 # Optional release id for Next `deploymentId` + Sentry releases (short SHA is typical).
 ARG DEPLOYMENT_VERSION=
 ENV DEPLOYMENT_VERSION=${DEPLOYMENT_VERSION}
-# Same story: BETTER_AUTH_SECRET is validated (min 32 chars) at import
-# time by t3-env. The real secret is injected at runtime.
+# Same story: BETTER_AUTH_SECRET and PAYLOAD_SECRET are validated (min 32
+# chars) at import time by t3-env. Real secrets are injected at runtime.
 ENV BETTER_AUTH_SECRET=build-time-placeholder-that-is-at-least-thirty-two-chars-long
+ENV PAYLOAD_SECRET=build-time-payload-secret-placeholder-min-thirty-two
 ENV DATABASE_URL=postgresql://build:build@localhost:5432/build?sslmode=disable
 # Turbopack + route type generation can exceed Node's default Docker heap on
 # local Docker Desktop builders. Builder stage only; not copied to prod runtime.

@@ -1,6 +1,3 @@
-import { mkdir, writeFile } from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
 import { logger } from '@/libs/Logger';
 import { getPayloadClient } from '@/libs/payload/getPayloadClient';
 import {
@@ -8,31 +5,9 @@ import {
   staffSeedRows,
 } from '@/payload/globals/aboutSeed';
 
-function isJpeg(bytes: Uint8Array): boolean {
-  const [marker0, marker1, marker2] = bytes;
-  return marker0 === 0xFF && marker1 === 0xD8 && marker2 === 0xFF;
-}
-
-async function downloadJpeg(options: { filename: string; url: string }) {
-  const response = await fetch(options.url);
-  if (!response.ok) {
-    throw new Error(
-      `Photo download failed for ${options.filename}: ${response.status}`
-    );
-  }
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (!isJpeg(bytes)) {
-    throw new Error(`${options.filename} is not a JPEG.`);
-  }
-  const directory = path.join(os.tmpdir(), 'mitsailing-staff-photos');
-  await mkdir(directory, { recursive: true });
-  const filePath = path.join(directory, options.filename);
-  await writeFile(filePath, bytes);
-  return filePath;
-}
-
 /**
- * Fills the About global and staff cards once, including the two staff photos.
+ * Fills the About global and staff cards once.
+ * Staff photos are uploaded in Payload admin; this seed only creates text rows.
  * The Payload CLI cannot boot under the current Node/tsx pairing, so the first
  * server read performs this seed.
  */
@@ -62,32 +37,6 @@ export async function ensureAboutContentSeed(): Promise<void> {
   }
 
   for (const person of staffSeedRows()) {
-    let photo: number | string | undefined;
-    if (person.photoFilename.length > 0 && person.imageSrc.length > 0) {
-      const media = await payload.find({
-        collection: 'media',
-        depth: 0,
-        limit: 1,
-        overrideAccess: true,
-        where: { filename: { equals: person.photoFilename } },
-      });
-      const [existingMedia] = media.docs;
-      if (existingMedia) {
-        photo = existingMedia.id;
-      } else {
-        const filePath = await downloadJpeg({
-          filename: person.photoFilename,
-          url: person.imageSrc,
-        });
-        const created = await payload.create({
-          collection: 'media',
-          data: { alt: person.imageAlt },
-          filePath,
-          overrideAccess: true,
-        });
-        photo = created.id;
-      }
-    }
     await payload.create({
       collection: 'staff',
       data: {
@@ -96,7 +45,6 @@ export async function ensureAboutContentSeed(): Promise<void> {
         name: person.name,
         role: person.role,
         slug: person.slug,
-        ...(photo === undefined ? {} : { photo }),
       },
       overrideAccess: true,
     });

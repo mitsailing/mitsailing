@@ -11,11 +11,6 @@ import {
   volunteerSections,
 } from '@/data/mit-sailing/aboutContent';
 
-const STAFF_PHOTO_FILES: Record<string, string> = {
-  'dan-tucker': 'dan-tucker.jpg',
-  'hannah-agate': 'hannah-agate.jpg',
-};
-
 export type AboutGlobalSeed = {
   dockHours: {
     disclaimer: string;
@@ -146,7 +141,7 @@ export function aboutGlobalSeedData(): AboutGlobalSeed {
 }
 
 /**
- * Staff rows for the first Payload seed, including the two photo filenames.
+ * Staff rows for the first Payload seed. Photos are uploaded in admin later.
  *
  * @returns Staff rows for Payload collection seeding
  */
@@ -154,10 +149,7 @@ export function staffSeedRows() {
   return staff.map((person, displayOrder) => ({
     bio: person.bio ?? '',
     displayOrder,
-    imageAlt: person.imageAlt ?? '',
-    imageSrc: person.imageSrc ?? '',
     name: person.name,
-    photoFilename: STAFF_PHOTO_FILES[person.slug] ?? '',
     role: person.role,
     slug: person.slug,
   }));
