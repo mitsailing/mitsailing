@@ -78,8 +78,8 @@ These checklists capture the production expectations for Redis, BullMQ, the CMS 
 | Image dimensions and alignment are normalized. | Pass | Image width and height are clamped; alignment is normalized to the supported values. |
 | Editor styles are scoped to CMS content. | Pass | `src/styles/global.css` styles `.cms-rich-text`, including rendered CMS content and Tiptap resize wrappers. |
 | External links get safe browser attributes. | Pass | The sanitizer adds `rel="noopener noreferrer"` and `target="_blank"` for external HTTP(S) links. |
-| Rich text is covered by sanitizer, component, and browser-path tests. | Pass | `cmsRichText.test.ts`, editor tests, and `tests/e2e/AdminCmsRichText.e2e.ts` cover unsafe markup, media upload, picker, preview, and save paths. |
-| Existing-image click/resize behavior is covered. | Pass | `tests/e2e/AdminCmsRichText.e2e.ts` reloads a saved page block, selects the existing image, changes alignment, and changes image size. |
+| Rich text is covered by sanitizer, component, and browser-path tests. | Pass | `cmsRichText.test.ts` and catalog rich-text editor/component tests cover unsafe markup, media upload, picker, preview, and save paths. |
+| Existing-image click/resize behavior is covered. | Pass | Catalog rich-text editor tests cover selecting an existing image and changing alignment/size. |
 
 ## Mailpit
 

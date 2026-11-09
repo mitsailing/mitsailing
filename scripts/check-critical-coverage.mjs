@@ -171,7 +171,6 @@ const authCoverageExcludedFiles = [
 
 const additionalCriticalCoverageFiles = [
   'src/app/[locale]/(marketing)/(site)/[...cmsPath]/page.tsx',
-  'src/app/[locale]/(marketing)/(site)/admin/cms_pages/[id]/revisions/[revisionId]/page.tsx',
   'src/app/api/admin/cms-media/route.ts',
   'src/app/api/admin/cms-media/uploads/route.ts',
   'src/app/api/admin/cms-media/uploads/[id]/route.ts',
