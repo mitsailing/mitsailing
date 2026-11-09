@@ -22,10 +22,14 @@ vi.mock('next-intl/server', () => ({
 vi.mock('@/components/mit-sailing/admin/AdminSideNav', () => ({
   AdminSideNav: (props: {
     groups: { items: { href: string }[] }[];
-    homeItem?: { href: string };
+    topItems?: { href: string }[];
   }) => (
     <nav data-testid="admin-nav">
-      {props.homeItem ? <a href={props.homeItem.href}>home</a> : null}
+      {props.topItems?.map((item) => (
+        <a href={item.href} key={item.href}>
+          {item.href}
+        </a>
+      ))}
       {props.groups.flatMap((group) =>
         group.items.map((item) => (
           <a href={item.href} key={item.href}>
@@ -92,7 +96,6 @@ describe('AdminSectionLayout', () => {
     expect(mocks.setRequestLocale).toHaveBeenCalledWith('en');
     expect(mocks.requireAdminAreaAccess).toHaveBeenCalledWith('en');
     expect(screen.getByText('Admin child')).toBeInTheDocument();
-    expect(screen.getByTestId('admin-nav')).toHaveTextContent('/admin');
     expect(screen.getByTestId('admin-nav')).toHaveTextContent('/admin/users');
   });
 });

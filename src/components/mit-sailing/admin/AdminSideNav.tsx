@@ -196,7 +196,7 @@ function AdminNavLink(props: {
  */
 export function AdminSideNav(props: {
   readonly groups: readonly AdminNavGroup[];
-  readonly homeItem?: AdminNavItem;
+  readonly topItems?: readonly AdminNavItem[];
 }) {
   const t = useTranslations('AdminSideNav');
   const pathname = usePathname();
@@ -212,7 +212,7 @@ export function AdminSideNav(props: {
       className={cn(
         'relative flex flex-col transition-[width,padding]',
         'border-mit-line bg-card px-3 pt-2 pb-3 md:pt-3 md:pb-4',
-        'border-b md:sticky md:top-4 md:max-h-[calc(100dvh-6rem)] md:self-start md:overflow-y-auto md:border-b-0 md:border-r',
+        'border-b md:sticky md:top-4 md:self-start md:border-b-0 md:border-r',
         collapsed ? 'md:w-14 md:px-2' : 'md:w-64 md:px-4'
       )}
     >
@@ -254,50 +254,36 @@ export function AdminSideNav(props: {
         className="relative flex flex-col gap-4"
         id={ADMIN_SIDE_NAV_REGION_ID}
       >
-        {props.homeItem ? (
+        {props.topItems?.map((item) => (
           <AdminNavLink
-            active={isAdminNavItemActive(
-              pathname,
-              props.homeItem.href,
-              props.homeItem.match
-            )}
+            active={isAdminNavItemActive(pathname, item.href, item.match)}
             collapsed={collapsed}
             // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
-            href={props.homeItem.href}
-            item={props.homeItem}
-            label={t(props.homeItem.labelKey)}
+            href={item.href}
+            item={item}
+            key={item.href}
+            label={t(item.labelKey)}
           />
-        ) : null}
+        ))}
         {props.groups.map((group) => (
-          <section
+          <ul
             aria-label={t(group.labelKey)}
-            className="min-w-0"
+            className="m-0 list-none space-y-0.5 p-0"
             key={group.id}
           >
-            {collapsed ? null : (
-              <h2 className="mb-1 px-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                {t(group.labelKey)}
-              </h2>
-            )}
-            <ul className="m-0 list-none space-y-0.5 p-0">
-              {group.items.map((item) => (
-                <li key={item.href}>
-                  <AdminNavLink
-                    active={isAdminNavItemActive(
-                      pathname,
-                      item.href,
-                      item.match
-                    )}
-                    collapsed={collapsed}
-                    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
-                    href={item.href}
-                    item={item}
-                    label={t(item.labelKey)}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
+            {group.items.map((item) => (
+              <li key={item.href}>
+                <AdminNavLink
+                  active={isAdminNavItemActive(pathname, item.href, item.match)}
+                  collapsed={collapsed}
+                  // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
+                  href={item.href}
+                  item={item}
+                  label={t(item.labelKey)}
+                />
+              </li>
+            ))}
+          </ul>
         ))}
       </nav>
     </div>

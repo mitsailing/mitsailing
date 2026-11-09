@@ -929,6 +929,9 @@
     "link_email_templates": "Transactional email templates",
     "link_email_templates_blurb": "Edit the email templates used by registration, payment, and reservation workflows."
   },
+  "PayloadCms": {
+    "view_site": "View site"
+  },
   "AdminSideNav": {
     "aria_label": "Administration",
     "collapse_label": "Minimize admin navigation",

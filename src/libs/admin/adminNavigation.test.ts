@@ -24,4 +24,21 @@ describe('adminNavigation', () => {
       expect(adminLandingPath(navItems)).toBe('/admin/events');
     });
   });
+
+  describe('adminNavItemsForPermissions', () => {
+    it('shows cms when cms view is permitted', () => {
+      expect(
+        adminNavItemsForPermissions([Permission.NEWS_MANAGE]).map(
+          (item) => item.href
+        )
+      ).not.toContain('/cms');
+
+      expect(
+        adminNavItemsForPermissions([
+          Permission.NEWS_MANAGE,
+          Permission.CMS_VIEW,
+        ]).map((item) => item.href)
+      ).toContain('/cms');
+    });
+  });
 });
