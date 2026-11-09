@@ -1,13 +1,5 @@
 import type { CollectionConfig } from 'payload';
-import { appOrigin } from '@/libs/payload/appOrigin';
-import { payloadPreviewSecret } from '@/libs/payload/previewSecret';
 import { cmsEditAccess, publishedPagesReadAccess } from '@/payload/access';
-import {
-  CallToAction,
-  Content,
-  MediaBlock,
-  MediaContent,
-} from '@/payload/blocks/pageLayout';
 
 function publicPathFromSlug(slug: unknown): string | null {
   if (typeof slug !== 'string') {
@@ -28,26 +20,7 @@ export const Pages: CollectionConfig = {
   admin: {
     useAsTitle: 'title',
     defaultColumns: ['title', 'slug', '_status', 'updatedAt'],
-    livePreview: {
-      url: ({ data }) => {
-        const path = publicPathFromSlug(data.slug);
-        if (!path) {
-          return null;
-        }
-        return `${appOrigin()}${path}`;
-      },
-    },
-    preview: (doc) => {
-      const path = publicPathFromSlug(doc.slug);
-      if (!path) {
-        return null;
-      }
-      const params = new URLSearchParams({
-        path,
-        previewSecret: payloadPreviewSecret(),
-      });
-      return `${appOrigin()}/next/preview?${params.toString()}`;
-    },
+    preview: (doc) => publicPathFromSlug(doc.slug),
   },
   access: {
     create: cmsEditAccess,
@@ -72,17 +45,6 @@ export const Pages: CollectionConfig = {
       name: 'body',
       type: 'richText',
       required: true,
-    },
-    {
-      name: 'layout',
-      type: 'blocks',
-      label: 'Layout',
-      admin: {
-        description:
-          'Optional sections. When this is empty, the page shows its body.',
-        initCollapsed: true,
-      },
-      blocks: [MediaContent, Content, MediaBlock, CallToAction],
     },
   ],
   timestamps: true,

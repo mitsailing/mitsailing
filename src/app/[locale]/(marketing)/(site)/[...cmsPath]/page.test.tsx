@@ -4,7 +4,6 @@ import type { PublishedPayloadPage } from '@/libs/payload/loadPublishedPayloadPa
 import CmsCatchAllPage, { generateMetadata } from './page';
 
 const mocks = vi.hoisted(() => ({
-  cmsDraftPreviewEnabled: vi.fn(),
   loadPublishedPayloadPage: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND');
@@ -18,19 +17,6 @@ vi.mock('next-intl/server', () => ({
 
 vi.mock('next/navigation', () => ({
   notFound: mocks.notFound,
-  useRouter: () => ({ refresh: vi.fn() }),
-}));
-
-vi.mock('@/libs/payload/appOrigin', () => ({
-  appOrigin: () => 'http://localhost:3000',
-}));
-
-vi.mock('@/libs/payload/cmsDraftPreview', () => ({
-  cmsDraftPreviewEnabled: mocks.cmsDraftPreviewEnabled,
-}));
-
-vi.mock('@/components/mit-sailing/cms/RefreshPayloadPreview', () => ({
-  RefreshPayloadPreview: () => null,
 }));
 
 vi.mock('@/components/mit-sailing/admin/PublicAdminEditLink', () => ({
@@ -70,7 +56,6 @@ function publishedPage(
       },
     },
     id: '42',
-    layout: null,
     slug: 'learn/sailing',
     title: 'Learn Sailing',
     ...props,
@@ -79,7 +64,6 @@ function publishedPage(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.cmsDraftPreviewEnabled.mockResolvedValue(false);
 });
 
 describe('CmsCatchAllPage', () => {
@@ -123,33 +107,6 @@ describe('CmsCatchAllPage', () => {
       'href',
       '/cms/collections/pages/42'
     );
-  });
-
-  it('renders layout blocks instead of the page body', async () => {
-    mocks.loadPublishedPayloadPage.mockResolvedValue(
-      publishedPage({
-        layout: [
-          {
-            blockType: 'media',
-            id: 'wide',
-            media: {
-              alt: 'Charles River',
-              height: 600,
-              url: '/cms-media/charles.jpg',
-              width: 800,
-            },
-          },
-        ],
-      })
-    );
-
-    render(await CmsCatchAllPage(pageProps()));
-
-    expect(screen.getByTestId('page-layout')).toBeVisible();
-    expect(
-      screen.getByRole('img', { name: 'Charles River' }).getAttribute('src')
-    ).toContain('charles.jpg');
-    expect(screen.queryByTestId('payload-body')).not.toBeInTheDocument();
   });
 
   it('returns not found for missing CMS paths', async () => {

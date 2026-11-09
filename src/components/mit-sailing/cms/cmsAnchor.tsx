@@ -64,50 +64,6 @@ export function internalDocToHref(args: {
   return cmsDocumentHref(doc.relationTo, doc.value);
 }
 
-export type CmsBlockLink = {
-  doc?: {
-    relationTo?: null | string;
-    value?: unknown;
-  } | null;
-  label?: null | string;
-  linkType?: null | string;
-  newTab?: boolean | null;
-  url?: null | string;
-};
-
-/**
- * Turns a block link group into anchor props, or null when it cannot be rendered.
- *
- * @param link - Payload link group (internal document or custom URL)
- * @returns Label, safe href, and new-tab flag
- */
-export function cmsBlockLinkProps(link: CmsBlockLink | null | undefined): {
-  href: string;
-  label: string;
-  newTab: boolean;
-} | null {
-  if (!link) {
-    return null;
-  }
-  const label = typeof link.label === 'string' ? link.label.trim() : '';
-  if (label.length === 0) {
-    return null;
-  }
-  const href =
-    link.linkType === 'internal'
-      ? cmsDocumentHref(link.doc?.relationTo ?? undefined, link.doc?.value)
-      : (link.url ?? '');
-  const safeHref = safeCmsHref(href);
-  if (!safeHref || safeHref === '#') {
-    return null;
-  }
-  return {
-    href: safeHref,
-    label,
-    newTab: Boolean(link.newTab),
-  };
-}
-
 /**
  * Renders an internal app link or a safe external anchor.
  *

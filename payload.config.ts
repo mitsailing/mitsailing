@@ -7,7 +7,6 @@ import {
   FixedToolbarFeature,
   HeadingFeature,
   lexicalEditor,
-  UploadFeature,
 } from '@payloadcms/richtext-lexical';
 import * as Sentry from '@sentry/nextjs';
 import { buildConfig } from 'payload';
@@ -66,41 +65,8 @@ export default buildConfig({
   }),
   editor: lexicalEditor({
     features: ({ defaultFeatures }) => [
-      ...defaultFeatures.filter(
-        (feature) => feature.key !== 'heading' && feature.key !== 'upload'
-      ),
+      ...defaultFeatures.filter((feature) => feature.key !== 'heading'),
       HeadingFeature({ enabledHeadingSizes: ['h2', 'h3', 'h4'] }),
-      UploadFeature({
-        collections: {
-          media: {
-            fields: [
-              {
-                name: 'align',
-                type: 'select',
-                label: 'Align',
-                defaultValue: 'none',
-                options: [
-                  { label: 'None', value: 'none' },
-                  { label: 'Align left', value: 'left' },
-                  { label: 'Align right', value: 'right' },
-                ],
-              },
-              {
-                name: 'width',
-                type: 'number',
-                label: 'Width (%)',
-                defaultValue: 100,
-                min: 15,
-                max: 100,
-                admin: {
-                  description:
-                    'Drag the corners on the image in the editor to resize. Align left or right to wrap text.',
-                },
-              },
-            ],
-          },
-        },
-      }),
       ImageWrapFeature(),
       FixedToolbarFeature(),
     ],
