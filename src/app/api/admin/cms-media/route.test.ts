@@ -6,10 +6,10 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   deleteCmsMediaFile: vi.fn(),
   findMany: vi.fn(),
-  findPageUnique: vi.fn(),
   getCurrentUser: vi.fn(),
   loggerError: vi.fn(),
   loggerWarn: vi.fn(),
+  processCmsMediaImageBytes: vi.fn(),
   writeCmsMediaFile: vi.fn(),
 }));
 
@@ -22,9 +22,6 @@ vi.mock('@/libs/DB', () => ({
     cmsMediaAsset: {
       create: mocks.create,
       findMany: mocks.findMany,
-    },
-    cmsPage: {
-      findUnique: mocks.findPageUnique,
     },
   },
 }));
@@ -50,6 +47,10 @@ vi.mock('@/libs/mit-sailing/cmsMediaStorage', () => ({
   writeCmsMediaFile: mocks.writeCmsMediaFile,
 }));
 
+vi.mock('@/libs/mit-sailing/cmsMediaImageProcessing', () => ({
+  processCmsMediaImageBytes: mocks.processCmsMediaImageBytes,
+}));
+
 const pngBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 const storedRaceDayPngPath =
   '/var/lib/mitsailing/cms-media/ready/asset-1/race-day.png';
@@ -61,12 +62,15 @@ function stubAdminUser() {
   });
 }
 
-function mediaListRequest(pageId?: string): Request {
-  const url = new URL('https://mitsailing.test/api/admin/cms-media');
-  if (pageId) {
-    url.searchParams.set('pageId', pageId);
-  }
-  return new Request(url);
+function stubDockStaffUser() {
+  mocks.getCurrentUser.mockResolvedValue({
+    id: 'dock-1',
+    role: 'dock_staff',
+  });
+}
+
+function mediaListRequest() {
+  return new Request('https://mitsailing.test/api/admin/cms-media');
 }
 
 function uploadRequest(body?: BodyInit, contentType?: string): Request {
@@ -81,19 +85,26 @@ function uploadRequest(body?: BodyInit, contentType?: string): Request {
   });
 }
 
-function uploadFormData(props: { file?: File; pageId?: string } = {}) {
+function uploadFormData(props: { file?: File } = {}) {
   const formData = new FormData();
   if (props.file) {
     formData.set('file', props.file);
-  }
-  if (props.pageId !== undefined) {
-    formData.set('pageId', props.pageId);
   }
   return formData;
 }
 
 function pngFile() {
   return new File([pngBytes], 'Race Day.png', { type: 'image/png' });
+}
+
+function pdfFile() {
+  return new File(
+    [new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52])],
+    'notes.pdf',
+    {
+      type: 'application/pdf',
+    }
+  );
 }
 
 describe('cms media route', () => {
@@ -114,7 +125,7 @@ describe('cms media route', () => {
     expect(mocks.findMany).not.toHaveBeenCalled();
   });
 
-  it('lists ready media for the requested CMS page', async () => {
+  it('lists ready media for admin-area users', async () => {
     const createdAt = new Date(Date.UTC(2026, 4, 17, 12));
     stubAdminUser();
     mocks.findMany.mockResolvedValue([
@@ -128,7 +139,7 @@ describe('cms media route', () => {
       },
     ]);
 
-    const response = await GET(mediaListRequest(' cms-home '));
+    const response = await GET(mediaListRequest());
 
     await expect(response.json()).resolves.toEqual({
       assets: [
@@ -146,13 +157,29 @@ describe('cms media route', () => {
     expect(mocks.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         take: 100,
-        where: { pageId: 'cms-home', status: 'ready' },
+        where: { status: 'ready' },
       })
     );
   });
 
-  it('lists ready media across pages when no CMS page is requested', async () => {
-    stubAdminUser();
+  it('forbids signed-in users without admin view from listing media', async () => {
+    mocks.getCurrentUser.mockResolvedValue({
+      id: 'user-1',
+      role: 'user',
+    });
+
+    const response = await GET(mediaListRequest());
+
+    await expect(response.json()).resolves.toEqual({ error: 'forbidden' });
+    expect(response.status).toBe(403);
+    expect(mocks.findMany).not.toHaveBeenCalled();
+  });
+
+  it('lists media for volunteer instructors with admin view', async () => {
+    mocks.getCurrentUser.mockResolvedValue({
+      id: 'volunteer-1',
+      role: 'volunteer_instructor',
+    });
     mocks.findMany.mockResolvedValue([]);
 
     const response = await GET(mediaListRequest());
@@ -169,7 +196,9 @@ describe('cms media route', () => {
   it('rejects unauthenticated direct uploads before storage checks', async () => {
     mocks.getCurrentUser.mockResolvedValue(null);
 
-    const response = await POST(uploadRequest());
+    const response = await POST(
+      uploadRequest(uploadFormData({ file: pngFile() }))
+    );
 
     await expect(response.json()).resolves.toEqual({
       error: 'unauthorized',
@@ -194,7 +223,9 @@ describe('cms media route', () => {
   it('forbids direct uploads outside local environments', async () => {
     stubAdminUser();
 
-    const response = await POST(uploadRequest());
+    const response = await POST(
+      uploadRequest(uploadFormData({ file: pngFile() }))
+    );
 
     await expect(response.json()).resolves.toEqual({
       error: 'direct_upload_disabled',
@@ -241,30 +272,16 @@ describe('cms media route', () => {
     expect(mocks.writeCmsMediaFile).not.toHaveBeenCalled();
   });
 
-  it('rejects direct uploads for unknown CMS pages', async () => {
-    mocks.appEnv = 'local';
-    stubAdminUser();
-    mocks.findPageUnique.mockResolvedValue(null);
-
-    const response = await POST(
-      uploadRequest(uploadFormData({ file: pngFile(), pageId: 'missing-page' }))
-    );
-
-    await expect(response.json()).resolves.toEqual({
-      error: 'invalid_page',
-    });
-    expect(response.status).toBe(400);
-    expect(mocks.findPageUnique).toHaveBeenCalledWith({
-      select: { id: true },
-      where: { id: 'missing-page' },
-    });
-    expect(mocks.writeCmsMediaFile).not.toHaveBeenCalled();
-  });
-
   it('returns a storage error when the direct upload file cannot be written', async () => {
     const error = new Error('disk full');
     mocks.appEnv = 'local';
     stubAdminUser();
+    mocks.processCmsMediaImageBytes.mockResolvedValue({
+      byteSize: pngBytes.byteLength,
+      bytes: pngBytes,
+      mimeType: 'image/png',
+      storedFilename: 'race-day.png',
+    });
     mocks.writeCmsMediaFile.mockRejectedValue(error);
 
     const response = await POST(
@@ -285,6 +302,12 @@ describe('cms media route', () => {
   it('returns an unsafe path error when direct storage rejects the file path', async () => {
     mocks.appEnv = 'local';
     stubAdminUser();
+    mocks.processCmsMediaImageBytes.mockResolvedValue({
+      byteSize: pngBytes.byteLength,
+      bytes: pngBytes,
+      mimeType: 'image/png',
+      storedFilename: 'race-day.png',
+    });
     mocks.writeCmsMediaFile.mockResolvedValue(null);
 
     const response = await POST(
@@ -302,6 +325,12 @@ describe('cms media route', () => {
     const error = new Error('postgres down');
     mocks.appEnv = 'local';
     stubAdminUser();
+    mocks.processCmsMediaImageBytes.mockResolvedValue({
+      byteSize: pngBytes.byteLength,
+      bytes: pngBytes,
+      mimeType: 'image/png',
+      storedFilename: 'race-day.png',
+    });
     mocks.writeCmsMediaFile.mockResolvedValue(storedRaceDayPngPath);
     mocks.create.mockRejectedValue(error);
 
@@ -322,38 +351,16 @@ describe('cms media route', () => {
     );
   });
 
-  it('logs cleanup failures while preserving direct upload create failure', async () => {
-    const createError = new Error('postgres down');
-    const cleanupError = new Error('unlink failed');
-    mocks.appEnv = 'local';
-    stubAdminUser();
-    mocks.writeCmsMediaFile.mockResolvedValue(storedRaceDayPngPath);
-    mocks.create.mockRejectedValue(createError);
-    mocks.deleteCmsMediaFile.mockRejectedValue(cleanupError);
-
-    const response = await POST(
-      uploadRequest(uploadFormData({ file: pngFile() }))
-    );
-
-    await expect(response.json()).resolves.toEqual({
-      error: 'asset_create_failed',
-    });
-    expect(response.status).toBe(500);
-    expect(mocks.loggerError).toHaveBeenCalledWith(
-      'Failed to remove orphaned CMS media file: {error}',
-      { error: cleanupError }
-    );
-    expect(mocks.loggerError).toHaveBeenCalledWith(
-      'Failed to record CMS media asset: {error}',
-      { error: createError }
-    );
-  });
-
   it('creates a local direct upload asset for admins', async () => {
     const createdAt = new Date(Date.UTC(2026, 4, 17, 12));
     mocks.appEnv = 'local';
     stubAdminUser();
-    mocks.findPageUnique.mockResolvedValue({ id: 'cms-home' });
+    mocks.processCmsMediaImageBytes.mockResolvedValue({
+      byteSize: pngBytes.byteLength,
+      bytes: pngBytes,
+      mimeType: 'image/png',
+      storedFilename: 'race-day.png',
+    });
     mocks.writeCmsMediaFile.mockResolvedValue(storedRaceDayPngPath);
     mocks.create.mockResolvedValue({
       byteSize: BigInt(pngBytes.byteLength),
@@ -365,7 +372,7 @@ describe('cms media route', () => {
     });
 
     const response = await POST(
-      uploadRequest(uploadFormData({ file: pngFile(), pageId: ' cms-home ' }))
+      uploadRequest(uploadFormData({ file: pngFile() }))
     );
 
     await expect(response.json()).resolves.toEqual({
@@ -382,10 +389,50 @@ describe('cms media route', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           mediaKind: 'image',
-          pageId: 'cms-home',
           status: 'ready',
           storageProvider: 'local',
           uploadedByUserId: 'admin-1',
+        }),
+      })
+    );
+  });
+
+  it('creates a local PDF upload for dock staff', async () => {
+    const createdAt = new Date(Date.UTC(2026, 4, 17, 12));
+    const pdfBytes = new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52]);
+    mocks.appEnv = 'local';
+    stubDockStaffUser();
+    mocks.writeCmsMediaFile.mockResolvedValue(
+      '/var/lib/mitsailing/cms-media/ready/asset-2/notes.pdf'
+    );
+    mocks.create.mockResolvedValue({
+      byteSize: BigInt(pdfBytes.byteLength),
+      createdAt,
+      id: 'asset-2',
+      mimeType: 'application/pdf',
+      originalFilename: 'notes.pdf',
+      publicPath: '/cms-media/asset-2/notes.pdf',
+    });
+
+    const response = await POST(
+      uploadRequest(uploadFormData({ file: pdfFile() }))
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      byteSize: pdfBytes.byteLength,
+      createdAt: createdAt.toISOString(),
+      id: 'asset-2',
+      mimeType: 'application/pdf',
+      originalFilename: 'notes.pdf',
+      publicPath: '/cms-media/asset-2/notes.pdf',
+      url: '/cms-media/asset-2/notes.pdf',
+    });
+    expect(response.status).toBe(200);
+    expect(mocks.processCmsMediaImageBytes).not.toHaveBeenCalled();
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          mediaKind: 'file',
         }),
       })
     );

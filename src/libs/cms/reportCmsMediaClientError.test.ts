@@ -16,6 +16,9 @@ describe('reportCmsMediaClientError', () => {
       assetId: 'asset-1',
       error,
       message: 'Failed to cancel CMS media upload',
+      route: '/api/admin/cms-media/uploads/asset-1',
+      status: 500,
+      userId: 'user-1',
     });
 
     expect(Sentry.captureException).toHaveBeenCalledWith(error, {
@@ -23,35 +26,44 @@ describe('reportCmsMediaClientError', () => {
       contexts: {
         cmsMediaUpload: {
           assetId: 'asset-1',
+          route: '/api/admin/cms-media/uploads/asset-1',
           sessionAssetId: undefined,
+          status: 500,
           uploadAssetId: undefined,
+          userId: 'user-1',
         },
       },
+      user: { id: 'user-1' },
     });
     expect(Sentry.captureMessage).not.toHaveBeenCalled();
   });
 
-  it('captures finalize failures as error messages', () => {
+  it('captures finalize failures as exceptions with route and status', () => {
     reportCmsMediaClientError({
       action: 'finalizeUpload',
       message: 'CMS media upload finalize failed',
+      route: '/api/admin/cms-media/uploads/upload-1/finalize',
       sessionAssetId: 'session-1',
+      status: 500,
       uploadAssetId: 'upload-1',
+      userId: 'user-1',
     });
 
-    expect(Sentry.captureMessage).toHaveBeenCalledWith(
-      'CMS media upload finalize failed',
-      {
-        level: 'error',
-        tags: { cmsMediaAction: 'finalizeUpload' },
-        contexts: {
-          cmsMediaUpload: {
-            assetId: undefined,
-            sessionAssetId: 'session-1',
-            uploadAssetId: 'upload-1',
-          },
+    expect(Sentry.captureException).toHaveBeenCalledWith(expect.any(Error), {
+      level: 'error',
+      tags: { cmsMediaAction: 'finalizeUpload' },
+      contexts: {
+        cmsMediaUpload: {
+          assetId: undefined,
+          route: '/api/admin/cms-media/uploads/upload-1/finalize',
+          sessionAssetId: 'session-1',
+          status: 500,
+          uploadAssetId: 'upload-1',
+          userId: 'user-1',
         },
-      }
-    );
+      },
+      user: { id: 'user-1' },
+    });
+    expect(Sentry.captureMessage).not.toHaveBeenCalled();
   });
 });

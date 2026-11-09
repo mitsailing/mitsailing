@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/libs/auth/dal';
-import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
+import { authorizeCmsMediaLibraryAccess } from '@/libs/mit-sailing/cmsMediaAuthorization';
 import { getCmsMediaTusUploadStatus } from '@/libs/mit-sailing/cmsMediaTusStatus';
 import {
   cmsMediaUploadRouteAssetResponse,
@@ -19,11 +18,6 @@ export const runtime = 'nodejs';
 type CmsMediaUploadFinalizeRouteProps = {
   params: Promise<{ id: string }>;
 };
-
-async function currentAdminUserId(): Promise<string | null> {
-  const currentUser = await getCurrentUser();
-  return currentUser?.role === Role.ADMIN ? currentUser.id : null;
-}
 
 async function readCmsMediaTusUploadStatus(props: {
   assetId: string;
@@ -95,9 +89,9 @@ export async function POST(
   _request: Request,
   props: CmsMediaUploadFinalizeRouteProps
 ) {
-  const userId = await currentAdminUserId();
-  if (!userId) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const auth = await authorizeCmsMediaLibraryAccess();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
   const { id } = await props.params;
   const asset = await findCmsMediaUploadRouteAsset(id);

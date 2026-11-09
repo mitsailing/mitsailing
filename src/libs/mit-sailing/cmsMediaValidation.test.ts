@@ -88,10 +88,43 @@ describe('cms media validation', () => {
       originalFilename: 'photo.png',
     });
 
-    expect(result.ok).toBe(true);
+    expect(result).toMatchObject({
+      ok: true,
+      mediaKind: 'image',
+      mimeType: 'image/png',
+    });
   });
 
-  it('allows image uploads through the image metadata limit', () => {
+  it('treats declared image/jpg as jpeg when bytes are jpeg', () => {
+    expect(
+      validateCmsMediaUpload({
+        bytes: new Uint8Array([255, 216, 255, 224]),
+        declaredMimeType: 'image/jpg',
+        originalFilename: 'phone.jpg',
+      })
+    ).toMatchObject({
+      ok: true,
+      mediaKind: 'image',
+      mimeType: 'image/jpeg',
+    });
+  });
+
+  it('accepts pdf uploads with matching signatures', () => {
+    expect(
+      validateCmsMediaUpload({
+        bytes: new Uint8Array([37, 80, 68, 70, 45]),
+        declaredMimeType: 'application/pdf',
+        originalFilename: 'handbook.pdf',
+      })
+    ).toMatchObject({
+      ok: true,
+      mediaKind: 'file',
+      mimeType: 'application/pdf',
+      storedFilename: 'handbook.pdf',
+    });
+  });
+
+  it('allows image uploads under the image size limit', () => {
     const bytes = new Uint8Array(10 * 1024 * 1024 + 1);
     bytes.set(PNG_BYTES);
 
@@ -104,8 +137,8 @@ describe('cms media validation', () => {
     ).toMatchObject({ ok: true });
   });
 
-  it('rejects image uploads above the shared metadata limit', () => {
-    const bytes = new Uint8Array(100 * 1024 * 1024 + 1);
+  it('rejects image uploads above the image size limit', () => {
+    const bytes = new Uint8Array(25 * 1024 * 1024 + 1);
     bytes.set(PNG_BYTES);
 
     expect(
@@ -189,6 +222,43 @@ describe('cms media validation', () => {
     });
   });
 
+  it('accepts heic metadata and empty type with heic filename', () => {
+    expect(
+      validateCmsMediaMetadata({
+        byteSize: 2048,
+        declaredMimeType: 'image/heic',
+        originalFilename: 'IMG_0001.HEIC',
+      })
+    ).toEqual({
+      ok: true,
+      mediaKind: 'image',
+      mimeType: 'image/heic',
+      storedFilename: 'img_0001.heic',
+    });
+    expect(
+      validateCmsMediaMetadata({
+        byteSize: 2048,
+        declaredMimeType: '',
+        originalFilename: 'phone.heif',
+      })
+    ).toEqual({
+      ok: true,
+      mediaKind: 'image',
+      mimeType: 'image/heif',
+      storedFilename: 'phone.heif',
+    });
+  });
+
+  it('rejects pdf metadata above the pdf size limit', () => {
+    expect(
+      validateCmsMediaMetadata({
+        byteSize: 20 * 1024 * 1024 + 1,
+        declaredMimeType: 'application/pdf',
+        originalFilename: 'large.pdf',
+      })
+    ).toEqual({ ok: false, code: 'too_large' });
+  });
+
   it('validates video upload metadata before opening a server-folder upload', () => {
     expect(
       validateCmsMediaMetadata({
@@ -267,10 +337,10 @@ describe('cms media validation', () => {
     ).toBeNull();
   });
 
-  it('classifies safe generic files during worker processing', () => {
+  it('rejects unsupported office and text files during worker processing', () => {
     expect(
       detectCmsMediaKind(new TextEncoder().encode('dock notes'), 'text/plain')
-    ).toBe('file');
+    ).toBeNull();
   });
 
   it('rejects known file types with invalid signatures', () => {

@@ -68,6 +68,18 @@ export function isSafeCmsAppPath(
   return !hasUnsafeCmsPathSegment(value.slice(0, pathPartEndIndex(value)));
 }
 
+const CATALOG_GALLERY_PATH_RE = /\.(?:gif|jpe?g|png|webp|mp4|mov|webm)$/iu;
+
+/**
+ * Accepts safe app paths that are gallery images or videos (not PDFs/docs).
+ *
+ * @param value - Candidate app path.
+ * @returns True when the path is a safe gallery media path.
+ */
+export function isSafeCatalogGalleryPath(value: string): boolean {
+  return isSafeCmsAppPath(value) && CATALOG_GALLERY_PATH_RE.test(value);
+}
+
 export function safeCmsHref(value: string | null | undefined): string | null {
   const href = value?.trim();
   if (!href) {

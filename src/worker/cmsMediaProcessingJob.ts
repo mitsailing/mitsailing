@@ -1,5 +1,5 @@
 import type { BigIntStats } from 'node:fs';
-import { chmod, mkdir, open, rename, stat } from 'node:fs/promises';
+import { chmod, mkdir, open, rename, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import type { JobsOptions } from 'bullmq';
 import type { Prisma } from '@/generated/prisma/client';
@@ -10,6 +10,7 @@ import {
   buildCmsMediaReadyPath,
   resolveCmsMediaUploadFilePath,
 } from '@/libs/mit-sailing/cmsMediaFileStorage';
+import { writeProcessedCmsMediaImage } from '@/libs/mit-sailing/cmsMediaImageProcessing';
 import { detectCmsMediaKind } from '@/libs/mit-sailing/cmsMediaValidation';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 
@@ -36,6 +37,7 @@ type CmsMediaProcessingAsset = {
   id: string;
   mediaKind: 'file' | 'image' | 'video';
   mimeType: string;
+  originalFilename: string;
   rawFilePath: string | null;
   rawUploadId: string | null;
   readyFilePath: string | null;
@@ -156,6 +158,68 @@ async function ensureReadyMediaPermissions(readyPath: string): Promise<void> {
   await chmod(readyPath, CMS_MEDIA_READY_FILE_MODE);
 }
 
+async function processImageAsset(
+  asset: CmsMediaProcessingAsset,
+  paths: { rawPath: string; readyPath: string }
+): Promise<void> {
+  await prisma.cmsMediaAsset.update({
+    data: { status: 'processing' },
+    where: { id: asset.id },
+  });
+  await mkdir(path.dirname(paths.readyPath), { recursive: true });
+  let processed: Awaited<ReturnType<typeof writeProcessedCmsMediaImage>>;
+  try {
+    processed = await writeProcessedCmsMediaImage({
+      assetId: asset.id,
+      mimeType: asset.mimeType,
+      originalFilename: asset.originalFilename,
+      readyPath: paths.readyPath,
+      sourcePath: paths.rawPath,
+    });
+  } catch {
+    await markCmsMediaFailed({
+      assetId: asset.id,
+      code: 'image_processing_failed',
+    });
+    throw new Error('CMS media image processing failed');
+  }
+  try {
+    await unlink(paths.rawPath);
+  } catch (error) {
+    if (safeErrorCode(error) !== 'ENOENT') {
+      throw error;
+    }
+  }
+  await prisma.cmsMediaAsset.update({
+    data: {
+      byteSize: BigInt(processed.byteSize),
+      mimeType: processed.mimeType,
+      processedAt: new Date(),
+      processingErrorCode: null,
+      publicPath: processed.publicPath,
+      readyFilePath: processed.readyFilePath,
+      status: 'ready',
+      storedFilename: processed.storedFilename,
+    },
+    where: { id: asset.id },
+  });
+  await ensureReadyMediaPermissions(processed.readyFilePath);
+}
+
+async function processPassthroughAsset(
+  asset: CmsMediaProcessingAsset,
+  paths: { rawPath: string; readyPath: string }
+): Promise<void> {
+  await prisma.cmsMediaAsset.update({
+    data: { status: 'processing' },
+    where: { id: asset.id },
+  });
+  await mkdir(path.dirname(paths.readyPath), { recursive: true });
+  await rename(paths.rawPath, paths.readyPath);
+  await ensureReadyMediaPermissions(paths.readyPath);
+  await markCmsMediaReady(asset.id);
+}
+
 async function processServerFolderAsset(
   asset: CmsMediaProcessingAsset
 ): Promise<void> {
@@ -189,14 +253,11 @@ async function processServerFolderAsset(
     await markCmsMediaFailed({ assetId: asset.id, code: 'mime_mismatch' });
     throw new Error('CMS media upload signature does not match metadata');
   }
-  await prisma.cmsMediaAsset.update({
-    data: { status: 'processing' },
-    where: { id: asset.id },
-  });
-  await mkdir(path.dirname(paths.readyPath), { recursive: true });
-  await rename(paths.rawPath, paths.readyPath);
-  await ensureReadyMediaPermissions(paths.readyPath);
-  await markCmsMediaReady(asset.id);
+  if (asset.mediaKind === 'image') {
+    await processImageAsset(asset, paths);
+    return;
+  }
+  await processPassthroughAsset(asset, paths);
 }
 
 export async function enqueueCmsMediaProcessingJob(
@@ -258,6 +319,7 @@ export async function processCmsMediaProcessingJob(
       id: true,
       mediaKind: true,
       mimeType: true,
+      originalFilename: true,
       rawFilePath: true,
       rawUploadId: true,
       readyFilePath: true,

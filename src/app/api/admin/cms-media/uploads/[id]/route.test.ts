@@ -72,6 +72,7 @@ describe('cms media upload route', () => {
     await expect(response.json()).resolves.toEqual({ error: 'unauthorized' });
     expect(response.status).toBe(401);
     expect(mocks.findUnique).not.toHaveBeenCalled();
+    expect(mocks.updateMany).not.toHaveBeenCalled();
   });
 
   it('rejects unauthenticated upload cancellation', async () => {

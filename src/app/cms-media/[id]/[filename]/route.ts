@@ -10,7 +10,7 @@ import {
 import { readCmsMediaFile } from '@/libs/mit-sailing/cmsMediaStorage';
 import {
   buildCmsMediaPublicPath,
-  CMS_MEDIA_ALLOWED_MIME_TYPES,
+  CMS_MEDIA_PUBLIC_RESPONSE_MIME_TYPES,
 } from '@/libs/mit-sailing/cmsMediaValidation';
 
 export const runtime = 'nodejs';
@@ -37,7 +37,9 @@ const CMS_MEDIA_RESPONSE_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
 } as const;
 
-const cmsMediaAllowedMimeTypes = new Set<string>(CMS_MEDIA_ALLOWED_MIME_TYPES);
+const cmsMediaAllowedMimeTypes = new Set<string>(
+  CMS_MEDIA_PUBLIC_RESPONSE_MIME_TYPES
+);
 
 function cmsMediaContentType(mimeType: string): string {
   return cmsMediaAllowedMimeTypes.has(mimeType)

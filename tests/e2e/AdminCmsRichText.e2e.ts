@@ -64,7 +64,10 @@ test.describe('Admin CMS rich text', () => {
     );
 
     await page
-      .getByRole('button', { exact: true, name: 'Select existing image' })
+      .getByRole('button', {
+        exact: true,
+        name: 'Select existing image or PDF',
+      })
       .click();
     await page
       .getByRole('button', { exact: true, name: mediaFilename })

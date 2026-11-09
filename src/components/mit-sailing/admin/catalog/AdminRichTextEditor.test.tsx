@@ -13,7 +13,6 @@ import {
   AdminRichTextEditor,
   cmsMediaAssetFromUnknown,
   cmsMediaAssetsFromUnknown,
-  currentPageId,
   isAllowedEditorHref,
   isCmsMediaPath,
   nodeNumberAttribute,
@@ -157,14 +156,6 @@ describe('AdminRichTextEditor helpers', () => {
   });
 
   it('normalizes cms media values from unknown data', () => {
-    const form = document.createElement('form');
-    const pageId = document.createElement('input');
-    pageId.name = 'pageId';
-    pageId.value = 'page-1';
-    form.append(pageId);
-
-    expect(currentPageId(null)).toBe('');
-    expect(currentPageId(form)).toBe('page-1');
     expect(isCmsMediaPath('/cms-media/asset/race.png')).toBe(true);
     expect(isCmsMediaPath('/assets/race.png')).toBe(false);
     expect(stringField({ title: 'Race' }, 'title')).toBe('Race');
@@ -311,12 +302,10 @@ describe('AdminRichTextEditor media controls', () => {
     renderEditor();
 
     await user.click(
-      screen.getByRole('button', { name: 'Select existing image' })
+      screen.getByRole('button', { name: 'Select existing image or PDF' })
     );
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Could not load CMS images.'
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent('HTTP 500');
   });
 
   it('shows an error when loading media rejects', async () => {
@@ -325,12 +314,10 @@ describe('AdminRichTextEditor media controls', () => {
     renderEditor();
 
     await user.click(
-      screen.getByRole('button', { name: 'Select existing image' })
+      screen.getByRole('button', { name: 'Select existing image or PDF' })
     );
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Could not load CMS images.'
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent('network');
   });
 
   it('opens and closes an empty media picker', async () => {
@@ -341,15 +328,17 @@ describe('AdminRichTextEditor media controls', () => {
     renderEditor();
 
     await user.click(
-      screen.getByRole('button', { name: 'Select existing image' })
+      screen.getByRole('button', { name: 'Select existing image or PDF' })
     );
-    expect(await screen.findByText('No CMS images yet.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('No images or PDFs yet.')
+    ).toBeInTheDocument();
     await user.click(
-      screen.getByRole('button', { name: 'Select existing image' })
+      screen.getByRole('button', { name: 'Select existing image or PDF' })
     );
 
     await waitFor(() => {
-      expect(screen.queryByText('No CMS images yet.')).toBeNull();
+      expect(screen.queryByText('No images or PDFs yet.')).toBeNull();
     });
   });
 
@@ -371,9 +360,7 @@ describe('AdminRichTextEditor media controls', () => {
       new File(['png'], 'race.png', { type: 'image/png' })
     );
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Could not load CMS images.'
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent('HTTP 500');
   });
 
   it('handles invalid upload responses', async () => {
@@ -393,7 +380,7 @@ describe('AdminRichTextEditor media controls', () => {
     );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Could not load CMS images.'
+      'invalid_upload_session'
     );
   });
 });

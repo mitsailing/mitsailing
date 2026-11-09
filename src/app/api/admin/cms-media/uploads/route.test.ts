@@ -5,13 +5,11 @@ import { POST } from './route';
 const defaultUploadSessionBody = {
   byteSize: 1024,
   originalFilename: 'race-day.png',
-  pageId: null,
   type: 'image/png',
 };
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
-  findUnique: vi.fn(),
   getCurrentUser: vi.fn(),
   randomUUID: vi.fn(() => 'asset-1'),
   mediaUploadSharedSecret:
@@ -26,9 +24,6 @@ vi.mock('@/libs/DB', () => ({
   prisma: {
     cmsMediaAsset: {
       create: mocks.create,
-    },
-    cmsPage: {
-      findUnique: mocks.findUnique,
     },
   },
 }));
@@ -133,10 +128,9 @@ describe('cms media upload session route', () => {
     await expect(response.json()).resolves.toEqual({ error: 'unauthorized' });
     expect(response.status).toBe(401);
     expect(mocks.create).not.toHaveBeenCalled();
-    expect(mocks.findUnique).not.toHaveBeenCalled();
   });
 
-  it('rejects non-admin upload session creation', async () => {
+  it('forbids signed-in users without admin view', async () => {
     mocks.getCurrentUser.mockResolvedValue({
       id: 'user-1',
       role: 'user',
@@ -144,10 +138,9 @@ describe('cms media upload session route', () => {
 
     const response = await POST(uploadSessionRequest());
 
-    await expect(response.json()).resolves.toEqual({ error: 'unauthorized' });
-    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: 'forbidden' });
+    expect(response.status).toBe(403);
     expect(mocks.create).not.toHaveBeenCalled();
-    expect(mocks.findUnique).not.toHaveBeenCalled();
   });
 
   it('returns unavailable when the upload service secret is not configured', async () => {
@@ -161,7 +154,6 @@ describe('cms media upload session route', () => {
     });
     expect(response.status).toBe(503);
     expect(mocks.create).not.toHaveBeenCalled();
-    expect(mocks.findUnique).not.toHaveBeenCalled();
   });
 
   it('rejects malformed upload session requests', async () => {
@@ -174,7 +166,6 @@ describe('cms media upload session route', () => {
     });
     expect(response.status).toBe(400);
     expect(mocks.create).not.toHaveBeenCalled();
-    expect(mocks.findUnique).not.toHaveBeenCalled();
   });
 
   it('rejects non-integer upload session byte sizes', async () => {
@@ -184,7 +175,6 @@ describe('cms media upload session route', () => {
       uploadSessionRequest({
         byteSize: 1024.5,
         originalFilename: 'race-day.png',
-        pageId: null,
         type: 'image/png',
       })
     );
@@ -194,7 +184,6 @@ describe('cms media upload session route', () => {
     });
     expect(response.status).toBe(400);
     expect(mocks.create).not.toHaveBeenCalled();
-    expect(mocks.findUnique).not.toHaveBeenCalled();
   });
 
   it('rejects unsupported upload session media types', async () => {
@@ -204,7 +193,6 @@ describe('cms media upload session route', () => {
       uploadSessionRequest({
         byteSize: 1024,
         originalFilename: 'shell.html',
-        pageId: null,
         type: 'text/html',
       })
     );
@@ -213,29 +201,6 @@ describe('cms media upload session route', () => {
       error: 'unsupported_type',
     });
     expect(response.status).toBe(415);
-    expect(mocks.create).not.toHaveBeenCalled();
-    expect(mocks.findUnique).not.toHaveBeenCalled();
-  });
-
-  it('rejects upload sessions for unknown CMS pages', async () => {
-    stubAdminUser();
-    mocks.findUnique.mockResolvedValue(null);
-
-    const response = await POST(
-      uploadSessionRequest({
-        byteSize: 1024,
-        originalFilename: 'race-day.png',
-        pageId: ' missing-page ',
-        type: 'image/png',
-      })
-    );
-
-    await expect(response.json()).resolves.toEqual({ error: 'invalid_page' });
-    expect(response.status).toBe(400);
-    expect(mocks.findUnique).toHaveBeenCalledWith({
-      select: { id: true },
-      where: { id: 'missing-page' },
-    });
     expect(mocks.create).not.toHaveBeenCalled();
   });
 
@@ -250,40 +215,16 @@ describe('cms media upload session route', () => {
     });
     expect(response.status).toBe(400);
     expect(mocks.create).not.toHaveBeenCalled();
-    expect(mocks.findUnique).not.toHaveBeenCalled();
-  });
-
-  it('creates an upload session without a page association', async () => {
-    stubAdminUser();
-    mocks.create.mockResolvedValue(createdAsset());
-
-    const response = await POST(uploadSessionRequest());
-
-    expect(response.status).toBe(201);
-    expect(mocks.findUnique).not.toHaveBeenCalled();
-    expect(mocks.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          id: 'asset-1',
-          pageId: null,
-          publicPath: '/cms-media/asset-1/race-day.png',
-          rawUploadId: 'asset-1',
-          uploadedByUserId: 'admin-1',
-        }),
-      })
-    );
   });
 
   it('creates an upload session with tus metadata for admins', async () => {
     stubAdminUser();
-    mocks.findUnique.mockResolvedValue({ id: 'cms-home' });
     mocks.create.mockResolvedValue(createdAsset());
 
     const response = await POST(
       uploadSessionRequest({
         byteSize: 1024,
         originalFilename: 'Race Day.png',
-        pageId: ' cms-home ',
         type: 'image/png',
       })
     );
@@ -294,11 +235,80 @@ describe('cms media upload session route', () => {
     expect(mocks.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          pageId: 'cms-home',
           rawUploadId: expect.any(String),
           status: 'uploading',
           storageProvider: 'server_folder',
           uploadedByUserId: 'admin-1',
+        }),
+      })
+    );
+  });
+
+  it('creates an upload session for dock staff pdf', async () => {
+    mocks.getCurrentUser.mockResolvedValue({
+      id: 'dock-1',
+      role: 'dock_staff',
+    });
+    mocks.create.mockResolvedValue({
+      byteSize: BigInt(Number.parseInt('2048', 10)),
+      createdAt: new Date(Date.UTC(2026, 4, 17, 12)),
+      id: 'asset-1',
+      mediaKind: 'file',
+      mimeType: 'application/pdf',
+      originalFilename: 'handbook.pdf',
+      publicPath: '/cms-media/asset-1/handbook.pdf',
+      status: 'uploading',
+    });
+
+    const response = await POST(
+      uploadSessionRequest({
+        byteSize: 2048,
+        originalFilename: 'handbook.pdf',
+        type: 'application/pdf',
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          mediaKind: 'file',
+          mimeType: 'application/pdf',
+          uploadedByUserId: 'dock-1',
+        }),
+      })
+    );
+  });
+
+  it('creates an upload session for volunteer instructor', async () => {
+    mocks.getCurrentUser.mockResolvedValue({
+      id: 'volunteer-1',
+      role: 'volunteer_instructor',
+    });
+    mocks.create.mockResolvedValue({
+      byteSize: BigInt(Number.parseInt('1024', 10)),
+      createdAt: new Date(Date.UTC(2026, 4, 17, 12)),
+      id: 'asset-1',
+      mediaKind: 'image',
+      mimeType: 'image/png',
+      originalFilename: 'race-day.png',
+      publicPath: '/cms-media/asset-1/race-day.png',
+      status: 'uploading',
+    });
+
+    const response = await POST(
+      uploadSessionRequest({
+        byteSize: 1024,
+        originalFilename: 'race-day.png',
+        type: 'image/png',
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          uploadedByUserId: 'volunteer-1',
         }),
       })
     );

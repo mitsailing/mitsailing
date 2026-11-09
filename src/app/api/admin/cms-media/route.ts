@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/libs/auth/dal';
-import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
+import { authorizeCmsMediaLibraryAccess } from '@/libs/mit-sailing/cmsMediaAuthorization';
+import { processCmsMediaImageBytes } from '@/libs/mit-sailing/cmsMediaImageProcessing';
 import {
   deleteCmsMediaFile,
   writeCmsMediaFile,
@@ -17,11 +17,6 @@ import {
 
 export const runtime = 'nodejs';
 
-async function currentAdminUserId(): Promise<string | null> {
-  const currentUser = await getCurrentUser();
-  return currentUser?.role === Role.ADMIN ? currentUser.id : null;
-}
-
 type CreatedCmsMediaAsset = {
   id: string;
   originalFilename: string;
@@ -31,20 +26,18 @@ type CreatedCmsMediaAsset = {
   createdAt: Date;
 };
 
-export async function GET(request: Request) {
-  const userId = await currentAdminUserId();
-  if (!userId) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+export async function GET(_request: Request) {
+  const auth = await authorizeCmsMediaLibraryAccess();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-
-  const requestedPageId =
-    new URL(request.url).searchParams.get('pageId')?.trim() ?? '';
-  const pageId = requestedPageId.length > 0 ? requestedPageId : null;
 
   const assets = await prisma.cmsMediaAsset.findMany({
     orderBy: [{ createdAt: 'desc' }],
     take: 100,
-    where: pageId ? { pageId, status: 'ready' } : { status: 'ready' },
+    where: {
+      status: 'ready',
+    },
     select: {
       id: true,
       originalFilename: true,
@@ -68,22 +61,29 @@ export async function GET(request: Request) {
 }
 
 /**
- * Uploads one CMS image into DB-backed local storage.
+ * Uploads one CMS image or PDF into DB-backed local storage.
  *
  * @param request - Multipart body with one `file` field
  * @returns Uploaded asset metadata and app-relative URL
  */
 export async function POST(request: Request) {
-  const userId = await currentAdminUserId();
-  if (!userId) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json({ error: 'invalid_form_data' }, { status: 400 });
+  }
+
+  const auth = await authorizeCmsMediaLibraryAccess();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
   if (Env.APP_ENV === 'production' || Env.APP_ENV === 'staging') {
     logger.warn(
       'Blocked direct CMS media upload outside local app environment',
       {
         appEnv: Env.APP_ENV,
-        userId,
+        userId: auth.userId,
       }
     );
     return NextResponse.json(
@@ -92,18 +92,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let formData: FormData;
-  try {
-    formData = await request.formData();
-  } catch {
-    return NextResponse.json({ error: 'invalid_form_data' }, { status: 400 });
-  }
   const file = formData.get('file');
-  const pageId = formData.get('pageId');
-  const normalizedPageId =
-    typeof pageId === 'string' && pageId.trim().length > 0
-      ? pageId.trim()
-      : null;
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: 'missing_file' }, { status: 400 });
@@ -119,27 +108,39 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: validation.code }, { status: 415 });
   }
 
-  if (normalizedPageId) {
-    const page = await prisma.cmsPage.findUnique({
-      where: { id: normalizedPageId },
-      select: { id: true },
-    });
-    if (!page) {
-      return NextResponse.json({ error: 'invalid_page' }, { status: 400 });
+  let readyBytes = bytes;
+  let { mimeType } = validation;
+  let { storedFilename } = validation;
+  if (validation.mediaKind === 'image') {
+    try {
+      const processed = await processCmsMediaImageBytes({
+        bytes,
+        mimeType: validation.mimeType,
+        originalFilename: file.name,
+      });
+      readyBytes = new Uint8Array(processed.bytes);
+      ({ mimeType } = processed);
+      ({ storedFilename } = processed);
+    } catch (error: unknown) {
+      logger.error('Failed to process CMS media image: {error}', { error });
+      return NextResponse.json(
+        { error: 'image_processing_failed' },
+        { status: 500 }
+      );
     }
   }
 
   const id = randomUUID();
   const publicPath = buildCmsMediaPublicPath({
     id,
-    filename: validation.storedFilename,
+    filename: storedFilename,
   });
   let writtenPath: string | null;
   try {
     writtenPath = await writeCmsMediaFile({
       id,
-      filename: validation.storedFilename,
-      bytes,
+      filename: storedFilename,
+      bytes: readyBytes,
     });
   } catch (error: unknown) {
     logger.error('Failed to write CMS media file: {error}', { error });
@@ -154,17 +155,16 @@ export async function POST(request: Request) {
     asset = await prisma.cmsMediaAsset.create({
       data: {
         id,
-        pageId: normalizedPageId,
-        storedFilename: validation.storedFilename,
+        storedFilename,
         originalFilename: file.name,
-        mimeType: validation.mimeType,
-        byteSize: BigInt(bytes.byteLength),
-        mediaKind: 'image',
+        mimeType,
+        byteSize: BigInt(readyBytes.byteLength),
+        mediaKind: validation.mediaKind,
         processedAt: new Date(),
         publicPath,
         status: 'ready',
         storageProvider: 'local',
-        uploadedByUserId: userId,
+        uploadedByUserId: auth.userId,
       },
       select: {
         id: true,
@@ -177,7 +177,7 @@ export async function POST(request: Request) {
     });
   } catch (error: unknown) {
     try {
-      await deleteCmsMediaFile({ id, filename: validation.storedFilename });
+      await deleteCmsMediaFile({ id, filename: storedFilename });
     } catch (cleanupError: unknown) {
       logger.error('Failed to remove orphaned CMS media file: {error}', {
         error: cleanupError,

@@ -101,6 +101,32 @@ describe('cms media route', () => {
     expect(response.headers.get('content-type')).toBe('image/png');
   });
 
+  it('serves ready PDFs with application/pdf content type', async () => {
+    const pdfFilename = 'handbook.pdf';
+    const pdfBytes = new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52]);
+    mocks.readFile.mockResolvedValue(Buffer.from(pdfBytes));
+    mocks.findUnique.mockResolvedValue({
+      mimeType: 'application/pdf',
+      publicPath: `/cms-media/${assetId}/${pdfFilename}`,
+      readyFilePath: path.join(mocks.mediaRoot, 'ready', assetId, pdfFilename),
+      status: 'ready',
+      storageProvider: 'server_folder',
+      storedFilename: pdfFilename,
+    });
+
+    const response = await GET(
+      new Request(
+        `https://mitsailing.test/cms-media/${assetId}/${pdfFilename}`
+      ),
+      {
+        params: Promise.resolve({ filename: pdfFilename, id: assetId }),
+      }
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('application/pdf');
+  });
+
   it('does not serve server-folder media from an unexpected ready file path', async () => {
     mocks.findUnique.mockResolvedValue(
       readyAsset({

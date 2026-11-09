@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/libs/auth/dal';
-import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
+import { authorizeCmsMediaLibraryAccess } from '@/libs/mit-sailing/cmsMediaAuthorization';
 import {
   cmsMediaUploadRouteAssetResponse,
   findCmsMediaUploadRouteAsset,
@@ -13,11 +12,6 @@ export const runtime = 'nodejs';
 type CmsMediaUploadRouteProps = {
   params: Promise<{ id: string }>;
 };
-
-async function currentAdminUserId(): Promise<string | null> {
-  const currentUser = await getCurrentUser();
-  return currentUser?.role === Role.ADMIN ? currentUser.id : null;
-}
 
 function uploadNotCancellableResponse() {
   return NextResponse.json(
@@ -45,9 +39,9 @@ async function cancelUploadAsset(id: string) {
 }
 
 export async function GET(_request: Request, props: CmsMediaUploadRouteProps) {
-  const userId = await currentAdminUserId();
-  if (!userId) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const auth = await authorizeCmsMediaLibraryAccess();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
   const { id } = await props.params;
   const asset = await findCmsMediaUploadRouteAsset(id);
@@ -62,9 +56,9 @@ export async function DELETE(
   _request: Request,
   props: CmsMediaUploadRouteProps
 ) {
-  const userId = await currentAdminUserId();
-  if (!userId) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const auth = await authorizeCmsMediaLibraryAccess();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
   const { id } = await props.params;
   const asset = await findCmsMediaUploadRouteAsset(id);

@@ -7,12 +7,14 @@ import type * as React from 'react';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { authClient } from '@/libs/auth-client';
+import { CMS_MEDIA_BROWSER_IMAGE_ACCEPT } from '@/libs/mit-sailing/cmsMediaValidation';
 import { ariaInvalidWhenShown } from '@/utils/ariaInvalidWhenShown';
 import type { CmsMediaAsset } from './AdminCmsMediaControlsApi';
 import {
-  currentPageId,
   isAdminImagePath,
   isAdminVideoPath,
+  isCmsMediaPdfPath,
   loadCmsMediaAssets,
   parseImageListValue,
   uploadCmsMediaFile,
@@ -22,12 +24,50 @@ export type { CmsMediaAsset } from './AdminCmsMediaControlsApi';
 export {
   cmsMediaAssetFromUnknown,
   cmsMediaAssetsFromUnknown,
-  currentPageId,
+  isAdminImagePath,
   isCmsMediaPath,
+  isCmsMediaPdfPath,
   loadCmsMediaAssets,
   stringField,
   uploadCmsMediaFile,
 } from './AdminCmsMediaControlsApi';
+
+function MediaAssetThumbnail(props: { asset: CmsMediaAsset }) {
+  if (
+    isCmsMediaPdfPath(props.asset.publicPath) ||
+    props.asset.mimeType === 'application/pdf'
+  ) {
+    return (
+      <span
+        aria-hidden
+        className="flex size-12 shrink-0 items-center justify-center rounded-sm bg-muted text-[0.625rem] font-semibold tracking-wide text-muted-foreground"
+      >
+        PDF
+      </span>
+    );
+  }
+  if (isAdminVideoPath(props.asset.publicPath)) {
+    return (
+      <video
+        aria-hidden
+        className="size-12 rounded-sm object-cover"
+        muted
+        playsInline
+        preload="metadata"
+        src={props.asset.publicPath}
+      />
+    );
+  }
+  return (
+    <NextImage
+      alt=""
+      className="size-12 rounded-sm object-cover"
+      height={48}
+      src={props.asset.publicPath}
+      width={48}
+    />
+  );
+}
 
 function MediaAssetButton(props: {
   asset: CmsMediaAsset;
@@ -41,13 +81,7 @@ function MediaAssetButton(props: {
       }}
       type="button"
     >
-      <NextImage
-        alt=""
-        className="size-12 rounded-sm object-cover"
-        height={48}
-        src={props.asset.publicPath}
-        width={48}
-      />
+      <MediaAssetThumbnail asset={props.asset} />
       <span className="min-w-0 truncate">{props.asset.originalFilename}</span>
     </button>
   );
@@ -124,8 +158,12 @@ export function AdminImageField(props: {
   uploadButtonRef?: React.Ref<HTMLButtonElement>;
 }) {
   const t = useTranslations('AdminCatalogResource');
+  const { data: sessionData } = authClient.useSession();
+  const signedInUserId =
+    sessionData?.user && typeof sessionData.user.id === 'string'
+      ? sessionData.user.id
+      : null;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const shellRef = useRef<HTMLDivElement>(null);
   const [value, setValue] = useState(
     isAdminImagePath(props.defaultValue) ? props.defaultValue : ''
   );
@@ -146,43 +184,64 @@ export function AdminImageField(props: {
     }
     setMediaBusy(true);
     setMediaError(null);
-    let loaded: CmsMediaAsset[] | null;
     try {
-      const pageId = currentPageId(shellRef.current?.closest('form') ?? null);
-      loaded = await loadCmsMediaAssets({ pageId });
-    } catch {
-      loaded = null;
+      const loaded = await loadCmsMediaAssets({
+        userId: signedInUserId,
+      });
+      if (!loaded.ok) {
+        setMediaError(loaded.failure.error || t('rich_text_media_error'));
+        return;
+      }
+      setAssets(
+        loaded.assets.filter((asset) => isAdminImagePath(asset.publicPath))
+      );
+      setPickerOpen(true);
+    } catch (error: unknown) {
+      setMediaError(
+        error instanceof Error ? error.message : t('rich_text_media_error')
+      );
+    } finally {
+      setMediaBusy(false);
     }
-    setMediaBusy(false);
-    if (!loaded) {
-      setMediaError(t('rich_text_media_error'));
-      return;
-    }
-    setAssets(loaded);
-    setPickerOpen(true);
   }
 
   async function uploadImage(file: File) {
     setMediaBusy(true);
     setMediaError(null);
-    const pageId = currentPageId(shellRef.current?.closest('form') ?? null);
-    let asset: CmsMediaAsset | null;
     try {
-      asset = await uploadCmsMediaFile({ file, pageId });
-    } catch {
-      asset = null;
+      const result = await uploadCmsMediaFile({
+        file,
+        userId: signedInUserId,
+      });
+      if (!result.ok) {
+        if ('formError' in result) {
+          setMediaError(
+            result.formError === 'too_large'
+              ? t('rich_text_media_too_large')
+              : t('rich_text_media_unsupported_type')
+          );
+          return;
+        }
+        setMediaError(result.failure.error || t('rich_text_media_error'));
+        return;
+      }
+      if (!isAdminImagePath(result.asset.publicPath)) {
+        setMediaError(t('rich_text_media_error'));
+        return;
+      }
+      setFieldValue(result.asset.publicPath);
+      setPickerOpen(false);
+    } catch (error: unknown) {
+      setMediaError(
+        error instanceof Error ? error.message : t('rich_text_media_error')
+      );
+    } finally {
+      setMediaBusy(false);
     }
-    setMediaBusy(false);
-    if (!asset) {
-      setMediaError(t('rich_text_media_error'));
-      return;
-    }
-    setFieldValue(asset.publicPath);
-    setPickerOpen(false);
   }
 
   return (
-    <div className="flex flex-col gap-1.5 text-sm" ref={shellRef}>
+    <div className="flex flex-col gap-1.5 text-sm">
       <Label className="text-foreground" htmlFor={props.fieldId}>
         {props.label}
       </Label>
@@ -240,7 +299,7 @@ export function AdminImageField(props: {
         ) : null}
       </div>
       <input
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept={CMS_MEDIA_BROWSER_IMAGE_ACCEPT}
         className="sr-only"
         onChange={(event) => {
           const file = event.target.files?.[0];
@@ -282,8 +341,12 @@ export function AdminImageListField(props: {
   required?: boolean;
 }) {
   const t = useTranslations('AdminCatalogResource');
+  const { data: sessionData } = authClient.useSession();
+  const signedInUserId =
+    sessionData?.user && typeof sessionData.user.id === 'string'
+      ? sessionData.user.id
+      : null;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const shellRef = useRef<HTMLDivElement>(null);
   const [values, setValues] = useState(() =>
     parseImageListValue(props.defaultValue)
   );
@@ -304,38 +367,68 @@ export function AdminImageListField(props: {
     }
     setMediaBusy(true);
     setMediaError(null);
-    let loaded: CmsMediaAsset[] | null;
     try {
-      const pageId = currentPageId(shellRef.current?.closest('form') ?? null);
-      loaded = await loadCmsMediaAssets({ pageId });
-    } catch {
-      loaded = null;
+      const loaded = await loadCmsMediaAssets({
+        userId: signedInUserId,
+      });
+      if (!loaded.ok) {
+        setMediaError(loaded.failure.error || t('rich_text_media_error'));
+        return;
+      }
+      setAssets(
+        loaded.assets.filter(
+          (asset) =>
+            isAdminImagePath(asset.publicPath) ||
+            isAdminVideoPath(asset.publicPath)
+        )
+      );
+      setPickerOpen(true);
+    } catch (error: unknown) {
+      setMediaError(
+        error instanceof Error ? error.message : t('rich_text_media_error')
+      );
+    } finally {
+      setMediaBusy(false);
     }
-    setMediaBusy(false);
-    if (!loaded) {
-      setMediaError(t('rich_text_media_error'));
-      return;
-    }
-    setAssets(loaded);
-    setPickerOpen(true);
   }
 
   async function uploadImage(file: File) {
     setMediaBusy(true);
     setMediaError(null);
-    const pageId = currentPageId(shellRef.current?.closest('form') ?? null);
-    let asset: CmsMediaAsset | null;
     try {
-      asset = await uploadCmsMediaFile({ file, pageId });
-    } catch {
-      asset = null;
+      const result = await uploadCmsMediaFile({
+        file,
+        userId: signedInUserId,
+      });
+      if (!result.ok) {
+        if ('formError' in result) {
+          setMediaError(
+            result.formError === 'too_large'
+              ? t('rich_text_media_too_large')
+              : t('rich_text_media_unsupported_type')
+          );
+          return;
+        }
+        setMediaError(result.failure.error || t('rich_text_media_error'));
+        return;
+      }
+      if (
+        !(
+          isAdminImagePath(result.asset.publicPath) ||
+          isAdminVideoPath(result.asset.publicPath)
+        )
+      ) {
+        setMediaError(t('rich_text_media_error'));
+        return;
+      }
+      addImage(result.asset.publicPath);
+    } catch (error: unknown) {
+      setMediaError(
+        error instanceof Error ? error.message : t('rich_text_media_error')
+      );
+    } finally {
+      setMediaBusy(false);
     }
-    setMediaBusy(false);
-    if (!asset) {
-      setMediaError(t('rich_text_media_error'));
-      return;
-    }
-    addImage(asset.publicPath);
   }
 
   function moveImage(index: number, direction: -1 | 1) {
@@ -354,7 +447,7 @@ export function AdminImageListField(props: {
   }
 
   return (
-    <div className="flex flex-col gap-2 text-sm" ref={shellRef}>
+    <div className="flex flex-col gap-2 text-sm">
       <Label className="text-foreground" htmlFor={props.fieldId}>
         {props.label}
       </Label>
@@ -474,7 +567,12 @@ export function AdminImageListField(props: {
         <AdminCmsMediaPickerPanel
           assets={assets}
           onSelect={(asset) => {
-            addImage(asset.publicPath);
+            if (
+              isAdminImagePath(asset.publicPath) ||
+              isAdminVideoPath(asset.publicPath)
+            ) {
+              addImage(asset.publicPath);
+            }
           }}
         />
       ) : null}

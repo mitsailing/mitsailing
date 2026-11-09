@@ -137,6 +137,16 @@ describe('cmsRichTextContainsRenderedImage', () => {
     ).toBe(false);
   });
 
+  it('opens cms-media pdf links in a new window', () => {
+    expect(
+      sanitizeCmsRichTextHtml(
+        '<p><a href="/cms-media/asset-1/handbook.pdf">Handbook</a> <a href="/about">About</a></p>'
+      )
+    ).toBe(
+      '<p><a href="/cms-media/asset-1/handbook.pdf" rel="noopener noreferrer" target="_blank">Handbook</a> <a href="/about">About</a></p>'
+    );
+  });
+
   it('returns true when sanitized output keeps a cms-media image', () => {
     expect(
       cmsRichTextContainsRenderedImage(
