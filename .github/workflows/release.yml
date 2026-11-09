@@ -14,7 +14,7 @@ jobs:
   release:
     strategy:
       matrix:
-        node-version: [24.x]
+        node-version: [26.x]
 
     name: Create a new release
     runs-on: ubuntu-latest

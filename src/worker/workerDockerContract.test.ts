@@ -38,7 +38,7 @@ describe('worker Docker contract', () => {
     const dockerWorkflow = readRepoFile('.github/workflows/docker-pr.yml');
 
     expect(scripts['build:worker']).toContain(
-      'esbuild src/worker/index.ts --bundle --platform=node --target=node24 --outfile=worker.mjs --format=esm'
+      'esbuild src/worker/index.ts --bundle --platform=node --target=node26 --outfile=worker.mjs --format=esm'
     );
     expect(scripts['build:worker']).toContain('--packages=external');
     expect(scripts['build:worker']).toContain(

@@ -18,7 +18,7 @@
 # supply-chain surface. `output: 'standalone'` in next.config gives us
 # exactly what we need to COPY.
 
-ARG NODE_VERSION=24-alpine
+ARG NODE_VERSION=26-alpine
 
 # ─────────────────────────────── deps ───────────────────────────────
 FROM node:${NODE_VERSION} AS deps
@@ -116,7 +116,7 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 
 RUN apk add --no-cache libc6-compat openssl
 
-# The node:24-alpine base ships its own npm (with bundled tar). Trivy scans that
+# The node:26-alpine base ships its own npm (with bundled tar). Trivy scans that
 # copy separately from app/node_modules; align it with our npm override so tar
 # meets CVE-2026-59873 (fixed in npm 11.18+ / tar 7.5.19+).
 RUN npm install -g npm@11.19.0 --ignore-scripts --no-audit --no-fund
