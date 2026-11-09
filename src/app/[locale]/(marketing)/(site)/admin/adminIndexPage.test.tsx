@@ -47,12 +47,14 @@ describe('AdminIndexPage', () => {
           permissions: [],
         },
         {
+          group: 'operations',
           href: '/admin/users',
           labelKey: 'nav_users',
           match: 'prefix',
           permissions: [],
         },
         {
+          group: 'operations',
           href: '/admin/events',
           labelKey: 'nav_events',
           match: 'prefix',
@@ -86,6 +88,7 @@ describe('AdminIndexPage', () => {
           permissions: [],
         },
         {
+          group: 'operations',
           href: '/admin/events',
           labelKey: 'nav_events',
           match: 'prefix',
