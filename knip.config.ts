@@ -32,6 +32,8 @@ const config: KnipConfig = {
     'zenstack/models.ts',
     'zenstack/schema.ts',
   ],
+  // Payload importMap uses extensionless `.client` module ids.
+  ignoreUnresolved: ['@/payload/lexical/imageWrapFeature.client'],
   // Dependencies to ignore during analysis
   ignoreDependencies: [
     '@commitlint/types',

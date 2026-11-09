@@ -1,87 +1,13 @@
-import type {
-  DefaultNodeTypes,
-  SerializedLinkNode,
-} from '@payloadcms/richtext-lexical';
+import type { DefaultNodeTypes } from '@payloadcms/richtext-lexical';
 import type { SerializedEditorState } from '@payloadcms/richtext-lexical/lexical';
 import { LinkJSXConverter, RichText } from '@payloadcms/richtext-lexical/react';
 import type { JSXConvertersFunction } from '@payloadcms/richtext-lexical/react';
-import { Link } from '@/libs/I18nNavigation';
+import Image from 'next/image';
 import {
-  externalCmsLinkProps,
-  isAppRelativeCmsHref,
-  safeCmsHref,
-} from '@/libs/mit-sailing/cmsHref';
-import { publicPathFromPageSlug } from '@/libs/payload/pagePaths';
-
-function slugFromDocValue(value: unknown): string | null {
-  if (typeof value !== 'object' || value === null) {
-    return null;
-  }
-  if (!('slug' in value) || typeof value.slug !== 'string') {
-    return null;
-  }
-  return value.slug;
-}
-
-/**
- * Resolves Lexical internal document links to public app paths.
- *
- * @param args - Serialized link node wrapper
- * @returns Public href for the linked document
- */
-function internalDocToHref(args: { linkNode: SerializedLinkNode }): string {
-  const { doc } = args.linkNode.fields;
-  if (!doc) {
-    return '#';
-  }
-  const slug = slugFromDocValue(doc.value);
-  if (!slug) {
-    return '#';
-  }
-  switch (doc.relationTo) {
-    case 'pages': {
-      return publicPathFromPageSlug(slug);
-    }
-    case 'boats': {
-      return `/fleet/${encodeURIComponent(slug)}`;
-    }
-    case 'classes': {
-      return `/classes/${encodeURIComponent(slug)}`;
-    }
-    default: {
-      return '#';
-    }
-  }
-}
-
-function CmsLexicalAnchor(props: {
-  children: React.ReactNode;
-  href: string;
-  rel?: string;
-  target?: string;
-}) {
-  const href = safeCmsHref(props.href);
-  if (!href) {
-    return <span>{props.children}</span>;
-  }
-  if (isAppRelativeCmsHref(href)) {
-    return (
-      <Link href={href} rel={props.rel} target={props.target}>
-        {props.children}
-      </Link>
-    );
-  }
-  const external = externalCmsLinkProps(href);
-  return (
-    <a
-      href={href}
-      rel={props.rel ?? external.rel}
-      target={props.target ?? external.target}
-    >
-      {props.children}
-    </a>
-  );
-}
+  CmsAnchor,
+  internalDocToHref,
+} from '@/components/mit-sailing/cms/cmsAnchor';
+import { uploadImageFrame } from '@/payload/lexical/uploadImageFrame';
 
 const jsxConverters: JSXConvertersFunction<DefaultNodeTypes> = ({
   defaultConverters,
@@ -92,11 +18,7 @@ const jsxConverters: JSXConvertersFunction<DefaultNodeTypes> = ({
     ...linkConverters,
     autolink: ({ node, nodesToJSX }) => {
       const children = nodesToJSX({ nodes: node.children });
-      return (
-        <CmsLexicalAnchor href={node.fields.url ?? '#'}>
-          {children}
-        </CmsLexicalAnchor>
-      );
+      return <CmsAnchor href={node.fields.url ?? '#'}>{children}</CmsAnchor>;
     },
     link: ({ node, nodesToJSX }) => {
       const children = nodesToJSX({ nodes: node.children });
@@ -107,9 +29,45 @@ const jsxConverters: JSXConvertersFunction<DefaultNodeTypes> = ({
       const rel = node.fields.newTab ? 'noopener noreferrer' : undefined;
       const target = node.fields.newTab ? '_blank' : undefined;
       return (
-        <CmsLexicalAnchor href={href} rel={rel} target={target}>
+        <CmsAnchor href={href} rel={rel} target={target}>
           {children}
-        </CmsLexicalAnchor>
+        </CmsAnchor>
+      );
+    },
+    upload: ({ node }) => {
+      if (!node.value || typeof node.value !== 'object') {
+        return null;
+      }
+      const upload = node.value;
+      const { url } = upload;
+      if (!url) {
+        return null;
+      }
+      if (!upload.mimeType?.startsWith('image')) {
+        return <CmsAnchor href={url}>{upload.filename}</CmsAnchor>;
+      }
+      const { width } = upload;
+      const { height } = upload;
+      if (!width || !height) {
+        return null;
+      }
+      const alt =
+        typeof node.fields?.alt === 'string' && node.fields.alt.length > 0
+          ? node.fields.alt
+          : (upload.alt ?? '');
+      const frame = uploadImageFrame(node.fields);
+      return (
+        <span className={frame.className} style={frame.style}>
+          <Image
+            alt={alt}
+            className="h-auto w-full"
+            height={height}
+            sizes={frame.sizes}
+            src={url}
+            style={{ height: 'auto', width: '100%' }}
+            width={width}
+          />
+        </span>
       );
     },
   };
@@ -129,7 +87,7 @@ export function PayloadLexicalRichText(props: {
 }) {
   return (
     <RichText
-      className={props.className}
+      className={['flow-root', props.className].filter(Boolean).join(' ')}
       converters={jsxConverters}
       data={props.data}
     />
