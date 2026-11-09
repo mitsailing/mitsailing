@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowRight, Sunset } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Image from 'next/image';
+import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
 import { CmsPricingBlock } from '@/components/mit-sailing/cms/CmsPricingBlock';
 import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import {
@@ -8,7 +9,6 @@ import {
   textFocusRingClassName,
 } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
-import { parseCmsHomeOverviewBody } from '@/libs/mit-sailing/cmsHomeOverview';
 import {
   externalCmsLinkProps,
   isAppRelativeCmsHref,
@@ -25,6 +25,7 @@ import { loadHomeSailPathData } from '@/libs/mit-sailing/homeSailPathFromPrisma'
 import { getHomeUpcomingDayGroups } from '@/libs/mit-sailing/homeUpcomingFromPrisma';
 import type { HomeUpcomingDayGroup } from '@/libs/mit-sailing/homeUpcomingFromPrisma';
 import { joinLearnToSailWaitlistAction } from '@/libs/mit-sailing/learnToSailWaitlistActions';
+import { loadHomeOverviewContent } from '@/libs/mit-sailing/loadHomeOverviewContent';
 import { HomeEventRow } from './HomeEventRow';
 import { HomeSailPath } from './HomeSailPath';
 import { SectionHeader } from './SectionHeader';
@@ -318,16 +319,14 @@ export async function MitSailingHomePageView(
     namespace: 'MitSailingHome',
   });
 
-  const [upcomingDayGroups, cmsHomePage] = await Promise.all([
+  const [upcomingDayGroups, cmsHomePage, homeOverviewData] = await Promise.all([
     getHomeUpcomingDayGroups(),
     loadPublishedCmsPageByPath('/'),
+    loadHomeOverviewContent(),
   ]);
   const sailPathData = cmsHomePage ? await loadHomeSailPathData() : null;
 
   const cmsHomePageBlocks = cmsHomePage?.blocks ?? [];
-  const homeOverviewBlock = cmsHomePageBlocks.find(
-    (block) => block.kind === 'home_overview'
-  );
   const homeClassesBlock = cmsHomePageBlocks.find(
     (block) => block.kind === 'home_classes'
   );
@@ -348,10 +347,10 @@ export async function MitSailingHomePageView(
     firstPrereqIds.length > 0
       ? await loadHomeLearnToSailPrerequisiteNamesByIds(firstPrereqIds)
       : new Map<string, string>();
-  const homeOverviewData = parseCmsHomeOverviewBody(homeOverviewBlock?.body);
-  const homeOverviewUpcomingDayGroups = homeOverviewData
-    ? limitHomeUpcomingDayGroups(upcomingDayGroups, homeOverviewData.eventCount)
-    : [];
+  const homeOverviewUpcomingDayGroups = limitHomeUpcomingDayGroups(
+    upcomingDayGroups,
+    homeOverviewData.eventCount
+  );
   const orderedHomeCmsBlocks: HomeOrderedStripBlock[] =
     cmsHomePageBlocks.filter(
       (block): block is HomeOrderedStripBlock =>
@@ -363,6 +362,10 @@ export async function MitSailingHomePageView(
 
   return (
     <div className="w-full min-w-0">
+      <PublicAdminEditLink
+        className="mx-auto mb-0 w-full max-w-7xl px-6 pt-4"
+        href="/cms/globals/home-overview"
+      />
       {cmsHomePage && sailPathData ? (
         <HomeSailPath
           experiencedSessions={sailPathData.experiencedSessions}
@@ -376,151 +379,148 @@ export async function MitSailingHomePageView(
         />
       ) : null}
 
-      {homeOverviewBlock && homeOverviewData ? (
-        <section className="border-b border-mit-line bg-mit-surface py-24">
-          <div className="mx-auto max-w-7xl px-6">
-            <div className="grid grid-cols-1 items-start gap-16 lg:grid-cols-12">
-              <div className="space-y-16 lg:col-span-8">
-                <div>
-                  <SectionHeader
-                    subtitle={homeOverviewBlock.subtitle}
-                    title={homeOverviewBlock.title}
-                  />
-                  <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
-                    <div className="space-y-4 rounded-xl border border-border bg-card p-8">
-                      <table className="w-full text-left text-sm">
-                        <tbody>
-                          {homeOverviewData.schedule.map((row, i) => {
-                            const isLastRow =
-                              i === homeOverviewData.schedule.length - 1;
-                            return (
-                              <tr
-                                className={
-                                  isLastRow
-                                    ? undefined
-                                    : 'border-b border-mit-line'
-                                }
-                                key={row.day}
+      <section className="border-b border-mit-line bg-mit-surface py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid grid-cols-1 items-start gap-16 lg:grid-cols-12">
+            <div className="space-y-16 lg:col-span-8">
+              <div>
+                <SectionHeader
+                  subtitle={homeOverviewData.subtitle}
+                  title={homeOverviewData.title}
+                />
+                <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
+                  <div className="space-y-4 rounded-xl border border-border bg-card p-8">
+                    <table className="w-full text-left text-sm">
+                      <tbody>
+                        {homeOverviewData.schedule.map((row, i) => {
+                          const isLastRow =
+                            i === homeOverviewData.schedule.length - 1;
+                          return (
+                            <tr
+                              className={
+                                isLastRow
+                                  ? undefined
+                                  : 'border-b border-mit-line'
+                              }
+                              key={row.day}
+                            >
+                              <th
+                                className="py-3 text-left font-semibold text-mit-text"
+                                scope="row"
                               >
-                                <th
-                                  className="py-3 text-left font-semibold text-mit-text"
-                                  scope="row"
-                                >
-                                  {row.day}
-                                </th>
-                                <td className="py-3 text-mit-text">
-                                  {row.hours}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                      {homeOverviewData.hoursNote ? (
-                        <div className="mt-6 flex gap-3 rounded-lg bg-mit-red-highlight p-4">
-                          <Sunset
-                            className="mt-0.5 shrink-0 text-primary-ink"
-                            size={18}
-                          />
-                          <p className="text-xs leading-snug text-mit-text">
-                            {homeOverviewData.hoursNote}
-                          </p>
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <div>
-                      <h3 className="mb-6 font-mit-serif text-lg font-semibold text-mit-text">
-                        {homeOverviewData.stepsTitle}
-                      </h3>
-                      <div className="relative space-y-6">
-                        <div
-                          aria-hidden
-                          className="absolute inset-y-0 left-3.5 -z-10 w-px bg-mit-line"
+                                {row.day}
+                              </th>
+                              <td className="py-3 text-mit-text">
+                                {row.hours}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    {homeOverviewData.hoursNote ? (
+                      <div className="mt-6 flex gap-3 rounded-lg bg-mit-red-highlight p-4">
+                        <Sunset
+                          className="mt-0.5 shrink-0 text-primary-ink"
+                          size={18}
                         />
-                        {homeOverviewData.steps.map((step, stepIndex) => (
-                          <div
-                            className="relative flex items-start gap-4"
-                            key={step.title}
-                          >
-                            <div className="z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-mit-red text-xs font-bold text-white">
-                              {stepIndex + 1}
-                            </div>
-                            <div>
-                              <h4 className="mb-1 text-sm font-semibold text-mit-text">
-                                {step.title}
-                              </h4>
-                              <p className="text-xs leading-relaxed text-mit-text">
-                                {step.description}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
+                        <p className="text-xs leading-snug text-mit-text">
+                          {homeOverviewData.hoursNote}
+                        </p>
                       </div>
-                    </div>
+                    ) : null}
                   </div>
-                </div>
-              </div>
 
-              <div className="relative lg:col-span-4">
-                <div className="rounded-xl border border-border bg-card p-5 lg:sticky lg:top-24">
-                  <h3 className="mb-4 font-mit-serif text-base font-semibold text-mit-text">
-                    {homeOverviewData.eventsTitle}
-                  </h3>
-                  <div className="space-y-0">
-                    {homeOverviewUpcomingDayGroups.length === 0 ? (
-                      <p
-                        className="text-[11px] leading-snug text-mit-text"
-                        role="status"
-                      >
-                        {homeOverviewData.eventsEmptyText}
-                      </p>
-                    ) : (
-                      homeOverviewUpcomingDayGroups.map((group, gi) => (
+                  <div>
+                    <h3 className="mb-6 font-mit-serif text-lg font-semibold text-mit-text">
+                      {homeOverviewData.stepsTitle}
+                    </h3>
+                    <div className="relative space-y-6">
+                      <div
+                        aria-hidden
+                        className="absolute inset-y-0 left-3.5 -z-10 w-px bg-mit-line"
+                      />
+                      {homeOverviewData.steps.map((step, stepIndex) => (
                         <div
-                          className={gi > 0 ? 'mt-2.5' : undefined}
-                          key={group.dateKey}
+                          className="relative flex items-start gap-4"
+                          key={step.title}
                         >
-                          <div
-                            className={
-                              group.isToday
-                                ? 'border-b border-mit-line pb-1 text-[11px] font-semibold text-primary-ink underline'
-                                : 'border-b border-mit-line pb-1 text-[11px] font-semibold text-mit-text'
-                            }
-                          >
-                            {group.headingLabel}
+                          <div className="z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-mit-red text-xs font-bold text-white">
+                            {stepIndex + 1}
                           </div>
-                          <div className="space-y-0">
-                            {group.rows.map((row, ri) => {
-                              const lastInSection =
-                                gi ===
-                                  homeOverviewUpcomingDayGroups.length - 1 &&
-                                ri === group.rows.length - 1;
-                              return (
-                                <HomeEventRow
-                                  key={row.rowKey}
-                                  row={row}
-                                  showBottomBorder={!lastInSection}
-                                />
-                              );
-                            })}
+                          <div>
+                            <h4 className="mb-1 text-sm font-semibold text-mit-text">
+                              {step.title}
+                            </h4>
+                            <p className="text-xs leading-relaxed text-mit-text">
+                              {step.description}
+                            </p>
                           </div>
                         </div>
-                      ))
-                    )}
-                  </div>
-                  <div className="mt-5 flex w-full justify-center">
-                    <HomeOverviewCtaLink
-                      href={homeOverviewData.eventsCtaUrl}
-                      label={homeOverviewData.eventsCtaLabel}
-                    />
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+
+            <div className="relative lg:col-span-4">
+              <div className="rounded-xl border border-border bg-card p-5 lg:sticky lg:top-24">
+                <h3 className="mb-4 font-mit-serif text-base font-semibold text-mit-text">
+                  {homeOverviewData.eventsTitle}
+                </h3>
+                <div className="space-y-0">
+                  {homeOverviewUpcomingDayGroups.length === 0 ? (
+                    <p
+                      className="text-[11px] leading-snug text-mit-text"
+                      role="status"
+                    >
+                      {homeOverviewData.eventsEmptyText}
+                    </p>
+                  ) : (
+                    homeOverviewUpcomingDayGroups.map((group, gi) => (
+                      <div
+                        className={gi > 0 ? 'mt-2.5' : undefined}
+                        key={group.dateKey}
+                      >
+                        <div
+                          className={
+                            group.isToday
+                              ? 'border-b border-mit-line pb-1 text-[11px] font-semibold text-primary-ink underline'
+                              : 'border-b border-mit-line pb-1 text-[11px] font-semibold text-mit-text'
+                          }
+                        >
+                          {group.headingLabel}
+                        </div>
+                        <div className="space-y-0">
+                          {group.rows.map((row, ri) => {
+                            const lastInSection =
+                              gi === homeOverviewUpcomingDayGroups.length - 1 &&
+                              ri === group.rows.length - 1;
+                            return (
+                              <HomeEventRow
+                                key={row.rowKey}
+                                row={row}
+                                showBottomBorder={!lastInSection}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="mt-5 flex w-full justify-center">
+                  <HomeOverviewCtaLink
+                    href={homeOverviewData.eventsCtaUrl}
+                    label={homeOverviewData.eventsCtaLabel}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-        </section>
-      ) : null}
+        </div>
+      </section>
 
       {orderedHomeCmsBlocks.map((block) => {
         if (block.kind === 'pricing') {

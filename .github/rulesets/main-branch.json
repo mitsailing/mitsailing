@@ -37,12 +37,12 @@
         "strict_required_status_checks_policy": false,
         "do_not_enforce_on_create": false,
         "required_status_checks": [
-          { "context": "Build with 24.x" },
-          { "context": "Run unit tests (24.x)" },
-          { "context": "Run integration tests (24.x)" },
-          { "context": "Run static checks (24.x)" },
-          { "context": "Run Storybook (24.x)" },
-          { "context": "Run E2E tests (24.x)" },
+          { "context": "Build with 26.x" },
+          { "context": "Run unit tests (26.x)" },
+          { "context": "Run integration tests (26.x)" },
+          { "context": "Run static checks (26.x)" },
+          { "context": "Run Storybook (26.x)" },
+          { "context": "Run E2E tests (26.x)" },
           { "context": "Codacy Static Code Analysis" },
           { "context": "coderabbitai" },
           { "context": "codecov/patch" }

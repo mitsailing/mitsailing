@@ -1,7 +1,7 @@
 import { hasAnyPermission, Permission } from '@/libs/auth/appPermissions';
 import type messages from '@/locales/en.json';
 
-type AdminNavGroupId = 'catalog' | 'content' | 'operations';
+type AdminNavGroupId = 'catalog' | 'operations';
 
 export type AdminNavItem = {
   group?: AdminNavGroupId;
@@ -17,12 +17,13 @@ export type AdminNavGroup = {
   items: AdminNavItem[];
 };
 
+/** Ungrouped items render above sections, in catalog order. */
 const ADMIN_SITE_NAV_ITEMS: AdminNavItem[] = [
   {
-    href: '/admin',
-    labelKey: 'nav_admin',
-    match: 'exact',
-    permissions: [Permission.ADMIN_VIEW],
+    href: '/cms',
+    labelKey: 'nav_cms',
+    match: 'prefix',
+    permissions: [Permission.CMS_VIEW],
   },
   {
     group: 'operations',
@@ -30,6 +31,13 @@ const ADMIN_SITE_NAV_ITEMS: AdminNavItem[] = [
     labelKey: 'nav_users',
     match: 'prefix',
     permissions: [Permission.USERS_VIEW],
+  },
+  {
+    group: 'operations',
+    href: '/admin/news',
+    labelKey: 'nav_news',
+    match: 'prefix',
+    permissions: [Permission.NEWS_MANAGE],
   },
   {
     group: 'operations',
@@ -143,47 +151,11 @@ const ADMIN_SITE_NAV_ITEMS: AdminNavItem[] = [
     match: 'prefix',
     permissions: [Permission.FLEET_MANAGE],
   },
-  {
-    group: 'content',
-    href: '/admin/news',
-    labelKey: 'nav_news',
-    match: 'prefix',
-    permissions: [Permission.NEWS_MANAGE],
-  },
-  {
-    group: 'content',
-    href: '/admin/cms_pages',
-    labelKey: 'nav_cms_pages',
-    match: 'prefix',
-    permissions: [Permission.CMS_VIEW],
-  },
-  {
-    group: 'content',
-    href: '/admin/cms_page_blocks',
-    labelKey: 'nav_cms_page_blocks',
-    match: 'prefix',
-    permissions: [Permission.CMS_VIEW],
-  },
-  {
-    group: 'content',
-    href: '/admin/cms_menus',
-    labelKey: 'nav_cms_menus',
-    match: 'prefix',
-    permissions: [Permission.CMS_VIEW],
-  },
-  {
-    group: 'content',
-    href: '/admin/cms_menu_items',
-    labelKey: 'nav_cms_menu_items',
-    match: 'prefix',
-    permissions: [Permission.CMS_VIEW],
-  },
 ];
 
 const ADMIN_NAV_GROUP_ORDER: readonly AdminNavGroupId[] = [
   'operations',
   'catalog',
-  'content',
 ];
 
 const ADMIN_NAV_GROUP_LABELS: Record<
@@ -191,7 +163,6 @@ const ADMIN_NAV_GROUP_LABELS: Record<
   keyof typeof messages.AdminSideNav
 > = {
   catalog: 'group_catalog',
-  content: 'group_content',
   operations: 'group_operations',
 };
 
@@ -229,15 +200,13 @@ export function adminNavGroupsForPermissions(
 }
 
 /**
- * Returns the first concrete admin route for a permission-filtered nav list.
+ * First grouped admin route for `/admin` redirects.
  *
  * @param navItems - Visible sidebar items for the current user
- * @returns Path to redirect `/admin` to, excluding the index itself
+ * @returns Path to redirect `/admin` to, skipping ungrouped items
  */
 export function adminLandingPath(navItems: readonly AdminNavItem[]): string {
-  const landing = navItems.find((item) => item.href !== '/admin');
-  if (!landing) {
-    return '/admin/users';
-  }
-  return landing.href;
+  return (
+    navItems.find((item) => item.group !== undefined)?.href ?? '/admin/users'
+  );
 }

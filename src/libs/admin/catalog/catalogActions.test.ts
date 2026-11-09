@@ -11,7 +11,6 @@ const {
   requirePermission,
   revalidatePath,
   restoreCatalogRevision,
-  restoreCmsPageRevision,
   updateFromForm,
   updateTag,
 } = vi.hoisted(() => ({
@@ -23,7 +22,6 @@ const {
   requirePermission: vi.fn(),
   revalidatePath: vi.fn(),
   restoreCatalogRevision: vi.fn(),
-  restoreCmsPageRevision: vi.fn(),
   updateFromForm: vi.fn(),
   updateTag: vi.fn(),
 }));
@@ -49,10 +47,6 @@ vi.mock('@/libs/mit-sailing/catalogHistory', () => ({
   isCatalogHistoryResourceId: (resourceId: string) =>
     resourceId === 'fleet' || resourceId === 'sailing_classes',
   restoreCatalogRevision,
-}));
-
-vi.mock('@/libs/mit-sailing/cmsHistory', () => ({
-  restoreCmsPageRevision,
 }));
 
 vi.mock('@/libs/mit-sailing/newsQueries', () => ({
@@ -84,7 +78,6 @@ beforeEach(() => {
   revalidatePath.mockClear();
   updateTag.mockClear();
   restoreCatalogRevision.mockReset();
-  restoreCmsPageRevision.mockReset();
   updateFromForm.mockReset();
 
   createFromForm.mockResolvedValue({ ok: true, id: 'row-1' });
@@ -94,7 +87,6 @@ beforeEach(() => {
     return { session: { impersonatedBy: null }, user: { id: 'staff-1' } };
   });
   restoreCatalogRevision.mockResolvedValue({ ok: true, slug: 'boat-1' });
-  restoreCmsPageRevision.mockResolvedValue({ ok: true });
   updateFromForm.mockResolvedValue({ ok: true });
 });
 
@@ -134,37 +126,6 @@ describe('createCatalogResourceAction', () => {
 
     expect(updateTag).toHaveBeenCalledWith('site-nav-classes');
   });
-
-  it('opens the edit screen after creating a CMS page block', async () => {
-    const { createCatalogResourceAction } =
-      await import('@/libs/admin/catalog/catalogActions');
-    const formData = new FormData();
-    formData.set('pageId', 'page-2');
-
-    await expect(
-      createCatalogResourceAction('en', 'cms_page_blocks', formData)
-    ).rejects.toThrow('NEXT_REDIRECT');
-
-    expect(redirect).toHaveBeenCalledWith(
-      '/admin/cms_page_blocks/row-1/edit?page=page-2'
-    );
-  });
-
-  it('preserves menu scope on CMS menu item validation errors', async () => {
-    const { createCatalogResourceAction } =
-      await import('@/libs/admin/catalog/catalogActions');
-    const formData = new FormData();
-    formData.set('menuId', 'menu-2');
-    createFromForm.mockResolvedValue({ code: 'validation_failed', ok: false });
-
-    await expect(
-      createCatalogResourceAction('en', 'cms_menu_items', formData)
-    ).rejects.toThrow('NEXT_REDIRECT');
-
-    expect(redirect).toHaveBeenCalledWith(
-      '/admin/cms_menu_items/new?menu=menu-2&error=validation_failed'
-    );
-  });
 });
 
 describe('updateCatalogResourceAction', () => {
@@ -192,36 +153,6 @@ describe('updateCatalogResourceAction', () => {
     ).rejects.toThrow('NEXT_REDIRECT');
 
     expect(redirect).toHaveBeenCalledWith('/admin/fleet/boat-1/edit');
-  });
-
-  it('preserves page scope when staying on a CMS page block edit screen', async () => {
-    const { updateCatalogResourceAction } =
-      await import('@/libs/admin/catalog/catalogActions');
-    const formData = new FormData();
-    formData.set('pageId', 'page-2');
-    formData.set('redirectTo', 'edit');
-
-    await expect(
-      updateCatalogResourceAction('en', 'cms_page_blocks', 'block-1', formData)
-    ).rejects.toThrow('NEXT_REDIRECT');
-
-    expect(redirect).toHaveBeenCalledWith(
-      '/admin/cms_page_blocks/block-1/edit?page=page-2'
-    );
-    expect(requirePermission).toHaveBeenCalledWith(Permission.CMS_EDIT, 'en');
-  });
-
-  it('preserves page scope when returning to a CMS page block index', async () => {
-    const { updateCatalogResourceAction } =
-      await import('@/libs/admin/catalog/catalogActions');
-    const formData = new FormData();
-    formData.set('pageId', 'page-2');
-
-    await expect(
-      updateCatalogResourceAction('en', 'cms_page_blocks', 'block-1', formData)
-    ).rejects.toThrow('NEXT_REDIRECT');
-
-    expect(redirect).toHaveBeenCalledWith('/admin/cms_page_blocks?page=page-2');
   });
 
   it('redirects update failures with bounded field errors', async () => {
@@ -268,42 +199,6 @@ describe('deleteCatalogResourceAction', () => {
     );
     expect(redirect).toHaveBeenCalledWith(
       '/admin/event_categories/cat-1/delete?error=foreign_key'
-    );
-  });
-});
-
-describe('restoreCmsPageRevisionAction', () => {
-  it('requires confirmation before restoring CMS page revisions', async () => {
-    const { restoreCmsPageRevisionAction } =
-      await import('@/libs/admin/catalog/catalogActions');
-
-    await expect(
-      restoreCmsPageRevisionAction('en', 'page-1', 'rev-1', new FormData())
-    ).rejects.toThrow('NEXT_REDIRECT');
-
-    expect(requirePermission).toHaveBeenCalledWith(Permission.CMS_EDIT, 'en');
-    expect(restoreCmsPageRevision).not.toHaveBeenCalled();
-    expect(redirect).toHaveBeenCalledWith(
-      '/admin/cms_pages/page-1/edit?error=validation_failed'
-    );
-  });
-
-  it('redirects CMS restore failures to the edit screen', async () => {
-    const { restoreCmsPageRevisionAction } =
-      await import('@/libs/admin/catalog/catalogActions');
-    const formData = new FormData();
-    formData.set('confirmRestore', 'true');
-    restoreCmsPageRevision.mockResolvedValue({
-      code: 'revision_not_found',
-      ok: false,
-    });
-
-    await expect(
-      restoreCmsPageRevisionAction('en', 'page-1', 'rev-1', formData)
-    ).rejects.toThrow('NEXT_REDIRECT');
-
-    expect(redirect).toHaveBeenCalledWith(
-      '/admin/cms_pages/page-1/edit?error=revision_not_found'
     );
   });
 });

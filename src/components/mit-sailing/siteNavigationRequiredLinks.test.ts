@@ -50,6 +50,27 @@ describe('headerMenuItemsWithPricing', () => {
       })
     ).toEqual(menu);
   });
+
+  it('does not add top-level pricing when a nested child already links to pricing', () => {
+    const menu = [
+      {
+        id: 'membership',
+        label: 'Membership',
+        items: [
+          { href: '/pricing', label: 'Sailing Card' },
+          { href: '/ratings', label: 'Ratings' },
+        ],
+      },
+      { id: 'calendar', label: 'Calendar', href: '/events' },
+    ];
+
+    expect(
+      headerMenuItemsWithPricing({
+        items: menu,
+        pricingLabel: 'Pricing',
+      })
+    ).toEqual(menu);
+  });
 });
 
 describe('footerMenuWithPricing', () => {

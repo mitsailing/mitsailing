@@ -1,13 +1,6 @@
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { Permission } from '@/libs/auth/permissions';
 
-const CMS_CATALOG_RESOURCE_IDS = [
-  'cms_pages',
-  'cms_page_blocks',
-  'cms_menus',
-  'cms_menu_items',
-] as const satisfies readonly CatalogResourceId[];
-
 const CATALOG_RESOURCE_PERMISSIONS = {
   class_categories: Permission.CLASS_CATEGORIES_MANAGE,
   donation_funds: Permission.DONATION_FUNDS_MANAGE,
@@ -31,23 +24,10 @@ type CatalogPermissionOperation =
   | 'update'
   | 'view';
 
-function isCmsCatalogResource(resourceId: string): boolean {
-  return (CMS_CATALOG_RESOURCE_IDS as readonly string[]).includes(resourceId);
-}
-
 export function catalogPermissionForOperation(props: {
   operation: CatalogPermissionOperation;
   resourceId: string;
 }): Permission {
-  if (isCmsCatalogResource(props.resourceId)) {
-    if (props.operation === 'view') {
-      return Permission.CMS_VIEW;
-    }
-    if (props.operation === 'delete') {
-      return Permission.CMS_DELETE;
-    }
-    return Permission.CMS_EDIT;
-  }
   const permission = CATALOG_RESOURCE_PERMISSION_LOOKUP[props.resourceId];
   if (permission) {
     return permission;

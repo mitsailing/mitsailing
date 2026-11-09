@@ -41,13 +41,13 @@ beforeEach(() => {
 });
 
 describe('sitemap', () => {
-  it('includes pricing in static routes', async () => {
+  it('includes pricing and hours in static routes', async () => {
     const { default: sitemap } = await import('./sitemap');
 
     const routes = await sitemap();
 
-    expect(routes.map((route) => new URL(route.url).pathname)).toContain(
-      '/pricing'
+    expect(routes.map((route) => new URL(route.url).pathname)).toEqual(
+      expect.arrayContaining(['/pricing', '/hours'])
     );
   });
 });

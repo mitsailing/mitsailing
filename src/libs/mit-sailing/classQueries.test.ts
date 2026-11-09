@@ -10,25 +10,23 @@ type UnstableCacheCall = {
   };
 };
 
-const { classCategoryFindMany, unstableCache, unstableCacheCalls } = vi.hoisted(
-  () => {
-    const calls: UnstableCacheCall[] = [];
-    return {
-      classCategoryFindMany: vi.fn(),
-      unstableCache: vi.fn(
-        (
-          fn: () => Promise<unknown>,
-          keyParts: string[],
-          options: UnstableCacheCall['options']
-        ) => {
-          calls.push({ keyParts, options });
-          return fn;
-        }
-      ),
-      unstableCacheCalls: calls,
-    };
-  }
-);
+const { payloadFind, unstableCache, unstableCacheCalls } = vi.hoisted(() => {
+  const calls: UnstableCacheCall[] = [];
+  return {
+    payloadFind: vi.fn(),
+    unstableCache: vi.fn(
+      (
+        fn: () => Promise<unknown>,
+        keyParts: string[],
+        options: UnstableCacheCall['options']
+      ) => {
+        calls.push({ keyParts, options });
+        return fn;
+      }
+    ),
+    unstableCacheCalls: calls,
+  };
+});
 
 vi.mock('react', () => ({
   cache: (fn: () => Promise<unknown>) => fn,
@@ -40,14 +38,20 @@ vi.mock('next/cache', () => ({
 
 vi.mock('@/libs/DB', () => ({
   prisma: {
-    classCategory: {
-      findMany: classCategoryFindMany,
+    sailingClassRelatedEvent: {
+      findMany: vi.fn(),
     },
   },
 }));
 
+vi.mock('@/libs/payload/getPayloadClient', () => ({
+  getPayloadClient: () => ({
+    find: payloadFind,
+  }),
+}));
+
 beforeEach(() => {
-  classCategoryFindMany.mockReset();
+  payloadFind.mockReset();
   unstableCache.mockClear();
   unstableCacheCalls.length = 0;
   vi.resetModules();
@@ -55,14 +59,16 @@ beforeEach(() => {
 
 describe('listClassCategoriesForNav', () => {
   it('uses a persistent tag cache for class category nav rows', async () => {
-    classCategoryFindMany.mockResolvedValue([
-      {
-        displayOrder: 1,
-        id: 'intro',
-        name: 'Intro',
-        slug: 'intro',
-      },
-    ]);
+    payloadFind.mockResolvedValue({
+      docs: [
+        {
+          displayOrder: 1,
+          id: 'intro',
+          name: 'Intro',
+          slug: 'intro',
+        },
+      ],
+    });
 
     const { listClassCategoriesForNav } =
       await import('@/libs/mit-sailing/classQueries');

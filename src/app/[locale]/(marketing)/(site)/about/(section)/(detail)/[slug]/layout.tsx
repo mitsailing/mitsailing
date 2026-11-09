@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
-import { getStaffBySlug } from '@/data/mit-sailing/aboutContent';
+import { loadStaffProfile } from '@/libs/mit-sailing/loadAboutPageContent';
 
 export default async function AboutStaffLayout(props: {
   children: React.ReactNode;
@@ -12,7 +12,7 @@ export default async function AboutStaffLayout(props: {
     locale,
     namespace: 'MitSailingRoutes',
   });
-  const staff = getStaffBySlug(slug);
+  const staff = await loadStaffProfile(slug);
   const name = staff?.name ?? slug;
   return (
     <SiteSectionShell

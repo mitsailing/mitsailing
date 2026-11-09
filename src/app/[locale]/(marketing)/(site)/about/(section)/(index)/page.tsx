@@ -2,10 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AboutPageView } from '@/components/mit-sailing/about/AboutPageView';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
-import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
-import { logger } from '@/libs/Logger';
-import { loadPublishedCmsPageByPath } from '@/libs/mit-sailing/cmsQueries';
-import type { PublicCmsPage } from '@/libs/mit-sailing/cmsQueries';
+import { loadAboutPageContent } from '@/libs/mit-sailing/loadAboutPageContent';
 
 type AboutPageProps = {
   params: Promise<{ locale: string }>;
@@ -40,22 +37,17 @@ export async function generateMetadata(
 export default async function AboutPage(props: AboutPageProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
-  let cmsPage: PublicCmsPage | null = null;
-  try {
-    cmsPage = await loadPublishedCmsPageByPath('/about');
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger.error(`Failed to load About CMS page: ${message}`);
-  }
+  const [content, t] = await Promise.all([
+    loadAboutPageContent(),
+    getTranslations({ locale, namespace: 'MitSailingAbout' }),
+  ]);
   return (
     <>
-      {cmsPage ? (
-        <PublicAdminEditLink
-          className="mx-auto mb-0 w-full max-w-5xl px-6 pt-4"
-          href={adminCatalogResourceEditPath('cms_pages', cmsPage.id)}
-        />
-      ) : null}
-      <AboutPageView cmsPage={cmsPage} />
+      <PublicAdminEditLink
+        className="mx-auto mb-0 w-full max-w-5xl px-6 pt-4"
+        href="/cms/globals/about"
+      />
+      <AboutPageView content={content} profileLabel={t('view_profile')} />
     </>
   );
 }

@@ -171,6 +171,8 @@ export const Env = createEnv({
   server: {
     BETTER_AUTH_SECRET: z.string().min(32),
     DATABASE_URL: z.string().min(1),
+    // Payload CMS admin secret (routes under /cms + /cms-api).
+    PAYLOAD_SECRET: z.string().min(32),
     NEWSLETTER_REVALIDATE_SECRET: z.string().min(32).optional(),
     HEALTHCHECK_SECRET: z.string().min(32).optional(),
 
@@ -303,6 +305,7 @@ export const Env = createEnv({
   runtimeEnv: {
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
+    PAYLOAD_SECRET: process.env.PAYLOAD_SECRET,
     NEWSLETTER_REVALIDATE_SECRET: process.env.NEWSLETTER_REVALIDATE_SECRET,
     HEALTHCHECK_SECRET: process.env.HEALTHCHECK_SECRET,
     REDIS_URL: process.env.REDIS_URL,

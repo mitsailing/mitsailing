@@ -31,7 +31,7 @@ const testDatabaseUrl =
 assertTestDatabaseUrl(testDatabaseUrl);
 
 console.log(
-  `[migrate-test-db] resetting public schema in ${redact(testDatabaseUrl)}`
+  `[migrate-test-db] resetting public and payload schemas in ${redact(testDatabaseUrl)}`
 );
 
 const client = new Client({ connectionString: testDatabaseUrl });
@@ -41,6 +41,8 @@ try {
   connected = true;
   await client.query('DROP SCHEMA IF EXISTS public CASCADE');
   await client.query('CREATE SCHEMA public');
+  await client.query('DROP SCHEMA IF EXISTS payload CASCADE');
+  await client.query('CREATE SCHEMA payload');
 } finally {
   if (connected) {
     await client.end();

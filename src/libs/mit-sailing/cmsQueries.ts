@@ -4,6 +4,10 @@ import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import { safeCmsMenuItemHref } from '@/libs/mit-sailing/cmsHref';
 import { safePublicCmsBlockImageSrc } from '@/libs/mit-sailing/cmsValidation';
+import { ensureHeaderMenuSeedSafely } from '@/libs/mit-sailing/seedHeaderMenu';
+import { getPayloadClient } from '@/libs/payload/getPayloadClient';
+import { payloadIdString } from '@/libs/payload/mediaUrls';
+import { publicPathFromPageSlug } from '@/libs/payload/pagePaths';
 
 export type CmsMenuLocation =
   | 'header'
@@ -94,43 +98,120 @@ export type PublicCmsPage = {
   blocks: PublicCmsBlock[];
 };
 
-type CmsMenuItemRow = {
-  id: string;
-  parentId: string | null;
+type PayloadMenuRelation =
+  | number
+  | string
+  | { slug?: string | null }
+  | null
+  | undefined;
+
+type PayloadMenuItem = {
+  id?: string | null;
   label: string;
-  url: string | null;
-  isExternal: boolean;
-  systemKey: string | null;
-  linkedPage: { path: string } | null;
+  linkType: 'boat' | 'class' | 'page' | 'url';
+  page?: PayloadMenuRelation;
+  boat?: PayloadMenuRelation;
+  class?: PayloadMenuRelation;
+  url?: string | null;
+  parent?: string | null;
+  systemKey?: string | null;
 };
 
+function slugFromMenuRelation(value: PayloadMenuRelation): string | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+  return typeof value.slug === 'string' ? value.slug : null;
+}
+
 /**
- * Builds a public menu `href` from linked page path or explicit URL, then sanitizes via
- * {@link safeCmsMenuItemHref} (safe app paths, `http`/`https`, `mailto`; no `javascript:`/`data:`/etc.).
+ * Builds a public menu `href` from Payload linkType + relationship/url.
  *
- * @param row - Menu row from Prisma (linked page and/or explicit URL)
+ * @param item - Payload menu array row
  * @returns Sanitized `href` when allowed, otherwise `undefined`
  */
-function hrefForCmsMenuItem(row: CmsMenuItemRow): string | undefined {
-  const linkedPath = row.linkedPage?.path?.trim();
-  const explicitUrl = row.url?.trim();
-  const candidate =
-    linkedPath !== undefined && linkedPath.length > 0
-      ? linkedPath
-      : (explicitUrl ?? undefined);
+function hrefForPayloadMenuItem(item: PayloadMenuItem): string | undefined {
+  let candidate: string | undefined;
+  switch (item.linkType) {
+    case 'page': {
+      const slug = slugFromMenuRelation(item.page);
+      candidate = slug ? publicPathFromPageSlug(slug) : undefined;
+      break;
+    }
+    case 'boat': {
+      const slug = slugFromMenuRelation(item.boat);
+      candidate = slug ? `/fleet/${encodeURIComponent(slug)}` : undefined;
+      break;
+    }
+    case 'class': {
+      const slug = slugFromMenuRelation(item.class);
+      candidate = slug ? `/classes/${encodeURIComponent(slug)}` : undefined;
+      break;
+    }
+    case 'url': {
+      candidate = item.url?.trim() ?? undefined;
+      break;
+    }
+    default: {
+      candidate = undefined;
+    }
+  }
   return safeCmsMenuItemHref(candidate);
 }
 
-function mapCmsMenuTree(rows: CmsMenuItemRow[]): PublicCmsMenuItem[] {
+function isExternalMenuHref(href: string | undefined): boolean {
+  if (!href) {
+    return false;
+  }
+  return !href.startsWith('/') || href.startsWith('//');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isPayloadMenuItem(value: unknown): value is PayloadMenuItem {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const record = value;
+  return (
+    typeof record.label === 'string' &&
+    (record.linkType === 'boat' ||
+      record.linkType === 'class' ||
+      record.linkType === 'page' ||
+      record.linkType === 'url')
+  );
+}
+
+function payloadMenuItemsFromUnknown(value: unknown): PayloadMenuItem[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter(isPayloadMenuItem);
+}
+
+function mapPayloadMenuTree(items: PayloadMenuItem[]): PublicCmsMenuItem[] {
   const nodes = new Map<string, PublicCmsMenuItem>();
-  for (const row of rows) {
-    nodes.set(row.id, {
-      id: row.id,
-      label: row.label,
-      href: hrefForCmsMenuItem(row),
-      isExternal: row.isExternal,
-      systemKey: row.systemKey ?? undefined,
+  const rows: { id: string; parentId: string | null }[] = [];
+
+  for (const item of items) {
+    if (!item.id) {
+      continue;
+    }
+    const id = payloadIdString(item.id);
+    const href = hrefForPayloadMenuItem(item);
+    nodes.set(id, {
       children: [],
+      href,
+      id,
+      isExternal: isExternalMenuHref(href),
+      label: item.label,
+      systemKey: item.systemKey ?? undefined,
+    });
+    rows.push({
+      id,
+      parentId: item.parent?.trim() ? item.parent.trim() : null,
     });
   }
 
@@ -158,37 +239,32 @@ function mapCmsMenuTree(rows: CmsMenuItemRow[]): PublicCmsMenuItem[] {
 }
 
 /**
- * Loads one CMS-controlled public menu directly from Prisma for the current SSR request.
+ * Loads one CMS-controlled public menu from Payload for the current SSR request.
  *
  * @param location - Menu slot
- * @returns Visible menu tree, ordered by parent and display order
+ * @returns Menu tree nested by Payload item parent ids
  */
 export async function loadCmsMenu(
   location: CmsMenuLocation
 ): Promise<PublicCmsMenuItem[]> {
-  const menu = await prisma.cmsMenu.findUnique({
-    where: { location },
-    select: {
-      items: {
-        where: { isVisible: true },
-        orderBy: [
-          { parentId: 'asc' },
-          { displayOrder: 'asc' },
-          { label: 'asc' },
-        ],
-        select: {
-          id: true,
-          parentId: true,
-          label: true,
-          url: true,
-          isExternal: true,
-          systemKey: true,
-          linkedPage: { select: { path: true } },
-        },
-      },
+  if (location === 'header') {
+    await ensureHeaderMenuSeedSafely();
+  }
+  const payload = await getPayloadClient();
+  const result = await payload.find({
+    collection: 'menus',
+    depth: 1,
+    limit: 1,
+    overrideAccess: false,
+    where: {
+      location: { equals: location },
     },
   });
-  return menu ? mapCmsMenuTree(menu.items) : [];
+  const [menu] = result.docs;
+  if (!menu?.items) {
+    return [];
+  }
+  return mapPayloadMenuTree(payloadMenuItemsFromUnknown(menu.items));
 }
 
 /**

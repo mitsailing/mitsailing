@@ -17,7 +17,7 @@ const esbuildArgs = [
   'scripts/import-legacy-data.ts',
   '--bundle',
   '--platform=node',
-  '--target=node24',
+  '--target=node26',
   '--format=esm',
   `--outfile=${bundlePath}`,
   '--tsconfig=tsconfig.json',

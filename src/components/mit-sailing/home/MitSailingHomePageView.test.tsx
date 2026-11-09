@@ -14,6 +14,7 @@ const homeMocks = vi.hoisted(() => ({
   loadHomeLearnToSailIntroductionClasses: vi.fn(),
   loadHomeLearnToSailNextClassesBySlugs: vi.fn(),
   loadHomeLearnToSailPrerequisiteNamesByIds: vi.fn(),
+  loadHomeOverviewContent: vi.fn(),
   loadHomeSailPathData: vi.fn(),
   loadPublishedCmsPageByPath: vi.fn(),
   setRequestLocale: vi.fn(),
@@ -43,6 +44,10 @@ vi.mock('next/image', () => ({
   ),
 }));
 
+vi.mock('@/components/mit-sailing/admin/PublicAdminEditLink', () => ({
+  PublicAdminEditLink: () => null,
+}));
+
 vi.mock('@/libs/mit-sailing/cmsQueries', () => ({
   loadPublishedCmsPageByPath: homeMocks.loadPublishedCmsPageByPath,
 }));
@@ -54,6 +59,10 @@ vi.mock('@/libs/mit-sailing/homeLearnToSailFromPrisma', () => ({
     homeMocks.loadHomeLearnToSailNextClassesBySlugs,
   loadHomeLearnToSailPrerequisiteNamesByIds:
     homeMocks.loadHomeLearnToSailPrerequisiteNamesByIds,
+}));
+
+vi.mock('@/libs/mit-sailing/loadHomeOverviewContent', () => ({
+  loadHomeOverviewContent: homeMocks.loadHomeOverviewContent,
 }));
 
 vi.mock('@/libs/mit-sailing/homeUpcomingFromPrisma', () => ({
@@ -159,6 +168,32 @@ const upcomingGroups = [
   },
 ] satisfies HomeUpcomingDayGroup[];
 
+const defaultOverviewContent = {
+  eventCount: 2,
+  eventsCtaLabel: 'Full calendar',
+  eventsCtaUrl: 'https://calendar.example.edu',
+  eventsEmptyText: 'No events posted.',
+  eventsTitle: 'Upcoming at MIT Sailing',
+  hoursNote: 'Sunset can change launch times.',
+  schedule: [
+    { day: 'Weekdays', hours: 'Noon - 8 PM' },
+    { day: 'Weekends', hours: '9 AM - 6 PM' },
+  ],
+  steps: [
+    {
+      description: 'Create an account and review pavilion rules.',
+      title: 'Join online',
+    },
+    {
+      description: 'Take the introductory class before solo sailing.',
+      title: 'Take a class',
+    },
+  ],
+  stepsTitle: 'Getting started',
+  subtitle: 'What to know before you visit',
+  title: 'Daily Sailing',
+};
+
 const blocks = [
   {
     body: '<p>Membership includes <strong>boats</strong> and community.</p>',
@@ -170,35 +205,6 @@ const blocks = [
     kind: 'hero',
     subtitle: 'Cambridge, Massachusetts',
     title: 'Learn to sail on the Charles',
-  },
-  {
-    body: JSON.stringify({
-      eventCount: 2,
-      eventsCtaLabel: 'Full calendar',
-      eventsCtaUrl: 'https://calendar.example.edu',
-      eventsEmptyText: 'No events posted.',
-      eventsTitle: 'Upcoming at MIT Sailing',
-      hoursNote: 'Sunset can change launch times.',
-      schedule: [
-        { day: 'Weekdays', hours: 'Noon - 8 PM' },
-        { day: 'Weekends', hours: '9 AM - 6 PM' },
-      ],
-      steps: [
-        {
-          description: 'Create an account and review pavilion rules.',
-          title: 'Join online',
-        },
-        {
-          description: 'Take the introductory class before solo sailing.',
-          title: 'Take a class',
-        },
-      ],
-      stepsTitle: 'Getting started',
-    }),
-    id: 'overview',
-    kind: 'home_overview',
-    subtitle: 'What to know before you visit',
-    title: 'Daily Sailing',
   },
   {
     ctaLabel: 'Browse classes',
@@ -254,40 +260,20 @@ const homePage = {
   title: 'MIT Sailing',
 } satisfies PublicCmsPage;
 
-function createOverviewBlock(props: {
-  eventCount?: number;
-  eventsCtaLabel?: string;
-  eventsCtaUrl?: string;
-}) {
+function createOverviewContent(
+  props: {
+    eventCount?: number;
+    eventsCtaLabel?: string;
+    eventsCtaUrl?: string;
+  } = {}
+) {
   return {
-    body: JSON.stringify({
-      eventCount: props.eventCount ?? 2,
-      eventsCtaLabel: props.eventsCtaLabel ?? 'Full calendar',
-      eventsCtaUrl: props.eventsCtaUrl ?? 'https://calendar.example.edu',
-      eventsEmptyText: 'No events posted.',
-      eventsTitle: 'Upcoming at MIT Sailing',
-      hoursNote: 'Sunset can change launch times.',
-      schedule: [
-        { day: 'Weekdays', hours: 'Noon - 8 PM' },
-        { day: 'Weekends', hours: '9 AM - 6 PM' },
-      ],
-      steps: [
-        {
-          description: 'Create an account and review pavilion rules.',
-          title: 'Join online',
-        },
-        {
-          description: 'Take the introductory class before solo sailing.',
-          title: 'Take a class',
-        },
-      ],
-      stepsTitle: 'Getting started',
-    }),
-    id: 'overview',
-    kind: 'home_overview',
-    subtitle: 'What to know before you visit',
-    title: 'Daily Sailing',
-  } satisfies PublicCmsBlock;
+    ...defaultOverviewContent,
+    eventCount: props.eventCount ?? defaultOverviewContent.eventCount,
+    eventsCtaLabel:
+      props.eventsCtaLabel ?? defaultOverviewContent.eventsCtaLabel,
+    eventsCtaUrl: props.eventsCtaUrl ?? defaultOverviewContent.eventsCtaUrl,
+  };
 }
 
 function homePageWithBlocks(nextBlocks: PublicCmsBlock[]) {
@@ -302,6 +288,9 @@ describe('MitSailingHomePageView', () => {
     homeMocks.getTranslations.mockResolvedValue(translate);
     homeMocks.getHomeUpcomingDayGroups.mockResolvedValue(upcomingGroups);
     homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(homePage);
+    homeMocks.loadHomeOverviewContent.mockResolvedValue(
+      createOverviewContent()
+    );
     homeMocks.loadHomeLearnToSailIntroductionClasses.mockResolvedValue(
       introClasses
     );
@@ -319,12 +308,14 @@ describe('MitSailingHomePageView', () => {
     homeMocks.setRequestLocale.mockReset();
   });
 
-  it('renders fallback shell when the published CMS homepage is missing', async () => {
+  it('renders overview without sail path when the published CMS homepage is missing', async () => {
     homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(null);
 
-    const result = render(await MitSailingHomePageView({ locale: 'en' }));
+    render(await MitSailingHomePageView({ locale: 'en' }));
 
-    expect(result.container.querySelector('section')).toBeNull();
+    expect(
+      screen.getByRole('heading', { name: 'Daily Sailing' })
+    ).toBeVisible();
     expect(
       homeMocks.loadHomeLearnToSailNextClassesBySlugs
     ).not.toHaveBeenCalled();
@@ -414,11 +405,11 @@ describe('MitSailingHomePageView', () => {
       throw new Error('Expected hero block fixture');
     }
 
+    homeMocks.loadHomeOverviewContent.mockResolvedValue(
+      createOverviewContent({ eventCount: 1, eventsCtaUrl: '/events' })
+    );
     homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
-      homePageWithBlocks([
-        heroBlock,
-        createOverviewBlock({ eventCount: 1, eventsCtaUrl: '/events' }),
-      ])
+      homePageWithBlocks([heroBlock])
     );
 
     render(await MitSailingHomePageView({ locale: 'en' }));
@@ -441,12 +432,20 @@ describe('MitSailingHomePageView', () => {
 
   it('renders text_section blocks in the ordered cms strip', async () => {
     const callout = blocks.find((block) => block.id === 'rental');
-    if (!callout || callout.kind !== 'callout') {
-      throw new Error('Expected rental callout block');
+    const classesBlock = blocks.find((block) => block.id === 'classes');
+    const pricingBlock = blocks.find((block) => block.id === 'pricing');
+    if (
+      !callout ||
+      callout.kind !== 'callout' ||
+      !classesBlock ||
+      !pricingBlock
+    ) {
+      throw new Error('Expected rental, classes, and pricing blocks');
     }
     homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
       homePageWithBlocks([
-        ...blocks.slice(0, 4),
+        classesBlock,
+        pricingBlock,
         {
           body: '<p>Weekend clinics need coaches.</p>',
           id: 'cms-block-home-text',
@@ -468,20 +467,18 @@ describe('MitSailingHomePageView', () => {
     ).toBeVisible();
   });
 
-  it('does not render unsafe cms overview cta links', async () => {
+  it('does not render unsafe overview cta links', async () => {
     homeMocks.getHomeUpcomingDayGroups.mockResolvedValue([]);
-    homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
-      homePageWithBlocks([
-        createOverviewBlock({
-          eventsCtaLabel: 'Unsafe calendar',
-          eventsCtaUrl: ['java', 'script:alert(1)'].join(''),
-        }),
-      ])
+    homeMocks.loadHomeOverviewContent.mockResolvedValue(
+      createOverviewContent({
+        eventsCtaLabel: 'Unsafe calendar',
+        eventsCtaUrl: ['java', 'script:alert(1)'].join(''),
+      })
     );
 
     render(await MitSailingHomePageView({ locale: 'en' }));
 
-    expect(screen.queryByText('No events posted.')).not.toBeInTheDocument();
+    expect(screen.getByText('No events posted.')).toBeInTheDocument();
     expect(
       screen.queryByRole('link', { name: 'Unsafe calendar' })
     ).not.toBeInTheDocument();
@@ -603,15 +600,16 @@ describe('MitSailingHomePageView', () => {
     expect(screen.queryByText('Membership Options')).not.toBeInTheDocument();
   });
 
-  it('renders home overview content from a composite cms block', async () => {
+  it('renders home overview content from the payload global', async () => {
+    homeMocks.loadHomeOverviewContent.mockResolvedValue(
+      createOverviewContent({
+        eventCount: 2,
+        eventsCtaLabel: 'All CMS events',
+        eventsCtaUrl: '/events',
+      })
+    );
     homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
-      homePageWithBlocks([
-        createOverviewBlock({
-          eventCount: 2,
-          eventsCtaLabel: 'All CMS events',
-          eventsCtaUrl: '/events',
-        }),
-      ])
+      homePageWithBlocks([])
     );
     homeMocks.getHomeUpcomingDayGroups.mockResolvedValue([
       {
@@ -739,29 +737,10 @@ describe('MitSailingHomePageView', () => {
       screen.queryByRole('link', { name: 'Inquire about availability' })
     ).not.toBeInTheDocument();
     expect(screen.queryByText('Membership Options')).not.toBeInTheDocument();
-    expect(screen.queryByText('Pavilion Hours')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Daily Sailing' })
+    ).toBeVisible();
     expect(screen.queryByText('Our Core Fleet')).not.toBeInTheDocument();
     expect(screen.queryByText('Learn to Sail')).not.toBeInTheDocument();
-  });
-
-  it('omits invalid home overview blocks instead of rendering fallback content', async () => {
-    homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
-      homePageWithBlocks([
-        {
-          body: JSON.stringify({
-            schedule: [],
-          }),
-          id: 'home-overview-block',
-          kind: 'home_overview',
-          subtitle: 'Invalid season',
-          title: 'Invalid CMS hours',
-        },
-      ])
-    );
-
-    render(await MitSailingHomePageView({ locale: 'en' }));
-
-    expect(screen.queryByText('Invalid CMS hours')).not.toBeInTheDocument();
-    expect(screen.queryByText('Pavilion Hours')).not.toBeInTheDocument();
   });
 });

@@ -17,8 +17,8 @@ export default async function AdminSectionLayout(props: {
   setRequestLocale(locale);
   const { permissions } = await requireAdminAreaAccess(locale);
   const navItems = adminNavItemsForPermissions(permissions);
+  const topItems = navItems.filter((item) => item.group === undefined);
   const navGroups = adminNavGroupsForPermissions(permissions);
-  const homeItem = navItems.find((item) => item.href === '/admin');
   const t = await getTranslations({
     locale,
     namespace: 'MitSailingRoutes',
@@ -34,7 +34,7 @@ export default async function AdminSectionLayout(props: {
         variant="admin"
       >
         <AdminWorkspaceLayout
-          sidebar={<AdminSideNav groups={navGroups} homeItem={homeItem} />}
+          sidebar={<AdminSideNav groups={navGroups} topItems={topItems} />}
         >
           {props.children}
         </AdminWorkspaceLayout>

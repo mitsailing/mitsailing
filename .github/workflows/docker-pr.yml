@@ -64,6 +64,7 @@ jobs:
           docker run -d --name smoke \
             -e DATABASE_URL='postgresql://smoke:smoke@127.0.0.1:5432/smoke?sslmode=disable' \
             -e BETTER_AUTH_SECRET='smoke-placeholder-that-is-at-least-thirty-two-chars-long' \
+            -e PAYLOAD_SECRET='smoke-placeholder-payload-secret-min-thirty-two-chars' \
             -e NEXT_PUBLIC_SENTRY_DISABLED='true' \
             mitsailing-pr:ci
 
@@ -153,12 +154,14 @@ jobs:
           docker run --rm --network worker-smoke-net \
             -e DATABASE_URL='postgresql://smoke:smoke@worker-smoke-postgres:5432/smoke?sslmode=disable' \
             -e BETTER_AUTH_SECRET='smoke-placeholder-that-is-at-least-thirty-two-chars-long' \
+            -e PAYLOAD_SECRET='smoke-placeholder-payload-secret-min-thirty-two-chars' \
             -e NEXT_PUBLIC_SENTRY_DISABLED='true' \
             mitsailing-pr:ci node ./node_modules/prisma/build/index.js migrate deploy
 
           docker run -d --name worker-smoke --network worker-smoke-net \
             -e DATABASE_URL='postgresql://smoke:smoke@worker-smoke-postgres:5432/smoke?sslmode=disable' \
             -e BETTER_AUTH_SECRET='smoke-placeholder-that-is-at-least-thirty-two-chars-long' \
+            -e PAYLOAD_SECRET='smoke-placeholder-payload-secret-min-thirty-two-chars' \
             -e NEXT_PUBLIC_SENTRY_DISABLED='true' \
             -e REDIS_URL='redis://worker-smoke-redis:6379' \
             mitsailing-pr:ci node worker.mjs

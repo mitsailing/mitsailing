@@ -1,0 +1,9 @@
+export { Boats } from '@/payload/collections/Boats';
+export { ClassCategories } from '@/payload/collections/ClassCategories';
+export { Classes } from '@/payload/collections/Classes';
+export { Media } from '@/payload/collections/Media';
+export { Menus } from '@/payload/collections/Menus';
+export { MitnaMeetings } from '@/payload/collections/MitnaMeetings';
+export { Pages } from '@/payload/collections/Pages';
+export { Staff } from '@/payload/collections/Staff';
+export { Users } from '@/payload/collections/Users';

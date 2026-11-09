@@ -64,18 +64,6 @@ export function adminCatalogResourceAssociationPath(
 }
 
 /**
- * @param pageId - CMS page id
- * @param revisionId - CMS page revision id
- * @returns Path to the CMS page revision comparison screen
- */
-export function adminCmsPageRevisionPath(
-  pageId: string,
-  revisionId: string
-): string {
-  return `/admin/cms_pages/${encodeURIComponent(pageId)}/revisions/${encodeURIComponent(revisionId)}`;
-}
-
-/**
  * @param props - Resource id, row id, and revision id
  * @returns Path to a catalog item revision comparison screen
  */

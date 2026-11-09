@@ -1,0 +1,92 @@
+/* Keep floated uploads inside the editor so page Layout stays below. */
+.rich-text-lexical .ContentEditable__root {
+  display: flow-root;
+}
+
+.LexicalEditorTheme__upload.upload-image-framed {
+  box-sizing: border-box;
+  max-width: 100%;
+  position: relative;
+}
+
+.LexicalEditorTheme__upload.upload-image-framed img,
+.LexicalEditorTheme__upload.upload-image-framed svg {
+  height: auto;
+  max-width: 100%;
+  min-width: 0 !important;
+  width: 100%;
+}
+
+.LexicalEditorTheme__upload.upload-image-framed
+  .LexicalEditorTheme__upload__contents--landscape
+  img,
+.LexicalEditorTheme__upload.upload-image-framed
+  .LexicalEditorTheme__upload__contents--landscape
+  svg {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  width: 100%;
+}
+
+.upload-image-align-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  left: 0.5rem;
+  pointer-events: auto;
+  position: absolute;
+  top: 0.5rem;
+  z-index: 3;
+}
+
+.upload-image-align-choice {
+  background: var(--theme-elevation-0);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: 4px;
+  color: var(--theme-text);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 0.35rem 0.55rem;
+  pointer-events: auto;
+}
+
+.upload-image-align-choice.is-active {
+  background: var(--theme-elevation-150);
+  border-color: var(--theme-elevation-400);
+  font-weight: 600;
+}
+
+.upload-image-resize-handle {
+  background: var(--theme-success-500, #22c55e);
+  border: 2px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 20%);
+  height: 12px;
+  padding: 0;
+  pointer-events: auto;
+  position: absolute;
+  width: 12px;
+  z-index: 4;
+}
+
+.upload-image-resize-handle--nw {
+  left: -6px;
+  top: -6px;
+}
+
+.upload-image-resize-handle--ne {
+  right: -6px;
+  top: -6px;
+}
+
+.upload-image-resize-handle--sw {
+  bottom: -6px;
+  left: -6px;
+}
+
+.upload-image-resize-handle--se {
+  bottom: -6px;
+  right: -6px;
+}

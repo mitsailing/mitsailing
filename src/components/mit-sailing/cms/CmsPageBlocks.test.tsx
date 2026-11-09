@@ -133,6 +133,38 @@ describe('CmsPageBlocks', () => {
     ).toBeVisible();
   });
 
+  it('renders plain hero and callout blocks with safe internal calls to action', () => {
+    render(
+      <CmsPageBlocks
+        page={page([
+          block({
+            ctaLabel: 'Visit dock',
+            ctaUrl: '/dock',
+            id: 'hero-1',
+            kind: 'hero',
+            title: 'About the pavilion',
+          }),
+          block({
+            ctaLabel: 'See hours',
+            ctaUrl: '/hours',
+            id: 'callout-1',
+            kind: 'callout',
+            title: 'Weather notice',
+          }),
+        ])}
+      />
+    );
+
+    expect(screen.getByRole('link', { name: /Visit dock/u })).toHaveAttribute(
+      'href',
+      '/dock'
+    );
+    expect(screen.getByRole('link', { name: /See hours/u })).toHaveAttribute(
+      'href',
+      '/hours'
+    );
+  });
+
   it('renders text and callout blocks with safe external links', () => {
     const unsafeScriptHref = `${['java', 'script'].join('')}:alert(1)`;
 

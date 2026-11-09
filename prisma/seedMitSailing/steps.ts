@@ -1,4 +1,3 @@
-import { staff } from '../../src/data/mit-sailing/aboutContent';
 import {
   CLASS_CATEGORY_ROWS,
   classCategoryIdFromSeedKey,
@@ -15,7 +14,7 @@ import {
   SAILING_RATING_RULES,
   SAILING_RATINGS,
 } from '../../src/data/mit-sailing/sailingRatingsSeed';
-import type { Prisma, PrismaClient } from '../../src/generated/prisma/client';
+import type { PrismaClient } from '../../src/generated/prisma/client';
 export { seedCmsContent } from './cmsSteps';
 export {
   seedEventCategories,
@@ -275,40 +274,6 @@ export async function seedSailingRatings(p: PrismaClient): Promise<void> {
   await removeStaleSailingRatingRows(p, { ratingIds, ruleIds });
   await seedSailingRatingRows(p, new Date());
   await seedSailingRatingRuleRows(p);
-}
-
-function seedTextOrNull(value: string | undefined): string | null {
-  return value ?? null;
-}
-
-function staffMemberSeedData(s: (typeof staff)[number]) {
-  return {
-    slug: s.slug,
-    name: s.name,
-    role: s.role,
-    bio: seedTextOrNull(s.bio),
-    fullBio: structuredClone(s.fullBio) as Prisma.InputJsonValue,
-    imageSrc: seedTextOrNull(s.imageSrc),
-    imageAlt: seedTextOrNull(s.imageAlt),
-    email: s.email,
-  };
-}
-
-/**
- * @param p - Prisma client
- */
-export async function seedStaff(p: PrismaClient): Promise<void> {
-  for (const s of staff) {
-    const data = staffMemberSeedData(s);
-    await p.staffMember.upsert({
-      where: { slug: s.slug },
-      create: {
-        id: s.slug,
-        ...data,
-      },
-      update: data,
-    });
-  }
 }
 
 /**

@@ -196,17 +196,18 @@ function PrimaryNavBranch(props: {
   fleetOverviewLabel: string;
 }) {
   const { item, flatLinkClass, onNavigate, variant } = props;
-  const href = safeCmsHref(item.href) ?? (item.href ? null : '#');
+  const href = item.href ? safeCmsHref(item.href) : null;
+  const childItems = item.items ?? [];
 
-  if (href && item.items !== undefined) {
+  if (childItems.length > 0) {
     const overviewLabel =
       item.systemKey === 'fleet'
         ? props.fleetOverviewLabel
         : props.overviewAllLabel;
     return (
       <NavigationDropdown
-        href={href}
-        items={item.items}
+        href={href ?? undefined}
+        items={childItems}
         label={item.label}
         overviewLabel={overviewLabel}
         pathname={props.pathname}

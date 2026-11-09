@@ -5,6 +5,11 @@ const config: KnipConfig = {
   entry: ['checkly.config.ts'],
   // Files to exclude from Knip analysis
   ignore: [
+    // Payload admin loads Env via payload.config; knip runs without secrets.
+    'payload.config.ts',
+    'src/migrations/**',
+    'src/app/(payload)/**',
+    'src/payload/**',
     'src/libs/I18n.ts',
     'src/types/I18n.ts',
     // Manual operator utility for the complete legacy data import.
@@ -28,9 +33,13 @@ const config: KnipConfig = {
     'zenstack/models.ts',
     'zenstack/schema.ts',
   ],
+  // Payload importMap uses extensionless `.client` module ids.
+  ignoreUnresolved: ['@/payload/lexical/imageWrapFeature.client'],
   // Dependencies to ignore during analysis
   ignoreDependencies: [
     '@commitlint/types',
+    // Payload admin UI peer; imported through @payloadcms/next runtime, not app source.
+    '@payloadcms/ui',
     '@swc/helpers', // Avoid error in CI: "`npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync."
     '@zenstackhq/cli',
     'oxfmt',
@@ -60,9 +69,19 @@ const config: KnipConfig = {
     'src/libs/health/readiness.ts': ['types'],
     'src/libs/mit-sailing/catalogHistory.ts': ['types'],
     'src/libs/mit-sailing/classRelatedOccurrences.ts': ['types'],
-    'src/libs/mit-sailing/cmsHistory.ts': ['types'],
     'src/libs/mit-sailing/cmsHomeOverview.ts': ['types'],
     'src/libs/mit-sailing/cmsMediaTypes.ts': ['exports'],
+    'src/libs/mit-sailing/seedAboutContent.ts': ['exports'],
+    'src/libs/mit-sailing/seedHomeOverviewContent.ts': ['exports'],
+    'src/libs/mit-sailing/seedLegalPagesContent.ts': ['exports'],
+    'src/libs/mit-sailing/seedMitnaContent.ts': ['exports'],
+    'src/libs/mit-sailing/aboutPageContent.ts': ['types'],
+    'src/libs/mit-sailing/loadMitnaMeetings.ts': ['types'],
+    'src/libs/payload/mediaUrls.ts': ['types'],
+    'src/components/mit-sailing/admin/PublicAdminEditLink.tsx': ['exports'],
+    'src/components/mit-sailing/admin/AdminPrimaryActionLink.tsx': ['exports'],
+    'src/libs/admin/catalog/adminCatalogPaths.ts': ['exports'],
+    'src/libs/mit-sailing/cmsPricing.ts': ['exports', 'types'],
     'src/libs/mit-sailing/eventCalendar.ts': ['types'],
     'src/libs/mit-sailing/eventPayments.ts': ['types'],
     'src/libs/mit-sailing/membershipBilling/membershipPaymentStatus.ts': [

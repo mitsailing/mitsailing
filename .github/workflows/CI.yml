@@ -32,6 +32,7 @@ permissions:
 # uses docker-compose Postgres + Mailpit via `e2e:preflight` in package.json.
 env:
   BETTER_AUTH_SECRET: ci-placeholder-auth-secret-min-32-chars-long!!
+  PAYLOAD_SECRET: ci-placeholder-payload-secret-min-32-chars-long!
   DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/dev_db?sslmode=disable
   TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/test_db?sslmode=disable
   # Route transactional mail to Mailpit during CI e2e flows.
@@ -45,14 +46,14 @@ env:
   # Bootstrap an admin user during `prisma db seed` in e2e preflight (see prisma/seed.ts).
   ADMIN_EMAIL: e2e-admin@example.com
   ADMIN_PASSWORD: 'Correct-Horse-Battery-Staple-E2E-32!!'
-  NODE_VERSION: 24.x
+  NODE_VERSION: 26.x
 
 jobs:
   build:
     strategy:
       matrix:
-        # Single version: matches production Docker / server (Node 24).
-        node-version: [24.x]
+        # Single version: matches production Docker / server (Node 26).
+        node-version: [26.x]
 
     name: Build with ${{ matrix.node-version }}
     runs-on: ubuntu-latest
@@ -121,7 +122,7 @@ jobs:
   unit:
     strategy:
       matrix:
-        node-version: [24.x]
+        node-version: [26.x]
 
     name: Run unit tests
     runs-on: ubuntu-latest
@@ -192,7 +193,7 @@ jobs:
   integration:
     strategy:
       matrix:
-        node-version: [24.x]
+        node-version: [26.x]
 
     name: Run integration tests
     runs-on: ubuntu-latest
@@ -220,7 +221,7 @@ jobs:
   storybook:
     strategy:
       matrix:
-        node-version: [24.x]
+        node-version: [26.x]
 
     name: Run Storybook
     runs-on: ubuntu-latest
@@ -247,7 +248,7 @@ jobs:
   static:
     strategy:
       matrix:
-        node-version: [24.x]
+        node-version: [26.x]
 
     name: Run static checks
     runs-on: ubuntu-latest
@@ -295,7 +296,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [24.x]
+        node-version: [26.x]
         shardIndex: [1, 2, 3]
         shardTotal: [3]
 
@@ -385,7 +386,7 @@ jobs:
   # semantics). Exposes one stable check name for branch rulesets; shard labels
   # stay on the matrix jobs for debugging.
   e2e-required:
-    name: Run E2E tests (24.x)
+    name: Run E2E tests (26.x)
     runs-on: ubuntu-latest
     timeout-minutes: 2
     needs: [e2e]

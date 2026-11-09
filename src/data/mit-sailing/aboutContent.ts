@@ -33,7 +33,7 @@ export const missionPillars: {
   {
     title: 'Join the MIT Nautical Association (MITNA)',
     body: 'MITNA supports recreational sailing at the Pavilion and serves as the primary membership organization for the MIT sailing community.',
-    cta: { label: 'Learn about MITNA', href: '/about/mitna' },
+    cta: { label: 'Learn about MITNA', href: '/mitna' },
   },
   {
     title: 'Rent the Pavilion',
@@ -84,24 +84,14 @@ export const historyBlocks: { year?: string; text: string }[] = [
   },
 ];
 
-/** Inline hyperlink in a staff bio (URLs aligned with https://mitsailing.com/who-we-are/). */
-export type StaffBioLink = { readonly label: string; readonly href: string };
-
-/** One paragraph: plain text, or alternating text spans and links. */
-export type StaffBioParagraph = string | readonly (string | StaffBioLink)[];
-
 export type StaffMember = {
   slug: string;
   name: string;
   role: string;
   /** Short excerpt for the About page staff grid. */
   bio?: string;
-  /** Full biography paragraphs for the staff profile page. */
-  fullBio: StaffBioParagraph[];
   imageSrc?: string;
   imageAlt?: string;
-  /** Contact address for mailto links on staff profile pages (seed data; replace in production). */
-  email: string;
 };
 
 export function staffProfilePath(slug: string): string {
@@ -118,18 +108,12 @@ export const staff: StaffMember[] = [
     name: 'Matt Lindblad',
     role: 'Cucchiaro Family Sailing Master',
     bio: 'Cucchiaro Family Sailing Master for MIT Sailing.',
-    fullBio: [
-      'Matt Lindblad is the Cucchiaro Family Sailing Master for MIT Sailing.',
-    ],
-    email: 'matt.lindblad@example.com',
   },
   {
     slug: 'stewart-craig',
     name: 'Stewart Craig',
     role: 'Dockmaster',
     bio: 'Dockmaster for the MIT Sailing Pavilion.',
-    fullBio: ['Stewart Craig is the Dockmaster for the MIT Sailing Pavilion.'],
-    email: 'stewart.craig@example.com',
   },
   {
     slug: 'hannah-agate',
@@ -137,17 +121,8 @@ export const staff: StaffMember[] = [
     role: 'Education Coordinator',
     bio: 'Coordinates instructional programs and outdoor education at the Pavilion. She brings experience from youth sailing instruction, wilderness trip leadership, and a semester with Northwest Outward Bound focused on facilitation and group dynamics.',
     imageSrc:
-      'https://mitsailing.com/wp-content/uploads/494820664_465819853260957_2300588491250977308_n-edited.jpg',
+      'https://wp.mitsailing.com/wp-content/uploads/494820664_465819853260957_2300588491250977308_n-edited.jpg',
     imageAlt: 'Hannah Agate, Education Coordinator at MIT Sailing',
-    fullBio: [
-      'I was first introduced the MIT Sailing Pavilion in 2018 when I joined as an instructor for the Charles River Sailing Academy, directed by varsity coach Mike Kalin. The community here was instantly apparent – so many people were here everyday to enjoy the river, to relax and to learn. I definitely wanted to be a part of it.',
-      'Before moving to Cambridge, I had been raised in the Finger Lakes region of central New York, with the great fortune of having the crystal clear (and frigid!) shoreside of Skaneateles Lake nearby. I have fond memories of spending long afternoons alternating between swimming around for fossils, downwind landing the Sunfish (sorry Dad), and napping on the wood dock.',
-      'I started falling in love with outdoor education during my college years. My first season of sailing instruction was during a youth camp in Vermont. We would swim out to the moorings to get to the boats and I admittedly spent a few late evenings studying points of sail and sailing jargon. I was also organizing and facilitating extended wilderness group trips, and spent many memorable days co-leading backcountry trips for groups of young women in the mountains and lakes of Maine and the Adirondacks.',
-      'I also had the opportunity to spend a semester training with Northwest Outward Bound with a focus on outdoor education. My peers and I completed a curriculum rich in outdoor program facilitation, flexible lesson planning, and group dynamic management in some pretty wild conditions, all while living outdoors and backpacking for the duration of the semester.',
-      'The recreational sailing program at MIT embodies everything I feel passionate about. The potential for personal growth in a new environment, alongside new friends or on our own, seems to bring out an ever-changing best version of ourselves. We can choose to tackle a tricky challenge, or choose to spend time relaxing in the flow, so that we can be the best version of ourselves in other aspects of our life.',
-      'My current favorite Cambridge hobbies include: long walks on the Esplanade, loitering at Moonlight sails, and finding new places to eat soup dumplings.',
-    ],
-    email: 'hannah.agate@example.com',
   },
   {
     slug: 'dan-tucker',
@@ -155,50 +130,8 @@ export const staff: StaffMember[] = [
     role: 'Weekend Dockmaster',
     bio: 'Supports fleet care, instruction, and member skill-building on weekends. His background spans racing, adaptive sailing and rigging, marine industry work, and teaching the Intermediate Sailing class to help sailors grow after their first rating.',
     imageSrc:
-      'https://mitsailing.com/wp-content/uploads/2024/02/DCT-Headshot-1024x942.jpg',
+      'https://wp.mitsailing.com/wp-content/uploads/2024/02/DCT-Headshot-1024x942.jpg',
     imageAlt: 'Dan Tucker, Weekend Dockmaster at MIT Sailing',
-    fullBio: [
-      [
-        'I’ve been sailing since age 2, taught by my father, who taught himself to sail as a teenager in City Island, NY. “Sailing a canoe looked easier than paddling a canoe,” he said. Growing up day sailing on Long Island Sound with my Dad and knocking around on a ',
-        {
-          label: 'Sunfish',
-          href: 'https://en.wikipedia.org/wiki/Sunfish_(sailboat)',
-        },
-        ', I got used to light & shifty winds, much like the Charles River. We would cruise to the Cape & Islands and Downeast Maine, with a modicum of racing thrown in on those club cruises. When I went to Northeastern University (B.S. Business ‘89), I confidently went to a Sailing Club meeting, down to ',
-        {
-          label: 'Community Boating',
-          href: 'https://www.community-boating.org/',
-        },
-        '. I promptly t-boned an MIT Tech dinghy, putting a huge hole in the Tech. I was too embarrassed ever to return. Now, here I am, caring for the MIT fleets and repairing any such mishaps! Karma has a LONG memory…',
-      ],
-      [
-        'After college, I volunteered to teach sailing at ',
-        {
-          label: 'Courageous Sailing Center',
-          href: 'https://courageoussailing.org/',
-        },
-        ' in Charlestown. I started racing competitively there and soon expanded to racing ',
-        { label: 'J/24s', href: 'https://j24usa.com/' },
-        ', then ',
-        { label: 'Viper 640', href: 'http://viper640.org/' },
-        's, and then added big-boat buoy & distance racing. My Dad & I had taught my wife to sail along the way. A couple of years after she broke her back and became a wheelchair-using paraplegic, she realized that she missed competitive sailboat racing and got involved with a Paralympic Sailing campaign trying to get to the Athens Games. I used my racing experience as a coach for the team, developed adaptive equipment and rigging, and did a LOT of rigging and boat repair for 3 campaigns, as well as fundraising. Through the Beijing Games, I continued coaching and developing adaptive systems, and I rigged the team’s boat from a bare hull. That campaign culminated in a gold medal win. After that, I joined the marine industry, running Americas & Caribbean operations for a sailboat propeller manufacturer, then joined ',
-        { label: 'Rondar Raceboats', href: 'http://rondarboats.com/' },
-        ' marketing, selling, and supporting ',
-        { label: 'Viper 640', href: 'http://viper640.org/' },
-        ' & ',
-        { label: 'Sonar', href: 'http://sonar.org/' },
-        ' class associations and some collegiate dinghies in the Americas. That’s how I met Fran Charles, the previous MIT Sailing Master, who brought me to MIT Sailing after the pandemic.',
-      ],
-      [
-        'I love boat repair, maintenance, and developing ways to keep our fleets easier to use and more reliable for our recreational and racing sailors. Rebuilding 30 Tech dinghy floors over the winter of 2023-24 was both a blast and a grind (Thank you, Hannah!!). As soon as we opened April 2023, my first season, I realized that we do an amazing job getting new sailors on the river, competent and confident. There was an obvious gap after that. And MIT folks are thirsty to learn. So I started teaching the ',
-        {
-          label: 'Intermediate Sailing',
-          href: 'https://mitsailing.com/?page_id=77',
-        },
-        ' class, which was a missing link to further developing the skills and confidence of our new sailors. This has been an absolute joy for me! I didn’t realize how much I missed teaching, coaching, and developing new sailor’s skills until I dove into it again. It’s challenging, rewarding, and FUN to teach intelligent MITNA members who learn so quickly!',
-      ],
-    ],
-    email: 'dan.tucker@example.com',
   },
 ];
 

@@ -51,7 +51,6 @@ describe('requireAdminAreaAccess', () => {
     expect(mocks.verifySession).toHaveBeenCalledWith('en', '/');
     expect(access.appRole).toBe(Role.DOCK_STAFF);
     expect(access.navItems.map((item) => item.href)).toEqual([
-      '/admin',
       '/admin/users',
       '/admin/events',
     ]);

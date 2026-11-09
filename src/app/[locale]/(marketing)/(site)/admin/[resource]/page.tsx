@@ -2,10 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
-import {
-  AdminPrimaryActionLink,
-  AdminSecondaryActionLink,
-} from '@/components/mit-sailing/admin/AdminPrimaryActionLink';
+import { AdminPrimaryActionLink } from '@/components/mit-sailing/admin/AdminPrimaryActionLink';
 import { AdminCatalogTable } from '@/components/mit-sailing/admin/catalog/AdminCatalogResourceTable';
 import { AdminCatalogScopeFilter } from '@/components/mit-sailing/admin/catalog/AdminCatalogScopeFilter';
 import { AdminSailingClassesGroupedTables } from '@/components/mit-sailing/admin/catalog/AdminSailingClassesGroupedTables';
@@ -22,7 +19,6 @@ import {
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { catalogPermissionForOperation } from '@/libs/admin/catalog/catalogPermissions';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
-import { cmsPagePublicPathById } from '@/libs/admin/catalog/cmsCatalogHandlers';
 import {
   catalogListOptionsForScope,
   catalogScopedCreatePath,
@@ -38,7 +34,6 @@ import type { PavilionRateDraft } from '@/libs/admin/pavilion-reservations/pavil
 import { savePavilionRateSheetAction } from '@/libs/admin/pavilion-reservations/pavilionRateSheetActions';
 import { requirePermission } from '@/libs/auth/dal';
 import { getPathname, Link } from '@/libs/I18nNavigation';
-import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 
 type PageProps = {
   params: Promise<{ locale: string; resource: string }>;
@@ -96,25 +91,15 @@ function CatalogResourceIndexView(props: {
   readonly resource: CatalogResourceId;
   readonly rows: CatalogRow[];
   readonly scopeFilterLabel: string;
-  readonly scopedCmsPageViewHref: string | null;
   readonly scopedList: CatalogScopedListState | undefined;
   readonly spacesTabLabel: string;
   readonly title: string;
-  readonly viewPageLabel: string;
 }) {
   return (
     <div className="flex w-full flex-col gap-4">
       <AdminPageHeader
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {props.scopedCmsPageViewHref ? (
-              <AdminSecondaryActionLink
-                // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- scopedCmsPageViewHref is an allowlisted same-origin CMS path from the catalog page.
-                href={props.scopedCmsPageViewHref}
-              >
-                {props.viewPageLabel}
-              </AdminSecondaryActionLink>
-            ) : null}
             {props.definition.capabilities.create ? (
               <AdminPrimaryActionLink
                 // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- createHref is the static catalog create path for this resource.
@@ -247,15 +232,6 @@ export default async function AdminCatalogResourceIndexPage(props: PageProps) {
     locale,
     namespace: 'Common',
   });
-  const scopedCmsPagePath =
-    resource === 'cms_page_blocks' && scopedList?.selectedValue
-      ? await cmsPagePublicPathById(scopedList.selectedValue)
-      : null;
-  const scopedCmsPageHref = safeCmsHref(scopedCmsPagePath);
-  const scopedCmsPageViewHref =
-    scopedCmsPageHref && isAppRelativeCmsHref(scopedCmsPageHref)
-      ? scopedCmsPageHref
-      : null;
   const createHref = catalogScopedCreatePath({
     basePath: adminCatalogResourceNewPath(resource),
     state: scopedList,
@@ -281,11 +257,9 @@ export default async function AdminCatalogResourceIndexPage(props: PageProps) {
       rateDrafts={rateDrafts}
       resource={resource}
       rows={rows}
-      scopedCmsPageViewHref={scopedCmsPageViewHref}
       scopedList={scopedList}
       scopeFilterLabel={scopedList ? tr(scopedList.definition.labelKey) : ''}
       title={t(def.titleKey)}
-      viewPageLabel={tr('action_view_page')}
       createLabel={
         resource === 'pavilion_spaces'
           ? tr('pavilion_rates_add_space')

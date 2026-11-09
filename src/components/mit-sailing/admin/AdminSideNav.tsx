@@ -9,11 +9,9 @@ import {
   Flag,
   LayoutDashboard,
   LayoutGrid,
-  Layers,
   ListTree,
   Mail,
   Megaphone,
-  Menu,
   Newspaper,
   PanelLeftClose,
   PanelLeftOpen,
@@ -74,10 +72,7 @@ const ADMIN_NAV_ICONS: Partial<
   nav_sailing_rating_rules: Settings2,
   nav_fleet: Ship,
   nav_news: Newspaper,
-  nav_cms_pages: FileText,
-  nav_cms_page_blocks: Layers,
-  nav_cms_menus: Menu,
-  nav_cms_menu_items: ListTree,
+  nav_cms: FileText,
 };
 
 function readAdminSideNavCollapsedFromStorage(): boolean {
@@ -147,28 +142,48 @@ function AdminNavLink(props: {
   readonly label: string;
 }) {
   const Icon = ADMIN_NAV_ICONS[props.item.labelKey] ?? LayoutDashboard;
-  return (
-    <Link
-      aria-current={props.active ? 'page' : undefined}
-      className={cn(
-        'flex items-center rounded-md text-left text-sm font-semibold text-mit-text leading-6 no-underline',
-        rowFocus,
-        props.collapsed ? 'justify-center px-2 py-2' : 'gap-2 px-2 py-1.5',
-        props.active
-          ? 'bg-mit-surface text-mit-red dark:text-mit-red-ink'
-          : 'hover:bg-mit-surface'
-      )}
-      // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
-      href={props.href}
-      prefetch={false}
-      title={props.collapsed ? props.label : undefined}
-    >
+  const className = cn(
+    'flex items-center rounded-md text-left text-sm font-semibold text-mit-text leading-6 no-underline',
+    rowFocus,
+    props.collapsed ? 'justify-center px-2 py-2' : 'gap-2 px-2 py-1.5',
+    props.active
+      ? 'bg-mit-surface text-mit-red dark:text-mit-red-ink'
+      : 'hover:bg-mit-surface'
+  );
+  const content = (
+    <>
       <Icon aria-hidden className="size-4 shrink-0" />
       {props.collapsed ? (
         <span className="sr-only">{props.label}</span>
       ) : (
         <span className="min-w-0 truncate">{props.label}</span>
       )}
+    </>
+  );
+  // Payload admin lives outside next-intl routes; use a plain anchor.
+  if (props.href === '/cms' || props.href.startsWith('/cms/')) {
+    return (
+      <a
+        aria-current={props.active ? 'page' : undefined}
+        className={className}
+        // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
+        href={props.href}
+        title={props.collapsed ? props.label : undefined}
+      >
+        {content}
+      </a>
+    );
+  }
+  return (
+    <Link
+      aria-current={props.active ? 'page' : undefined}
+      className={className}
+      // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
+      href={props.href}
+      prefetch={false}
+      title={props.collapsed ? props.label : undefined}
+    >
+      {content}
     </Link>
   );
 }
@@ -181,7 +196,7 @@ function AdminNavLink(props: {
  */
 export function AdminSideNav(props: {
   readonly groups: readonly AdminNavGroup[];
-  readonly homeItem?: AdminNavItem;
+  readonly topItems?: readonly AdminNavItem[];
 }) {
   const t = useTranslations('AdminSideNav');
   const pathname = usePathname();
@@ -197,7 +212,7 @@ export function AdminSideNav(props: {
       className={cn(
         'relative flex flex-col transition-[width,padding]',
         'border-mit-line bg-card px-3 pt-2 pb-3 md:pt-3 md:pb-4',
-        'border-b md:sticky md:top-4 md:max-h-[calc(100dvh-6rem)] md:self-start md:overflow-y-auto md:border-b-0 md:border-r',
+        'border-b md:sticky md:top-4 md:self-start md:border-b-0 md:border-r',
         collapsed ? 'md:w-14 md:px-2' : 'md:w-64 md:px-4'
       )}
     >
@@ -239,50 +254,36 @@ export function AdminSideNav(props: {
         className="relative flex flex-col gap-4"
         id={ADMIN_SIDE_NAV_REGION_ID}
       >
-        {props.homeItem ? (
+        {props.topItems?.map((item) => (
           <AdminNavLink
-            active={isAdminNavItemActive(
-              pathname,
-              props.homeItem.href,
-              props.homeItem.match
-            )}
+            active={isAdminNavItemActive(pathname, item.href, item.match)}
             collapsed={collapsed}
             // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
-            href={props.homeItem.href}
-            item={props.homeItem}
-            label={t(props.homeItem.labelKey)}
+            href={item.href}
+            item={item}
+            key={item.href}
+            label={t(item.labelKey)}
           />
-        ) : null}
+        ))}
         {props.groups.map((group) => (
-          <section
+          <ul
             aria-label={t(group.labelKey)}
-            className="min-w-0"
+            className="m-0 list-none space-y-0.5 p-0"
             key={group.id}
           >
-            {collapsed ? null : (
-              <h2 className="mb-1 px-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                {t(group.labelKey)}
-              </h2>
-            )}
-            <ul className="m-0 list-none space-y-0.5 p-0">
-              {group.items.map((item) => (
-                <li key={item.href}>
-                  <AdminNavLink
-                    active={isAdminNavItemActive(
-                      pathname,
-                      item.href,
-                      item.match
-                    )}
-                    collapsed={collapsed}
-                    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
-                    href={item.href}
-                    item={item}
-                    label={t(item.labelKey)}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
+            {group.items.map((item) => (
+              <li key={item.href}>
+                <AdminNavLink
+                  active={isAdminNavItemActive(pathname, item.href, item.match)}
+                  collapsed={collapsed}
+                  // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
+                  href={item.href}
+                  item={item}
+                  label={t(item.labelKey)}
+                />
+              </li>
+            ))}
+          </ul>
         ))}
       </nav>
     </div>

@@ -341,6 +341,26 @@ describe('SignUpForm', () => {
     );
   });
 
+  it('show rate-limit message when sign-up returns HTTP 429', async () => {
+    authClientMock.signUp.email.mockResolvedValue({
+      error: {
+        message: 'Too many requests. Please try again later.',
+        status: 429,
+      },
+    });
+    render(<SignUpForm callbackUrl="/fleet" />);
+
+    const user = await fillSignUpForm({
+      email: 'member@mit.edu',
+      password: 'correct-password',
+    });
+    await user.click(screen.getByRole('button', { name: 'Sign up' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Too many sign-up attempts.'
+    );
+  });
+
   it('show rate-limit message from sign-up error code', async () => {
     authClientMock.signUp.email.mockResolvedValue({
       error: { code: 'TOO_MANY_REQUESTS' },

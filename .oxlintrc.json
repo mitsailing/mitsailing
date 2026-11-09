@@ -1,6 +1,8 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "ignorePatterns": [
+    "src/app/(payload)/cms/importMap.js",
+    "src/migrations/**",
     "mit-redesign/**",
     "donation-figma/**",
     "zenstack/input.ts",
@@ -77,6 +79,12 @@
             ]
           }
         ]
+      }
+    },
+    {
+      "files": ["src/libs/payload/getPayloadClient.ts"],
+      "rules": {
+        "require-await": "off"
       }
     },
     {

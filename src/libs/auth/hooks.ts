@@ -148,7 +148,10 @@ export const signInEmailHooks = {
     if (ctx.path === '/sign-in/email') {
       const email = normalizeEmail(ctx.body?.email);
       if (email && (await countRecentFailures(email)) >= MAX_FAILED_ATTEMPTS) {
-        throw new APIError('FORBIDDEN', { message: 'ACCOUNT_LOCKED' });
+        throw new APIError('FORBIDDEN', {
+          code: 'ACCOUNT_LOCKED',
+          message: 'ACCOUNT_LOCKED',
+        });
       }
       if (email) {
         const gate = await credentialLessSignInGate(email);

@@ -21,7 +21,9 @@
   "trailingComma": "es5",
   "useTabs": false,
   "ignorePatterns": [
+    "src/app/(payload)/cms/importMap.js",
     "migrations/*",
+    "src/migrations/**",
     "mit-redesign/**",
     "*.md",
     "zenstack/input.ts",

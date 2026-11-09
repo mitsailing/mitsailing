@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PublicCmsPage } from '@/libs/mit-sailing/cmsQueries';
+import type { PublishedPayloadPage } from '@/libs/payload/loadPublishedPayloadPage';
 import CmsCatchAllPage, { generateMetadata } from './page';
 
 const mocks = vi.hoisted(() => ({
-  loadPublishedCmsPageByPath: vi.fn(),
+  loadPublishedPayloadPage: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND');
   }),
@@ -27,18 +27,12 @@ vi.mock('@/components/mit-sailing/admin/PublicAdminEditLink', () => ({
   ),
 }));
 
-vi.mock('@/components/mit-sailing/cms/CmsPageBlocks', () => ({
-  CmsPageBlocks: (props: { page: PublicCmsPage }) => (
-    <main data-testid="cms-page" data-page-id={props.page.id}>
-      {props.page.blocks.map((block) => (
-        <section key={block.id}>{block.title}</section>
-      ))}
-    </main>
-  ),
+vi.mock('@/components/mit-sailing/cms/PayloadLexicalRichText', () => ({
+  PayloadLexicalRichText: () => <div data-testid="payload-body">Body</div>,
 }));
 
-vi.mock('@/libs/mit-sailing/cmsQueries', () => ({
-  loadPublishedCmsPageByPath: mocks.loadPublishedCmsPageByPath,
+vi.mock('@/libs/payload/loadPublishedPayloadPage', () => ({
+  loadPublishedPayloadPage: mocks.loadPublishedPayloadPage,
 }));
 
 function pageProps(pathSegments: string[] = ['learn', 'sailing']) {
@@ -47,21 +41,22 @@ function pageProps(pathSegments: string[] = ['learn', 'sailing']) {
   };
 }
 
-function publishedPage(props: Partial<PublicCmsPage> = {}): PublicCmsPage {
+function publishedPage(
+  props: Partial<PublishedPayloadPage> = {}
+): PublishedPayloadPage {
   return {
-    blocks: [
-      {
-        body: '<p>Learn at the pavilion.</p>',
-        id: 'block-1',
-        kind: 'text_section',
-        title: 'Learn sailing',
+    body: {
+      root: {
+        children: [],
+        direction: null,
+        format: '',
+        indent: 0,
+        type: 'root',
+        version: 1,
       },
-    ],
-    id: 'cms-page-1',
-    metaDescription: 'Public sailing page.',
-    metaTitle: 'Learn Sailing',
-    path: '/learn/sailing',
-    slug: 'sailing',
+    },
+    id: '42',
+    slug: 'learn/sailing',
     title: 'Learn Sailing',
     ...props,
   };
@@ -72,67 +67,50 @@ beforeEach(() => {
 });
 
 describe('CmsCatchAllPage', () => {
-  it('builds metadata from the published CMS page path', async () => {
-    mocks.loadPublishedCmsPageByPath.mockResolvedValue(publishedPage());
+  it('builds metadata from the published Payload page', async () => {
+    mocks.loadPublishedPayloadPage.mockResolvedValue(publishedPage());
 
     await expect(generateMetadata(pageProps())).resolves.toEqual({
-      description: 'Public sailing page.',
       openGraph: {
-        description: 'Public sailing page.',
         title: 'Learn Sailing',
         type: 'website',
       },
       title: 'Learn Sailing',
       twitter: {
         card: 'summary_large_image',
-        description: 'Public sailing page.',
         title: 'Learn Sailing',
       },
     });
-    expect(mocks.loadPublishedCmsPageByPath).toHaveBeenCalledWith(
-      '/learn/sailing'
-    );
+    expect(mocks.loadPublishedPayloadPage).toHaveBeenCalledWith([
+      'learn',
+      'sailing',
+    ]);
   });
 
   it('returns empty metadata for unpublished CMS paths', async () => {
-    mocks.loadPublishedCmsPageByPath.mockResolvedValue(null);
+    mocks.loadPublishedPayloadPage.mockResolvedValue(null);
 
     await expect(generateMetadata(pageProps(['missing']))).resolves.toEqual({});
   });
 
-  it('omits metadata descriptions when the CMS page has no description', async () => {
-    mocks.loadPublishedCmsPageByPath.mockResolvedValue(
-      publishedPage({ metaDescription: '' })
-    );
-
-    await expect(generateMetadata(pageProps())).resolves.toEqual(
-      expect.objectContaining({
-        description: undefined,
-        openGraph: expect.objectContaining({ description: undefined }),
-        twitter: expect.objectContaining({ description: undefined }),
-      })
-    );
-  });
-
-  it('renders the published CMS page and admin edit link', async () => {
-    mocks.loadPublishedCmsPageByPath.mockResolvedValue(publishedPage());
+  it('renders the published Payload page and admin edit link', async () => {
+    mocks.loadPublishedPayloadPage.mockResolvedValue(publishedPage());
 
     render(await CmsCatchAllPage(pageProps()));
 
     expect(mocks.setRequestLocale).toHaveBeenCalledWith('en');
-    expect(screen.getByTestId('cms-page')).toHaveAttribute(
-      'data-page-id',
-      'cms-page-1'
-    );
+    expect(
+      screen.getByRole('heading', { name: 'Learn Sailing' })
+    ).toBeVisible();
+    expect(screen.getByTestId('payload-body')).toBeVisible();
     expect(screen.getByRole('link', { name: 'Edit' })).toHaveAttribute(
       'href',
-      '/admin/cms_pages/cms-page-1/edit'
+      '/cms/collections/pages/42'
     );
-    expect(screen.getByText('Learn sailing')).toBeVisible();
   });
 
   it('returns not found for missing CMS paths', async () => {
-    mocks.loadPublishedCmsPageByPath.mockResolvedValue(null);
+    mocks.loadPublishedPayloadPage.mockResolvedValue(null);
 
     await expect(CmsCatchAllPage(pageProps(['missing']))).rejects.toThrow(
       'NEXT_NOT_FOUND'

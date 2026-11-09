@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { AdminSecondaryActionLink } from '@/components/mit-sailing/admin/AdminPrimaryActionLink';
 import { AdminCatalogForm } from '@/components/mit-sailing/admin/catalog/AdminCatalogForm';
 import { createCatalogResourceAction } from '@/libs/admin/catalog/catalogActions';
 import {
@@ -11,21 +10,11 @@ import {
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { catalogFieldErrorsFromSearchParam } from '@/libs/admin/catalog/catalogFieldErrors';
 import { catalogPermissionForOperation } from '@/libs/admin/catalog/catalogPermissions';
-import {
-  cmsMenuParentSelectOptions,
-  cmsMenuSelectOptions,
-  cmsPagePublicPathById,
-  cmsPageRequiredSelectOptions,
-  cmsPageSelectOptions,
-} from '@/libs/admin/catalog/cmsCatalogHandlers';
 import { fleetRequiredClassSelectOptions } from '@/libs/admin/catalog/fleetCatalogHandlers';
 import { sailingClassCategorySelectOptions } from '@/libs/admin/catalog/sailingClassesHandlers';
 import { sailingRatingSelectOptions } from '@/libs/admin/catalog/sailingRatingsHandlers';
-import { catalogScopedListState } from '@/libs/admin/catalog/scopedCatalogLists';
-import type { CatalogScopedListState } from '@/libs/admin/catalog/scopedCatalogLists';
 import type { CatalogRow } from '@/libs/admin/catalog/types';
 import { requirePermission } from '@/libs/auth/dal';
-import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 import { newsNewCatalogDefaults } from '@/libs/mit-sailing/newsAdminDefaults';
 
 type PageProps = {
@@ -47,7 +36,6 @@ async function catalogNewDynamicSelectOptions(props: {
   ratingPlaceholder: string;
   requiredClassPlaceholder: string;
   resource: CatalogResourceId;
-  scopedList: CatalogScopedListState | undefined;
 }): Promise<DynamicSelectOptions | undefined> {
   if (props.resource === 'fleet') {
     return {
@@ -82,35 +70,14 @@ async function catalogNewDynamicSelectOptions(props: {
       ],
     };
   }
-  if (props.resource === 'cms_page_blocks') {
-    return {
-      pageId:
-        props.scopedList?.options ?? (await cmsPageRequiredSelectOptions()),
-    };
-  }
-  if (props.resource === 'cms_menu_items') {
-    const selectedMenuId = props.scopedList?.selectedValue ?? '';
-    return {
-      linkedPageId: await cmsPageSelectOptions(),
-      menuId: props.scopedList?.options ?? (await cmsMenuSelectOptions()),
-      parentId: await cmsMenuParentSelectOptions({ menuId: selectedMenuId }),
-    };
-  }
   return undefined;
 }
 
 function catalogNewRowDefaults(props: {
   resource: CatalogResourceId;
-  scopedList: CatalogScopedListState | undefined;
 }): CatalogRow | undefined {
   if (props.resource === 'news') {
     return newsNewCatalogDefaults();
-  }
-  if (props.resource === 'cms_page_blocks' && props.scopedList?.selectedValue) {
-    return { pageId: props.scopedList.selectedValue };
-  }
-  if (props.resource === 'cms_menu_items' && props.scopedList?.selectedValue) {
-    return { menuId: props.scopedList.selectedValue };
   }
   return undefined;
 }
@@ -163,38 +130,16 @@ export default async function AdminCatalogResourceNewPage(props: PageProps) {
     searchParams.fieldError,
     { legacyFieldMessage: tr('form_error_validation_failed') }
   );
-  const scopedList = await catalogScopedListState({
-    resourceId: resource,
-    searchParams,
-  });
-
   const dynamicSelectOptions = await catalogNewDynamicSelectOptions({
     classCategoryPlaceholder: tr('select_class_category_placeholder'),
     ratingPlaceholder: tr('select_rating_placeholder'),
     requiredClassPlaceholder: tr('select_required_class_placeholder'),
     resource,
-    scopedList,
   });
-  const rowDefaults = catalogNewRowDefaults({ resource, scopedList });
-  const scopedCmsPagePath =
-    resource === 'cms_page_blocks' && scopedList?.selectedValue
-      ? await cmsPagePublicPathById(scopedList.selectedValue)
-      : null;
-  const scopedCmsPageHref = safeCmsHref(scopedCmsPagePath);
-  const scopedCmsPageViewHref =
-    scopedCmsPageHref && isAppRelativeCmsHref(scopedCmsPageHref)
-      ? scopedCmsPageHref
-      : null;
+  const rowDefaults = catalogNewRowDefaults({ resource });
 
   return (
     <div className="flex w-full max-w-5xl flex-col gap-6">
-      {scopedCmsPageViewHref ? (
-        <div className="flex justify-end">
-          <AdminSecondaryActionLink href={scopedCmsPageViewHref}>
-            {tr('action_view_page')}
-          </AdminSecondaryActionLink>
-        </div>
-      ) : null}
       <AdminCatalogForm
         key={`${resource}-new`}
         definition={def}

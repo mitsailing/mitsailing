@@ -1,42 +1,23 @@
 import { ArrowRight } from 'lucide-react';
 import Image from 'next/image';
-import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { SectionHeader } from '@/components/mit-sailing/home/SectionHeader';
-import {
-  dockHours,
-  EXTERNAL,
-  historyBlocks,
-  membershipSummary,
-  missionBody,
-  missionIntro,
-  missionPillars,
-  staff,
-  staffProfilePath,
-  volunteerIntro,
-  volunteerSections,
-} from '@/data/mit-sailing/aboutContent';
+import { staffProfilePath } from '@/data/mit-sailing/aboutContent';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
+import type { AboutPageContent } from '@/libs/mit-sailing/aboutPageContent';
 import {
   externalCmsLinkProps,
   isAppRelativeCmsHref,
   safeCmsHref,
 } from '@/libs/mit-sailing/cmsHref';
-import type { PublicCmsPage } from '@/libs/mit-sailing/cmsQueries';
 
 const accent = `font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`;
 
 /** Matches {@link SiteSectionMain} default column; inner wrapper while section bands stay full-viewport. */
 const aboutSectionInner = 'mx-auto w-full max-w-5xl px-6';
 
-function ExternalLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
-  const safeHref = safeCmsHref(href);
+function ExternalLink(props: { children: React.ReactNode; href: string }) {
+  const safeHref = safeCmsHref(props.href);
   if (!safeHref || isAppRelativeCmsHref(safeHref)) {
     return null;
   }
@@ -46,15 +27,15 @@ function ExternalLink({
       href={safeHref}
       {...externalCmsLinkProps(safeHref)}
     >
-      {children}
+      {props.children}
       <ArrowRight aria-hidden className="size-4" />
     </a>
   );
 }
 
 function StaffCardImage(props: {
-  imageSrc?: string;
   imageAlt?: string;
+  imageSrc?: string;
   name: string;
 }) {
   if (props.imageSrc && props.imageAlt) {
@@ -79,14 +60,14 @@ function StaffCardImage(props: {
       >
         {props.name
           .split(' ')
-          .map((w) => w[0])
+          .map((word) => word[0])
           .join('')}
       </div>
     </div>
   );
 }
 
-function PillarCta(props: { href: string; label: string }) {
+function ContentLink(props: { href: string; label: string }) {
   const href = safeCmsHref(props.href);
   if (!href) {
     return null;
@@ -102,80 +83,53 @@ function PillarCta(props: { href: string; label: string }) {
   return <ExternalLink href={href}>{props.label}</ExternalLink>;
 }
 
-function cmsTextOrFallback(
-  value: string | undefined,
-  fallback: string
-): string {
-  const trimmed = value?.trim();
-  if (trimmed) {
-    return trimmed;
-  }
-  return fallback;
-}
+type AboutPageViewProps = {
+  content: AboutPageContent;
+  profileLabel: string;
+};
 
 /**
- * About MIT Sailing (mission, history, staff, volunteer, dock hours).
- * Data from `aboutContent.ts`; design aligned with `mit-redesign/AboutPage`.
+ * About MIT Sailing. Layout stays fixed; copy and staff cards come from Payload.
  *
- * @param props - About page content
- * @param props.cmsPage - Optional CMS page data for migrated editorial blocks
+ * @param props - Resolved section copy and staff cards
  * @returns Full About page
  */
-export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
-  const introBlock = props.cmsPage?.blocks.find(
-    (block) => block.kind === 'hero'
-  );
-  const missionBlock = props.cmsPage?.blocks.find(
-    (block) => block.kind === 'text_section'
-  );
+export function AboutPageView(props: AboutPageViewProps) {
+  const { content } = props;
   return (
     <div className="min-h-0 min-w-0">
       <section className="border-b border-mit-line bg-background py-16 md:py-24">
         <div className={aboutSectionInner}>
           <h1 className="mb-6 font-mit-serif text-3xl leading-tight font-bold text-mit-text md:text-4xl">
-            {cmsTextOrFallback(introBlock?.title, 'About MIT Sailing')}
+            {content.introTitle}
           </h1>
-          {introBlock?.body ? (
-            <CmsRichText
-              className="max-w-3xl text-base leading-relaxed text-mit-text"
-              html={introBlock.body}
-            />
-          ) : (
-            <p className="max-w-3xl text-base leading-relaxed text-mit-text">
-              {missionIntro}
-            </p>
-          )}
+          <p className="max-w-3xl text-base leading-relaxed text-mit-text">
+            {content.introBody}
+          </p>
         </div>
       </section>
 
       <section className="border-b border-mit-line bg-mit-surface py-16 md:py-24">
         <div className={aboutSectionInner}>
           <SectionHeader
-            subtitle={cmsTextOrFallback(
-              missionBlock?.subtitle,
-              'How we serve the MIT community and grow lifelong skills on the water.'
-            )}
-            title={cmsTextOrFallback(missionBlock?.title, 'Our mission')}
+            subtitle={content.missionSubtitle}
+            title={content.missionTitle}
           />
           <div className="mb-14 max-w-3xl space-y-6">
-            {missionBlock?.body ? (
-              <CmsRichText
+            {content.missionParagraphs.map((paragraph) => (
+              <p
                 className="text-base leading-relaxed text-mit-text"
-                html={missionBlock.body}
-              />
-            ) : (
-              missionBody.map((p) => (
-                <p className="text-base leading-relaxed text-mit-text" key={p}>
-                  {p}
-                </p>
-              ))
-            )}
+                key={paragraph}
+              >
+                {paragraph}
+              </p>
+            ))}
           </div>
           <h3 className="mb-6 font-mit-serif text-lg font-semibold text-mit-text">
-            How we carry out our mission
+            {content.missionPillarsHeading}
           </h3>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {missionPillars.map((pillar) => (
+            {content.missionPillars.map((pillar) => (
               <div
                 className="flex h-full flex-col rounded-xl border border-mit-line bg-card p-8"
                 key={pillar.title}
@@ -187,7 +141,10 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
                   {pillar.body}
                 </p>
                 {pillar.cta ? (
-                  <PillarCta href={pillar.cta.href} label={pillar.cta.label} />
+                  <ContentLink
+                    href={pillar.cta.href}
+                    label={pillar.cta.label}
+                  />
                 ) : null}
               </div>
             ))}
@@ -200,19 +157,16 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
           <div className="grid gap-10 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:items-start">
             <div>
               <SectionHeader
-                subtitle={membershipSummary.body}
-                title={membershipSummary.title}
+                subtitle={content.membershipBody}
+                title={content.membershipTitle}
               />
-              <Link
-                className={`inline-flex items-center gap-1 ${accent}`}
-                href={membershipSummary.cta.href}
-              >
-                {membershipSummary.cta.label}
-                <ArrowRight aria-hidden className="size-4" />
-              </Link>
+              <ContentLink
+                href={content.membershipCta.href}
+                label={content.membershipCta.label}
+              />
             </div>
             <dl className="divide-y divide-mit-line border-y border-mit-line text-sm text-mit-text">
-              {membershipSummary.options.map((option) => (
+              {content.membershipOptions.map((option) => (
                 <div className="py-4 leading-relaxed" key={option.title}>
                   <dt className="font-semibold text-mit-text">
                     {option.title}
@@ -225,14 +179,17 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
         </div>
       </section>
 
-      <section className="border-b border-mit-line bg-background py-16 md:py-24">
+      <section
+        className="scroll-mt-24 border-b border-mit-line bg-background py-16 md:py-24"
+        id="history"
+      >
         <div className={aboutSectionInner}>
           <SectionHeader
-            subtitle="From the first college sailing facility to a busy Charles River hub."
-            title="History"
+            subtitle={content.historySubtitle}
+            title={content.historyTitle}
           />
           <div className="max-w-3xl space-y-8">
-            {historyBlocks.map((block) => (
+            {content.historyEntries.map((block) => (
               <div className="flex items-start gap-4" key={block.text}>
                 {block.year ? (
                   <span className="shrink-0 rounded-md bg-mit-red-highlight px-3 py-1 text-[11px] font-bold tracking-wider text-mit-red uppercase dark:text-mit-red-ink">
@@ -249,31 +206,30 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
           </div>
           <div className="mt-10 max-w-3xl rounded-xl border border-mit-line bg-mit-red-highlight p-6">
             <p className="mb-3 text-sm leading-relaxed text-mit-text">
-              Your support helps maintain the Pavilion, sustain our fleets, and
-              provide opportunities for students, alumni, and the wider
-              community to sail.
+              {content.historySupport.text}
             </p>
-            <ExternalLink href={EXTERNAL.history}>
-              History and giving on MIT Sailing
-            </ExternalLink>
+            <ContentLink
+              href={content.historySupport.href}
+              label={content.historySupport.label}
+            />
           </div>
         </div>
       </section>
 
       <section
-        className="border-b border-mit-line bg-mit-surface py-16 md:py-24"
+        className="scroll-mt-24 border-b border-mit-line bg-mit-surface py-16 md:py-24"
         id="staff"
       >
         <div className={aboutSectionInner}>
           <SectionHeader
-            subtitle="Meet the people who keep instruction, the fleet, and the dock running."
-            title="Staff"
+            subtitle={content.staffSubtitle}
+            title={content.staffTitle}
           />
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            {staff.map((person) => (
+            {content.staff.map((person) => (
               <article
                 className="flex h-full flex-col overflow-hidden rounded-xl border border-mit-line bg-card"
-                key={person.name}
+                key={person.slug}
               >
                 <StaffCardImage
                   imageAlt={person.imageAlt}
@@ -298,7 +254,7 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
                     className={`mt-auto inline-flex items-center gap-1 ${accent}`}
                     href={staffProfilePath(person.slug)}
                   >
-                    View profile
+                    {props.profileLabel}
                     <ArrowRight aria-hidden className="size-4" />
                   </Link>
                 </div>
@@ -308,14 +264,17 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
         </div>
       </section>
 
-      <section className="border-b border-mit-line bg-background py-16 md:py-24">
+      <section
+        className="scroll-mt-24 border-b border-mit-line bg-background py-16 md:py-24"
+        id="volunteer"
+      >
         <div className={aboutSectionInner}>
-          <SectionHeader title="Volunteer" />
+          <SectionHeader title={content.volunteerTitle} />
           <p className="mb-12 max-w-3xl text-base leading-relaxed text-mit-text">
-            {volunteerIntro}
+            {content.volunteerIntro}
           </p>
           <div className="max-w-3xl space-y-12">
-            {volunteerSections.map((block) => (
+            {content.volunteerSections.map((block) => (
               <div key={block.title}>
                 <h3 className="mb-3 font-mit-serif text-lg font-semibold text-mit-text">
                   {block.title}
@@ -341,26 +300,13 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
             ))}
           </div>
           <div className="mt-10 flex flex-col flex-wrap gap-6 sm:flex-row">
-            <Link
-              className={`inline-flex items-center gap-1 ${accent}`}
-              href="/contact"
-            >
-              Contact the Pavilion
-              <ArrowRight aria-hidden className="size-4" />
-            </Link>
-            <ExternalLink href={EXTERNAL.calendar}>
-              Calendar and regattas
-            </ExternalLink>
-            <Link
-              className={`inline-flex items-center gap-1 ${accent}`}
-              href="/about/mitna"
-            >
-              MITNA Executive Committee
-              <ArrowRight aria-hidden className="size-4" />
-            </Link>
-            <ExternalLink href={EXTERNAL.volunteer}>
-              Volunteer page on MIT Sailing
-            </ExternalLink>
+            {content.volunteerLinks.map((link) => (
+              <ContentLink
+                href={link.href}
+                key={link.href}
+                label={link.label}
+              />
+            ))}
           </div>
         </div>
       </section>
@@ -368,18 +314,18 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
       <section className="bg-mit-surface py-16 md:py-24">
         <div className={aboutSectionInner}>
           <SectionHeader
-            subtitle="Coaching, skills help, and rating tests when volunteers and staff are on the dock."
-            title="Dock hours"
+            subtitle={content.dockHoursSubtitle}
+            title={content.dockHoursTitle}
           />
           <div className="max-w-3xl rounded-xl border border-mit-line bg-card p-8">
             <p className="mb-6 text-base leading-relaxed text-mit-text">
-              {dockHours.lead}
+              {content.dockHoursLead}
             </p>
             <p className="mb-6 text-sm leading-relaxed text-mit-text italic">
-              {dockHours.disclaimer}
+              {content.dockHoursDisclaimer}
             </p>
             <p className="text-sm leading-relaxed text-mit-text">
-              {dockHours.helmsman}
+              {content.dockHoursHelmsman}
             </p>
           </div>
         </div>

@@ -18,7 +18,7 @@
 # supply-chain surface. `output: 'standalone'` in next.config gives us
 # exactly what we need to COPY.
 
-ARG NODE_VERSION=24-alpine
+ARG NODE_VERSION=26-alpine
 
 # ─────────────────────────────── deps ───────────────────────────────
 FROM node:${NODE_VERSION} AS deps
@@ -71,9 +71,10 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 # Optional release id for Next `deploymentId` + Sentry releases (short SHA is typical).
 ARG DEPLOYMENT_VERSION=
 ENV DEPLOYMENT_VERSION=${DEPLOYMENT_VERSION}
-# Same story: BETTER_AUTH_SECRET is validated (min 32 chars) at import
-# time by t3-env. The real secret is injected at runtime.
+# Same story: BETTER_AUTH_SECRET and PAYLOAD_SECRET are validated (min 32
+# chars) at import time by t3-env. Real secrets are injected at runtime.
 ENV BETTER_AUTH_SECRET=build-time-placeholder-that-is-at-least-thirty-two-chars-long
+ENV PAYLOAD_SECRET=build-time-payload-secret-placeholder-min-thirty-two
 ENV DATABASE_URL=postgresql://build:build@localhost:5432/build?sslmode=disable
 # Turbopack + route type generation can exceed Node's default Docker heap on
 # local Docker Desktop builders. Builder stage only; not copied to prod runtime.
@@ -115,7 +116,7 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 
 RUN apk add --no-cache libc6-compat openssl
 
-# The node:24-alpine base ships its own npm (with bundled tar). Trivy scans that
+# The node:26-alpine base ships its own npm (with bundled tar). Trivy scans that
 # copy separately from app/node_modules; align it with our npm override so tar
 # meets CVE-2026-59873 (fixed in npm 11.18+ / tar 7.5.19+).
 RUN npm install -g npm@11.19.0 --ignore-scripts --no-audit --no-fund
