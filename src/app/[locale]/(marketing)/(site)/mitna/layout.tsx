@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
 
 /**
- * `/about/mitna/**` subtree: chrome ({@link MitnaMarketingPageShell}) composes breadcrumbs
- * per page; this layout stays a shallow passthrough to avoid stacking duplicate shells.
+ * `/mitna/**` subtree: chrome composes breadcrumbs per page.
  *
  * @param props - Nested route props
  * @returns Child segment

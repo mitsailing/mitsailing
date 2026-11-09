@@ -5,6 +5,7 @@ import type { NextRequest } from 'next/server';
 import { auth } from '@/libs/auth';
 import { safeAuthCallbackUrl } from '@/libs/auth/callbackUrl';
 import { routing } from '@/libs/I18nRouting';
+import { resolveRedirectDestination } from '@/libs/payload/resolveRedirectDestination';
 
 const intl = createIntlMiddleware(routing);
 
@@ -13,6 +14,21 @@ const intl = createIntlMiddleware(routing);
 // enforce auth (see `verifySession` / DAL); this layer only redirects early.
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  const redirectDestination = await resolveRedirectDestination(pathname);
+  if (redirectDestination) {
+    if (
+      redirectDestination.startsWith('/') &&
+      !redirectDestination.startsWith('//')
+    ) {
+      return NextResponse.redirect(
+        new URL(redirectDestination, request.url),
+        301
+      );
+    }
+    return NextResponse.redirect(redirectDestination, 301);
+  }
+
   const protectedPattern = /^(?:\/[\w-]+)?\/(?:account|profile)(?:\/|$)/;
   if (protectedPattern.test(pathname)) {
     const session = await auth.api.getSession({

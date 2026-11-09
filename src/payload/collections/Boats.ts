@@ -1,8 +1,8 @@
 import type { CollectionConfig } from 'payload';
-import { authenticatedCmsAccess, fleetManageAccess } from '@/payload/access';
+import { fleetManageAccess, visibleCatalogReadAccess } from '@/payload/access';
 
 /**
- * Fields needed by FleetBoatDetailView props (no public loaders changed).
+ * Fields needed by FleetBoatDetailView props.
  */
 export const Boats: CollectionConfig = {
   slug: 'boats',
@@ -13,7 +13,7 @@ export const Boats: CollectionConfig = {
   access: {
     create: fleetManageAccess,
     delete: fleetManageAccess,
-    read: authenticatedCmsAccess,
+    read: visibleCatalogReadAccess,
     update: fleetManageAccess,
   },
   fields: [

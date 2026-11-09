@@ -166,6 +166,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes = [
     '',
     '/about',
+    '/hours',
     '/events',
     '/classes',
     '/ratings',
@@ -178,10 +179,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/privacy',
     '/terms',
     '/accessibility',
-    '/about/mitna',
-    '/about/mitna/constitution',
-    '/about/mitna/meetings',
-    '/about/mitna/hatch-award',
+    '/mitna',
+    '/mitna/constitution',
+    '/mitna/meetings',
+    '/mitna/hatch-award',
   ];
 
   const dynamicRoutes = [

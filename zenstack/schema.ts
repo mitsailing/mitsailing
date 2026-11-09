@@ -6335,65 +6335,6 @@ export class SchemaType implements SchemaDef {
             uniqueFields: {
                 id: { type: "String" }
             }
-        },
-        StaffMember: {
-            name: "StaffMember",
-            fields: {
-                id: {
-                    name: "id",
-                    type: "String",
-                    id: true,
-                    attributes: [{ name: "@id" }] as readonly AttributeApplication[]
-                },
-                slug: {
-                    name: "slug",
-                    type: "String",
-                    unique: true,
-                    attributes: [{ name: "@unique" }] as readonly AttributeApplication[]
-                },
-                name: {
-                    name: "name",
-                    type: "String"
-                },
-                role: {
-                    name: "role",
-                    type: "String"
-                },
-                bio: {
-                    name: "bio",
-                    type: "String",
-                    optional: true,
-                    attributes: [{ name: "@db.Text" }] as readonly AttributeApplication[]
-                },
-                fullBio: {
-                    name: "fullBio",
-                    type: "Json"
-                },
-                imageSrc: {
-                    name: "imageSrc",
-                    type: "String",
-                    optional: true,
-                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("image_src") }] }] as readonly AttributeApplication[]
-                },
-                imageAlt: {
-                    name: "imageAlt",
-                    type: "String",
-                    optional: true,
-                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("image_alt") }] }] as readonly AttributeApplication[]
-                },
-                email: {
-                    name: "email",
-                    type: "String"
-                }
-            },
-            attributes: [
-                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("staff_members") }] }
-            ] as readonly AttributeApplication[],
-            idFields: ["id"],
-            uniqueFields: {
-                id: { type: "String" },
-                slug: { type: "String" }
-            }
         }
     } as const;
     typeDefs = {

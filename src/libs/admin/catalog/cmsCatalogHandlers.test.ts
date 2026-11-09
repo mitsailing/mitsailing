@@ -68,12 +68,6 @@ const {
   cmsPagesCatalogHandlers,
   cmsPageBlocksCatalogHandlers,
 } = await import('@/libs/admin/catalog/cmsCatalogHandlers');
-const {
-  catalogListOptionsForScope,
-  catalogScopedCreatePath,
-  catalogScopedListState,
-} = await import('@/libs/admin/catalog/scopedCatalogLists');
-
 beforeEach(() => {
   mocks.cmsMenuItemAggregate.mockReset();
   mocks.cmsMenuItemCreate.mockReset();
@@ -771,64 +765,5 @@ describe('cmsMenuItemsCatalogHandlers', () => {
 
       expect(mocks.prismaTransaction).not.toHaveBeenCalled();
     });
-  });
-});
-
-describe('catalogScopedListState', () => {
-  it('defaults missing and invalid page scopes to the first page', async () => {
-    mocks.cmsPageFindMany.mockResolvedValue([
-      { id: 'page-1', path: '/about', title: 'About' },
-      { id: 'page-2', path: '/contact', title: 'Contact' },
-    ]);
-
-    const state = await catalogScopedListState({
-      resourceId: 'cms_page_blocks',
-      searchParams: { page: 'missing-page' },
-    });
-
-    expect(state?.selectedValue).toBe('page-1');
-    expect(catalogListOptionsForScope(state)).toEqual({ pageId: 'page-1' });
-    expect(
-      catalogScopedCreatePath({
-        basePath: '/admin/cms_page_blocks/new',
-        state,
-      })
-    ).toBe('/admin/cms_page_blocks/new?page=page-1');
-  });
-
-  it('keeps an empty scope when no parent records exist', async () => {
-    mocks.cmsPageFindMany.mockResolvedValue([]);
-
-    const state = await catalogScopedListState({
-      resourceId: 'cms_page_blocks',
-      searchParams: {},
-    });
-
-    expect(state?.selectedValue).toBe('');
-    expect(catalogListOptionsForScope(state)).toEqual({});
-    expect(
-      catalogScopedCreatePath({
-        basePath: '/admin/cms_page_blocks/new',
-        state,
-      })
-    ).toBe('/admin/cms_page_blocks/new');
-  });
-
-  it('merges scoped create params into existing query strings', async () => {
-    mocks.cmsPageFindMany.mockResolvedValue([
-      { id: 'page-2', path: '/contact', title: 'Contact' },
-    ]);
-
-    const state = await catalogScopedListState({
-      resourceId: 'cms_page_blocks',
-      searchParams: { page: 'page-2' },
-    });
-
-    expect(
-      catalogScopedCreatePath({
-        basePath: '/admin/cms_page_blocks/new?menu=open',
-        state,
-      })
-    ).toBe('/admin/cms_page_blocks/new?menu=open&page=page-2');
   });
 });

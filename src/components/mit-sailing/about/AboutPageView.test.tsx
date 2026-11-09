@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { aboutPageContentFromSource } from '@/libs/mit-sailing/aboutPageContent';
 import { AboutPageView } from './AboutPageView';
 
 vi.mock('next/image', () => ({
@@ -10,7 +11,15 @@ vi.mock('next/image', () => ({
 
 describe('AboutPageView', () => {
   it('links visitors to pricing from the membership summary', () => {
-    render(<AboutPageView />);
+    render(
+      <AboutPageView
+        content={aboutPageContentFromSource()}
+        profileLabel="View profile"
+      />
+    );
+    expect(document.querySelector('#history')).toBeTruthy();
+    expect(document.querySelector('#staff')).toBeTruthy();
+    expect(document.querySelector('#volunteer')).toBeTruthy();
 
     expect(
       screen.getByRole('heading', { name: 'Pricing and sailing cards' })

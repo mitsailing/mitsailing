@@ -37,29 +37,6 @@ describe('catalogPermissionForOperation', () => {
     }
   );
 
-  it.each([
-    ['cms_pages', Permission.CMS_VIEW, Permission.CMS_EDIT],
-    ['cms_page_blocks', Permission.CMS_VIEW, Permission.CMS_EDIT],
-    ['cms_menus', Permission.CMS_VIEW, Permission.CMS_EDIT],
-    ['cms_menu_items', Permission.CMS_VIEW, Permission.CMS_EDIT],
-  ])('maps %s operations to CMS permissions', (resourceId, view, edit) => {
-    expect(
-      catalogPermissionForOperation({ operation: 'view', resourceId })
-    ).toBe(view);
-    expect(
-      catalogPermissionForOperation({ operation: 'delete', resourceId })
-    ).toBe(Permission.CMS_DELETE);
-    expect(
-      catalogPermissionForOperation({ operation: 'create', resourceId })
-    ).toBe(edit);
-    expect(
-      catalogPermissionForOperation({ operation: 'update', resourceId })
-    ).toBe(edit);
-    expect(
-      catalogPermissionForOperation({ operation: 'restore', resourceId })
-    ).toBe(edit);
-  });
-
   it('allows admin view fallback only for unmapped read operations', () => {
     const resourceId = 'new_catalog_resource';
 

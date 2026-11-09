@@ -6,13 +6,15 @@ import {
   hrefClassesCategoryFromSlug,
   mapNameSlugRowsToNavLinks,
 } from '@/libs/mit-sailing/mapNavLinksFromNameSlug';
-import { prismaOrderByDisplayOrderAscNameAsc } from '@/libs/mit-sailing/prismaOrderPublicNav';
 import { listRequiredRatingsForTarget } from '@/libs/mit-sailing/sailingRatingQueries';
 import type { SailingRatingBrief } from '@/libs/mit-sailing/sailingRatingQueries';
 import {
   SITE_NAV_CACHE_REVALIDATE_SECONDS,
   siteNavClassesCacheTag,
 } from '@/libs/mit-sailing/siteNavCache';
+import { getPayloadClient } from '@/libs/payload/getPayloadClient';
+import { lexicalToHtml } from '@/libs/payload/lexicalHtml';
+import { mediaUrls, payloadIdString } from '@/libs/payload/mediaUrls';
 
 export type CatalogClassCard = {
   id: string;
@@ -40,10 +42,14 @@ export type ClassCategoryNavRow = {
   displayOrder: number;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 /**
  * Maps visible category rows (already ordered, e.g. by `displayOrder`) to header links.
  *
- * @param categories - Category rows from Prisma
+ * @param categories - Category rows from Payload
  * @returns Dropdown items for the Classes nav (order preserved)
  */
 export function mapClassCategoriesToNavDropdownItems(
@@ -55,12 +61,23 @@ export function mapClassCategoriesToNavDropdownItems(
 async function loadClassCategoriesForNavUnchecked(): Promise<
   ClassCategoryNavRow[]
 > {
-  const rows = await prisma.classCategory.findMany({
-    where: { isVisible: true },
-    orderBy: prismaOrderByDisplayOrderAscNameAsc,
-    select: { id: true, slug: true, name: true, displayOrder: true },
+  const payload = await getPayloadClient();
+  const result = await payload.find({
+    collection: 'class-categories',
+    depth: 0,
+    limit: 200,
+    overrideAccess: false,
+    sort: 'displayOrder,name',
+    where: {
+      isVisible: { equals: true },
+    },
   });
-  return rows;
+  return result.docs.map((row) => ({
+    displayOrder: row.displayOrder,
+    id: payloadIdString(row.id),
+    name: row.name,
+    slug: row.slug,
+  }));
 }
 
 /**
@@ -79,77 +96,77 @@ export const listClassCategoriesForNav = cacheDbListOrEmpty(
   }
 );
 
+function categorySection(
+  category: unknown
+): CatalogCategorySection['category'] | null {
+  if (!isRecord(category)) {
+    return null;
+  }
+  const { displayOrder, id, isVisible, name, slug } = category;
+  if (
+    (typeof id !== 'string' && typeof id !== 'number') ||
+    typeof name !== 'string' ||
+    typeof slug !== 'string' ||
+    typeof displayOrder !== 'number' ||
+    isVisible === false
+  ) {
+    return null;
+  }
+  return {
+    displayOrder,
+    id: payloadIdString(id),
+    name,
+    slug,
+  };
+}
+
 /**
  * Group sailing classes by category for `/classes` (sections follow `displayOrder`).
- *
- * Card `description` values are plain excerpts (`plainTextFromCmsRichTextHtml`):
- * the admin field is catalog `richText`, but list cards stay text-only for layout
- * and nested-link UX (see `catalogFieldUsesRichText` in catalog definitions).
  *
  * @returns Sections with anchored category slugs
  */
 export async function listSailingClassesGroupedForCatalog(): Promise<
   CatalogCategorySection[]
 > {
-  const classes = await prisma.sailingClass.findMany({
-    where: { isVisible: true },
-    orderBy: [
-      { classCategory: { displayOrder: 'asc' } },
-      { displayOrder: 'asc' },
-      { name: 'asc' },
-    ],
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      level: true,
-      description: true,
-      imagePaths: true,
-      classCategory: {
-        select: {
-          id: true,
-          slug: true,
-          name: true,
-          displayOrder: true,
-          isVisible: true,
-        },
-      },
+  const payload = await getPayloadClient();
+  const result = await payload.find({
+    collection: 'classes',
+    depth: 1,
+    limit: 500,
+    overrideAccess: false,
+    sort: 'displayOrder,name',
+    where: {
+      isVisible: { equals: true },
     },
   });
 
-  const sections: CatalogCategorySection[] = [];
-  let current: CatalogCategorySection | undefined;
-
-  for (const row of classes) {
-    const cat = row.classCategory;
-    if (!cat.isVisible) {
+  const byCategory = new Map<string, CatalogCategorySection>();
+  for (const row of result.docs) {
+    const category = categorySection(row.category);
+    if (!category) {
       continue;
     }
     const card: CatalogClassCard = {
-      id: row.id,
+      description: plainTextFromCmsRichTextHtml(lexicalToHtml(row.description)),
+      id: payloadIdString(row.id),
+      imagePaths: mediaUrls(row.images),
+      level: row.level,
       name: row.name,
       slug: row.slug,
-      level: row.level,
-      description: plainTextFromCmsRichTextHtml(row.description),
-      imagePaths: row.imagePaths,
     };
-    if (current && current.category.id === cat.id) {
-      current.classes.push(card);
+    const existing = byCategory.get(category.id);
+    if (existing) {
+      existing.classes.push(card);
     } else {
-      current = {
-        category: {
-          id: cat.id,
-          slug: cat.slug,
-          name: cat.name,
-          displayOrder: cat.displayOrder,
-        },
-        classes: [card],
-      };
-      sections.push(current);
+      byCategory.set(category.id, { category, classes: [card] });
     }
   }
 
-  return sections;
+  return [...byCategory.values()].toSorted(
+    (a, b) =>
+      a.category.displayOrder - b.category.displayOrder ||
+      a.category.name.localeCompare(b.category.name)
+  );
 }
 
 export type SailingClassCatalogDetail = {
@@ -195,6 +212,64 @@ function orderByIdOrder<T extends { id: string }>(
   return out;
 }
 
+function namedSlugFromRelation(value: unknown): {
+  id: string;
+  name: string;
+  slug: string;
+} | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const { id, name, slug } = value;
+  if (
+    id === undefined ||
+    (typeof id !== 'string' && typeof id !== 'number') ||
+    typeof name !== 'string' ||
+    typeof slug !== 'string'
+  ) {
+    return null;
+  }
+  return {
+    id: payloadIdString(id),
+    name,
+    slug,
+  };
+}
+
+function unlockedBoatFromRelation(value: unknown): {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  type: string;
+  capacity: number;
+  imagePath: string | null;
+} | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const { capacity, description, id, images, name, slug, type } = value;
+  if (
+    id === undefined ||
+    (typeof id !== 'string' && typeof id !== 'number') ||
+    typeof name !== 'string' ||
+    typeof slug !== 'string' ||
+    typeof type !== 'string' ||
+    typeof capacity !== 'number'
+  ) {
+    return null;
+  }
+  return {
+    capacity,
+    description: lexicalToHtml(description),
+    id: payloadIdString(id),
+    imagePath: mediaUrls(images)[0] ?? null,
+    name,
+    slug,
+    type,
+  };
+}
+
 /**
  * Published catalog detail for a sailing class (`null` when missing).
  *
@@ -202,102 +277,115 @@ function orderByIdOrder<T extends { id: string }>(
  */
 export const getSailingClassCatalogBySlug = cache(
   async (slug: string): Promise<SailingClassCatalogDetail | null> => {
-    const sailingClass = await prisma.sailingClass.findFirst({
-      where: { slug, isVisible: true },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        level: true,
-        description: true,
-        imagePaths: true,
-        classCategory: { select: { name: true, slug: true } },
-        prerequisiteEdges: {
-          where: { prerequisiteClass: { isVisible: true } },
-          orderBy: { prerequisiteClass: { name: 'asc' } },
-          select: {
-            prerequisiteClass: {
-              select: { id: true, name: true, slug: true },
-            },
-          },
-        },
-        relatedEvents: {
-          where: { event: { isPublished: true } },
-          orderBy: { event: { name: 'asc' } },
-          select: {
-            event: {
-              select: { id: true, name: true, slug: true },
-            },
-          },
-        },
-        unlockedBoatLinks: {
-          orderBy: { fleetBoat: { displayOrder: 'asc' } },
-          select: {
-            fleetBoat: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                description: true,
-                type: true,
-                capacity: true,
-                imagePath: true,
-              },
-            },
-          },
-        },
+    const payload = await getPayloadClient();
+    const result = await payload.find({
+      collection: 'classes',
+      depth: 2,
+      limit: 1,
+      overrideAccess: false,
+      where: {
+        and: [{ slug: { equals: slug } }, { isVisible: { equals: true } }],
       },
     });
-
+    const [sailingClass] = result.docs;
     if (!sailingClass) {
       return null;
     }
 
-    const prerequisites = sailingClass.prerequisiteEdges.map(
-      (e) => e.prerequisiteClass
-    );
-    const prerequisiteIds = prerequisites.map((p) => p.id);
+    const { category } = sailingClass;
+    if (
+      typeof category !== 'object' ||
+      category === null ||
+      typeof category.name !== 'string' ||
+      typeof category.slug !== 'string'
+    ) {
+      return null;
+    }
 
-    const relatedEvents = sailingClass.relatedEvents.map((r) => r.event);
+    const id = payloadIdString(sailingClass.id);
+    const prerequisiteRelations = Array.isArray(sailingClass.prerequisites)
+      ? sailingClass.prerequisites
+      : [];
+    const prerequisites = prerequisiteRelations
+      .map((item) => namedSlugFromRelation(item))
+      .filter(
+        (
+          item: ReturnType<typeof namedSlugFromRelation>
+        ): item is NonNullable<typeof item> => item !== null
+      )
+      .toSorted(
+        (
+          a: { id: string; name: string; slug: string },
+          b: { id: string; name: string; slug: string }
+        ) => a.name.localeCompare(b.name)
+      );
+    const prerequisiteIds = prerequisites.map(
+      (p: { id: string; name: string; slug: string }) => p.id
+    );
+
+    const unlockedBoatRelations = Array.isArray(sailingClass.unlockedBoats)
+      ? sailingClass.unlockedBoats
+      : [];
+    const unlockedBoats = unlockedBoatRelations
+      .map((item) => unlockedBoatFromRelation(item))
+      .filter(
+        (
+          item: ReturnType<typeof unlockedBoatFromRelation>
+        ): item is NonNullable<typeof item> => item !== null
+      );
+    const unlockedBoatIds = unlockedBoats.map((b: { id: string }) => b.id);
+
+    const relatedEventLinks = await prisma.sailingClassRelatedEvent.findMany({
+      where: { sailingClassId: id },
+      orderBy: { event: { name: 'asc' } },
+      select: {
+        event: {
+          select: { id: true, name: true, slug: true, isPublished: true },
+        },
+      },
+    });
+    const relatedEvents = relatedEventLinks
+      .map((link) => link.event)
+      .filter((event) => event.isPublished)
+      .map((event) => ({
+        id: event.id,
+        name: event.name,
+        slug: event.slug,
+      }));
     const relatedEventIds = relatedEvents.map((e) => e.id);
-
-    const unlockedBoats = sailingClass.unlockedBoatLinks.map(
-      (l) => l.fleetBoat
-    );
-    const unlockedBoatIds = unlockedBoats.map((b) => b.id);
 
     const [requiredRatingRules, grantableRatingRules] = await Promise.all([
       listRequiredRatingsForTarget({
         targetType: 'class',
-        targetId: sailingClass.id,
+        targetId: id,
         ruleType: 'requires',
       }),
       listRequiredRatingsForTarget({
         targetType: 'class',
-        targetId: sailingClass.id,
+        targetId: id,
         ruleType: 'grants',
       }),
     ]);
 
     return {
-      id: sailingClass.id,
-      name: sailingClass.name,
-      slug: sailingClass.slug,
-      level: sailingClass.level,
-      description: sailingClass.description,
-      imagePaths: sailingClass.imagePaths,
-      classCategory: sailingClass.classCategory,
-      prerequisiteIds,
-      relatedEventIds,
-      unlockedBoatIds,
-      prerequisites: orderByIdOrder(prerequisiteIds, prerequisites),
-      requiredRatings: requiredRatingRules
-        .toSorted((a, b) => a.displayOrder - b.displayOrder)
-        .map((rule) => rule.sailingRating),
+      classCategory: { name: category.name, slug: category.slug },
+      description: lexicalToHtml(sailingClass.description),
       grantableRatings: grantableRatingRules
         .toSorted((a, b) => a.displayOrder - b.displayOrder)
         .map((rule) => rule.sailingRating),
+      id,
+      imagePaths: mediaUrls(sailingClass.images),
+      level: sailingClass.level,
+      name: sailingClass.name,
+      prerequisiteIds,
+      prerequisites: orderByIdOrder(prerequisiteIds, prerequisites),
+      relatedEventIds,
       relatedEvents: orderByIdOrder(relatedEventIds, relatedEvents),
+      requiredRatings: requiredRatingRules
+        .toSorted((a, b) => a.displayOrder - b.displayOrder)
+        .map((rule) => rule.sailingRating),
+      slug: sailingClass.slug,
+      unlockedBoatIds,
       unlockedBoats: orderByIdOrder(unlockedBoatIds, unlockedBoats),
     };
   }

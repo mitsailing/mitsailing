@@ -1,14 +1,11 @@
-import { ArrowLeft } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { MitnaSubNavLayout } from '@/components/mit-sailing/MitnaSubNavLayout';
 import type { SiteSectionBreadcrumbSegment } from '@/components/mit-sailing/SiteSectionBreadcrumbs';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
-import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
-import { Link } from '@/libs/I18nNavigation';
 
-/** MIT `/about/mitna/**` landing and doc pages (not staff bios). */
+/** MIT `/mitna/**` landing and doc pages. */
 type MitnaPublicPageKind = 'landing' | 'constitution' | 'meetings' | 'hatch';
 
 type MitnaMarketingPageShellProps = {
@@ -18,14 +15,10 @@ type MitnaMarketingPageShellProps = {
 };
 
 /**
- * Standard marketing chrome for MITNA: {@link SiteSectionShell} + {@link SiteSectionMain} +
- * {@link MitnaSubNavLayout}. Landing links back to `/about`; deeper pages link to `/about/mitna`.
+ * Marketing chrome for MITNA: breadcrumbs and subnav without a back link to About.
  *
  * @param props - Wrapper props
- * @param props.locale - Active locale
- * @param props.page - Which MITNA surface (drives breadcrumbs and spacing)
- * @param props.children - Main column body (below optional {@link leading})
- * @returns Full section tree below global {@link SiteShell}
+ * @returns Section shell with MITNA subnav
  */
 export async function MitnaMarketingPageShell(
   props: MitnaMarketingPageShellProps
@@ -38,17 +31,10 @@ export async function MitnaMarketingPageShell(
 
   let segments: SiteSectionBreadcrumbSegment[];
   let variant: 'catalog' | 'detail';
-  let backHref: '/about' | '/about/mitna';
-  let backLabel: string;
 
   if (page === 'landing') {
-    segments = [
-      { href: '/about', label: t('section_about') },
-      { label: t('mitna_title') },
-    ];
+    segments = [{ label: t('mitna_title') }];
     variant = 'catalog';
-    backHref = '/about';
-    backLabel = t('mitna_back_about');
   } else {
     let lastLabel = t('mitna_nav_constitution');
     if (page === 'meetings') {
@@ -57,31 +43,16 @@ export async function MitnaMarketingPageShell(
       lastLabel = t('mitna_nav_hatch');
     }
     segments = [
-      { href: '/about', label: t('section_about') },
-      { href: '/about/mitna', label: t('mitna_title') },
+      { href: '/mitna', label: t('mitna_title') },
       { label: lastLabel },
     ];
     variant = 'detail';
-    backHref = '/about/mitna';
-    backLabel = t('mitna_back_overview');
   }
-
-  const backLink = (
-    <Link
-      className={`inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`}
-      href={backHref}
-    >
-      <ArrowLeft aria-hidden size={16} />
-      {backLabel}
-    </Link>
-  );
 
   return (
     <SiteSectionShell locale={locale} segments={segments}>
       <SiteSectionMain variant={variant}>
-        <MitnaSubNavLayout leading={backLink}>
-          {props.children}
-        </MitnaSubNavLayout>
+        <MitnaSubNavLayout>{props.children}</MitnaSubNavLayout>
       </SiteSectionMain>
     </SiteSectionShell>
   );

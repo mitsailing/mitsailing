@@ -1,7 +1,7 @@
 import path from 'node:path';
 import type { CollectionConfig, TextFieldValidation } from 'payload';
 import { Env } from '@/libs/Env';
-import { authenticatedCmsAccess, cmsEditAccess } from '@/payload/access';
+import { cmsEditAccess } from '@/payload/access';
 
 const MEDIA_MIME_TYPES = [
   'image/jpeg',
@@ -31,7 +31,8 @@ export const Media: CollectionConfig = {
   access: {
     create: cmsEditAccess,
     delete: cmsEditAccess,
-    read: authenticatedCmsAccess,
+    // Public pages render these files. The file route enforces this read access.
+    read: () => true,
     update: cmsEditAccess,
   },
   fields: [

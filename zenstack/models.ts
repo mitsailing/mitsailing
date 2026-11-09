@@ -77,7 +77,6 @@ export type PavilionReservationRequest = $ModelResult<$Schema, "PavilionReservat
 export type PavilionReservationSlot = $ModelResult<$Schema, "PavilionReservationSlot">;
 export type PavilionReservationService = $ModelResult<$Schema, "PavilionReservationService">;
 export type LegacyMysqlSyncRun = $ModelResult<$Schema, "LegacyMysqlSyncRun">;
-export type StaffMember = $ModelResult<$Schema, "StaffMember">;
 export type AuthContext = $TypeDefResult<$Schema, "AuthContext">;
 export const AppRole = $schema.enums.AppRole.values;
 export type AppRole = (typeof AppRole)[keyof typeof AppRole];

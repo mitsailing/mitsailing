@@ -39,7 +39,7 @@ test.describe('Visual testing', () => {
     test('should take screenshot of the MIT Nautical Association page', async ({
       page,
     }, testInfo) => {
-      await page.goto('/about/mitna');
+      await page.goto('/mitna');
 
       await expect(
         page.getByRole('heading', {

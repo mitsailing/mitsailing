@@ -110,7 +110,7 @@ const hooks = {
 };
 
 const lockedError = {
-  body: { message: 'ACCOUNT_LOCKED' },
+  body: { code: 'ACCOUNT_LOCKED', message: 'ACCOUNT_LOCKED' },
   status: 'FORBIDDEN',
 };
 

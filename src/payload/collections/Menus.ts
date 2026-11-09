@@ -1,5 +1,5 @@
 import type { CollectionConfig } from 'payload';
-import { authenticatedCmsAccess, cmsEditAccess } from '@/payload/access';
+import { cmsEditAccess, publicMenusReadAccess } from '@/payload/access';
 
 const MENU_LOCATIONS = [
   { label: 'Header', value: 'header' },
@@ -28,7 +28,7 @@ export const Menus: CollectionConfig = {
   access: {
     create: cmsEditAccess,
     delete: cmsEditAccess,
-    read: authenticatedCmsAccess,
+    read: publicMenusReadAccess,
     update: cmsEditAccess,
   },
   fields: [

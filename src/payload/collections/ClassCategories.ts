@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload';
 import {
-  authenticatedCmsAccess,
   sailingClassesManageAccess,
+  visibleCatalogReadAccess,
 } from '@/payload/access';
 
 /**
@@ -16,7 +16,7 @@ export const ClassCategories: CollectionConfig = {
   access: {
     create: sailingClassesManageAccess,
     delete: sailingClassesManageAccess,
-    read: authenticatedCmsAccess,
+    read: visibleCatalogReadAccess,
     update: sailingClassesManageAccess,
   },
   fields: [

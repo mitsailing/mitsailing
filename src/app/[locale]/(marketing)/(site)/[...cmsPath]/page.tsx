@@ -2,39 +2,30 @@ import type { Metadata } from 'next';
 import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
-import { CmsPageBlocks } from '@/components/mit-sailing/cms/CmsPageBlocks';
-import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
-import { loadPublishedCmsPageByPath } from '@/libs/mit-sailing/cmsQueries';
+import { PayloadLexicalRichText } from '@/components/mit-sailing/cms/PayloadLexicalRichText';
+import { loadPublishedPayloadPage } from '@/libs/payload/loadPublishedPayloadPage';
 
 type CmsCatchAllPageProps = {
   params: Promise<{ locale: string; cmsPath: string[] }>;
 };
 
-function pathFromSegments(segments: string[]): string {
-  return `/${segments.join('/')}`;
-}
-
 export async function generateMetadata(
   props: CmsCatchAllPageProps
 ): Promise<Metadata> {
   const { cmsPath } = await props.params;
-  const page = await loadPublishedCmsPageByPath(pathFromSegments(cmsPath));
+  const page = await loadPublishedPayloadPage(cmsPath);
   if (!page) {
     return {};
   }
-  const description = page.metaDescription || undefined;
   return {
-    title: page.metaTitle,
-    description,
     openGraph: {
-      title: page.metaTitle,
-      description,
+      title: page.title,
       type: 'website',
     },
+    title: page.title,
     twitter: {
       card: 'summary_large_image',
-      title: page.metaTitle,
-      description,
+      title: page.title,
     },
   };
 }
@@ -42,7 +33,7 @@ export async function generateMetadata(
 export default async function CmsCatchAllPage(props: CmsCatchAllPageProps) {
   const { locale, cmsPath } = await props.params;
   setRequestLocale(locale);
-  const page = await loadPublishedCmsPageByPath(pathFromSegments(cmsPath));
+  const page = await loadPublishedPayloadPage(cmsPath);
   if (!page) {
     notFound();
   }
@@ -50,9 +41,17 @@ export default async function CmsCatchAllPage(props: CmsCatchAllPageProps) {
     <>
       <PublicAdminEditLink
         className="mx-auto mb-0 w-full max-w-5xl px-6 pt-4"
-        href={adminCatalogResourceEditPath('cms_pages', page.id)}
+        href={`/cms/collections/pages/${page.id}`}
       />
-      <CmsPageBlocks page={page} />
+      <article className="mx-auto w-full max-w-5xl px-6 py-10">
+        <h1 className="mb-6 font-mit-serif text-3xl font-semibold text-mit-text md:text-4xl">
+          {page.title}
+        </h1>
+        <PayloadLexicalRichText
+          className="cms-rich-text prose prose-mit max-w-none text-mit-text"
+          data={page.body}
+        />
+      </article>
     </>
   );
 }

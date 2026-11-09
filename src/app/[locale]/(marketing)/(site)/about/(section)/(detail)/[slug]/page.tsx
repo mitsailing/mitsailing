@@ -1,9 +1,9 @@
 import { ArrowLeft } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { getStaffBySlug } from '@/data/mit-sailing/aboutContent';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
+import { loadStaffProfile } from '@/libs/mit-sailing/loadAboutPageContent';
 
 type PageProps = { params: Promise<{ locale: string; slug: string }> };
 
@@ -13,7 +13,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     locale,
     namespace: 'MitSailingRoutes',
   });
-  const staff = getStaffBySlug(slug);
+  const staff = await loadStaffProfile(slug);
   const name = staff?.name ?? slug;
   const title = t('meta_title_about_staff', { slug: name });
   return {
@@ -24,8 +24,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 }
 
 /**
- * About staff biographies; `/about/:slug` for non-MITNA paths. Static
- * `about/mitna/...` routes are served by the `about/mitna/` tree.
+ * About staff biographies at `/about/:slug`. MITNA pages live under `/mitna`.
  *
  * @param props - App Router page props
  * @param props.params - Resolves to `locale` and `slug`
@@ -38,7 +37,7 @@ export default async function AboutStaffPage(props: PageProps) {
     locale,
     namespace: 'MitSailingAbout',
   });
-  const staff = getStaffBySlug(slug);
+  const staff = await loadStaffProfile(slug);
   const name = staff?.name ?? slug;
   return (
     <>

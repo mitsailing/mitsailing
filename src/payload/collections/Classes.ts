@@ -1,11 +1,11 @@
 import type { CollectionConfig } from 'payload';
 import {
-  authenticatedCmsAccess,
   sailingClassesManageAccess,
+  visibleCatalogReadAccess,
 } from '@/payload/access';
 
 /**
- * Fields needed by ClassDetailView / catalog props (no public loaders changed).
+ * Fields needed by ClassDetailView / catalog props.
  */
 export const Classes: CollectionConfig = {
   slug: 'classes',
@@ -16,7 +16,7 @@ export const Classes: CollectionConfig = {
   access: {
     create: sailingClassesManageAccess,
     delete: sailingClassesManageAccess,
-    read: authenticatedCmsAccess,
+    read: visibleCatalogReadAccess,
     update: sailingClassesManageAccess,
   },
   fields: [

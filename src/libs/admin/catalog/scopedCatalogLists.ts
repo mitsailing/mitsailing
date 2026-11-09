@@ -1,9 +1,5 @@
 import 'server-only';
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
-import {
-  cmsMenuSelectOptions,
-  cmsPageRequiredSelectOptions,
-} from '@/libs/admin/catalog/cmsCatalogHandlers';
 import type {
   AdminCatalogResourceMessageKey,
   CatalogListOptions,
@@ -31,20 +27,7 @@ export type CatalogScopedListState = {
 
 const scopedCatalogLists: Partial<
   Record<CatalogResourceId, CatalogScopedListDefinition>
-> = {
-  cms_menu_items: {
-    queryParamName: 'menu',
-    fieldName: 'menuId',
-    labelKey: 'field_cms_menu',
-    loadOptions: cmsMenuSelectOptions,
-  },
-  cms_page_blocks: {
-    queryParamName: 'page',
-    fieldName: 'pageId',
-    labelKey: 'field_cms_page',
-    loadOptions: cmsPageRequiredSelectOptions,
-  },
-};
+> = {};
 
 function catalogScopedListDefinition(
   resourceId: CatalogResourceId

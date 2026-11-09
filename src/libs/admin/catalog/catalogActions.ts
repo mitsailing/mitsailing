@@ -36,7 +36,6 @@ import {
   isCatalogHistoryResourceId,
   restoreCatalogRevision,
 } from '@/libs/mit-sailing/catalogHistory';
-import { restoreCmsPageRevision } from '@/libs/mit-sailing/cmsHistory';
 import { NEWS_CACHE_TAG } from '@/libs/mit-sailing/newsQueries';
 import { sitemapCatalogCacheTag } from '@/libs/mit-sailing/sitemapCache';
 import {
@@ -76,10 +75,6 @@ const CATALOG_EXTRA_PUBLIC_PATHS: Partial<
   fleet: ['/fleet'],
   pavilion_spaces: ['/reserve', '/spaces'],
   news: ['/', '/news'],
-  cms_pages: ['/', '/about'],
-  cms_page_blocks: ['/', '/about'],
-  cms_menus: ['/'],
-  cms_menu_items: ['/'],
 };
 
 function revalidateAfterCatalogMutation(
@@ -156,25 +151,6 @@ function revalidateCatalogDetailPath(
   }
 }
 
-function scopedCatalogMutationSearchParam(
-  resourceId: CatalogResourceId,
-  formData: FormData
-): { name: string; value: string } | undefined {
-  if (resourceId === 'cms_page_blocks') {
-    const pageId = formData.get('pageId');
-    return typeof pageId === 'string' && pageId.trim().length > 0
-      ? { name: 'page', value: pageId }
-      : undefined;
-  }
-  if (resourceId === 'cms_menu_items') {
-    const menuId = formData.get('menuId');
-    return typeof menuId === 'string' && menuId.trim().length > 0
-      ? { name: 'menu', value: menuId }
-      : undefined;
-  }
-  return undefined;
-}
-
 /** Keeps redirect URLs bounded when Zod surfaces long issue messages. */
 const MAX_FIELD_ERROR_MESSAGE_CHARS = 500;
 
@@ -182,12 +158,8 @@ function catalogRedirectPath(props: {
   basePath: string;
   errorCode?: string;
   fieldErrors?: Record<string, string>;
-  scope?: { name: string; value: string };
 }): string {
   const searchParams = new URLSearchParams();
-  if (props.scope) {
-    searchParams.set(props.scope.name, props.scope.value);
-  }
   if (props.errorCode) {
     searchParams.set('error', props.errorCode);
   }
@@ -230,7 +202,6 @@ export async function createCatalogResourceAction(
     locale
   );
   const handlers = getCatalogServerHandlers(resourceId);
-  const scope = scopedCatalogMutationSearchParam(resourceId, formData);
   const result = await handlers.createFromForm(
     formData,
     catalogMutationContextFromSession(session)
@@ -241,7 +212,6 @@ export async function createCatalogResourceAction(
         basePath: getI18nPath(adminCatalogResourceNewPath(resourceId), locale),
         errorCode: result.code,
         fieldErrors: result.fieldErrors,
-        scope,
       })
     );
   }
@@ -257,7 +227,6 @@ export async function createCatalogResourceAction(
         adminCatalogResourceEditPath(resourceId, result.id),
         locale
       ),
-      scope,
     })
   );
 }
@@ -287,7 +256,6 @@ export async function updateCatalogResourceAction(
     locale
   );
   const handlers = getCatalogServerHandlers(resourceId);
-  const scope = scopedCatalogMutationSearchParam(resourceId, formData);
   const oldSlug = slugFromCatalogRow(await handlers.getById(id));
   const result = await handlers.updateFromForm(
     id,
@@ -303,7 +271,6 @@ export async function updateCatalogResourceAction(
         ),
         errorCode: result.code,
         fieldErrors: result.fieldErrors,
-        scope,
       })
     );
   }
@@ -321,7 +288,6 @@ export async function updateCatalogResourceAction(
           adminCatalogResourceIndexPath(resourceId),
           locale
         ),
-        scope,
       })
     );
   }
@@ -331,7 +297,6 @@ export async function updateCatalogResourceAction(
         adminCatalogResourceEditPath(resourceId, id),
         locale
       ),
-      scope,
     })
   );
 }
@@ -372,50 +337,6 @@ export async function deleteCatalogResourceAction(
   revalidateAfterCatalogMutation(locale, resourceId);
   revalidateCatalogDetailPath(locale, resourceId, oldSlug);
   redirect(getI18nPath(adminCatalogResourceIndexPath(resourceId), locale));
-}
-
-/**
- * Restores a CMS page and its blocks from a recorded page revision.
- *
- * @param locale - Active locale
- * @param pageId - CMS page id
- * @param revisionId - CMS page revision id
- * @param formData - Confirmation form body
- */
-export async function restoreCmsPageRevisionAction(
-  locale: string,
-  pageId: string,
-  revisionId: string,
-  formData: FormData
-): Promise<void> {
-  const session = await requirePermission(
-    catalogPermissionForOperation({
-      operation: 'restore',
-      resourceId: 'cms_pages',
-    }),
-    locale
-  );
-  if (formData.get('confirmRestore') !== 'true') {
-    redirect(
-      `${getI18nPath(adminCatalogResourceEditPath('cms_pages', pageId), locale)}?error=validation_failed`
-    );
-  }
-  const context = catalogMutationContextFromSession(session);
-  const result = await restoreCmsPageRevision({
-    createdByUserId: context.userId,
-    impersonatedUserId: context.impersonatedUserId,
-    pageId,
-    revisionId,
-  });
-  if (!result.ok) {
-    redirect(
-      `${getI18nPath(adminCatalogResourceEditPath('cms_pages', pageId), locale)}?error=${encodeURIComponent(result.code)}`
-    );
-  }
-  revalidateAfterCatalogMutation(locale, 'cms_pages');
-  redirect(
-    getI18nPath(adminCatalogResourceEditPath('cms_pages', pageId), locale)
-  );
 }
 
 /**

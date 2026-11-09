@@ -2038,17 +2038,3 @@ model LegacyMysqlSyncRun {
   @@index([status, startedAt])
   @@map("legacy_mysql_sync_runs")
 }
-
-model StaffMember {
-  id       String  @id
-  slug     String  @unique
-  name     String
-  role     String
-  bio      String? @db.Text
-  fullBio  Json
-  imageSrc String? @map("image_src")
-  imageAlt String? @map("image_alt")
-  email    String
-
-  @@map("staff_members")
-}

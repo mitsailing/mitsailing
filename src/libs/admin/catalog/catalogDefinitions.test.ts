@@ -7,7 +7,6 @@ describe('catalogFieldUsesRichText', () => {
     expect(catalogFieldUsesRichText('sailing_classes', 'description')).toBe(
       true
     );
-    expect(catalogFieldUsesRichText('cms_page_blocks', 'body')).toBe(true);
   });
 
   it('returns false for textarea catalog fields', () => {

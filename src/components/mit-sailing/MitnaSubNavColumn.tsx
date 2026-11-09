@@ -12,30 +12,30 @@ export function MitnaSubNavColumn() {
   const t = useTranslations('MitSailingRoutes');
   return (
     <nav
-      className="flex flex-col gap-1 border-border md:border-r md:pe-6"
       aria-label={t('mitna_subnav_aria')}
+      className="flex flex-col gap-1 border-border md:border-r md:pe-6"
     >
       <Link
         className="rounded-md px-2 py-1.5 text-foreground hover:bg-muted"
-        href="/about/mitna"
+        href="/mitna"
       >
         {t('mitna_nav_root')}
       </Link>
       <Link
         className="rounded-md px-2 py-1.5 text-foreground hover:bg-muted"
-        href="/about/mitna/constitution"
+        href="/mitna/constitution"
       >
         {t('mitna_nav_constitution')}
       </Link>
       <Link
         className="rounded-md px-2 py-1.5 text-foreground hover:bg-muted"
-        href="/about/mitna/meetings"
+        href="/mitna/meetings"
       >
         {t('mitna_nav_meetings')}
       </Link>
       <Link
         className="rounded-md px-2 py-1.5 text-foreground hover:bg-muted"
-        href="/about/mitna/hatch-award"
+        href="/mitna/hatch-award"
       >
         {t('mitna_nav_hatch')}
       </Link>

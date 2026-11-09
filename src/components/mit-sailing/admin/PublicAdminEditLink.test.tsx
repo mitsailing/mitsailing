@@ -33,13 +33,55 @@ describe('PublicAdminEditLink', () => {
     });
     render(
       await PublicAdminEditLink({
-        href: '/admin/cms_pages/page-1/edit',
+        href: '/admin/fleet/boat-1/edit',
       })
     );
 
     expect(
       screen.getByRole('link', { name: /edit this page/i })
-    ).toHaveAttribute('href', '/admin/cms_pages/page-1/edit');
+    ).toHaveAttribute('href', '/admin/fleet/boat-1/edit');
+  });
+
+  it('renders Payload cms edit links for admins', async () => {
+    getSessionMock.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: {
+        appRole: 'admin',
+        banned: false,
+        emailVerified: true,
+        id: 'admin-1',
+        role: 'user',
+      },
+    });
+    render(
+      await PublicAdminEditLink({
+        href: '/cms/collections/pages/42',
+      })
+    );
+
+    expect(
+      screen.getByRole('link', { name: /edit this page/i })
+    ).toHaveAttribute('href', '/cms/collections/pages/42');
+  });
+
+  it('omits unsafe edit hrefs', async () => {
+    getSessionMock.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: {
+        appRole: 'admin',
+        banned: false,
+        emailVerified: true,
+        id: 'admin-1',
+        role: 'user',
+      },
+    });
+    const view = render(
+      await PublicAdminEditLink({
+        href: 'https://evil.example/cms',
+      })
+    );
+
+    expect(view.container).toBeEmptyDOMElement();
   });
 
   it('omits the edit link for non-admins', async () => {

@@ -74,6 +74,7 @@ const ADMIN_NAV_ICONS: Partial<
   nav_sailing_rating_rules: Settings2,
   nav_fleet: Ship,
   nav_news: Newspaper,
+  nav_cms: FileText,
   nav_cms_pages: FileText,
   nav_cms_page_blocks: Layers,
   nav_cms_menus: Menu,
@@ -147,28 +148,48 @@ function AdminNavLink(props: {
   readonly label: string;
 }) {
   const Icon = ADMIN_NAV_ICONS[props.item.labelKey] ?? LayoutDashboard;
-  return (
-    <Link
-      aria-current={props.active ? 'page' : undefined}
-      className={cn(
-        'flex items-center rounded-md text-left text-sm font-semibold text-mit-text leading-6 no-underline',
-        rowFocus,
-        props.collapsed ? 'justify-center px-2 py-2' : 'gap-2 px-2 py-1.5',
-        props.active
-          ? 'bg-mit-surface text-mit-red dark:text-mit-red-ink'
-          : 'hover:bg-mit-surface'
-      )}
-      // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
-      href={props.href}
-      prefetch={false}
-      title={props.collapsed ? props.label : undefined}
-    >
+  const className = cn(
+    'flex items-center rounded-md text-left text-sm font-semibold text-mit-text leading-6 no-underline',
+    rowFocus,
+    props.collapsed ? 'justify-center px-2 py-2' : 'gap-2 px-2 py-1.5',
+    props.active
+      ? 'bg-mit-surface text-mit-red dark:text-mit-red-ink'
+      : 'hover:bg-mit-surface'
+  );
+  const content = (
+    <>
       <Icon aria-hidden className="size-4 shrink-0" />
       {props.collapsed ? (
         <span className="sr-only">{props.label}</span>
       ) : (
         <span className="min-w-0 truncate">{props.label}</span>
       )}
+    </>
+  );
+  // Payload admin lives outside next-intl routes; use a plain anchor.
+  if (props.href === '/cms' || props.href.startsWith('/cms/')) {
+    return (
+      <a
+        aria-current={props.active ? 'page' : undefined}
+        className={className}
+        // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
+        href={props.href}
+        title={props.collapsed ? props.label : undefined}
+      >
+        {content}
+      </a>
+    );
+  }
+  return (
+    <Link
+      aria-current={props.active ? 'page' : undefined}
+      className={className}
+      // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- admin nav hrefs come from the static admin navigation catalog.
+      href={props.href}
+      prefetch={false}
+      title={props.collapsed ? props.label : undefined}
+    >
+      {content}
     </Link>
   );
 }

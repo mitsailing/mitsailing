@@ -533,8 +533,11 @@ describe('SiteHeader', () => {
       within(primaryNav).getByRole('link', { name: 'External' })
     ).toHaveAttribute('href', 'https://sailing.example.com');
     expect(
-      within(primaryNav).getByRole('link', { name: 'Resources' })
-    ).toHaveAttribute('href', '#');
+      within(primaryNav).queryByRole('link', { name: 'Resources' })
+    ).toBeNull();
+    expect(
+      within(primaryNav).queryByRole('button', { name: 'Resources' })
+    ).toBeNull();
 
     const openButton = screen.getByRole('button', { name: 'Open menu' });
     await waitFor(() => {

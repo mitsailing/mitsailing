@@ -10,25 +10,23 @@ type UnstableCacheCall = {
   };
 };
 
-const { fleetBoatFindMany, unstableCache, unstableCacheCalls } = vi.hoisted(
-  () => {
-    const calls: UnstableCacheCall[] = [];
-    return {
-      fleetBoatFindMany: vi.fn(),
-      unstableCache: vi.fn(
-        (
-          fn: () => Promise<unknown>,
-          keyParts: string[],
-          options: UnstableCacheCall['options']
-        ) => {
-          calls.push({ keyParts, options });
-          return fn;
-        }
-      ),
-      unstableCacheCalls: calls,
-    };
-  }
-);
+const { payloadFind, unstableCache, unstableCacheCalls } = vi.hoisted(() => {
+  const calls: UnstableCacheCall[] = [];
+  return {
+    payloadFind: vi.fn(),
+    unstableCache: vi.fn(
+      (
+        fn: () => Promise<unknown>,
+        keyParts: string[],
+        options: UnstableCacheCall['options']
+      ) => {
+        calls.push({ keyParts, options });
+        return fn;
+      }
+    ),
+    unstableCacheCalls: calls,
+  };
+});
 
 vi.mock('react', () => ({
   cache: (fn: () => Promise<unknown>) => fn,
@@ -40,17 +38,20 @@ vi.mock('next/cache', () => ({
 
 vi.mock('@/libs/DB', () => ({
   prisma: {
-    fleetBoat: {
-      findMany: fleetBoatFindMany,
-    },
     sailingRatingRule: {
       findMany: vi.fn(),
     },
   },
 }));
 
+vi.mock('@/libs/payload/getPayloadClient', () => ({
+  getPayloadClient: () => ({
+    find: payloadFind,
+  }),
+}));
+
 beforeEach(() => {
-  fleetBoatFindMany.mockReset();
+  payloadFind.mockReset();
   unstableCache.mockClear();
   unstableCacheCalls.length = 0;
   vi.resetModules();
@@ -58,13 +59,15 @@ beforeEach(() => {
 
 describe('listFleetBoatsForNav', () => {
   it('uses a persistent tag cache for fleet nav rows', async () => {
-    fleetBoatFindMany.mockResolvedValue([
-      {
-        id: 'tech',
-        name: 'Tech Dinghy',
-        slug: 'tech-dinghy',
-      },
-    ]);
+    payloadFind.mockResolvedValue({
+      docs: [
+        {
+          id: 'tech',
+          name: 'Tech Dinghy',
+          slug: 'tech-dinghy',
+        },
+      ],
+    });
 
     const { listFleetBoatsForNav } =
       await import('@/libs/mit-sailing/fleetQueries');

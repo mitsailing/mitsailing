@@ -1,5 +1,16 @@
 import type { CollectionConfig } from 'payload';
-import { authenticatedCmsAccess, cmsEditAccess } from '@/payload/access';
+import { cmsEditAccess, publishedPagesReadAccess } from '@/payload/access';
+
+function publicPathFromSlug(slug: unknown): string | null {
+  if (typeof slug !== 'string') {
+    return null;
+  }
+  const trimmed = slug.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}
 
 /**
  * Marketing pages with Lexical body, drafts, autosave, versions, and trash.
@@ -9,11 +20,12 @@ export const Pages: CollectionConfig = {
   admin: {
     useAsTitle: 'title',
     defaultColumns: ['title', 'slug', '_status', 'updatedAt'],
+    preview: (doc) => publicPathFromSlug(doc.slug),
   },
   access: {
     create: cmsEditAccess,
     delete: cmsEditAccess,
-    read: authenticatedCmsAccess,
+    read: publishedPagesReadAccess,
     update: cmsEditAccess,
   },
   fields: [

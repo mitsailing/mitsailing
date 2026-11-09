@@ -15,10 +15,14 @@ import {
   Classes,
   Media,
   Menus,
+  MitnaMeetings,
   Pages,
+  Staff,
   Users,
 } from '@/payload/collections';
 import { MEDIA_MAX_FILE_SIZE_BYTES } from '@/payload/collections/Media';
+import { About } from '@/payload/globals/About';
+import { HomeOverview } from '@/payload/globals/HomeOverview';
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
@@ -34,13 +38,25 @@ export default buildConfig({
       ),
     },
   },
-  collections: [Users, Media, Pages, Menus, ClassCategories, Classes, Boats],
+  collections: [
+    Users,
+    Media,
+    Pages,
+    Menus,
+    ClassCategories,
+    Classes,
+    Boats,
+    Staff,
+    MitnaMeetings,
+  ],
+  globals: [About, HomeOverview],
   db: postgresAdapter({
     pool: {
       connectionString: Env.DATABASE_URL,
       max: 5,
     },
-    push: false,
+    // Local dev uses Payload's default schema push. Production never pushes;
+    // NODE_ENV=production skips it. Production still needs payload migrations.
     schemaName: 'payload',
   }),
   editor: lexicalEditor(),

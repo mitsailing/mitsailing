@@ -9,11 +9,13 @@ export function headerMenuItemsWithPricing(props: {
     return [];
   }
 
-  if (
-    props.items.some(
-      (item) => item.href === '/pricing' || item.systemKey === 'pricing'
-    )
-  ) {
+  const hasPricing = props.items.some(
+    (item) =>
+      item.href === '/pricing' ||
+      item.systemKey === 'pricing' ||
+      item.items?.some((child) => child.href === '/pricing')
+  );
+  if (hasPricing) {
     return [...props.items];
   }
 
