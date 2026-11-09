@@ -76,25 +76,33 @@ export function SignUpForm(props: SignUpFormProps) {
     reValidateMode: 'onChange',
   });
 
-  function mapError(
-    code: string | undefined,
-    message: string | undefined
-  ): ErrorState {
+  function mapError(options: {
+    code: string | undefined;
+    message: string | undefined;
+    status: number | undefined;
+  }): ErrorState {
     // Better Auth may surface a code, a message, or both; hooks sometimes send
     // a semantic string in `message` when `code` is absent.
-    if (code === 'EMAIL_EXISTS' || message === 'EMAIL_EXISTS') {
+    if (options.code === 'EMAIL_EXISTS' || options.message === 'EMAIL_EXISTS') {
       return { message: t('error_exists'), showSignInLinks: true };
     }
-    if (code === 'PASSWORD_COMPROMISED' || message === 'PASSWORD_COMPROMISED') {
+    if (
+      options.code === 'PASSWORD_COMPROMISED' ||
+      options.message === 'PASSWORD_COMPROMISED'
+    ) {
       return { message: t('error_pwned'), showSignInLinks: false };
     }
-    if (code === 'TOO_MANY_REQUESTS' || message === 'TOO_MANY_REQUESTS') {
+    if (
+      options.code === 'TOO_MANY_REQUESTS' ||
+      options.message === 'TOO_MANY_REQUESTS' ||
+      options.status === 429
+    ) {
       return { message: t('error_rate_limited'), showSignInLinks: false };
     }
     reportUnknownAuthClientError({
       action: 'signup.email',
-      code,
-      message,
+      code: options.code,
+      message: options.message,
     });
     return {
       message: t('error_generic'),
@@ -122,7 +130,13 @@ export function SignUpForm(props: SignUpFormProps) {
         callbackURL: props.callbackUrl,
       });
       if (res.error) {
-        setFormError(mapError(res.error.code, res.error.message));
+        setFormError(
+          mapError({
+            code: res.error.code,
+            message: res.error.message,
+            status: res.error.status,
+          })
+        );
         setSubmitting(false);
         return;
       }

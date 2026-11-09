@@ -6,8 +6,21 @@ const redirect = vi.hoisted(() =>
   })
 );
 
+const requirePermission = vi.hoisted(() =>
+  vi.fn( async () => Promise.resolve())
+);
+const setRequestLocale = vi.hoisted(() => vi.fn());
+
 vi.mock('next/navigation', () => ({
   redirect,
+}));
+
+vi.mock('next-intl/server', () => ({
+  setRequestLocale,
+}));
+
+vi.mock('@/libs/auth/dal', () => ({
+  requirePermission,
 }));
 
 describe('AdminCmsPageRevisionComparePage', () => {
@@ -15,9 +28,12 @@ describe('AdminCmsPageRevisionComparePage', () => {
     const pageModule = await import('./page');
     const AdminCmsPageRevisionComparePage = pageModule.default;
 
-    expect(() => {
-      AdminCmsPageRevisionComparePage();
-    }).toThrow('NEXT_REDIRECT');
+    await expect(
+      AdminCmsPageRevisionComparePage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    ).rejects.toThrow('NEXT_REDIRECT');
+    expect(requirePermission).toHaveBeenCalled();
     expect(redirect).toHaveBeenCalledWith('/cms/collections/pages');
   });
 });

@@ -44,6 +44,10 @@ vi.mock('next/image', () => ({
   ),
 }));
 
+vi.mock('@/components/mit-sailing/admin/PublicAdminEditLink', () => ({
+  PublicAdminEditLink: () => null,
+}));
+
 vi.mock('@/libs/mit-sailing/cmsQueries', () => ({
   loadPublishedCmsPageByPath: homeMocks.loadPublishedCmsPageByPath,
 }));

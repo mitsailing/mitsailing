@@ -21,6 +21,10 @@ vi.mock('@/libs/auth', () => ({
   },
 }));
 
+vi.mock('@/libs/payload/resolveRedirectDestination', () => ({
+  resolveRedirectDestination: vi.fn( async () => Promise.resolve(null)),
+}));
+
 describe('proxy', () => {
   beforeEach(() => {
     getSession.mockReset();
