@@ -21,6 +21,7 @@
   "trailingComma": "es5",
   "useTabs": false,
   "ignorePatterns": [
+    "src/app/(payload)/cms/importMap.js",
     "migrations/*",
     "mit-redesign/**",
     "*.md",
