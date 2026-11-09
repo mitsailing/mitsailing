@@ -29,6 +29,7 @@ import { MEDIA_MAX_FILE_SIZE_BYTES } from '@/payload/collections/Media';
 import { About } from '@/payload/globals/About';
 import { HomeOverview } from '@/payload/globals/HomeOverview';
 import { ImageWrapFeature } from '@/payload/lexical/imageWrapFeature';
+import { migrations } from './src/migrations';
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
@@ -104,8 +105,8 @@ export default buildConfig({
       connectionString: Env.DATABASE_URL,
       max: 5,
     },
-    // Local dev uses Payload's default schema push. Production never pushes;
-    // NODE_ENV=production skips it. Production still needs payload migrations.
+    // Dev keeps Drizzle push. Production runs prodMigrations on connect.
+    prodMigrations: migrations,
     schemaName: 'payload',
   }),
   editor: lexicalEditor({

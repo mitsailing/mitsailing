@@ -7,6 +7,7 @@ const config: KnipConfig = {
   ignore: [
     // Payload admin loads Env via payload.config; knip runs without secrets.
     'payload.config.ts',
+    'src/migrations/**',
     'src/app/(payload)/**',
     'src/payload/**',
     'src/libs/I18n.ts',

@@ -2,6 +2,7 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "ignorePatterns": [
     "src/app/(payload)/cms/importMap.js",
+    "src/migrations/**",
     "mit-redesign/**",
     "donation-figma/**",
     "zenstack/input.ts",
