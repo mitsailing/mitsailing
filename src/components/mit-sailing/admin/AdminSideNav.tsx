@@ -9,11 +9,9 @@ import {
   Flag,
   LayoutDashboard,
   LayoutGrid,
-  Layers,
   ListTree,
   Mail,
   Megaphone,
-  Menu,
   Newspaper,
   PanelLeftClose,
   PanelLeftOpen,
@@ -75,10 +73,6 @@ const ADMIN_NAV_ICONS: Partial<
   nav_fleet: Ship,
   nav_news: Newspaper,
   nav_cms: FileText,
-  nav_cms_pages: FileText,
-  nav_cms_page_blocks: Layers,
-  nav_cms_menus: Menu,
-  nav_cms_menu_items: ListTree,
 };
 
 function readAdminSideNavCollapsedFromStorage(): boolean {

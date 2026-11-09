@@ -21,8 +21,12 @@ vi.mock('@/libs/auth', () => ({
   },
 }));
 
+const resolveRedirectDestination = vi.hoisted(() =>
+  vi.fn( async () => Promise.resolve(null))
+);
+
 vi.mock('@/libs/payload/resolveRedirectDestination', () => ({
-  resolveRedirectDestination: vi.fn( async () => Promise.resolve(null)),
+  resolveRedirectDestination,
 }));
 
 describe('proxy', () => {

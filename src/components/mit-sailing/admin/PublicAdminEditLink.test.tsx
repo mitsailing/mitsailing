@@ -97,7 +97,7 @@ describe('PublicAdminEditLink', () => {
     });
     const view = render(
       await PublicAdminEditLink({
-        href: '/admin/cms_pages/page-1/edit',
+        href: '/cms/collections/pages/page-1',
       })
     );
 
@@ -109,7 +109,7 @@ describe('PublicAdminEditLink', () => {
 
     const view = render(
       await PublicAdminEditLink({
-        href: '/admin/cms_pages/page-1/edit',
+        href: '/cms/collections/pages/page-1',
       })
     );
 
@@ -129,7 +129,7 @@ describe('PublicAdminEditLink', () => {
     });
     const view = render(
       await PublicAdminEditLink({
-        href: '/admin/cms_pages/page-1/edit',
+        href: '/cms/collections/pages/page-1',
       })
     );
 
@@ -150,7 +150,7 @@ describe('PublicAdminEditLink', () => {
 
     const view = render(
       await PublicAdminEditLink({
-        href: '/admin/cms_pages/page-1/edit',
+        href: '/cms/collections/pages/page-1',
       })
     );
 
