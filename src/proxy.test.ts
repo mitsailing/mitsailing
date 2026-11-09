@@ -22,7 +22,7 @@ vi.mock('@/libs/auth', () => ({
 }));
 
 const resolveRedirectDestination = vi.hoisted(() =>
-  vi.fn( async () => Promise.resolve(null))
+  vi.fn().mockResolvedValue(null)
 );
 
 vi.mock('@/libs/payload/resolveRedirectDestination', () => ({
