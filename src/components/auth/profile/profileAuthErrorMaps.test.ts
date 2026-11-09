@@ -38,18 +38,6 @@ describe('profile auth error maps', () => {
     expect(mapProfileEmailError('EMAIL_EXISTS', undefined, t)).toBe(
       'translated:email_exists_error'
     );
-    expect(mapProfileEmailError('INVALID_PASSWORD', undefined, t)).toBe(
-      'translated:email_invalid_password_error'
-    );
-    expect(mapProfileEmailError('INVALID_OTP', undefined, t)).toBe(
-      'translated:email_invalid_code_error'
-    );
-    expect(mapProfileEmailError('OTP_EXPIRED', undefined, t)).toBe(
-      'translated:email_code_expired_error'
-    );
-    expect(mapProfileEmailError('TOO_MANY_ATTEMPTS', undefined, t)).toBe(
-      'translated:email_code_attempts_error'
-    );
     expect(mapProfileEmailError('TOO_MANY_REQUESTS', undefined, t)).toBe(
       'translated:email_rate_limited_error'
     );

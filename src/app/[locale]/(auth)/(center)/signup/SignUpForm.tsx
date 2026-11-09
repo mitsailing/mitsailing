@@ -57,7 +57,6 @@ export function SignUpForm(props: SignUpFormProps) {
   const tCommon = useTranslations('Common');
   const router = useRouter();
   const [formError, setFormError] = useState<ErrorState>(null);
-  const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const {
     formState: { errors },
@@ -115,7 +114,6 @@ export function SignUpForm(props: SignUpFormProps) {
     });
     setSubmitting(true);
     const displayName = normalizedEmail.slice(0, normalizedEmail.indexOf('@'));
-    let keepSubmitting = false;
     try {
       const res = await authClient.signUp.email({
         email: normalizedEmail,
@@ -125,16 +123,11 @@ export function SignUpForm(props: SignUpFormProps) {
       });
       if (res.error) {
         setFormError(mapError(res.error.code, res.error.message));
+        setSubmitting(false);
         return;
       }
-      setSubmitted(true);
-      keepSubmitting = true;
-      router.push(
-        authHrefWithCallback(
-          `/verify-email?email=${encodeURIComponent(normalizedEmail)}&codeSent=1`,
-          props.callbackUrl
-        )
-      );
+      const checkEmailPath = `/check-email?email=${encodeURIComponent(normalizedEmail)}`;
+      router.push(authHrefWithCallback(checkEmailPath, props.callbackUrl));
     } catch (caughtError) {
       reportUnknownAuthClientError({
         action: 'signup.email.thrown',
@@ -145,24 +138,12 @@ export function SignUpForm(props: SignUpFormProps) {
         message: t('error_generic'),
         showSignInLinks: false,
       });
-    } finally {
-      if (!keepSubmitting) {
-        setSubmitting(false);
-      }
+      setSubmitting(false);
     }
   }
 
   return (
     <>
-      {submitted ? (
-        <p
-          aria-live="polite"
-          className="rounded-md border border-green-700/30 bg-green-50 px-3 py-2 text-sm font-medium text-green-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:bg-green-950/30 dark:text-green-100"
-          role="status"
-        >
-          {t('registered_banner')}
-        </p>
-      ) : null}
       {formError ? (
         <p
           className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm font-medium text-red-900 motion-safe:animate-in motion-safe:duration-150 motion-safe:fade-in-0 motion-reduce:animate-none dark:text-red-100"

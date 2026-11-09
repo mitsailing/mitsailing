@@ -5,10 +5,7 @@ import {
   SailingCardRequestStatus,
 } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
-import {
-  lookupMitDataWarehouseIdentity,
-  verifiedKerberosFromEmail,
-} from '@/libs/mit-sailing/mitDataWarehouse';
+import { lookupMitDataWarehouseIdentity } from '@/libs/mit-sailing/mitDataWarehouse';
 import {
   normalizeManualPersonName,
   normalizeVerifiedMitDataWarehousePersonName,
@@ -55,8 +52,6 @@ type ProfileContact = {
 };
 
 type CurrentProfileIdentityUser = {
-  readonly email: string;
-  readonly emailVerified: boolean;
   readonly mitDataWarehouseVerifiedAt: Date | null;
   readonly mitId: string | null;
   readonly sailingAffiliation: SailingAffiliation | null;
@@ -186,11 +181,9 @@ function manualProfileIdentity(props: {
 async function verifiedMitProfileIdentity(props: {
   readonly affiliation: SailingAffiliation;
   readonly mitId: string;
-  readonly verifiedKerberos: string | null;
 }): Promise<UpdateProfileIdentityResult> {
   const dataWarehouseIdentity = await lookupMitDataWarehouseIdentity({
     mitId: props.mitId,
-    verifiedKerberos: props.verifiedKerberos,
   });
   if (dataWarehouseIdentity === null) {
     return { ok: false, error: 'mit_id_invalid' };
@@ -227,10 +220,6 @@ function profileIdentityForInput(props: {
   readonly linkedMitIdentity: boolean;
   readonly rule: ReturnType<typeof getSailingAffiliationRule>;
 }): Promise<UpdateProfileIdentityResult> | UpdateProfileIdentityResult {
-  const verifiedKerberos = verifiedKerberosFromEmail({
-    email: props.currentUser.email,
-    emailVerified: props.currentUser.emailVerified,
-  });
   const requestedMitId = props.linkedMitIdentity
     ? (props.currentUser.mitId ?? '')
     : props.input.mitId;
@@ -250,7 +239,6 @@ function profileIdentityForInput(props: {
   return verifiedMitProfileIdentity({
     affiliation: props.affiliation,
     mitId: requestedMitId,
-    verifiedKerberos,
   });
 }
 
@@ -266,8 +254,6 @@ export async function validateProfileIdentity(props: {
 }): Promise<ProfileIdentityValidationResult> {
   const currentUser = await prisma.user.findUnique({
     select: {
-      email: true,
-      emailVerified: true,
       mitDataWarehouseVerifiedAt: true,
       mitId: true,
       sailingAffiliation: true,

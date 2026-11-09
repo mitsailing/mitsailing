@@ -42,12 +42,6 @@ export type CurrentUser = {
   email: string | null;
   name: string | null;
   role: Role;
-  /**
-   * Pending login email set while a change-email flow is in progress. Null
-   * when no change is pending. Cleared automatically by Better Auth's
-   * `afterEmailVerification` hook once the new address is confirmed.
-   */
-  unconfirmedEmail: string | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -76,7 +70,7 @@ export const getSession = cache(async () => {
 
 /**
  * Bounces already-authenticated users away from auth-only pages (sign-in,
- * sign-up, forgot-password, reset-password, verify-email).
+ * sign-up, forgot-password, reset-password).
  *
  * @param locale - Active locale used to build the default destination.
  * @param callbackUrl - Optional app-relative path to honour when safe.
@@ -171,8 +165,6 @@ function toCurrentUser(session: NonNullable<AuthSession>): CurrentUser {
     email: typeof user.email === 'string' ? user.email : null,
     name: typeof user.name === 'string' ? user.name : null,
     role: appRoleFromSessionUser(user),
-    unconfirmedEmail:
-      typeof user.unconfirmedEmail === 'string' ? user.unconfirmedEmail : null,
   };
 }
 

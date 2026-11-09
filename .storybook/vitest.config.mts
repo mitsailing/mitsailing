@@ -19,6 +19,9 @@ const storybookBrowserProvider = ciChromeLaunchOptions
   : playwright();
 
 export default defineConfig({
+  optimizeDeps: {
+    include: ['better-auth-audit-logs/client'],
+  },
   resolve: {
     alias: sentryNextjsBrowserAlias,
   },
@@ -38,6 +41,9 @@ export default defineConfig({
     projects: [
       {
         extends: true,
+        optimizeDeps: {
+          include: ['better-auth-audit-logs/client'],
+        },
         plugins: [storybookSentryBrowserPlugin()],
         resolve: {
           alias: sentryNextjsBrowserAlias,

@@ -1,5 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import { authHrefWithCallback, safeAuthCallbackUrl } from './callbackUrl';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  absolutePasswordResetRedirectTo,
+  authHrefWithCallback,
+  safeAuthCallbackUrl,
+} from './callbackUrl';
+
+vi.mock('@/utils/Helpers', () => ({
+  getBaseUrl: () => 'https://example.test',
+  getI18nPath: (url: string) => url,
+}));
 
 describe('safeAuthCallbackUrl', () => {
   it('visitor returns to app relative paths', () => {
@@ -84,6 +93,19 @@ describe('authHrefWithCallback', () => {
     expect(authHrefWithCallback('login', '/fleet')).toBe('login');
     expect(authHrefWithCallback('/\\example.com/login', '/fleet')).toBe(
       '/\\example.com/login'
+    );
+  });
+});
+
+describe('absolutePasswordResetRedirectTo', () => {
+  it('builds an absolute reset redirect with email and callback', () => {
+    expect(
+      absolutePasswordResetRedirectTo({
+        callbackUrl: '/fleet',
+        email: 'reset@mit.edu',
+      })
+    ).toBe(
+      'https://example.test/reset-password?email=reset%40mit.edu&callbackUrl=%2Ffleet'
     );
   });
 });

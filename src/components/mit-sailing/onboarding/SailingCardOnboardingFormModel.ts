@@ -118,7 +118,8 @@ const canUseManualName = (props: {
 }) =>
   props.rule?.mitIdMode !== 'required' &&
   props.showManualName &&
-  (props.mitIdValue ?? '').trim() === '';
+  (props.rule?.mitIdMode === 'hidden' ||
+    (props.mitIdValue ?? '').trim() === '');
 
 const isIdentityComplete = (props: {
   readonly firstNameValue: string | undefined;

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { faker } from '@faker-js/faker';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
@@ -6,11 +7,8 @@ import { formAlert } from '../helpers/e2e-alert';
 import { e2ePgConnectionString } from '../helpers/e2e-database-url';
 import { insertCurrentSailingCardOnboardingAcceptance } from '../helpers/e2e-sailing-card-onboarding';
 import { submitEmailPasswordSignIn } from '../helpers/e2e-sign-in';
-import {
-  extractCodeFromMessage,
-  findLatestMessageTo,
-  findLatestMessageToMatching,
-} from '../helpers/mailpit';
+import { verifyEmailWithLatestLink } from '../helpers/e2e-verify-email';
+import { findLatestMessageToMatching } from '../helpers/mailpit';
 
 /**
  * Do not import `prisma` from the app `DB` module here. Prisma 7’s client
@@ -73,22 +71,10 @@ async function signUpWithEmailAndPassword(props: {
   await props.page.getByLabel('Password', { exact: true }).fill(props.password);
   await props.page.getByLabel('Confirm password').fill(props.password);
   await props.page.getByRole('button', { name: 'Sign up' }).click();
-  await expect(props.page).toHaveURL(/\/verify-email\?/);
+  await expect(props.page).toHaveURL(/\/check-email/);
   await expect(
-    props.page.getByText(
-      `Enter the verification code we just sent to ${props.email}.`
-    )
+    props.page.getByRole('heading', { name: 'Check your email' })
   ).toBeVisible();
-}
-
-async function verifyEmailWithLatestCode(page: Page, email: string) {
-  const message = await findLatestMessageTo(email);
-  expect(message.Subject).toMatch(/confirm/i);
-
-  await page
-    .getByLabel('Verification code')
-    .fill(extractCodeFromMessage(message));
-  await page.getByRole('button', { name: 'Continue' }).click();
 }
 
 async function markOnboardingCompleteByEmail(email: string) {
@@ -157,14 +143,14 @@ async function createVerifiedUser(props: {
 }) {
   await props.page.goto('/signup');
   await signUpWithEmailAndPassword(props);
-  await verifyEmailWithLatestCode(props.page, props.email);
+  await verifyEmailWithLatestLink(props.page, props.email);
   await expect
     .poll(() => new URL(props.page.url()).pathname)
     .toBe('/onboarding');
   await markOnboardingCompleteByEmail(props.email);
 }
 
-async function findLatestPasswordResetCode(email: string) {
+async function findLatestPasswordResetLink(email: string) {
   const resetMessage = await findLatestMessageToMatching({
     description: 'password reset message',
     email,
@@ -173,7 +159,14 @@ async function findLatestPasswordResetCode(email: string) {
       /password reset/i.test(`${message.Text}\n${message.HTML}`),
   });
 
-  return extractCodeFromMessage(resetMessage);
+  const body = `${resetMessage.Text}\n${resetMessage.HTML}`;
+  const match = /https?:\/\/[^\s"'<>]+reset-password[^\s"'<>]*/i.exec(body);
+  const resetUrl = match?.[0];
+  expect(resetUrl).toBeTruthy();
+  if (!resetUrl) {
+    throw new Error('Expected a password reset link in the email body');
+  }
+  return resetUrl;
 }
 
 async function requestPasswordReset(props: {
@@ -185,21 +178,21 @@ async function requestPasswordReset(props: {
     `/forgot-password?callbackUrl=${encodeURIComponent(props.callbackUrl ?? '/')}`
   );
   await props.page.getByLabel('Email').fill(props.email);
-  await props.page.getByRole('button', { name: 'Send reset code' }).click();
-  await expect(props.page).toHaveURL(/\/reset-password\?/);
+  await props.page.getByRole('button', { name: 'Send reset link' }).click();
   await expect(
     props.page.getByText(
-      'If an account exists for this email, you will receive a reset code shortly.'
+      'If an account exists for this email, you will receive a reset link shortly.'
     )
-  ).toHaveCount(0);
+  ).toBeVisible();
 
-  return findLatestPasswordResetCode(props.email);
+  return findLatestPasswordResetLink(props.email);
 }
 
-async function completeResetCodeStep(page: Page, resetCode: string) {
-  await page.getByLabel('Reset code').fill(resetCode);
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page.getByLabel('New password', { exact: true })).toBeVisible();
+async function openPasswordResetLink(props: { page: Page; resetUrl: string }) {
+  await props.page.goto(props.resetUrl);
+  await expect(
+    props.page.getByLabel('New password', { exact: true })
+  ).toBeVisible();
 }
 
 async function submitNewPassword(props: {
@@ -216,16 +209,6 @@ async function submitNewPassword(props: {
   await props.page.getByRole('button', { name: 'Update password' }).click();
 }
 
-async function expirePasswordResetCode(email: string) {
-  const result = await pool.query(
-    `UPDATE "verification"
-     SET "expires_at" = NOW() - INTERVAL '1 minute'
-     WHERE "identifier" = $1`,
-    [`forget-password-otp-${email}`]
-  );
-  expect(result.rowCount).toBeGreaterThan(0);
-}
-
 async function signInWithEmailAndPassword(props: {
   email: string;
   page: Page;
@@ -233,10 +216,6 @@ async function signInWithEmailAndPassword(props: {
 }) {
   await submitEmailPasswordSignIn(props);
   await expect.poll(() => new URL(props.page.url()).pathname).toBe('/');
-}
-
-function differentResetCode(code: string) {
-  return code === '000000' ? '111111' : '000000';
 }
 
 test.describe('Auth', () => {
@@ -252,7 +231,6 @@ test.describe('Auth', () => {
       '/signup',
       '/forgot-password',
       '/reset-password',
-      '/verify-email',
     ] as const;
 
     try {
@@ -313,7 +291,7 @@ test.describe('Auth', () => {
       const storedPassword = credentialRows[0]?.password;
       expect(storedPassword?.startsWith('$argon2id$')).toBe(true);
 
-      await verifyEmailWithLatestCode(page, email);
+      await verifyEmailWithLatestLink(page, email);
       await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
 
       await page.goto('/profile');
@@ -337,7 +315,7 @@ test.describe('Auth', () => {
     try {
       await page.goto('/signup');
       await signUpWithEmailAndPassword({ email, page, password: credential });
-      await verifyEmailWithLatestCode(page, email);
+      await verifyEmailWithLatestLink(page, email);
       await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
 
       await page.context().clearCookies();
@@ -398,14 +376,14 @@ test.describe('Auth', () => {
     await expect(page).toHaveURL(/\/signup\/?\?.*callbackUrl=/);
 
     await signUpWithEmailAndPassword({ email, page, password });
-    await verifyEmailWithLatestCode(page, email);
+    await verifyEmailWithLatestLink(page, email);
 
     await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
 
     await cleanupByEmail(email);
   });
 
-  test('email-change persona changes the signed-in email after OTP confirmation', async ({
+  test('email-change persona changes the signed-in email after link confirmation', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -418,27 +396,19 @@ test.describe('Auth', () => {
       await page.goto('/profile');
       await page.getByLabel('New email').fill(newEmail);
       await page
-        .getByRole('button', { name: 'Send confirmation code' })
+        .getByRole('button', { name: 'Send confirmation link' })
         .click();
       await expect(
         page.getByText(
-          'Confirmation code sent. Enter it below to finish changing your email.'
+          'Confirmation link sent. Open it from your current address to approve the change.'
         )
       ).toBeVisible();
 
-      const message = await findLatestMessageTo(newEmail);
-      expect(message.Subject).toMatch(/confirm/i);
-
-      await page
-        .getByLabel('Confirmation code')
-        .fill(extractCodeFromMessage(message));
-      await page.getByRole('button', { name: 'Confirm email' }).click();
-
+      await verifyEmailWithLatestLink(page, email);
+      await verifyEmailWithLatestLink(page, newEmail);
+      await page.goto('/profile');
       await expect(
-        page.getByText('Your email address has been updated.')
-      ).toBeVisible();
-      await expect(
-        page.getByLabel('Change email').getByText(newEmail, { exact: true })
+        page.getByText(newEmail, { exact: true }).first()
       ).toBeVisible();
     } finally {
       await cleanupByEmail(email);
@@ -446,7 +416,7 @@ test.describe('Auth', () => {
     }
   });
 
-  test('visitor returns to the callback after OTP password reset', async ({
+  test('visitor returns to the callback after password reset link', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -456,91 +426,21 @@ test.describe('Auth', () => {
     await createVerifiedUser({ email, page, password });
 
     await page.context().clearCookies();
-    const resetCode = await requestPasswordReset({
+    const resetUrl = await requestPasswordReset({
       callbackUrl: '/fleet',
       email,
       page,
     });
-
-    await page.getByLabel('Reset code').fill(differentResetCode(resetCode));
-    await page.getByRole('button', { name: 'Continue' }).click();
-
-    await expect(formAlert(page)).toHaveText('That code is invalid.');
-    await expect(page.getByLabel('New password', { exact: true })).toBeHidden();
-
-    await page.getByLabel('Reset code').fill(resetCode);
-    await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByLabel('New password', { exact: true }).fill(resetPassword);
-    await page.getByLabel('Confirm new password').fill(resetPassword);
-    await page.getByRole('button', { name: 'Update password' }).click();
+    await openPasswordResetLink({ page, resetUrl });
+    await submitNewPassword({
+      page,
+      password: resetPassword,
+      passwordConfirmation: resetPassword,
+    });
 
     await expect
       .poll(() => new URL(page.url()).pathname)
       .toMatch(/^\/fleet\/?$/);
-
-    await cleanupByEmail(email);
-  });
-
-  test('visitor keeps a valid password reset code after a password mismatch', async ({
-    page,
-  }) => {
-    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
-    const password = 'Correct-Horse-Battery-Staple';
-    const resetPassword = 'Correct-Horse-Battery-Staple-2';
-
-    await createVerifiedUser({ email, page, password });
-    await page.context().clearCookies();
-    const resetCode = await requestPasswordReset({ email, page });
-
-    await completeResetCodeStep(page, resetCode);
-    await submitNewPassword({
-      page,
-      password: resetPassword,
-      passwordConfirmation: `${resetPassword}-mismatch`,
-    });
-
-    await expect(formAlert(page)).toHaveText('Passwords do not match.');
-    await expect(
-      page.getByLabel('New password', { exact: true })
-    ).toBeVisible();
-    await expect(page.getByLabel('Reset code')).toBeHidden();
-
-    await submitNewPassword({
-      page,
-      password: resetPassword,
-      passwordConfirmation: resetPassword,
-    });
-
-    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
-
-    await cleanupByEmail(email);
-  });
-
-  test('visitor sees expired message when a reset code expires before password submit', async ({
-    page,
-  }) => {
-    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
-    const password = 'Correct-Horse-Battery-Staple';
-    const resetPassword = 'Correct-Horse-Battery-Staple-2';
-
-    await createVerifiedUser({ email, page, password });
-    await page.context().clearCookies();
-    const resetCode = await requestPasswordReset({ email, page });
-
-    await completeResetCodeStep(page, resetCode);
-    await expirePasswordResetCode(email);
-    await submitNewPassword({
-      page,
-      password: resetPassword,
-      passwordConfirmation: resetPassword,
-    });
-
-    await expect(formAlert(page)).toHaveText(
-      'That code expired. Request a new reset code.'
-    );
-    await expect(formAlert(page)).not.toHaveText('That code is invalid.');
-    await expect(page.getByLabel('Reset code')).toBeVisible();
-    await expect(page.getByLabel('New password', { exact: true })).toBeHidden();
 
     await cleanupByEmail(email);
   });
@@ -594,11 +494,11 @@ test.describe('Auth', () => {
         password,
       });
 
-      const resetCode = await requestPasswordReset({
+      const resetUrl = await requestPasswordReset({
         email,
         page: resetPage,
       });
-      await completeResetCodeStep(resetPage, resetCode);
+      await openPasswordResetLink({ page: resetPage, resetUrl });
       await submitNewPassword({
         page: resetPage,
         password: resetPassword,
@@ -667,6 +567,54 @@ test.describe('Auth', () => {
     await expect(formAlert(page)).toContainText(
       'Verify your email before signing in.'
     );
+
+    await cleanupByEmail(email);
+  });
+
+  test('legacy sailor without a credential password receives a reset link email', async ({
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const password = 'Correct-Horse-Battery-Staple';
+    const userId = randomUUID();
+
+    await pool.query(
+      `INSERT INTO "user" (
+         "id",
+         "name",
+         "email",
+         "email_verified",
+         "role",
+         "app_role",
+         "created_at",
+         "updated_at"
+       ) VALUES ($1, $2, $3, true, 'user', 'user', NOW(), NOW())`,
+      [userId, 'Legacy Sailor', email]
+    );
+
+    await submitEmailPasswordSignIn({
+      email,
+      page,
+      password: invalidCredential,
+    });
+
+    await expect(formAlert(page)).toContainText(
+      'MIT Sailing has updated its security. A password reset email has been sent to you. This link is valid for 1 hour.'
+    );
+
+    const resetUrl = await findLatestPasswordResetLink(email);
+    await openPasswordResetLink({ page, resetUrl });
+    await submitNewPassword({
+      page,
+      password,
+      passwordConfirmation: password,
+    });
+
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+
+    await page.context().clearCookies();
+    await submitEmailPasswordSignIn({ email, page, password });
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
 
     await cleanupByEmail(email);
   });

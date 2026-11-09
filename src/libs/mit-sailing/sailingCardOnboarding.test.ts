@@ -105,6 +105,67 @@ describe('sailingCardOnboarding', () => {
     );
   });
 
+  it('accepts a current student warehouse row for mit affiliate', () => {
+    expect(
+      buildSailingCardOnboardingUpdate({
+        input: {
+          ...contactInput,
+          affiliation: SailingAffiliation.MIT_AFFILIATE,
+          hasFitnessMembership: false,
+          mitId: '123456789',
+          firstName: '',
+          lastName: '',
+        },
+        dataWarehouseIdentity: studentIdentity,
+        now: new Date('2026-05-21T12:00:00-04:00'),
+      })
+    ).toMatchObject({
+      firstName: 'Ada',
+      hasFitnessMembership: false,
+      lastName: 'Lovelace',
+      mitId: '123456789',
+      sailingAffiliation: SailingAffiliation.MIT_AFFILIATE,
+    });
+  });
+
+  it('accepts a non-student warehouse row for mit affiliate', () => {
+    expect(
+      buildSailingCardOnboardingUpdate({
+        input: {
+          ...contactInput,
+          affiliation: SailingAffiliation.MIT_AFFILIATE,
+          mitId: '123456789',
+          firstName: '',
+          lastName: '',
+        },
+        dataWarehouseIdentity: otherIdentity,
+        now: new Date('2026-05-21T12:00:00-04:00'),
+      })
+    ).toMatchObject({
+      mitId: '123456789',
+      sailingAffiliation: SailingAffiliation.MIT_AFFILIATE,
+    });
+  });
+
+  it('rejects mit affiliate without a warehouse row', () => {
+    expectValidationError(
+      () => {
+        buildSailingCardOnboardingUpdate({
+          input: {
+            ...contactInput,
+            affiliation: SailingAffiliation.MIT_AFFILIATE,
+            mitId: '',
+            firstName: 'Grace',
+            lastName: 'Hopper',
+          },
+          dataWarehouseIdentity: null,
+          now: new Date('2026-05-21T12:00:00-04:00'),
+        });
+      },
+      { mitId: 'required_dw_identity' }
+    );
+  });
+
   it('rejects mit student when dw identity is not a current student', () => {
     expectValidationError(
       () => {

@@ -379,7 +379,6 @@ describe('submitSailingCardOnboardingAction', () => {
     });
     expect(mocks.lookupMitDataWarehouseIdentity).toHaveBeenCalledWith({
       mitId: '123456789',
-      verifiedKerberos: 'ada',
     });
   });
 

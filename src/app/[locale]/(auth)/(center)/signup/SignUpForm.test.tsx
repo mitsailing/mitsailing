@@ -67,19 +67,17 @@ describe('SignUpForm', () => {
       name: 'new-sailor',
       password: 'correct-password',
     });
-    const status = await screen.findByRole('status');
-    expect(status).toHaveTextContent(
-      'Check your email for a verification code.'
-    );
-    expect(status).toHaveAttribute('aria-live', 'polite');
-    expect(status).toHaveClass(
-      'border-green-700/30',
-      'text-green-900',
-      'motion-reduce:animate-none'
-    );
-    expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/verify-email?email=new-sailor%40mit.edu&codeSent=1&callbackUrl=%2Fonboarding'
-    );
+    await waitFor(() => {
+      expect(componentTestRouter().push).toHaveBeenCalledWith(
+        '/check-email?email=new-sailor%40mit.edu&callbackUrl=%2Fonboarding'
+      );
+    });
+    expect(
+      screen.getByRole('button', { name: 'Submitting...' })
+    ).toHaveAttribute('aria-busy', 'true');
+    expect(
+      screen.queryByText('Check your email for a verification link.')
+    ).not.toBeInTheDocument();
   });
 
   it('creates account with email local part as temporary display name', async () => {
@@ -99,7 +97,7 @@ describe('SignUpForm', () => {
     });
   });
 
-  it('submit trimmed lowercase email for sign-up and verify-email redirect', async () => {
+  it('submit trimmed lowercase email for sign-up and continue to check-email', async () => {
     render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
@@ -114,12 +112,11 @@ describe('SignUpForm', () => {
       name: 'sailor',
       password: 'correct-password',
     });
-    expect(
-      await screen.findByText('Check your email for a verification code.')
-    ).toBeVisible();
-    expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/verify-email?email=sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
-    );
+    await waitFor(() => {
+      expect(componentTestRouter().push).toHaveBeenCalledWith(
+        '/check-email?email=sailor%40mit.edu&callbackUrl=%2Ffleet'
+      );
+    });
   });
 
   it('show sign-in recovery links for existing email', async () => {
@@ -148,6 +145,7 @@ describe('SignUpForm', () => {
     expect(
       screen.getByRole('link', { name: 'Reset password' })
     ).toHaveAttribute('href', '/forgot-password?callbackUrl=%2Ffleet');
+    expect(screen.getByRole('button', { name: 'Sign up' })).toBeEnabled();
   });
 
   it('keep form when password confirmation does not match', async () => {

@@ -42,8 +42,8 @@ const authCoverageFiles = [
   'src/app/[locale]/(auth)/(center)/forgot-password/ForgotPasswordForm.tsx',
   'src/app/[locale]/(auth)/(center)/reset-password/page.tsx',
   'src/app/[locale]/(auth)/(center)/reset-password/ResetPasswordForm.tsx',
-  'src/app/[locale]/(auth)/(center)/verify-email/page.tsx',
-  'src/app/[locale]/(auth)/(center)/verify-email/VerifyEmailForm.tsx',
+  'src/app/[locale]/(auth)/(center)/check-email/page.tsx',
+  'src/app/[locale]/(auth)/(center)/check-email/CheckEmailNotice.tsx',
   'src/app/[locale]/(auth)/(center)/unlock-account/page.tsx',
   'src/app/[locale]/(auth)/profile/layout.tsx',
   'src/app/[locale]/(auth)/profile/page.tsx',
@@ -62,7 +62,6 @@ const authCoverageFiles = [
   'src/app/[locale]/(auth)/profile/ProfilePasswordClient.tsx',
   'src/app/[locale]/(auth)/profile/ProfileSecurityClient.tsx',
   'src/components/auth/ImpersonationBanner.tsx',
-  'src/components/auth/OtpCodeField.tsx',
   'src/components/auth/SignOutForm.tsx',
   'src/components/auth/StopImpersonationButton.tsx',
   'src/components/auth/profile/ProfileAppearanceSection.tsx',
@@ -83,13 +82,11 @@ const authCoverageFiles = [
   'src/libs/auth/hooks.ts',
   'src/libs/auth/passwordHashing.ts',
   'src/libs/auth/password-compromise.ts',
-  'src/libs/auth/passwordResetSupportActions.ts',
   'src/libs/auth/profileIdentityActions.ts',
   'src/libs/auth/profileIdentityPersistence.ts',
   'src/libs/auth/reportAuthClientError.ts',
   'src/libs/auth/roles.ts',
   'src/libs/auth/server-admin.ts',
-  'src/libs/auth/signInEmailActions.ts',
   'src/libs/auth/themePreferenceActions.ts',
   'src/libs/auth/unlock-token.ts',
 ];
@@ -198,13 +195,10 @@ const additionalCriticalCoverageFiles = [
   'src/libs/mit-sailing/cmsMediaValidation.ts',
   'src/worker/cmsMediaProcessingJob.ts',
   'emails/account-unlock.tsx',
-  'emails/confirm-email-change.tsx',
   'emails/delete-account.tsx',
-  'emails/email-change-requested.tsx',
   'emails/email-layout.tsx',
   'emails/password-changed.tsx',
   'emails/password-reset.tsx',
-  'emails/sign-in-otp.tsx',
   'emails/verify-email.tsx',
 ];
 
@@ -762,6 +756,11 @@ assertCoverageExemptionProofsExist(
   additionalCriticalExcludedFiles
 );
 assertCoverageGatePathsExist('CMS rich text', cmsRichTextCoverageFiles);
+assertCoverageGatePathsExist('Auth', authCoverageFiles);
+assertCoverageGatePathsExist(
+  'Additional critical',
+  additionalCriticalCoverageFiles
+);
 
 const gatedAuthCoverageFiles = withoutCoverageExemptions(
   authCoverageFiles,

@@ -75,6 +75,7 @@ type UnknownFunction = (...args: unknown[]) => unknown;
 type TestAuthContext = {
   body?: {
     email?: unknown;
+    newPassword?: unknown;
     password?: unknown;
   };
   context: {
@@ -244,8 +245,8 @@ describe('signInEmailHooks before', () => {
     await expect(
       hooks.before(
         authContext({
-          body: { password: null },
-          path: '/email-otp/reset-password',
+          body: { newPassword: null },
+          path: '/reset-password',
         })
       )
     ).rejects.toMatchObject(passwordRequiredError);
@@ -257,8 +258,8 @@ describe('signInEmailHooks before', () => {
     await expect(
       hooks.before(
         authContext({
-          body: { password: 'short' },
-          path: '/email-otp/reset-password',
+          body: { newPassword: 'short' },
+          path: '/reset-password',
         })
       )
     ).rejects.toMatchObject(passwordTooShortError);
@@ -270,8 +271,8 @@ describe('signInEmailHooks before', () => {
     await expect(
       hooks.before(
         authContext({
-          body: { password: 'x'.repeat(129) },
-          path: '/email-otp/reset-password',
+          body: { newPassword: 'x'.repeat(129) },
+          path: '/reset-password',
         })
       )
     ).rejects.toMatchObject(passwordTooLongError);
@@ -282,8 +283,8 @@ describe('signInEmailHooks before', () => {
   it('check reset password breach risk for valid length', async () => {
     await hooks.before(
       authContext({
-        body: { password: 'valid-password' },
-        path: '/email-otp/reset-password',
+        body: { newPassword: 'valid-password' },
+        path: '/reset-password',
       })
     );
 
@@ -297,11 +298,136 @@ describe('signInEmailHooks before', () => {
     await expect(
       hooks.before(
         authContext({
-          body: { password: 'compromised-password' },
-          path: '/email-otp/reset-password',
+          body: { newPassword: 'compromised-password' },
+          path: '/reset-password',
         })
       )
     ).rejects.toBe(compromisedError);
+  });
+
+  it('reject sign-in when the user has no credential password', async () => {
+    findUnique.mockResolvedValue({
+      accounts: [],
+      banExpires: null,
+      banned: false,
+    });
+
+    await expect(
+      hooks.before(
+        authContext({
+          body: { email: ' Legacy.User@Example.COM ' },
+          path: '/sign-in/email',
+          request: requestWithCfIp('203.0.113.10'),
+        })
+      )
+    ).rejects.toMatchObject({
+      body: { message: 'MUST_SET_PASSWORD' },
+      status: 'FORBIDDEN',
+    });
+
+    expect(findUnique).toHaveBeenCalledWith({
+      select: {
+        accounts: {
+          select: { id: true },
+          take: 1,
+          where: { password: { not: null }, providerId: 'credential' },
+        },
+        banExpires: true,
+        banned: true,
+      },
+      where: { email: 'legacy.user@example.com' },
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('reject banned credential-less sign-in before must-set-password', async () => {
+    findUnique.mockResolvedValue({
+      accounts: [],
+      banExpires: null,
+      banned: true,
+    });
+
+    await expect(
+      hooks.before(
+        authContext({
+          body: { email: 'banned@example.com' },
+          path: '/sign-in/email',
+        })
+      )
+    ).rejects.toMatchObject({
+      body: { message: 'BANNED_USER' },
+      status: 'FORBIDDEN',
+    });
+  });
+
+  it('require must-set-password when a credential-less ban has expired', async () => {
+    findUnique.mockResolvedValue({
+      accounts: [],
+      banExpires: new Date(Date.now() - 60_000),
+      banned: true,
+    });
+
+    await expect(
+      hooks.before(
+        authContext({
+          body: { email: 'expired-ban@example.com' },
+          path: '/sign-in/email',
+        })
+      )
+    ).rejects.toMatchObject({
+      body: { message: 'MUST_SET_PASSWORD' },
+      status: 'FORBIDDEN',
+    });
+  });
+
+  it('allow sign-in when a credential password already exists', async () => {
+    findUnique.mockResolvedValue({
+      accounts: [{ id: 'account-1' }],
+      banExpires: null,
+      banned: true,
+    });
+
+    await expect(
+      hooks.before(
+        authContext({
+          body: { email: 'active@example.com' },
+          path: '/sign-in/email',
+        })
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  it('allow sign-in for unknown emails so Better Auth returns invalid credentials', async () => {
+    findUnique.mockResolvedValue(null);
+
+    await expect(
+      hooks.before(
+        authContext({
+          body: { email: 'unknown@example.com' },
+          path: '/sign-in/email',
+        })
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  it('prefer lockout over must-set-password', async () => {
+    count.mockResolvedValue(5);
+    findUnique.mockResolvedValue({
+      accounts: [],
+      banExpires: null,
+      banned: false,
+    });
+
+    await expect(
+      hooks.before(
+        authContext({
+          body: { email: 'locked@example.com' },
+          path: '/sign-in/email',
+        })
+      )
+    ).rejects.toMatchObject(lockedError);
+
+    expect(findUnique).not.toHaveBeenCalled();
   });
 });
 

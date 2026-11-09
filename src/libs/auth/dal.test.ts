@@ -80,7 +80,6 @@ type TestSession = {
     id: string;
     name?: unknown;
     role?: unknown;
-    unconfirmedEmail?: unknown;
   };
 };
 
@@ -373,7 +372,6 @@ describe('getCurrentUser', () => {
         id: 'user-1',
         name: 123,
         role: 'captain',
-        unconfirmedEmail: 123,
       })
     );
     const { getCurrentUser } = await import('@/libs/auth/dal');
@@ -383,7 +381,6 @@ describe('getCurrentUser', () => {
       id: 'user-1',
       name: null,
       role: 'dock_staff',
-      unconfirmedEmail: null,
     });
   });
 
@@ -395,7 +392,6 @@ describe('getCurrentUser', () => {
         id: 'user-1',
         name: 'Ada Sailor',
         role: 'user',
-        unconfirmedEmail: 'new-sailor@example.com',
       })
     );
     const { getCurrentUser } = await import('@/libs/auth/dal');
@@ -405,7 +401,6 @@ describe('getCurrentUser', () => {
       id: 'user-1',
       name: 'Ada Sailor',
       role: 'user',
-      unconfirmedEmail: 'new-sailor@example.com',
     });
   });
 });
@@ -428,7 +423,6 @@ describe('requireCurrentUser', () => {
         id: 'admin-1',
         name: null,
         role: 'user',
-        unconfirmedEmail: 'new-admin@example.com',
       })
     );
     const { requireCurrentUser } = await import('@/libs/auth/dal');
@@ -438,7 +432,6 @@ describe('requireCurrentUser', () => {
       id: 'admin-1',
       name: null,
       role: 'admin',
-      unconfirmedEmail: 'new-admin@example.com',
     });
     expect(redirect).not.toHaveBeenCalled();
   });
@@ -551,7 +544,6 @@ describe('requireCurrentUser', () => {
       id: 'user-1',
       name: null,
       role: 'user',
-      unconfirmedEmail: null,
     });
   });
 
@@ -604,7 +596,6 @@ describe('requireCurrentUser', () => {
       id: 'user-1',
       name: null,
       role: 'user',
-      unconfirmedEmail: null,
     });
 
     expect(prismaUserFindUnique).not.toHaveBeenCalled();

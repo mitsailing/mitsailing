@@ -1,22 +1,33 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { componentTestRouter } from '@/test/component';
+import type * as CallbackUrlModule from '@/libs/auth/callbackUrl';
 import { ForgotPasswordForm } from './ForgotPasswordForm';
 
 const authClientMock = vi.hoisted(() => ({
-  emailOtp: {
-    requestPasswordReset: vi.fn(),
-  },
+  requestPasswordReset: vi.fn(),
 }));
 
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
 }));
 
+vi.mock('@/libs/auth/callbackUrl', async () => {
+  const actual = await vi.importActual<typeof CallbackUrlModule>(
+    '@/libs/auth/callbackUrl'
+  );
+  return {
+    ...actual,
+    absolutePasswordResetRedirectTo: vi.fn(
+      (options: { callbackUrl?: string | null; email: string }) =>
+        `https://example.test/reset-password?email=${encodeURIComponent(options.email)}&callbackUrl=${encodeURIComponent(options.callbackUrl ?? '/')}`
+    ),
+  };
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
-  authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({});
+  authClientMock.requestPasswordReset.mockResolvedValue({});
 });
 
 describe('ForgotPasswordForm', () => {
@@ -31,26 +42,21 @@ describe('ForgotPasswordForm', () => {
     expect(screen.getByLabelText('Email')).toHaveValue('sailor@mit.edu');
   });
 
-  it('request reset code and move to code form', async () => {
+  it('requests a reset link and stays on the same page', async () => {
     const user = userEvent.setup();
 
     render(<ForgotPasswordForm callbackUrl="/fleet" initialEmail="" />);
 
     await user.type(screen.getByLabelText('Email'), ' Reset@MIT.EDU ');
-    await user.click(screen.getByRole('button', { name: 'Send reset code' }));
+    await user.click(screen.getByRole('button', { name: 'Send reset link' }));
 
-    expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledWith({
+    expect(authClientMock.requestPasswordReset).toHaveBeenCalledWith({
       email: 'reset@mit.edu',
+      redirectTo:
+        'https://example.test/reset-password?email=reset%40mit.edu&callbackUrl=%2Ffleet',
     });
-    await waitFor(() => {
-      expect(componentTestRouter().replace).toHaveBeenCalledWith(
-        '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
-      );
-    });
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Send reset code' })
-      ).toBeEnabled()
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'If an account exists for this email, you will receive a reset link shortly.'
     );
   });
 
@@ -60,17 +66,17 @@ describe('ForgotPasswordForm', () => {
     render(<ForgotPasswordForm callbackUrl="/fleet" initialEmail="" />);
 
     await user.type(screen.getByLabelText('Email'), 'sailor@mit');
-    await user.click(screen.getByRole('button', { name: 'Send reset code' }));
+    await user.click(screen.getByRole('button', { name: 'Send reset link' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Enter a valid email address with a domain'
     );
-    expect(authClientMock.emailOtp.requestPasswordReset).not.toHaveBeenCalled();
+    expect(authClientMock.requestPasswordReset).not.toHaveBeenCalled();
   });
 
   it('continue when reset delivery returns opaque error', async () => {
     const user = userEvent.setup();
-    authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({
+    authClientMock.requestPasswordReset.mockResolvedValue({
       error: { code: 'TOO_MANY_REQUESTS' },
     });
 
@@ -78,14 +84,12 @@ describe('ForgotPasswordForm', () => {
       <ForgotPasswordForm callbackUrl="/fleet" initialEmail="reset@mit.edu" />
     );
 
-    await user.click(screen.getByRole('button', { name: 'Send reset code' }));
+    await user.click(screen.getByRole('button', { name: 'Send reset link' }));
 
-    expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledWith({
-      email: 'reset@mit.edu',
-    });
+    expect(authClientMock.requestPasswordReset).toHaveBeenCalled();
     await waitFor(() => {
-      expect(componentTestRouter().replace).toHaveBeenCalledWith(
-        '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'If an account exists for this email, you will receive a reset link shortly.'
       );
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -93,45 +97,17 @@ describe('ForgotPasswordForm', () => {
 
   it('continue when reset delivery rejects', async () => {
     const user = userEvent.setup();
-    authClientMock.emailOtp.requestPasswordReset.mockRejectedValue(
-      new Error('network')
-    );
+    authClientMock.requestPasswordReset.mockRejectedValue(new Error('network'));
 
     render(
       <ForgotPasswordForm callbackUrl="/fleet" initialEmail="reset@mit.edu" />
     );
 
-    await user.click(screen.getByRole('button', { name: 'Send reset code' }));
+    await user.click(screen.getByRole('button', { name: 'Send reset link' }));
 
-    await waitFor(() => {
-      expect(componentTestRouter().replace).toHaveBeenCalledWith(
-        '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
-      );
-    });
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
-
-  it('omit unsafe external callbackUrl from reset redirect', async () => {
-    const user = userEvent.setup();
-
-    render(
-      <ForgotPasswordForm callbackUrl="https://attacker.com" initialEmail="" />
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'If an account exists for this email, you will receive a reset link shortly.'
     );
-
-    await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
-    await user.click(screen.getByRole('button', { name: 'Send reset code' }));
-
-    expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledWith({
-      email: 'reset@mit.edu',
-    });
-    await waitFor(() => {
-      const call = componentTestRouter().replace.mock.calls[0]?.[0];
-      expect(call).toBeDefined();
-      const url = new URL(String(call), 'https://example.test');
-      expect(url.pathname).toBe('/reset-password');
-      expect(url.searchParams.get('email')).toBe('reset@mit.edu');
-      expect(url.searchParams.get('codeSent')).toBe('1');
-      expect(url.searchParams.has('callbackUrl')).toBe(false);
-    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

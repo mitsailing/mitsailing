@@ -1,3 +1,6 @@
+import { routing } from '@/libs/I18nRouting';
+import { getBaseUrl, getI18nPath } from '@/utils/Helpers';
+
 const authCallbackParam = 'callbackUrl';
 
 const fallbackCallbackUrl = '/';
@@ -75,4 +78,26 @@ export function authHrefWithCallback(
   const url = new URL(href, 'http://app.local');
   url.searchParams.set(authCallbackParam, safeCallback);
   return `${url.pathname}${url.search}${url.hash}`;
+}
+
+/**
+ * Absolute Better Auth `redirectTo` for password-reset emails.
+ *
+ * @param options - Reset redirect options.
+ * @param options.callbackUrl - Safe app-relative path to restore after reset.
+ * @param options.email - Normalized account email to prefill after the link.
+ * @returns Absolute URL Better Auth appends `token` or `error` onto.
+ */
+export function absolutePasswordResetRedirectTo(options: {
+  callbackUrl?: string | null;
+  email: string;
+}): string {
+  const resetPath = getI18nPath('/reset-password', routing.defaultLocale);
+  const withEmail = new URL(resetPath, 'http://app.local');
+  withEmail.searchParams.set('email', options.email);
+  const relative = authHrefWithCallback(
+    `${withEmail.pathname}${withEmail.search}`,
+    options.callbackUrl
+  );
+  return `${getBaseUrl()}${relative}`;
 }

@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => ({
   getNextAvailableSailingCardNumber: vi.fn(),
   listAdminUserCurrentMembershipPaymentAccessHistory: vi.fn(),
   listAdminUserPaymentHistory: vi.fn(),
+  listAdminUserSecurityActivityPage: vi.fn(),
   getTranslations: vi.fn(async () => {
     await Promise.resolve();
     return (key: string) => key;
@@ -372,6 +373,11 @@ vi.mock('@/libs/admin/users/adminUserPaymentHistory', () => ({
   },
 }));
 
+vi.mock('@/libs/admin/users/adminUserSecurityActivity', () => ({
+  ADMIN_USER_SECURITY_ACTIVITY_PAGE_SIZE: 25,
+  listAdminUserSecurityActivityPage: mocks.listAdminUserSecurityActivityPage,
+}));
+
 vi.mock('@/libs/auth/dal', () => ({
   appRoleFromSessionUser: (user: { appRole?: unknown }) => user.appRole,
   requirePermission: mocks.requirePermission,
@@ -414,6 +420,7 @@ beforeEach(() => {
   mocks.getNextAvailableSailingCardNumber.mockReset();
   mocks.listAdminUserCurrentMembershipPaymentAccessHistory.mockReset();
   mocks.listAdminUserPaymentHistory.mockReset();
+  mocks.listAdminUserSecurityActivityPage.mockReset();
   mocks.getTranslations.mockClear();
   mocks.list.mockReset();
   mocks.listUserRatingAssignmentRows.mockReset();
@@ -425,6 +432,12 @@ beforeEach(() => {
 
   mocks.createAdminUserAction.mockReturnValue(async () => {});
   mocks.deleteAdminUserAction.mockReturnValue(async () => {});
+  mocks.listAdminUserSecurityActivityPage.mockResolvedValue({
+    page: 1,
+    pageSize: 25,
+    rows: [],
+    total: 0,
+  });
   mocks.getById.mockResolvedValue({
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     email: 'sailor@example.com',

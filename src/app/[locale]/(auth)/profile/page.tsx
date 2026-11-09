@@ -151,7 +151,6 @@ export default async function ProfilePage(props: ProfilePageProps) {
         take: 1,
       },
       themePreference: true,
-      unconfirmedEmail: true,
     },
     where: { id: user.id },
   });
@@ -190,7 +189,6 @@ export default async function ProfilePage(props: ProfilePageProps) {
         userHasCurrentCard: hasCurrentSailingCard(dbUser),
       })}
       initialThemePreference={dbUser.themePreference ?? 'SYSTEM'}
-      initialUnconfirmedEmail={dbUser.unconfirmedEmail ?? null}
       locale={locale}
     />
   );

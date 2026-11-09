@@ -10,9 +10,11 @@ import { SubmitButton } from '@/components/ui/submit-button';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { authClientThrownMessage } from '@/libs/auth/authClientThrownMessage';
-import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
+import {
+  absolutePasswordResetRedirectTo,
+  authHrefWithCallback,
+} from '@/libs/auth/callbackUrl';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
-import { resolveSignInEmailAction } from '@/libs/auth/signInEmailActions';
 import {
   isValidEmailAddress,
   normalizeEmailAddress,
@@ -27,12 +29,12 @@ type ErrorState =
   | { kind: 'unverified'; email: string }
   | null;
 type MappedErrorState = Exclude<ErrorState, null>;
-type SignInStep = 'email' | 'password';
 
 type SignInKnownErrorMessages = {
   ACCOUNT_LOCKED: string;
   BANNED_USER: string;
   INVALID_EMAIL_OR_PASSWORD: string;
+  MUST_SET_PASSWORD: string;
   TOO_MANY_REQUESTS: string;
 };
 
@@ -52,6 +54,9 @@ function mappedSignInErrorMessage(
   if (code === 'BANNED_USER') {
     return messages.BANNED_USER;
   }
+  if (code === 'MUST_SET_PASSWORD') {
+    return messages.MUST_SET_PASSWORD;
+  }
   return undefined;
 }
 
@@ -66,17 +71,16 @@ function reportUnmappedSignInAuthError(options: {
   reportUnknownAuthClientError(options);
 }
 
-// Email-first sign-in form. The email gate determines whether to show the
-// password field, send a create-password reset code, or hand unknown emails to
-// sign-up. Known Better Auth error codes still map to translated page copy so
-// raw backend text never renders.
+// Email and password always show together. Better Auth still maps known error
+// codes to translated page copy so raw backend text never renders. Sailors
+// without a credential password get MUST_SET_PASSWORD from the server hook and
+// a password-reset link email.
 export function SignInForm(props: SignInFormProps) {
   const t = useTranslations('SignInPage');
   const tCommon = useTranslations('Common');
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [step, setStep] = useState<SignInStep>('email');
   const [error, setError] = useState<ErrorState>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
@@ -88,14 +92,17 @@ export function SignInForm(props: SignInFormProps) {
     message: string | undefined;
     signInEmail?: string;
   }): MappedErrorState {
-    if (options.code === 'EMAIL_NOT_VERIFIED') {
+    // Better Auth may surface stable codes on either `code` or `message`.
+    const lookupCode = options.code ?? options.message;
+    if (lookupCode === 'EMAIL_NOT_VERIFIED') {
       return { kind: 'unverified', email: options.signInEmail ?? email };
     }
-    const mappedMessage = mappedSignInErrorMessage(options.code, {
+    const mappedMessage = mappedSignInErrorMessage(lookupCode, {
       INVALID_EMAIL_OR_PASSWORD: t('error_credentials'),
       ACCOUNT_LOCKED: t('error_locked'),
       TOO_MANY_REQUESTS: t('error_rate_limited'),
       BANNED_USER: t('error_banned'),
+      MUST_SET_PASSWORD: t('error_must_set_password_sent'),
     });
     if (mappedMessage) {
       return { kind: 'generic', message: mappedMessage };
@@ -120,68 +127,14 @@ export function SignInForm(props: SignInFormProps) {
     return t('error_credentials');
   }
 
-  async function onEmailSubmit() {
+  async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError(null);
     setResent(false);
     const normalizedEmail = normalizeEmailAddress(email);
     setEmail(normalizedEmail);
     if (!isValidEmailAddress(normalizedEmail)) {
       setError({ kind: 'generic', message: t('error_invalid_email') });
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await resolveSignInEmailAction({ email: normalizedEmail });
-      if (res.state === 'invalid_email') {
-        setError({ kind: 'generic', message: t('error_invalid_email') });
-        return;
-      }
-      setEmail(res.email);
-      if (res.state === 'password') {
-        setStep('password');
-        return;
-      }
-      if (res.state === 'sign_up') {
-        router.push(
-          authHrefWithCallback(
-            `/signup?email=${encodeURIComponent(res.email)}`,
-            props.callbackUrl
-          )
-        );
-        return;
-      }
-      if (res.state === 'reset_required') {
-        router.push(
-          authHrefWithCallback(
-            `/reset-password?email=${encodeURIComponent(
-              res.email
-            )}&codeSent=1&mode=create-password`,
-            props.callbackUrl
-          )
-        );
-        return;
-      }
-      setError({ kind: 'generic', message: t('error_reset_failed') });
-    } catch (caughtError) {
-      reportUnknownAuthClientError({
-        action: 'sign_in.email_lookup.thrown',
-        code: undefined,
-        message: authClientThrownMessage(caughtError),
-      });
-      setError({ kind: 'generic', message: t('error_request_failed') });
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function onPasswordSubmit() {
-    setError(null);
-    setResent(false);
-    const normalizedEmail = normalizeEmailAddress(email);
-    setEmail(normalizedEmail);
-    if (!isValidEmailAddress(normalizedEmail)) {
-      setError({ kind: 'generic', message: t('error_invalid_email') });
-      setStep('email');
       return;
     }
     setSubmitting(true);
@@ -197,6 +150,54 @@ export function SignInForm(props: SignInFormProps) {
       });
 
       if (res.error) {
+        const lookupCode = res.error.code ?? res.error.message;
+        if (lookupCode === 'MUST_SET_PASSWORD') {
+          try {
+            const resetResult = await authClient.requestPasswordReset({
+              email: normalizedEmail,
+              redirectTo: absolutePasswordResetRedirectTo({
+                callbackUrl: props.callbackUrl,
+                email: normalizedEmail,
+              }),
+            });
+            if (resetResult.error) {
+              const resetCode =
+                resetResult.error.code ?? resetResult.error.message;
+              if (resetCode === 'TOO_MANY_REQUESTS') {
+                setError(
+                  mapError({
+                    action: 'sign_in.must_set_password.request-reset',
+                    code: resetResult.error.code,
+                    message: resetResult.error.message,
+                    signInEmail: normalizedEmail,
+                  })
+                );
+                return;
+              }
+              reportUnmappedSignInAuthError({
+                action: 'sign_in.must_set_password.request-reset',
+                code: resetResult.error.code,
+                message: resetResult.error.message,
+              });
+              setError({
+                kind: 'generic',
+                message: t('error_request_failed'),
+              });
+              return;
+            }
+          } catch (caughtError) {
+            reportUnknownAuthClientError({
+              action: 'sign_in.must_set_password.request-reset.thrown',
+              code: undefined,
+              message: authClientThrownMessage(caughtError),
+            });
+            setError({
+              kind: 'generic',
+              message: t('error_request_failed'),
+            });
+            return;
+          }
+        }
         setError(
           mapError({
             action: 'sign_in.email',
@@ -221,27 +222,18 @@ export function SignInForm(props: SignInFormProps) {
     }
   }
 
-  async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (step === 'email') {
-      await onEmailSubmit();
-      return;
-    }
-    await onPasswordSubmit();
-  }
-
-  async function onSendVerificationCode(unverifiedEmail: string) {
+  async function onSendVerificationLink(unverifiedEmail: string) {
     setResending(true);
     try {
-      const res = await authClient.emailOtp.sendVerificationOtp({
+      const res = await authClient.sendVerificationEmail({
         email: unverifiedEmail,
-        type: 'email-verification',
+        callbackURL: authHrefWithCallback('/login/continue', props.callbackUrl),
       });
       if (res.error) {
         setError({
           kind: 'generic',
           message: mapGenericMessage(
-            'sign_in.send_verification_otp',
+            'sign_in.send_verification_email',
             res.error.code,
             res.error.message
           ),
@@ -249,17 +241,9 @@ export function SignInForm(props: SignInFormProps) {
         return;
       }
       setResent(true);
-      router.push(
-        authHrefWithCallback(
-          `/verify-email?email=${encodeURIComponent(
-            unverifiedEmail
-          )}&codeSent=1`,
-          props.callbackUrl
-        )
-      );
     } catch (caughtError) {
       reportUnknownAuthClientError({
-        action: 'sign_in.send_verification_otp.thrown',
+        action: 'sign_in.send_verification_email.thrown',
         code: undefined,
         message: authClientThrownMessage(caughtError),
       });
@@ -303,7 +287,7 @@ export function SignInForm(props: SignInFormProps) {
               disabled={resending}
               onClick={() => {
                 // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the resend promise.
-                void onSendVerificationCode(error.email);
+                void onSendVerificationLink(error.email);
               }}
               type="button"
               variant="link"
@@ -340,10 +324,6 @@ export function SignInForm(props: SignInFormProps) {
             name="email"
             onChange={(e) => {
               setEmail(e.target.value);
-              if (step === 'password') {
-                setPassword('');
-                setStep('email');
-              }
             }}
             required
             type="email"
@@ -351,25 +331,22 @@ export function SignInForm(props: SignInFormProps) {
           />
         </div>
 
-        {step === 'password' ? (
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-foreground" htmlFor="password">
-              {t('password_label')}
-            </Label>
-            <Input
-              autoComplete="current-password"
-              id="password"
-              minLength={8}
-              name="password"
-              onChange={(e) => {
-                setPassword(e.target.value);
-              }}
-              required
-              type="password"
-              value={password}
-            />
-          </div>
-        ) : null}
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-foreground" htmlFor="password">
+            {t('password_label')}
+          </Label>
+          <Input
+            autoComplete="current-password"
+            id="password"
+            name="password"
+            onChange={(e) => {
+              setPassword(e.target.value);
+            }}
+            required
+            type="password"
+            value={password}
+          />
+        </div>
 
         <SubmitButton
           className="w-full"
@@ -377,7 +354,7 @@ export function SignInForm(props: SignInFormProps) {
           pendingLabel={tCommon('pending_submitting')}
           variant="mit"
         >
-          {step === 'password' ? t('submit') : t('continue_submit')}
+          {t('submit')}
         </SubmitButton>
       </form>
 

@@ -1,16 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MitDataWarehousePersonType } from '@/generated/prisma/enums';
-import {
-  lookupMitDataWarehouseIdentity,
-  verifiedKerberosFromEmail,
-} from '@/libs/mit-sailing/mitDataWarehouse';
+import { lookupMitDataWarehouseIdentity } from '@/libs/mit-sailing/mitDataWarehouse';
 
 describe('mitDataWarehouse', () => {
   it('returns normalized identity for matching mit id', async () => {
-    const verifiedKerberos = verifiedKerberosFromEmail({
-      email: 'ada@mit.edu',
-      emailVerified: true,
-    });
     const db = {
       mitDataWarehousePerson: {
         findUnique: vi.fn().mockResolvedValue({
@@ -28,7 +21,6 @@ describe('mitDataWarehouse', () => {
       lookupMitDataWarehouseIdentity({
         db,
         mitId: ' 123-45-6789 ',
-        verifiedKerberos,
       })
     ).resolves.toEqual({
       mitId: '123456789',
@@ -40,38 +32,7 @@ describe('mitDataWarehouse', () => {
     });
   });
 
-  it('rejects identity when kerberos does not match email local part', async () => {
-    const verifiedKerberos = verifiedKerberosFromEmail({
-      email: 'claimant@mit.edu',
-      emailVerified: true,
-    });
-    const db = {
-      mitDataWarehousePerson: {
-        findUnique: vi.fn().mockResolvedValue({
-          mitId: '123456789',
-          firstName: 'Ada',
-          lastName: 'Lovelace',
-          kerberos: 'victim',
-          classYear: '2027',
-          personType: MitDataWarehousePersonType.CURRENT_STUDENT,
-        }),
-      },
-    };
-
-    await expect(
-      lookupMitDataWarehouseIdentity({
-        db,
-        mitId: '123456789',
-        verifiedKerberos,
-      })
-    ).resolves.toBeNull();
-  });
-
   it('returns null when valid mit id has no warehouse match', async () => {
-    const verifiedKerberos = verifiedKerberosFromEmail({
-      email: 'ada@mit.edu',
-      emailVerified: true,
-    });
     const db = {
       mitDataWarehousePerson: {
         findUnique: vi.fn().mockResolvedValue(null),
@@ -82,7 +43,6 @@ describe('mitDataWarehouse', () => {
       lookupMitDataWarehouseIdentity({
         db,
         mitId: '123456789',
-        verifiedKerberos,
       })
     ).resolves.toBeNull();
     expect(db.mitDataWarehousePerson.findUnique).toHaveBeenCalledWith({
@@ -98,47 +58,7 @@ describe('mitDataWarehouse', () => {
     });
   });
 
-  it('does not derive kerberos from unverified email', () => {
-    expect(
-      verifiedKerberosFromEmail({
-        email: 'ada@mit.edu',
-        emailVerified: false,
-      })
-    ).toBeNull();
-  });
-
-  it('does not derive kerberos from non mit email', () => {
-    expect(
-      verifiedKerberosFromEmail({
-        email: 'ada@gmail.com',
-        emailVerified: true,
-      })
-    ).toBeNull();
-  });
-
-  it('does not derive kerberos from malformed email', () => {
-    expect(
-      verifiedKerberosFromEmail({
-        email: 'ada@mit.edu@example.com',
-        emailVerified: true,
-      })
-    ).toBeNull();
-  });
-
-  it('derives kerberos from verified mit email', () => {
-    expect(
-      verifiedKerberosFromEmail({
-        email: 'ada@mit.edu',
-        emailVerified: true,
-      })
-    ).toBe('ada');
-  });
-
-  it('rejects identity without kerberos', async () => {
-    const verifiedKerberos = verifiedKerberosFromEmail({
-      email: 'ada@mit.edu',
-      emailVerified: true,
-    });
+  it('returns identity when warehouse kerberos is blank', async () => {
     const db = {
       mitDataWarehousePerson: {
         findUnique: vi.fn().mockResolvedValue({
@@ -156,39 +76,18 @@ describe('mitDataWarehouse', () => {
       lookupMitDataWarehouseIdentity({
         db,
         mitId: '123456789',
-        verifiedKerberos,
       })
-    ).resolves.toBeNull();
-  });
-
-  it('rejects identity without verified kerberos', async () => {
-    const db = {
-      mitDataWarehousePerson: {
-        findUnique: vi.fn().mockResolvedValue({
-          mitId: '123456789',
-          firstName: 'Ada',
-          lastName: 'Lovelace',
-          kerberos: 'ada',
-          classYear: '2027',
-          personType: MitDataWarehousePersonType.CURRENT_STUDENT,
-        }),
-      },
-    };
-
-    await expect(
-      lookupMitDataWarehouseIdentity({
-        db,
-        mitId: '123456789',
-        verifiedKerberos: null,
-      })
-    ).resolves.toBeNull();
+    ).resolves.toEqual({
+      mitId: '123456789',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      kerberos: null,
+      classYear: '2027',
+      personType: MitDataWarehousePersonType.CURRENT_STUDENT,
+    });
   });
 
   it('returns null for invalid mit id shape', async () => {
-    const verifiedKerberos = verifiedKerberosFromEmail({
-      email: 'ada@mit.edu',
-      emailVerified: true,
-    });
     const db = {
       mitDataWarehousePerson: {
         findUnique: vi.fn(),
@@ -199,17 +98,12 @@ describe('mitDataWarehouse', () => {
       lookupMitDataWarehouseIdentity({
         db,
         mitId: 'abc',
-        verifiedKerberos,
       })
     ).resolves.toBeNull();
     expect(db.mitDataWarehousePerson.findUnique).not.toHaveBeenCalled();
   });
 
   it('returns null for mit id with alphabetic surrounding text', async () => {
-    const verifiedKerberos = verifiedKerberosFromEmail({
-      email: 'ada@mit.edu',
-      emailVerified: true,
-    });
     const db = {
       mitDataWarehousePerson: {
         findUnique: vi.fn(),
@@ -220,7 +114,6 @@ describe('mitDataWarehouse', () => {
       lookupMitDataWarehouseIdentity({
         db,
         mitId: 'abc123456789xyz',
-        verifiedKerberos,
       })
     ).resolves.toBeNull();
     expect(db.mitDataWarehousePerson.findUnique).not.toHaveBeenCalled();

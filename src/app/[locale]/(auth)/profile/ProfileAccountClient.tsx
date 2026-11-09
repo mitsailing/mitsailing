@@ -24,7 +24,6 @@ type ProfileAccountClientProps = {
   initialSailingAffiliation: SailingAffiliation | null;
   initialSailingCardSummary: ProfileSailingCardSummary;
   initialThemePreference: ThemePreferenceValue;
-  initialUnconfirmedEmail: string | null;
   locale: string;
 };
 
@@ -45,10 +44,6 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   );
   const [emergencyContactPhone, setEmergencyContactPhone] = useState(
     formatPhoneForDisplay(props.initialEmergencyContactPhone)
-  );
-  const [currentEmail, setCurrentEmail] = useState(props.initialEmail);
-  const [pendingEmail, setPendingEmail] = useState<string | null>(
-    props.initialUnconfirmedEmail
   );
   const deliverabilityStatus =
     props.initialEmailDeliverabilityStatus === 'ok'
@@ -85,11 +80,8 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
       />
 
       <ProfileEmailSection
-        currentEmail={currentEmail}
+        currentEmail={props.initialEmail}
         deliverabilityStatus={deliverabilityStatus}
-        onCurrentEmailChange={setCurrentEmail}
-        onPendingEmailChange={setPendingEmail}
-        pendingEmail={pendingEmail}
       />
 
       <ProfileAppearanceSection

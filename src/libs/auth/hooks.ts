@@ -13,7 +13,7 @@ import { normalizeEmailAddress } from '@/utils/emailValidation';
 const MAX_FAILED_ATTEMPTS = 5;
 /** Rolling window (15 minutes, Devise Lockable parity). */
 const LOCKOUT_WINDOW_MS = 15 * 60 * 1000;
-const RESET_PASSWORD_EMAIL_OTP_PATH = '/email-otp/reset-password';
+const RESET_PASSWORD_PATH = '/reset-password';
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
 
@@ -30,7 +30,7 @@ async function countRecentFailures(email: string): Promise<number> {
 }
 
 /**
- * Validates email OTP reset-password input before Better Auth updates password.
+ * Validates link reset-password input before Better Auth updates password.
  * Enforces MIN_PASSWORD_LENGTH and MAX_PASSWORD_LENGTH and maps failures to
  * stable BAD_REQUEST APIError codes.
  *
@@ -38,7 +38,7 @@ async function countRecentFailures(email: string): Promise<number> {
  * @returns Resolves when password preflight passes.
  * @throws APIError for missing, short, long, or compromised passwords.
  */
-async function preflightEmailOtpResetPassword(password: unknown) {
+async function preflightResetPassword(password: unknown) {
   if (typeof password !== 'string') {
     throw APIError.from('BAD_REQUEST', {
       code: 'PASSWORD_REQUIRED',
@@ -81,23 +81,80 @@ async function notifyPasswordChange(ctx: {
 }
 
 /**
+ * True when the admin ban is active (permanent, or still before banExpires).
+ *
+ * @param user - Ban fields from the user row
+ * @returns Whether Better Auth would treat the account as banned
+ */
+function isActiveBan(user: {
+  banExpires: Date | null;
+  banned: boolean | null;
+}) {
+  if (user.banned !== true) {
+    return false;
+  }
+  if (user.banExpires === null) {
+    return true;
+  }
+  return user.banExpires.getTime() > Date.now();
+}
+
+/**
+ * Gate for known users who have never set a credential password on this site.
+ * Active bans win so the login form does not send a reset link to a disabled
+ * account. Users with a credential password fall through to Better Auth.
+ *
+ * @param email - Normalized account email
+ * @returns Forbidden message for credential-less users, or null to continue
+ */
+async function credentialLessSignInGate(email: string) {
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      banExpires: true,
+      banned: true,
+      accounts: {
+        select: { id: true },
+        take: 1,
+        where: { password: { not: null }, providerId: 'credential' },
+      },
+    },
+  });
+  if (!user || user.accounts.length > 0) {
+    return null;
+  }
+  if (isActiveBan(user)) {
+    return 'BANNED_USER';
+  }
+  return 'MUST_SET_PASSWORD';
+}
+
+/**
  * Lockout + explicit-EMAIL_EXISTS hook pair registered on Better Auth.
  *
  * Devise Lockable parity: five failures inside 15 minutes locks the account
- * for the remainder of the window. The `/sign-up/email` override restores the
- * explicit "that email is already in the system" message that BA suppresses
- * by default for user-enumeration reasons.
+ * for the remainder of the window. Better Auth 1.7 hides duplicate emails when
+ * `requireEmailVerification` is on; we still throw EMAIL_EXISTS on purpose so
+ * sign-up can show "that email is already in the system." Known users without
+ * a credential password get MUST_SET_PASSWORD before the password check runs,
+ * unless an active ban applies first.
  */
 export const signInEmailHooks = {
   before: createAuthMiddleware(async (ctx) => {
-    if (ctx.path === RESET_PASSWORD_EMAIL_OTP_PATH) {
-      await preflightEmailOtpResetPassword(ctx.body?.password);
+    if (ctx.path === RESET_PASSWORD_PATH) {
+      await preflightResetPassword(ctx.body?.newPassword);
     }
 
     if (ctx.path === '/sign-in/email') {
       const email = normalizeEmail(ctx.body?.email);
       if (email && (await countRecentFailures(email)) >= MAX_FAILED_ATTEMPTS) {
         throw new APIError('FORBIDDEN', { message: 'ACCOUNT_LOCKED' });
+      }
+      if (email) {
+        const gate = await credentialLessSignInGate(email);
+        if (gate) {
+          throw new APIError('FORBIDDEN', { message: gate });
+        }
       }
     }
 

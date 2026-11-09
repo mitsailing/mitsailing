@@ -224,7 +224,7 @@ describe('SailingCardOnboardingForm submission and errors', () => {
     renderForm();
 
     expect(
-      screen.getByText('Enter an MIT ID that matches your account.')
+      screen.getByText('That MIT ID is not in MIT records.')
     ).toBeInTheDocument();
   });
 

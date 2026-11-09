@@ -4,6 +4,9 @@ import type { MockedFunction } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
 import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
+import CheckEmailPage, {
+  generateMetadata as generateCheckEmailMetadata,
+} from './(center)/check-email/page';
 import ForgotPasswordPage, {
   generateMetadata as generateForgotPasswordMetadata,
 } from './(center)/forgot-password/page';
@@ -19,7 +22,6 @@ import SignUpPage, {
   generateMetadata as generateSignUpMetadata,
 } from './(center)/signup/page';
 import UnlockAccountPage from './(center)/unlock-account/page';
-import VerifyEmailPage from './(center)/verify-email/page';
 import AuthLayout from './layout';
 import ProfileDeletePage, {
   generateMetadata as generateProfileDeleteMetadata,
@@ -202,17 +204,15 @@ vi.mock('./(center)/reset-password/ResetPasswordForm', () => ({
   ResetPasswordForm: (props: {
     callbackUrl: string;
     initialEmail: string;
-    initialResendLocked: boolean;
-    mode: 'create-password' | 'reset-password';
-    passwordHeading: string;
+    invalidToken: boolean;
+    token: string;
   }) => (
     <form
       aria-label="reset-password-form"
       data-callback-url={props.callbackUrl}
       data-initial-email={props.initialEmail}
-      data-initial-resend-locked={String(props.initialResendLocked)}
-      data-mode={props.mode}
-      data-password-heading={props.passwordHeading}
+      data-invalid-token={String(props.invalidToken)}
+      data-token={props.token}
     />
   ),
 }));
@@ -227,17 +227,13 @@ vi.mock('./(center)/signup/SignUpForm', () => ({
   ),
 }));
 
-vi.mock('./(center)/verify-email/VerifyEmailForm', () => ({
-  VerifyEmailForm: (props: {
-    callbackUrl: string;
-    initialEmail: string;
-    initialResendLocked: boolean;
-  }) => (
-    <form
-      aria-label="verify-email-form"
+vi.mock('./(center)/check-email/CheckEmailNotice', () => ({
+  CheckEmailNotice: (props: { callbackUrl: string; email: string }) => (
+    <div
+      aria-label="check-email-notice"
       data-callback-url={props.callbackUrl}
-      data-initial-email={props.initialEmail}
-      data-initial-resend-locked={String(props.initialResendLocked)}
+      data-email={props.email}
+      role="region"
     />
   ),
 }));
@@ -257,7 +253,6 @@ vi.mock('./profile/ProfileAccountClient', () => ({
     initialSailingAffiliation: string | null;
     initialSailingCardSummary: { status: string };
     initialThemePreference: string;
-    initialUnconfirmedEmail: string | null;
     locale: string;
   }) => (
     <section
@@ -276,7 +271,6 @@ vi.mock('./profile/ProfileAccountClient', () => ({
       data-sailing-affiliation={props.initialSailingAffiliation ?? ''}
       data-sailing-card-status={props.initialSailingCardSummary.status}
       data-theme={props.initialThemePreference}
-      data-unconfirmed-email={props.initialUnconfirmedEmail ?? ''}
     />
   ),
 }));
@@ -392,7 +386,6 @@ beforeEach(() => {
     sailingCardSwimAgreementInitials: null,
     sailingCardYear: null,
     themePreference: 'DARK',
-    unconfirmedEmail: 'pending@example.com',
   });
   vi.mocked(listUserRatingAssignmentRows).mockResolvedValue(
     [] satisfies UserRatingAssignmentRow[]
@@ -602,6 +595,71 @@ describe('auth route shells', () => {
     ).toHaveAttribute('href', '/login?callbackUrl=%2Fonboarding');
   });
 
+  it('check-email metadata uses localized copy', async () => {
+    await expect(generateCheckEmailMetadata(routeProps())).resolves.toEqual({
+      description: 'CheckEmailPage.meta_description',
+      title: 'CheckEmailPage.meta_title',
+    });
+  });
+
+  it('check-email page passes email and callback', async () => {
+    render(
+      await CheckEmailPage(
+        routeProps({
+          callbackUrl: '/onboarding',
+          email: 'sailor@example.com',
+        })
+      )
+    );
+
+    expect(routeMocks.redirectIfAuthenticated).toHaveBeenCalledWith(
+      'en',
+      '/onboarding'
+    );
+    expect(
+      screen.getByRole('heading', { name: 'CheckEmailPage.heading' })
+    ).toBeVisible();
+    expect(
+      screen.getByRole('region', { name: 'check-email-notice' })
+    ).toHaveAttribute('data-email', 'sailor@example.com');
+    expect(
+      screen.getByRole('region', { name: 'check-email-notice' })
+    ).toHaveAttribute('data-callback-url', '/onboarding');
+  });
+
+  it('check-email page uses the first duplicate inbound values', async () => {
+    render(
+      await CheckEmailPage(
+        routeProps({
+          callbackUrl: ['/fleet', '/events'],
+          email: ['first@example.com', 'second@example.com'],
+        })
+      )
+    );
+
+    expect(
+      screen.getByRole('region', { name: 'check-email-notice' })
+    ).toHaveAttribute('data-email', 'first@example.com');
+    expect(
+      screen.getByRole('region', { name: 'check-email-notice' })
+    ).toHaveAttribute('data-callback-url', '/fleet');
+  });
+
+  it('check-email page defaults missing email and callback', async () => {
+    render(await CheckEmailPage(routeProps()));
+
+    expect(routeMocks.redirectIfAuthenticated).toHaveBeenCalledWith(
+      'en',
+      '/onboarding'
+    );
+    expect(
+      screen.getByRole('region', { name: 'check-email-notice' })
+    ).toHaveAttribute('data-email', '');
+    expect(
+      screen.getByRole('region', { name: 'check-email-notice' })
+    ).toHaveAttribute('data-callback-url', '/onboarding');
+  });
+
   it('forgot-password metadata uses localized copy', async () => {
     await expect(generateForgotPasswordMetadata(routeProps())).resolves.toEqual(
       {
@@ -645,41 +703,24 @@ describe('auth route shells', () => {
     });
   });
 
-  it('reset-password page forwards resend lock state', async () => {
+  it('reset-password page forwards token and invalid token state', async () => {
     render(
       await ResetPasswordPage(
         routeProps({
           callbackUrl: '/profile',
-          codeSent: '1',
           email: 'sailor@example.com',
+          error: 'INVALID_TOKEN',
+          token: 'reset-token',
         })
       )
     );
 
     expect(
       screen.getByRole('form', { name: 'reset-password-form' })
-    ).toHaveAttribute('data-initial-resend-locked', 'true');
+    ).toHaveAttribute('data-invalid-token', 'true');
     expect(
       screen.getByRole('form', { name: 'reset-password-form' })
-    ).toHaveAttribute(
-      'data-password-heading',
-      'ResetPasswordPage.password_heading'
-    );
-  });
-
-  it('reset-password page forwards create-password mode', async () => {
-    render(
-      await ResetPasswordPage(
-        routeProps({
-          email: 'legacy@example.com',
-          mode: 'create-password',
-        })
-      )
-    );
-
-    expect(
-      screen.getByRole('form', { name: 'reset-password-form' })
-    ).toHaveAttribute('data-mode', 'create-password');
+    ).toHaveAttribute('data-token', 'reset-token');
   });
 
   it('reset-password page defaults missing search params', async () => {
@@ -690,40 +731,10 @@ describe('auth route shells', () => {
     ).toHaveAttribute('data-initial-email', '');
     expect(
       screen.getByRole('form', { name: 'reset-password-form' })
-    ).toHaveAttribute('data-initial-resend-locked', 'false');
+    ).toHaveAttribute('data-invalid-token', 'false');
     expect(
       screen.getByRole('form', { name: 'reset-password-form' })
-    ).toHaveAttribute('data-mode', 'reset-password');
-  });
-
-  it('verify-email page forwards resend lock state', async () => {
-    render(
-      await VerifyEmailPage(
-        routeProps({
-          callbackUrl: '/profile',
-          codeSent: '1',
-          email: 'sailor@example.com',
-        })
-      )
-    );
-
-    expect(
-      screen.getByRole('form', { name: 'verify-email-form' })
-    ).toHaveAttribute('data-initial-email', 'sailor@example.com');
-    expect(
-      screen.getByRole('form', { name: 'verify-email-form' })
-    ).toHaveAttribute('data-initial-resend-locked', 'true');
-  });
-
-  it('verify-email page defaults missing search params', async () => {
-    render(await VerifyEmailPage(routeProps()));
-
-    expect(
-      screen.getByRole('form', { name: 'verify-email-form' })
-    ).toHaveAttribute('data-initial-email', '');
-    expect(
-      screen.getByRole('form', { name: 'verify-email-form' })
-    ).toHaveAttribute('data-initial-resend-locked', 'false');
+    ).toHaveAttribute('data-token', '');
   });
 
   it('unlock-account page renders localized guidance', async () => {
@@ -805,7 +816,6 @@ describe('auth route shells', () => {
         take: 1,
       },
       themePreference: true,
-      unconfirmedEmail: true,
     },
     where: { id: 'user-1' },
   } as const;
@@ -830,9 +840,6 @@ describe('auth route shells', () => {
     expect(
       screen.getByRole('region', { name: 'profile-account-client' })
     ).toHaveAttribute('data-email-deliverability', 'bounced');
-    expect(
-      screen.getByRole('region', { name: 'profile-account-client' })
-    ).toHaveAttribute('data-unconfirmed-email', 'pending@example.com');
   });
 
   it('profile page defaults nullable account fields', async () => {
@@ -863,7 +870,6 @@ describe('auth route shells', () => {
       sailingCardSwimAgreementInitials: null,
       sailingCardYear: null,
       themePreference: null,
-      unconfirmedEmail: null,
     });
 
     render(
@@ -903,7 +909,6 @@ describe('auth route shells', () => {
       sailingCardSwimAgreementInitials: null,
       sailingCardYear: null,
       themePreference: 'DARK',
-      unconfirmedEmail: null,
     });
 
     render(

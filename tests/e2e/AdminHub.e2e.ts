@@ -6,10 +6,7 @@ import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
 import { e2ePgConnectionString } from '../helpers/e2e-database-url';
 import { insertCurrentSailingCardOnboardingAcceptance } from '../helpers/e2e-sailing-card-onboarding';
 import { submitEmailPasswordSignIn } from '../helpers/e2e-sign-in';
-import {
-  extractCodeFromMessage,
-  findLatestMessageTo,
-} from '../helpers/mailpit';
+import { verifyEmailWithLatestLink } from '../helpers/e2e-verify-email';
 
 let cleanupPool: Pool | undefined;
 
@@ -117,22 +114,15 @@ async function signUpWithEmailAndPassword(
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByLabel('Confirm password').fill(password);
   await page.getByRole('button', { name: 'Sign up' }).click();
-  await expect(page).toHaveURL(/\/verify-email\?/);
-}
-
-async function verifyEmailWithLatestCode(page: Page, email: string) {
-  const message = await findLatestMessageTo(email);
-  expect(message.Subject).toMatch(/confirm/i);
-
-  await page
-    .getByLabel('Verification code')
-    .fill(extractCodeFromMessage(message));
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page).toHaveURL(/\/check-email/);
+  await expect(
+    page.getByRole('heading', { name: 'Check your email' })
+  ).toBeVisible();
 }
 
 async function createVerifiedUser(page: Page, email: string, password: string) {
   await signUpWithEmailAndPassword(page, email, password);
-  await verifyEmailWithLatestCode(page, email);
+  await verifyEmailWithLatestLink(page, email);
   await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
   await markOnboardingCompleteByEmail(email);
 }

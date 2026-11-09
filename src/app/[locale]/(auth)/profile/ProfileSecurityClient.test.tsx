@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProfileSecurityClient } from './ProfileSecurityClient';
 
 const authClientMock = vi.hoisted(() => ({
+  auditLog: {
+    list: vi.fn(),
+  },
   revokeOtherSessions: vi.fn(),
 }));
 
@@ -14,6 +17,20 @@ vi.mock('@/libs/auth-client', () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   authClientMock.revokeOtherSessions.mockResolvedValue({});
+  authClientMock.auditLog.list.mockResolvedValue({
+    data: {
+      entries: [
+        {
+          action: 'sign-in:email',
+          createdAt: '2026-05-08T16:30:00.000Z',
+          id: 'log-1',
+          severity: 'medium',
+          status: 'success',
+        },
+      ],
+      total: 1,
+    },
+  });
 });
 
 describe('ProfileSecurityClient', () => {
@@ -83,5 +100,108 @@ describe('ProfileSecurityClient', () => {
       'Could not revoke other sessions. Try again.'
     );
     expect(button).toBeEnabled();
+  });
+
+  it('profile owner sees their own security activity from auditLog.list', async () => {
+    render(<ProfileSecurityClient />);
+
+    expect(authClientMock.auditLog.list).toHaveBeenCalledWith({
+      query: { limit: 25, offset: 0 },
+    });
+    expect(await screen.findByText('sign-in:email')).toBeVisible();
+    expect(screen.getByText('success')).toBeVisible();
+    expect(screen.getByText('medium')).toBeVisible();
+  });
+
+  it('profile owner sees an empty state when there is no security activity', async () => {
+    authClientMock.auditLog.list.mockResolvedValue({
+      data: { entries: [], total: 0 },
+    });
+
+    render(<ProfileSecurityClient />);
+
+    expect(await screen.findByText('No security activity yet.')).toBeVisible();
+  });
+
+  it('profile owner sees a recovery message when security activity fails to load', async () => {
+    authClientMock.auditLog.list.mockResolvedValue({
+      error: { message: 'forbidden' },
+    });
+
+    render(<ProfileSecurityClient />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not load security activity.'
+    );
+    expect(
+      screen.queryByText('No security activity yet.')
+    ).not.toBeInTheDocument();
+  });
+
+  it('profile owner sees unknown time for an unparseable activity timestamp', async () => {
+    authClientMock.auditLog.list.mockResolvedValue({
+      data: {
+        entries: [
+          {
+            action: 'sign-in:email',
+            createdAt: 'not-a-date',
+            id: 'log-bad-time',
+            severity: 'medium',
+            status: 'success',
+          },
+        ],
+        total: 1,
+      },
+    });
+
+    render(<ProfileSecurityClient />);
+
+    expect(await screen.findByText('sign-in:email')).toBeVisible();
+    expect(screen.getByText('Unknown time')).toBeVisible();
+  });
+
+  it('skip a malformed activity row and format a Date timestamp', async () => {
+    authClientMock.auditLog.list.mockResolvedValue({
+      data: {
+        entries: [
+          'not-a-row',
+          {
+            action: 'sign-in:email',
+            createdAt: new Date('2026-05-08T16:30:00.000Z'),
+            id: 'log-date',
+            severity: 'medium',
+            status: 'success',
+          },
+        ],
+        total: 2,
+      },
+    });
+
+    render(<ProfileSecurityClient />);
+
+    expect(await screen.findByText('sign-in:email')).toBeVisible();
+    expect(screen.getByText('May 8, 2026, 12:30 PM')).toBeVisible();
+    expect(screen.queryByText('not-a-row')).not.toBeInTheDocument();
+  });
+
+  it('show an empty state when the activity payload has no entries', async () => {
+    authClientMock.auditLog.list.mockResolvedValue({ data: {} });
+
+    render(<ProfileSecurityClient />);
+
+    expect(await screen.findByText('No security activity yet.')).toBeVisible();
+  });
+
+  it('show a recovery message when security activity throws', async () => {
+    authClientMock.auditLog.list.mockRejectedValue(new Error('network'));
+
+    render(<ProfileSecurityClient />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not load security activity.'
+    );
+    expect(
+      screen.queryByText('No security activity yet.')
+    ).not.toBeInTheDocument();
   });
 });

@@ -56,7 +56,6 @@ export async function signInAsAdmin(
     await page.goto('/login');
   }
   await page.getByLabel('Email').fill(adminEmail);
-  await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByLabel('Password', { exact: true }).fill(adminPassword);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect

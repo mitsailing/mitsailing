@@ -1,10 +1,4 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -16,10 +10,7 @@ import { ProfileAccountClient } from './ProfileAccountClient';
 const LOCALE = 'en';
 
 const authClientMock = vi.hoisted(() => ({
-  emailOtp: {
-    changeEmail: vi.fn(),
-    requestEmailChange: vi.fn(),
-  },
+  changeEmail: vi.fn(),
   updateUser: vi.fn(),
 }));
 
@@ -40,8 +31,7 @@ vi.mock('@/libs/auth/profileIdentityActions', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  authClientMock.emailOtp.changeEmail.mockResolvedValue({});
-  authClientMock.emailOtp.requestEmailChange.mockResolvedValue({});
+  authClientMock.changeEmail.mockResolvedValue({});
   updateProfileDetailsActionMock.mockResolvedValue({
     ok: true,
     identity: {
@@ -91,7 +81,6 @@ function renderAccountClient(
           swimAgreementInitials: null,
         }}
         initialThemePreference="LIGHT"
-        initialUnconfirmedEmail={null}
         locale={LOCALE}
         {...props}
       />
@@ -99,23 +88,14 @@ function renderAccountClient(
   );
 }
 
-async function requestConfirmationCode(
+async function requestConfirmationLink(
   user: ReturnType<typeof userEvent.setup>,
   email: string
 ) {
   await user.clear(screen.getByLabelText('New email'));
   await user.type(screen.getByLabelText('New email'), email);
   await user.click(
-    screen.getByRole('button', { name: 'Send confirmation code' })
-  );
-}
-
-function requestConfirmationCodeWithFireEvent(email: string) {
-  fireEvent.change(screen.getByLabelText('New email'), {
-    target: { value: email },
-  });
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Send confirmation code' })
+    screen.getByRole('button', { name: 'Send confirmation link' })
   );
 }
 
@@ -247,7 +227,7 @@ describe('ProfileAccountClient', () => {
       )
     ).toBeVisible();
     expect(
-      screen.getByRole('button', { name: 'Send confirmation code' })
+      screen.getByRole('button', { name: 'Send confirmation link' })
     ).toBeEnabled();
   });
 
@@ -497,63 +477,63 @@ describe('ProfileAccountClient', () => {
     const user = userEvent.setup();
     renderAccountClient();
 
-    await requestConfirmationCode(user, 'next@mit.edu');
+    await requestConfirmationLink(user, 'next@mit.edu');
 
-    expect(authClientMock.emailOtp.requestEmailChange).toHaveBeenCalledWith({
+    expect(authClientMock.changeEmail).toHaveBeenCalledWith({
+      callbackURL: '/profile',
       newEmail: 'next@mit.edu',
     });
     expect(
       await screen.findByText(
-        'Confirmation code sent. Enter it below to finish changing your email.'
+        'Confirmation link sent. Open it from your current address to approve the change.'
       )
     ).toBeVisible();
-    expect(screen.getByText('next@mit.edu')).toBeVisible();
   });
 
   it('email-change persona normalizes a new address before requesting confirmation', async () => {
     const user = userEvent.setup();
     renderAccountClient();
 
-    await requestConfirmationCode(user, '  Next@MIT.EDU  ');
+    await requestConfirmationLink(user, '  Next@MIT.EDU  ');
 
-    expect(authClientMock.emailOtp.requestEmailChange).toHaveBeenCalledWith({
+    expect(authClientMock.changeEmail).toHaveBeenCalledWith({
+      callbackURL: '/profile',
       newEmail: 'next@mit.edu',
     });
-    expect(await screen.findByText('next@mit.edu')).toBeVisible();
   });
 
   it('email-change persona sees a clear error for the current address', async () => {
     const user = userEvent.setup();
     renderAccountClient();
 
-    await requestConfirmationCode(user, '  Owner@MIT.EDU  ');
+    await requestConfirmationLink(user, '  Owner@MIT.EDU  ');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'That is already your login email.'
     );
-    expect(authClientMock.emailOtp.requestEmailChange).not.toHaveBeenCalled();
+    expect(authClientMock.changeEmail).not.toHaveBeenCalled();
   });
 
   it('email-change persona sees a clear error for an invalid address', async () => {
     const user = userEvent.setup();
     renderAccountClient();
 
-    await requestConfirmationCode(user, 'next@mit');
+    await requestConfirmationLink(user, 'next@mit');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Check the email address and try again.'
     );
-    expect(authClientMock.emailOtp.requestEmailChange).not.toHaveBeenCalled();
+    expect(authClientMock.changeEmail).not.toHaveBeenCalled();
   });
 
   it('email-change persona sees mapped message when a new address is unavailable', async () => {
     const user = userEvent.setup();
-    authClientMock.emailOtp.requestEmailChange.mockResolvedValue({
+    authClientMock.changeEmail.mockResolvedValue({
       error: { code: 'EMAIL_EXISTS' },
     });
     renderAccountClient();
 
-    await requestConfirmationCode(user, 'taken@mit.edu');
+    await requestConfirmationLink(user, 'taken@mit.edu');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'That email is already in the system.'
@@ -562,198 +542,14 @@ describe('ProfileAccountClient', () => {
 
   it('email-change persona sees request failed when change request throws', async () => {
     const user = userEvent.setup();
-    authClientMock.emailOtp.requestEmailChange.mockRejectedValue(
-      new Error('network')
-    );
+    authClientMock.changeEmail.mockRejectedValue(new Error('network'));
     renderAccountClient();
 
-    await requestConfirmationCode(user, 'next@mit.edu');
+    await requestConfirmationLink(user, 'next@mit.edu');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'We could not complete that request right now.'
     );
-  });
-
-  it('email-change persona confirms the pending email code', async () => {
-    const user = userEvent.setup();
-    renderAccountClient({ initialUnconfirmedEmail: 'next@mit.edu' });
-
-    await user.type(screen.getByLabelText('Confirmation code'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Confirm email' }));
-
-    expect(authClientMock.emailOtp.changeEmail).toHaveBeenCalledWith({
-      newEmail: 'next@mit.edu',
-      otp: '123456',
-    });
-    expect(
-      await screen.findByText('Your email address has been updated.')
-    ).toBeVisible();
-    expect(screen.getAllByText('next@mit.edu').length).toBeGreaterThan(0);
-    expect(componentTestRouter().refresh).not.toHaveBeenCalled();
-  });
-
-  it('email-change persona sees invalid-code message when confirmation fails', async () => {
-    const user = userEvent.setup();
-    authClientMock.emailOtp.changeEmail.mockResolvedValue({
-      error: { code: 'INVALID_OTP' },
-    });
-    renderAccountClient({ initialUnconfirmedEmail: 'next@mit.edu' });
-
-    await user.type(screen.getByLabelText('Confirmation code'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Confirm email' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'That code is invalid.'
-    );
-    expect(screen.getByText('next@mit.edu')).toBeVisible();
-  });
-
-  it('email-change persona sees request failed when confirmation throws', async () => {
-    const user = userEvent.setup();
-    authClientMock.emailOtp.changeEmail.mockRejectedValue(new Error('network'));
-    renderAccountClient({ initialUnconfirmedEmail: 'next@mit.edu' });
-
-    await user.type(screen.getByLabelText('Confirmation code'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Confirm email' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We could not complete that request right now.'
-    );
-    expect(screen.getByRole('button', { name: 'Confirm email' })).toBeEnabled();
-  });
-
-  it('email-change persona resends a pending confirmation code', async () => {
-    const user = userEvent.setup();
-    renderAccountClient({ initialUnconfirmedEmail: 'next@mit.edu' });
-
-    await user.click(screen.getByRole('button', { name: 'Resend email' }));
-
-    expect(authClientMock.emailOtp.requestEmailChange).toHaveBeenCalledWith({
-      newEmail: 'next@mit.edu',
-    });
-    expect(
-      await screen.findByText(
-        (_content, element) =>
-          element?.textContent === 'New confirmation code sent to next@mit.edu.'
-      )
-    ).toBeVisible();
-  });
-
-  it('email-change persona sees resend unlock after the cooldown', async () => {
-    vi.useFakeTimers();
-    renderAccountClient({ initialUnconfirmedEmail: 'next@mit.edu' });
-
-    act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Resend email' }));
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    await vi.waitFor(() => {
-      expect(authClientMock.emailOtp.requestEmailChange).toHaveBeenCalledTimes(
-        1
-      );
-    });
-
-    expect(
-      screen.getByRole('button', {
-        name: 'You can request a new code in 30 seconds',
-      })
-    ).toBeDisabled();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(29_000);
-    });
-
-    expect(
-      screen.getByRole('button', {
-        name: 'You can request a new code in 1 second',
-      })
-    ).toBeDisabled();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1000);
-    });
-
-    expect(screen.getByRole('button', { name: 'Resend email' })).toBeEnabled();
-  });
-
-  it('email-change persona keeps resend cooldown anchored to the latest change request', async () => {
-    vi.useFakeTimers();
-    renderAccountClient();
-
-    act(() => {
-      requestConfirmationCodeWithFireEvent('first@mit.edu');
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    await vi.waitFor(() => {
-      expect(authClientMock.emailOtp.requestEmailChange).toHaveBeenCalledTimes(
-        1
-      );
-    });
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(5000);
-    });
-
-    act(() => {
-      requestConfirmationCodeWithFireEvent('second@mit.edu');
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    await vi.waitFor(() => {
-      expect(authClientMock.emailOtp.requestEmailChange).toHaveBeenCalledTimes(
-        2
-      );
-    });
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(25_000);
-    });
-
-    expect(
-      screen.getByRole('button', {
-        name: 'You can request a new code in 5 seconds',
-      })
-    ).toBeDisabled();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(5000);
-    });
-
-    expect(screen.getByRole('button', { name: 'Resend email' })).toBeEnabled();
-  });
-
-  it('email-change persona sees resend message when delivery fails', async () => {
-    const user = userEvent.setup();
-    authClientMock.emailOtp.requestEmailChange.mockResolvedValue({
-      error: { code: 'TOO_MANY_REQUESTS' },
-    });
-    renderAccountClient({ initialUnconfirmedEmail: 'next@mit.edu' });
-
-    await user.click(screen.getByRole('button', { name: 'Resend email' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Could not resend the confirmation code.'
-    );
-  });
-
-  it('email-change persona sees request failed when resend throws', async () => {
-    const user = userEvent.setup();
-    authClientMock.emailOtp.requestEmailChange.mockRejectedValue(
-      new Error('network')
-    );
-    renderAccountClient({ initialUnconfirmedEmail: 'next@mit.edu' });
-
-    await user.click(screen.getByRole('button', { name: 'Resend email' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We could not complete that request right now.'
-    );
-    expect(screen.getByRole('button', { name: 'Resend email' })).toBeEnabled();
   });
 
   it('profile owner saves a dark appearance preference', async () => {

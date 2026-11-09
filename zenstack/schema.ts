@@ -42,12 +42,6 @@ export class SchemaType implements SchemaDef {
                     attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("email_verified") }] }] as readonly AttributeApplication[],
                     default: false as FieldDefault
                 },
-                unconfirmedEmail: {
-                    name: "unconfirmedEmail",
-                    type: "String",
-                    optional: true,
-                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("unconfirmed_email") }] }] as readonly AttributeApplication[]
-                },
                 emailBouncedAt: {
                     name: "emailBouncedAt",
                     type: "DateTime",
