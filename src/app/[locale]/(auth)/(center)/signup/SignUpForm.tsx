@@ -123,6 +123,7 @@ export function SignUpForm(props: SignUpFormProps) {
       });
       if (res.error) {
         setFormError(mapError(res.error.code, res.error.message));
+        setSubmitting(false);
         return;
       }
       const checkEmailPath = `/check-email?email=${encodeURIComponent(normalizedEmail)}`;
@@ -137,7 +138,6 @@ export function SignUpForm(props: SignUpFormProps) {
         message: t('error_generic'),
         showSignInLinks: false,
       });
-    } finally {
       setSubmitting(false);
     }
   }

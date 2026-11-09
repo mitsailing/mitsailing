@@ -73,6 +73,9 @@ describe('SignUpForm', () => {
       );
     });
     expect(
+      screen.getByRole('button', { name: 'Submitting...' })
+    ).toHaveAttribute('aria-busy', 'true');
+    expect(
       screen.queryByText('Check your email for a verification link.')
     ).not.toBeInTheDocument();
   });
@@ -142,6 +145,7 @@ describe('SignUpForm', () => {
     expect(
       screen.getByRole('link', { name: 'Reset password' })
     ).toHaveAttribute('href', '/forgot-password?callbackUrl=%2Ffleet');
+    expect(screen.getByRole('button', { name: 'Sign up' })).toBeEnabled();
   });
 
   it('keep form when password confirmation does not match', async () => {
